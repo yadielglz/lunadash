@@ -5,6 +5,7 @@ import {
   Check, ChevronRight, Trash2, Plus, Edit2, Lock, Unlock, Eye, EyeOff
 } from 'lucide-react'
 import { useUiStore } from '../../../store/uiStore'
+
 import { useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
@@ -82,25 +83,61 @@ function GeneralSection() {
 // ── Store details ────────────────────────────────────────────────────────────
 function StoreSection() {
   const { companyName, storeNumber, slideInterval, setCompanyName, setStoreNumber, setSlideInterval } = useDisplayStore()
-  const [name, setName] = useState(companyName)
-  const [num, setNum] = useState(storeNumber)
+  const { storeId, setStoreId } = useUiStore()
+  const [name, setName]       = useState(companyName)
+  const [num, setNum]         = useState(storeNumber)
+  const [sid, setSid]         = useState(storeId)
+  const [sidSaved, setSidSaved] = useState(false)
 
-  const save = () => {
+  const saveDetails = () => {
     setCompanyName(name.trim() || companyName)
     setStoreNumber(num.trim())
   }
 
+  const saveStoreId = () => {
+    setStoreId(sid.trim() || 'default')
+    setSidSaved(true)
+    setTimeout(() => setSidSaved(false), 2000)
+  }
+
   return (
     <Section icon={<Store size={14} />} title="Store Details">
+      {/* Display info */}
       <div className="px-4 py-4 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <Input label="Company Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Luna Store" />
           <Input label="Store Number" value={num} onChange={(e) => setNum(e.target.value)} placeholder="e.g. 1234" />
         </div>
         <div className="flex justify-end">
-          <Button size="sm" onClick={save} icon={<Check size={12} />}>Save</Button>
+          <Button size="sm" onClick={saveDetails} icon={<Check size={12} />}>Save</Button>
         </div>
       </div>
+
+      {/* Store ID — data isolation per store */}
+      <div className="px-4 py-4 rounded-xl bg-[var(--surface-2)] border border-[var(--accent)]/20 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-[var(--text)]">Store Data ID</p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+              All devices in the same store must use the same ID to share schedules, goals, and announcements.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Input
+            value={sid}
+            onChange={(e) => setSid(e.target.value)}
+            placeholder="e.g. store-1234 or TMO-NYC-5"
+          />
+          <Button size="sm" onClick={saveStoreId} icon={<Check size={12} />}>
+            {sidSaved ? 'Saved!' : 'Apply'}
+          </Button>
+        </div>
+        <p className="text-[10px] text-[var(--text-tertiary)]">
+          Current: <span className="font-mono text-[var(--accent)]">{storeId}</span>
+        </p>
+      </div>
+
       <Row label="Display Slide Interval" description={`Each slide shows for ${slideInterval}s`}>
         <div className="flex items-center gap-2">
           <input

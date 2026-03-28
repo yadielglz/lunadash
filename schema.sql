@@ -1,20 +1,23 @@
 -- ============================================================
--- LunaDashboard — Supabase Schema
+-- LunaDashboard — Supabase Schema (Multi-Store)
 -- Run this in the Supabase SQL Editor
 -- ============================================================
 
 -- Employees
 create table if not exists employees (
   id          text primary key,
+  store_id    text not null default 'default',
   name        text not null,
   role        text not null default 'Associate',
   color       text not null default '#0078d4',
   created_at  timestamptz default now()
 );
+create index if not exists employees_store_idx on employees(store_id);
 
 -- Shifts
 create table if not exists shifts (
   id          text primary key,
+  store_id    text not null default 'default',
   employee_id text references employees(id) on delete cascade,
   date        text not null,
   start_time  text not null,
@@ -23,10 +26,13 @@ create table if not exists shifts (
   note        text default '',
   created_at  timestamptz default now()
 );
+create index if not exists shifts_store_idx on shifts(store_id);
+create index if not exists shifts_date_idx  on shifts(store_id, date);
 
 -- Goals
 create table if not exists goals (
   id           text primary key,
+  store_id     text not null default 'default',
   title        text not null,
   description  text default '',
   category     text not null,
@@ -40,31 +46,34 @@ create table if not exists goals (
   milestones   jsonb default '[]',
   created_at   timestamptz default now()
 );
+create index if not exists goals_store_idx on goals(store_id);
 
 -- Announcements
 create table if not exists announcements (
   id         text primary key,
+  store_id   text not null default 'default',
   text       text not null,
   priority   text default 'normal',
   created_at timestamptz default now()
 );
+create index if not exists announcements_store_idx on announcements(store_id);
 
--- App settings (single shared row)
+-- App settings (one row per store)
 create table if not exists app_settings (
-  id             text primary key default 'store',
+  store_id       text primary key,
   company_name   text default 'Luna Store',
   store_number   text default '',
   slide_interval integer default 8
 );
 
-insert into app_settings (id) values ('store') on conflict do nothing;
+insert into app_settings (store_id) values ('default') on conflict do nothing;
 
--- ── Row Level Security (allow all — public dashboard) ──────────
-alter table employees    enable row level security;
-alter table shifts       enable row level security;
-alter table goals        enable row level security;
+-- ── Row Level Security ─────────────────────────────────────────
+alter table employees     enable row level security;
+alter table shifts        enable row level security;
+alter table goals         enable row level security;
 alter table announcements enable row level security;
-alter table app_settings enable row level security;
+alter table app_settings  enable row level security;
 
 create policy "public" on employees     for all using (true) with check (true);
 create policy "public" on shifts        for all using (true) with check (true);

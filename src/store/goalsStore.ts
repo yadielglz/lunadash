@@ -1,6 +1,13 @@
 import { create } from 'zustand'
 import { dbInsertGoal, dbUpdateGoal, dbDeleteGoal } from '../lib/supabase'
 
+const sid = () => {
+  try {
+    const raw = localStorage.getItem('luna-ui')
+    return JSON.parse(raw ?? '{}')?.state?.storeId || 'default'
+  } catch { return 'default' }
+}
+
 export interface Milestone {
   id: string
   label: string
@@ -57,7 +64,7 @@ export const useGoalsStore = create<GoalsState>()((set) => ({
       dailyLog: {},
     }
     set((s) => ({ goals: [...s.goals, newGoal] }))
-    dbInsertGoal(newGoal)
+    dbInsertGoal(newGoal, sid())
   },
 
   updateGoal: (id, updates) => {

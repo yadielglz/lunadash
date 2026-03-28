@@ -5,6 +5,13 @@ import {
   dbUpdateSettings,
 } from '../lib/supabase'
 
+const sid = () => {
+  try {
+    const raw = localStorage.getItem('luna-ui')
+    return JSON.parse(raw ?? '{}')?.state?.storeId || 'default'
+  } catch { return 'default' }
+}
+
 export interface Announcement {
   id: string
   text: string
@@ -50,7 +57,7 @@ export const useDisplayStore = create<DisplayState>()(
       addAnnouncement: (text, priority = 'normal') => {
         const a: Announcement = { id: crypto.randomUUID(), text, priority, createdAt: new Date().toISOString() }
         set((s) => ({ announcements: [...s.announcements, a] }))
-        dbInsertAnnouncement(a)
+        dbInsertAnnouncement(a, sid())
       },
 
       updateAnnouncement: (id, updates) => {
@@ -67,17 +74,17 @@ export const useDisplayStore = create<DisplayState>()(
 
       setSlideInterval: (secs) => {
         set({ slideInterval: secs })
-        dbUpdateSettings({ slide_interval: secs })
+        dbUpdateSettings(sid(), { slide_interval: secs })
       },
 
       setCompanyName: (name) => {
         set({ companyName: name })
-        dbUpdateSettings({ company_name: name })
+        dbUpdateSettings(sid(), { company_name: name })
       },
 
       setStoreNumber: (num) => {
         set({ storeNumber: num })
-        dbUpdateSettings({ store_number: num })
+        dbUpdateSettings(sid(), { store_number: num })
       },
     }),
     {

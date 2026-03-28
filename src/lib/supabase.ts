@@ -8,28 +8,31 @@ export const supabase = createClient(
   'sb_publishable_NzT-BI3Yy3ahV_WNx4X-_A_bhVz4l1X'
 )
 
-// ── Type helpers ──────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 type DbGoal = {
-  id: string; title: string; description: string; category: string
+  id: string; store_id: string; title: string; description: string; category: string
   target: number; current_val: number; unit: string; deadline: string
   color: string; daily_target: number; daily_log: Record<string, number>
   milestones: Goal['milestones']; created_at: string
 }
 
 type DbSettings = {
-  id: string; company_name: string; store_number: string; slide_interval: number
+  store_id: string; company_name: string; store_number: string; slide_interval: number
 }
 
 // ── Employees ─────────────────────────────────────────────────────────────────
 
-export async function dbGetEmployees(): Promise<Employee[]> {
-  const { data } = await supabase.from('employees').select('*').order('created_at')
+export async function dbGetEmployees(storeId: string): Promise<Employee[]> {
+  const { data } = await supabase
+    .from('employees').select('*').eq('store_id', storeId).order('created_at')
   return (data ?? []) as Employee[]
 }
 
-export async function dbInsertEmployee(e: Employee) {
-  await supabase.from('employees').insert({ id: e.id, name: e.name, role: e.role, color: e.color })
+export async function dbInsertEmployee(e: Employee, storeId: string) {
+  await supabase.from('employees').insert({
+    id: e.id, store_id: storeId, name: e.name, role: e.role, color: e.color,
+  })
 }
 
 export async function dbUpdateEmployee(id: string, patch: Partial<Employee>) {
@@ -42,17 +45,18 @@ export async function dbDeleteEmployee(id: string) {
 
 // ── Shifts ────────────────────────────────────────────────────────────────────
 
-export async function dbGetShifts(): Promise<Shift[]> {
-  const { data } = await supabase.from('shifts').select('*').order('date')
+export async function dbGetShifts(storeId: string): Promise<Shift[]> {
+  const { data } = await supabase
+    .from('shifts').select('*').eq('store_id', storeId).order('date')
   return (data ?? []).map((r: any) => ({
     id: r.id, employeeId: r.employee_id, date: r.date,
     startTime: r.start_time, endTime: r.end_time, type: r.type, note: r.note ?? '',
   })) as Shift[]
 }
 
-export async function dbInsertShift(s: Shift) {
+export async function dbInsertShift(s: Shift, storeId: string) {
   await supabase.from('shifts').insert({
-    id: s.id, employee_id: s.employeeId, date: s.date,
+    id: s.id, store_id: storeId, employee_id: s.employeeId, date: s.date,
     start_time: s.startTime, end_time: s.endTime, type: s.type, note: s.note ?? '',
   })
 }
@@ -74,11 +78,12 @@ export async function dbDeleteShift(id: string) {
 
 // ── Goals ─────────────────────────────────────────────────────────────────────
 
-function goalToDb(g: Goal) {
+function goalToDb(g: Goal, storeId: string) {
   return {
-    id: g.id, title: g.title, description: g.description, category: g.category,
-    target: g.target, current_val: g.current, unit: g.unit, deadline: g.deadline,
-    color: g.color, daily_target: g.dailyTarget ?? 1, daily_log: g.dailyLog ?? {},
+    id: g.id, store_id: storeId, title: g.title, description: g.description,
+    category: g.category, target: g.target, current_val: g.current,
+    unit: g.unit, deadline: g.deadline, color: g.color,
+    daily_target: g.dailyTarget ?? 1, daily_log: g.dailyLog ?? {},
     milestones: g.milestones,
   }
 }
@@ -92,13 +97,14 @@ function dbToGoal(r: DbGoal): Goal {
   }
 }
 
-export async function dbGetGoals(): Promise<Goal[]> {
-  const { data } = await supabase.from('goals').select('*').order('created_at')
+export async function dbGetGoals(storeId: string): Promise<Goal[]> {
+  const { data } = await supabase
+    .from('goals').select('*').eq('store_id', storeId).order('created_at')
   return (data ?? []).map(dbToGoal)
 }
 
-export async function dbInsertGoal(g: Goal) {
-  await supabase.from('goals').insert(goalToDb(g))
+export async function dbInsertGoal(g: Goal, storeId: string) {
+  await supabase.from('goals').insert(goalToDb(g, storeId))
 }
 
 export async function dbUpdateGoal(id: string, patch: Partial<Goal>) {
@@ -123,13 +129,16 @@ export async function dbDeleteGoal(id: string) {
 
 // ── Announcements ─────────────────────────────────────────────────────────────
 
-export async function dbGetAnnouncements(): Promise<Announcement[]> {
-  const { data } = await supabase.from('announcements').select('*').order('created_at')
+export async function dbGetAnnouncements(storeId: string): Promise<Announcement[]> {
+  const { data } = await supabase
+    .from('announcements').select('*').eq('store_id', storeId).order('created_at')
   return (data ?? []) as Announcement[]
 }
 
-export async function dbInsertAnnouncement(a: Announcement) {
-  await supabase.from('announcements').insert({ id: a.id, text: a.text, priority: a.priority })
+export async function dbInsertAnnouncement(a: Announcement, storeId: string) {
+  await supabase.from('announcements').insert({
+    id: a.id, store_id: storeId, text: a.text, priority: a.priority,
+  })
 }
 
 export async function dbUpdateAnnouncement(id: string, patch: Partial<Announcement>) {
@@ -142,11 +151,12 @@ export async function dbDeleteAnnouncement(id: string) {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
-export async function dbGetSettings(): Promise<DbSettings | null> {
-  const { data } = await supabase.from('app_settings').select('*').eq('id', 'store').single()
+export async function dbGetSettings(storeId: string): Promise<DbSettings | null> {
+  const { data } = await supabase
+    .from('app_settings').select('*').eq('store_id', storeId).single()
   return data as DbSettings | null
 }
 
-export async function dbUpdateSettings(patch: Partial<Omit<DbSettings, 'id'>>) {
-  await supabase.from('app_settings').upsert({ id: 'store', ...patch })
+export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSettings, 'store_id'>>) {
+  await supabase.from('app_settings').upsert({ store_id: storeId, ...patch })
 }

@@ -5,6 +5,14 @@ import {
   dbInsertShift, dbUpdateShift, dbDeleteShift,
 } from '../lib/supabase'
 
+// Read storeId at call time to avoid circular imports
+const sid = () => {
+  try {
+    const raw = localStorage.getItem('luna-ui')
+    return JSON.parse(raw ?? '{}')?.state?.storeId || 'default'
+  } catch { return 'default' }
+}
+
 export type ShiftType = 'Morning' | 'Afternoon' | 'Evening' | 'Night' | 'Custom'
 
 export interface Employee {
@@ -61,7 +69,7 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
   addEmployee: (emp) => {
     const newEmp: Employee = { ...emp, id: crypto.randomUUID() }
     set((s) => ({ employees: [...s.employees, newEmp] }))
-    dbInsertEmployee(newEmp)
+    dbInsertEmployee(newEmp, sid())
   },
 
   updateEmployee: (id, updates) => {
@@ -82,7 +90,7 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
   addShift: (shift) => {
     const newShift: Shift = { ...shift, id: crypto.randomUUID() }
     set((s) => ({ shifts: [...s.shifts, newShift] }))
-    dbInsertShift(newShift)
+    dbInsertShift(newShift, sid())
   },
 
   updateShift: (id, updates) => {
