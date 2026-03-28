@@ -1,0 +1,275 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   WIN11 DESIGN TOKENS
+   ============================================================ */
+:root {
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --font-text: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+
+  --accent: #0078d4;
+  --accent-hover: #106ebe;
+  --accent-light: #2899f5;
+  --accent-secondary: #7c5ff5;
+  --accent-glow: rgba(0, 120, 212, 0.3);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-pill: 100px;
+
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.08), 0 0 1px rgba(0,0,0,0.06);
+  --shadow-float: 0 8px 32px rgba(0,0,0,0.14), 0 0 1px rgba(0,0,0,0.08);
+  --shadow-modal: 0 24px 64px rgba(0,0,0,0.22), 0 0 1px rgba(0,0,0,0.10);
+
+  --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow: 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================================
+   DARK THEME (default)
+   ============================================================ */
+:root, .dark {
+  --bg: #0f0f0f;
+  --bg-gradient: radial-gradient(ellipse at 20% 50%, rgba(124, 95, 245, 0.06) 0%, transparent 50%),
+                 radial-gradient(ellipse at 80% 20%, rgba(0, 120, 212, 0.05) 0%, transparent 50%),
+                 #0f0f0f;
+  --surface: rgba(28, 28, 28, 0.85);
+  --surface-2: rgba(38, 38, 38, 0.9);
+  --surface-3: rgba(48, 48, 48, 0.95);
+  --surface-solid: #1c1c1c;
+  --surface-2-solid: #262626;
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.12);
+  --text: rgba(255,255,255,0.95);
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-tertiary: rgba(255,255,255,0.32);
+  --acrylic: rgba(22, 22, 22, 0.75);
+  --mica: rgba(15, 15, 15, 0.90);
+  --taskbar-bg: rgba(16, 16, 16, 0.88);
+  --titlebar-bg: rgba(12, 12, 12, 0.92);
+  --reveal-bg: rgba(255,255,255,0.06);
+  --reveal-border: rgba(255,255,255,0.08);
+  --input-bg: rgba(255,255,255,0.06);
+  --scrollbar-track: rgba(255,255,255,0.04);
+  --scrollbar-thumb: rgba(255,255,255,0.15);
+  --scrollbar-thumb-hover: rgba(255,255,255,0.25);
+}
+
+/* ============================================================
+   LIGHT THEME
+   ============================================================ */
+.light {
+  --bg: #f0f0f0;
+  --bg-gradient: radial-gradient(ellipse at 20% 50%, rgba(124, 95, 245, 0.04) 0%, transparent 50%),
+                 radial-gradient(ellipse at 80% 20%, rgba(0, 120, 212, 0.04) 0%, transparent 50%),
+                 #f0f0f0;
+  --surface: rgba(255,255,255,0.80);
+  --surface-2: rgba(255,255,255,0.92);
+  --surface-3: rgba(255,255,255,0.98);
+  --surface-solid: #ffffff;
+  --surface-2-solid: #f8f8f8;
+  --border: rgba(0,0,0,0.07);
+  --border-strong: rgba(0,0,0,0.12);
+  --text: rgba(0,0,0,0.90);
+  --text-secondary: rgba(0,0,0,0.55);
+  --text-tertiary: rgba(0,0,0,0.35);
+  --acrylic: rgba(243,243,243,0.78);
+  --mica: rgba(255,255,255,0.92);
+  --taskbar-bg: rgba(240,240,240,0.90);
+  --titlebar-bg: rgba(245,245,245,0.95);
+  --reveal-bg: rgba(0,0,0,0.04);
+  --reveal-border: rgba(0,0,0,0.06);
+  --input-bg: rgba(0,0,0,0.04);
+  --scrollbar-track: rgba(0,0,0,0.04);
+  --scrollbar-thumb: rgba(0,0,0,0.15);
+  --scrollbar-thumb-hover: rgba(0,0,0,0.25);
+  --accent: #0067be;
+  --accent-hover: #005ba0;
+  --accent-light: #1a78cc;
+  --accent-glow: rgba(0, 103, 190, 0.25);
+}
+
+/* ============================================================
+   BASE RESETS & GLOBAL STYLES
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  font-family: var(--font-text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg-gradient);
+  color: var(--text);
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ============================================================
+   SELECTION
+   ============================================================ */
+::selection {
+  background: rgba(0, 120, 212, 0.3);
+  color: var(--text);
+}
+
+/* ============================================================
+   REVEAL EFFECT
+   ============================================================ */
+.reveal {
+  position: relative;
+  overflow: hidden;
+}
+.reveal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--reveal-bg);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.reveal:hover::before { opacity: 1; }
+.reveal:active::before { opacity: 0; }
+
+/* ============================================================
+   REACT-GRID-LAYOUT OVERRIDES
+   ============================================================ */
+.react-grid-layout {
+  position: relative;
+}
+.react-grid-item {
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-property: left, top, width, height;
+}
+.react-grid-item.cssTransforms {
+  transition-property: transform, width, height;
+}
+.react-grid-item.resizing {
+  z-index: 100;
+  will-change: width, height;
+  opacity: 0.9;
+}
+.react-grid-item.react-draggable-dragging {
+  z-index: 200;
+  will-change: transform;
+  cursor: grabbing !important;
+  opacity: 0.85;
+  box-shadow: var(--shadow-modal) !important;
+  transform: scale(1.02);
+}
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.react-grid-item > .react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  border-radius: 1px;
+}
+.react-grid-item:hover > .react-resizable-handle { opacity: 1; }
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+.glass {
+  background: var(--surface);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border);
+}
+.glass-strong {
+  background: var(--surface-2);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid var(--border-strong);
+}
+.mica {
+  background: var(--mica);
+  backdrop-filter: blur(60px) saturate(200%);
+  -webkit-backdrop-filter: blur(60px) saturate(200%);
+}
+.text-gradient {
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  50% { box-shadow: 0 0 20px 4px var(--accent-glow); }
+}
+.pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.float-anim { animation: float 3s ease-in-out infinite; }
