@@ -153,7 +153,7 @@ export async function dbDeleteAnnouncement(id: string) {
 
 export async function dbGetSettings(storeId: string): Promise<DbSettings | null> {
   const { data } = await supabase
-    .from('app_settings').select('*').eq('store_id', storeId).single()
+    .from('app_settings').select('*').eq('store_id', storeId).maybeSingle()
   return data as DbSettings | null
 }
 

@@ -3,8 +3,15 @@
 -- Run this in the Supabase SQL Editor
 -- ============================================================
 
+-- Drop and recreate (safe — no real data exists yet)
+drop table if exists announcements cascade;
+drop table if exists goals         cascade;
+drop table if exists shifts        cascade;
+drop table if exists employees     cascade;
+drop table if exists app_settings  cascade;
+
 -- Employees
-create table if not exists employees (
+create table employees (
   id          text primary key,
   store_id    text not null default 'default',
   name        text not null,
@@ -12,10 +19,10 @@ create table if not exists employees (
   color       text not null default '#0078d4',
   created_at  timestamptz default now()
 );
-create index if not exists employees_store_idx on employees(store_id);
+create index employees_store_idx on employees(store_id);
 
 -- Shifts
-create table if not exists shifts (
+create table shifts (
   id          text primary key,
   store_id    text not null default 'default',
   employee_id text references employees(id) on delete cascade,
@@ -26,11 +33,11 @@ create table if not exists shifts (
   note        text default '',
   created_at  timestamptz default now()
 );
-create index if not exists shifts_store_idx on shifts(store_id);
-create index if not exists shifts_date_idx  on shifts(store_id, date);
+create index shifts_store_idx on shifts(store_id);
+create index shifts_date_idx  on shifts(store_id, date);
 
 -- Goals
-create table if not exists goals (
+create table goals (
   id           text primary key,
   store_id     text not null default 'default',
   title        text not null,
@@ -46,20 +53,20 @@ create table if not exists goals (
   milestones   jsonb default '[]',
   created_at   timestamptz default now()
 );
-create index if not exists goals_store_idx on goals(store_id);
+create index goals_store_idx on goals(store_id);
 
 -- Announcements
-create table if not exists announcements (
+create table announcements (
   id         text primary key,
   store_id   text not null default 'default',
   text       text not null,
   priority   text default 'normal',
   created_at timestamptz default now()
 );
-create index if not exists announcements_store_idx on announcements(store_id);
+create index announcements_store_idx on announcements(store_id);
 
 -- App settings (one row per store)
-create table if not exists app_settings (
+create table app_settings (
   store_id       text primary key,
   company_name   text default 'Luna Store',
   store_number   text default '',
