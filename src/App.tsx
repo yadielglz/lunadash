@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { AppShell } from './components/layout/AppShell'
+import { DataProvider } from './components/DataProvider'
 import { WidgetGrid } from './components/widgets/WidgetGrid'
 import { DevicesPage } from './components/features/devices/DevicesPage'
 import { SchedulePage } from './components/features/scheduling/SchedulePage'
@@ -41,8 +42,10 @@ export default function App() {
   }
 
   return (
-    <AppShell activeKey={activeTab}>
-      {pages[activeTab]}
-    </AppShell>
+    <DataProvider>
+      <AppShell activeKey={activeTab}>
+        {pages[activeTab]}
+      </AppShell>
+    </DataProvider>
   )
 }

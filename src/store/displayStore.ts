@@ -1,5 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import {
+  dbInsertAnnouncement, dbUpdateAnnouncement, dbDeleteAnnouncement,
+  dbUpdateSettings,
+} from '../lib/supabase'
 
 export interface Announcement {
   id: string
@@ -10,10 +14,12 @@ export interface Announcement {
 
 interface DisplayState {
   announcements: Announcement[]
-  slideInterval: number   // seconds per slide
+  slideInterval: number
   companyName: string
   storeNumber: string
-  companyLogo?: string
+  isLoaded: boolean
+
+  _init: (announcements: Announcement[], settings: { company_name: string; store_number: string; slide_interval: number }) => void
 
   addAnnouncement: (text: string, priority?: Announcement['priority']) => void
   updateAnnouncement: (id: string, updates: Partial<Announcement>) => void
@@ -24,33 +30,60 @@ interface DisplayState {
   setStoreNumber: (num: string) => void
 }
 
-const DEMO_ANNOUNCEMENTS: Announcement[] = [
-  { id: 'a1', text: 'Welcome! Please check the schedule for this week\'s shifts.', priority: 'normal', createdAt: new Date().toISOString() },
-  { id: 'a2', text: 'Team meeting Friday at 3PM in the break room.', priority: 'important', createdAt: new Date().toISOString() },
-  { id: 'a3', text: 'Remember to clock in/out using the new system.', priority: 'normal', createdAt: new Date().toISOString() },
-]
-
 export const useDisplayStore = create<DisplayState>()(
   persist(
     (set) => ({
-      announcements: DEMO_ANNOUNCEMENTS,
+      announcements: [],
       slideInterval: 8,
       companyName: 'Luna Store',
       storeNumber: '',
+      isLoaded: false,
 
-      addAnnouncement: (text, priority = 'normal') =>
-        set((s) => ({
-          announcements: [...s.announcements, { id: crypto.randomUUID(), text, priority, createdAt: new Date().toISOString() }],
-        })),
-      updateAnnouncement: (id, updates) =>
-        set((s) => ({ announcements: s.announcements.map((a) => (a.id === id ? { ...a, ...updates } : a)) })),
-      removeAnnouncement: (id) =>
-        set((s) => ({ announcements: s.announcements.filter((a) => a.id !== id) })),
+      _init: (announcements, settings) => set({
+        announcements,
+        companyName:   settings.company_name,
+        storeNumber:   settings.store_number,
+        slideInterval: settings.slide_interval,
+        isLoaded: true,
+      }),
+
+      addAnnouncement: (text, priority = 'normal') => {
+        const a: Announcement = { id: crypto.randomUUID(), text, priority, createdAt: new Date().toISOString() }
+        set((s) => ({ announcements: [...s.announcements, a] }))
+        dbInsertAnnouncement(a)
+      },
+
+      updateAnnouncement: (id, updates) => {
+        set((s) => ({ announcements: s.announcements.map((a) => (a.id === id ? { ...a, ...updates } : a)) }))
+        dbUpdateAnnouncement(id, updates)
+      },
+
+      removeAnnouncement: (id) => {
+        set((s) => ({ announcements: s.announcements.filter((a) => a.id !== id) }))
+        dbDeleteAnnouncement(id)
+      },
+
       reorderAnnouncements: (announcements) => set({ announcements }),
-      setSlideInterval: (secs) => set({ slideInterval: secs }),
-      setCompanyName: (name) => set({ companyName: name }),
-      setStoreNumber: (num) => set({ storeNumber: num }),
+
+      setSlideInterval: (secs) => {
+        set({ slideInterval: secs })
+        dbUpdateSettings({ slide_interval: secs })
+      },
+
+      setCompanyName: (name) => {
+        set({ companyName: name })
+        dbUpdateSettings({ company_name: name })
+      },
+
+      setStoreNumber: (num) => {
+        set({ storeNumber: num })
+        dbUpdateSettings({ store_number: num })
+      },
     }),
-    { name: 'luna-display' }
+    {
+      // Keep slideInterval, companyName, storeNumber locally as fallback
+      name: 'luna-display-ui',
+      partialize: (s) => ({ slideInterval: s.slideInterval, companyName: s.companyName, storeNumber: s.storeNumber }),
+    }
   )
 )
