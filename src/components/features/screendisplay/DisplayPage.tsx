@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Maximize, Minimize, X, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { useFullscreen } from '../../../hooks/useFullscreen'
 import { useWeather } from '../../../hooks/useWeather'
 import { useTempDisplay } from '../../../hooks/useTempDisplay'
@@ -266,6 +266,101 @@ function ScheduleSlide() {
   )
 }
 
+// ── Slide: Schedule Outlook ───────────────────────────────────────────────────
+function ScheduleOutlookSlide() {
+  const { employees, getShiftsForDate } = useScheduleStore()
+
+  const days = [1, 2, 3, 4].map((offset) => {
+    const date    = addDays(new Date(), offset)
+    const dateStr = format(date, 'yyyy-MM-dd')
+    const shifts  = [...getShiftsForDate(dateStr)].sort((a, b) => a.startTime.localeCompare(b.startTime))
+    return {
+      label:    offset === 1 ? 'Tomorrow' : format(date, 'EEEE'),
+      sublabel: format(date, 'MMM d'),
+      shifts,
+    }
+  })
+
+  return (
+    <div className="flex flex-col h-full pt-[4vh] pb-[3vh] px-[4vw] gap-4 select-none">
+      {/* Header */}
+      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+        <h2 className="text-[2.8vw] font-black text-white tracking-tight">Schedule Outlook</h2>
+        <p className="text-[1.2vw]" style={{ color: MG }}>Next 4 Days</p>
+      </div>
+
+      {/* 4-column grid */}
+      <div className="flex-1 grid grid-cols-4 gap-[1.5vw] overflow-hidden">
+        {days.map(({ label, sublabel, shifts }, i) => (
+          <div
+            key={i}
+            className="flex flex-col gap-[1vh] rounded-2xl p-[1.2vw]"
+            style={{
+              background: i === 0 ? `${MG}10` : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${i === 0 ? `${MG}30` : 'rgba(255,255,255,0.08)'}`,
+            }}
+          >
+            {/* Day header */}
+            <div
+              className="flex-shrink-0 border-b pb-[0.8vh]"
+              style={{ borderColor: i === 0 ? `${MG}30` : 'rgba(255,255,255,0.08)' }}
+            >
+              <div className="font-bold text-[1.6vw]" style={{ color: i === 0 ? MG : 'white' }}>
+                {label}
+              </div>
+              <div className="text-[1vw] text-white/40">{sublabel}</div>
+            </div>
+
+            {/* Shifts */}
+            {shifts.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <span className="text-[1.1vw] text-white/20">No shifts</span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-[0.6vh] overflow-hidden flex-1">
+                {shifts.map((s) => {
+                  const emp = employees.find((e) => e.id === s.employeeId)
+                  if (!emp) return null
+                  const initials = emp.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+                  return (
+                    <div
+                      key={s.id}
+                      className="flex items-center gap-[0.6vw] rounded-xl px-[0.8vw] py-[0.5vh]"
+                      style={{
+                        background: hexToRgba(emp.color, 0.10),
+                        borderLeft: `3px solid ${emp.color}`,
+                      }}
+                    >
+                      <div
+                        className="rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+                        style={{
+                          width: '2vw', height: '2vw', fontSize: '0.75vw',
+                          background: emp.color,
+                          boxShadow: `0 0 8px ${hexToRgba(emp.color, 0.4)}`,
+                        }}
+                      >
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white font-semibold truncate" style={{ fontSize: '0.95vw' }}>
+                          {emp.name}
+                        </div>
+                        <div className="text-white/40 tabular-nums" style={{ fontSize: '0.8vw' }}>
+                          {formatShiftTime(s.startTime, s.endTime)}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Slide: Goals ──────────────────────────────────────────────────────────────
 function GoalsSlide() {
   const { goals } = useGoalsStore()
@@ -411,6 +506,7 @@ const SLIDES = [
   { key: 'clock',    label: 'Clock',         component: ClockSlide },
   { key: 'weather',  label: 'Weather',        component: WeatherSlide },
   { key: 'sched',    label: 'Schedule',       component: ScheduleSlide },
+  { key: 'outlook',  label: 'Outlook',        component: ScheduleOutlookSlide },
   { key: 'goals',    label: 'Goals',          component: GoalsSlide },
   { key: 'announce', label: 'Announcements',  component: AnnouncementsSlide },
 ]
