@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Shield, Target, Megaphone, Calendar,
-  Check, ChevronRight, Trash2, Plus, Edit2, Lock, Unlock, Eye, EyeOff
+  Clock, Store, Target, Megaphone, Calendar,
+  Check, ChevronRight, Trash2, Plus, Edit2
 } from 'lucide-react'
 import { useUiStore } from '../../../store/uiStore'
 
 import { useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
-import { useLockStore, hashPin } from '../../../store/lockStore'
-import { Modal } from '../../ui/Modal'
 import { Input } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 
@@ -148,106 +146,6 @@ function StoreSection() {
           <span className="text-xs text-[var(--text-secondary)] w-8 text-right">{slideInterval}s</span>
         </div>
       </Row>
-    </Section>
-  )
-}
-
-// ── PIN security ─────────────────────────────────────────────────────────────
-function SecuritySection() {
-  const { pinHash, setPinHash, lock } = useLockStore()
-  const [modalOpen, setModalOpen] = useState(false)
-  const [mode, setMode] = useState<'set' | 'change' | 'remove'>('set')
-  const [current, setCurrent] = useState('')
-  const [pin, setPin] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [showPin, setShowPin] = useState(false)
-  const [err, setErr] = useState('')
-
-  const openModal = (m: typeof mode) => { setMode(m); setPin(''); setConfirm(''); setCurrent(''); setErr(''); setModalOpen(true) }
-
-  const submit = async () => {
-    setErr('')
-    if (mode === 'change' || mode === 'remove') {
-      const h = await hashPin(current)
-      if (h !== pinHash) { setErr('Current PIN is incorrect'); return }
-    }
-    if (mode === 'remove') {
-      setPinHash(null); setModalOpen(false); return
-    }
-    if (pin.length < 4) { setErr('PIN must be at least 4 digits'); return }
-    if (pin !== confirm) { setErr('PINs do not match'); return }
-    const h = await hashPin(pin)
-    setPinHash(h)
-    setModalOpen(false)
-  }
-
-  return (
-    <Section icon={<Shield size={14} />} title="App Security">
-      <Row
-        label={pinHash ? 'PIN Lock Enabled' : 'PIN Lock'}
-        description={pinHash ? 'App requires a PIN on next load' : 'Protect the app with a numeric PIN'}
-      >
-        <div className="flex items-center gap-2">
-          {pinHash ? (
-            <>
-              <Button size="sm" variant="ghost" icon={<Edit2 size={12} />} onClick={() => openModal('change')}>Change</Button>
-              <Button size="sm" variant="ghost" icon={<Lock size={12} />} onClick={lock}>Lock Now</Button>
-              <Button size="sm" variant="danger" icon={<Unlock size={12} />} onClick={() => openModal('remove')}>Remove</Button>
-            </>
-          ) : (
-            <Button size="sm" icon={<Shield size={12} />} onClick={() => openModal('set')}>Set PIN</Button>
-          )}
-        </div>
-      </Row>
-
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={mode === 'set' ? 'Set PIN' : mode === 'change' ? 'Change PIN' : 'Remove PIN'} size="sm">
-        <div className="space-y-3">
-          {(mode === 'change' || mode === 'remove') && (
-            <Input
-              label="Current PIN"
-              type={showPin ? 'text' : 'password'}
-              value={current}
-              onChange={(e) => setCurrent(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="Current PIN"
-              suffix={
-                <button onClick={() => setShowPin((s) => !s)} className="text-[var(--text-tertiary)] hover:text-[var(--text)]">
-                  {showPin ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              }
-            />
-          )}
-          {mode !== 'remove' && (
-            <>
-              <Input
-                label="New PIN (4–6 digits)"
-                type={showPin ? 'text' : 'password'}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="••••"
-                suffix={
-                  <button onClick={() => setShowPin((s) => !s)} className="text-[var(--text-tertiary)] hover:text-[var(--text)]">
-                    {showPin ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                }
-              />
-              <Input
-                label="Confirm PIN"
-                type={showPin ? 'text' : 'password'}
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="••••"
-              />
-            </>
-          )}
-          {err && <p className="text-xs text-red-400">{err}</p>}
-          <div className="flex justify-end gap-2 pt-1">
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button variant={mode === 'remove' ? 'danger' : 'primary'} onClick={submit}>
-              {mode === 'remove' ? 'Remove PIN' : 'Save'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </Section>
   )
 }
@@ -495,7 +393,6 @@ function SchedulingSection() {
 const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
   { id: 'store',         label: 'Store Details',  icon: <Store size={14} /> },
-  { id: 'security',      label: 'Security',       icon: <Shield size={14} /> },
   { id: 'goals',         label: 'Goals',          icon: <Target size={14} /> },
   { id: 'announcements', label: 'Announcements',  icon: <Megaphone size={14} /> },
   { id: 'scheduling',    label: 'Scheduling',     icon: <Calendar size={14} /> },
@@ -510,7 +407,6 @@ export function SettingsPage() {
   const content: Record<SectionId, React.ReactNode> = {
     general:       <GeneralSection />,
     store:         <StoreSection />,
-    security:      <SecuritySection />,
     goals:         <GoalsSection />,
     announcements: <AnnouncementsSection />,
     scheduling:    <SchedulingSection />,

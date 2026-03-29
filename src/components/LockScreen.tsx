@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Delete } from 'lucide-react'
 import { useLockStore, hashPin } from '../store/lockStore'
@@ -10,30 +10,71 @@ const PAD = [
   ['', '0', '⌫'],
 ]
 
-export function LockScreen() {
+const MAX_ATTEMPTS = 3
+const LOCKOUT_SECONDS = 30
+
+interface LockScreenProps {
+  /** Render inside the content area instead of as a full-screen overlay */
+  inline?: boolean
+  /** Called on successful PIN entry instead of the global store unlock */
+  onUnlock?: () => void
+}
+
+export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
   const { pinHash, unlock } = useLockStore()
   const [input, setInput] = useState('')
   const [shake, setShake] = useState(false)
   const [error, setError] = useState('')
+  const [attempts, setAttempts] = useState(0)
+  const [countdown, setCountdown] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const triggerError = () => {
-    setError('Incorrect PIN')
+  const isLockedOut = countdown > 0
+
+  // Countdown ticker
+  useEffect(() => {
+    if (countdown <= 0) return
+    timerRef.current = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          clearInterval(timerRef.current!)
+          setAttempts(0)
+          setError('')
+          return 0
+        }
+        return c - 1
+      })
+    }, 1000)
+    return () => clearInterval(timerRef.current!)
+  }, [countdown])
+
+  const triggerError = (attemptsAfter: number) => {
+    if (attemptsAfter >= MAX_ATTEMPTS) {
+      setError(`Too many attempts. Try again in ${LOCKOUT_SECONDS}s`)
+      setCountdown(LOCKOUT_SECONDS)
+    } else {
+      setError(`Incorrect PIN · ${MAX_ATTEMPTS - attemptsAfter} attempt${MAX_ATTEMPTS - attemptsAfter === 1 ? '' : 's'} left`)
+    }
     setShake(true)
     setInput('')
-    setTimeout(() => { setShake(false); setError('') }, 1200)
+    setTimeout(() => setShake(false), 600)
   }
 
-  // Try unlock when 4-digit pin entered
   const tryUnlock = async (pin: string) => {
     const h = await hashPin(pin)
     if (h === pinHash) {
-      unlock()
+      setAttempts(0)
+      setError('')
+      onUnlock ? onUnlock() : unlock()
     } else {
-      triggerError()
+      const next = attempts + 1
+      setAttempts(next)
+      triggerError(next)
     }
   }
 
   const handlePress = (key: string) => {
+    if (isLockedOut) return
     if (key === '⌫') {
       setInput((p) => p.slice(0, -1))
       return
@@ -46,8 +87,12 @@ export function LockScreen() {
     }
   }
 
+  const wrapperClass = inline
+    ? 'flex-1 w-full bg-gradient-to-br from-[#0a0d1a] to-[#0d1428] flex flex-col items-center justify-center relative'
+    : 'fixed inset-0 z-[999] bg-gradient-to-br from-[#0a0d1a] to-[#0d1428] flex flex-col items-center justify-center'
+
   return (
-    <div className="fixed inset-0 z-[999] bg-gradient-to-br from-[#0a0d1a] to-[#0d1428] flex flex-col items-center justify-center">
+    <div className={wrapperClass}>
       {/* Background ambient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-1/4 -left-1/4 w-2/3 h-2/3 rounded-full bg-[var(--accent)]/8 blur-[150px]" />
@@ -83,10 +128,22 @@ export function LockScreen() {
           ))}
         </div>
 
-        {/* Error message */}
-        <AnimatePresence>
-          {error && (
+        {/* Error / lockout message */}
+        <AnimatePresence mode="wait">
+          {isLockedOut ? (
+            <motion.div
+              key="lockout"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center gap-1 absolute -bottom-10"
+            >
+              <p className="text-red-400 text-sm">Too many attempts</p>
+              <p className="text-white/40 text-xs">Try again in {countdown}s</p>
+            </motion.div>
+          ) : error ? (
             <motion.p
+              key="error"
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
@@ -94,7 +151,7 @@ export function LockScreen() {
             >
               {error}
             </motion.p>
-          )}
+          ) : null}
         </AnimatePresence>
 
         {/* Number pad */}
@@ -105,11 +162,14 @@ export function LockScreen() {
               <motion.button
                 key={key}
                 onClick={() => handlePress(key)}
-                whileTap={{ scale: 0.88 }}
+                whileTap={!isLockedOut ? { scale: 0.88 } : {}}
+                disabled={isLockedOut}
                 className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white font-semibold text-xl transition-colors ${
-                  key === '⌫'
-                    ? 'bg-white/5 hover:bg-white/10'
-                    : 'bg-white/10 hover:bg-white/20'
+                  isLockedOut
+                    ? 'opacity-30 cursor-not-allowed bg-white/5'
+                    : key === '⌫'
+                      ? 'bg-white/5 hover:bg-white/10'
+                      : 'bg-white/10 hover:bg-white/20'
                 }`}
               >
                 {key === '⌫' ? <Delete size={20} /> : key}

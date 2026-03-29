@@ -9,6 +9,7 @@ import { ScheduleWidget } from './ScheduleWidget'
 import { GoalsWidget } from './GoalsWidget'
 import { DeviceSearchWidget } from './DeviceSearchWidget'
 import { AnnouncementWidget } from './AnnouncementWidget'
+import { TasksWidget } from './TasksWidget'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 
@@ -22,6 +23,7 @@ const DEFAULT_LAYOUTS: ResponsiveLayouts = {
     { i: 'goals',    x: 0, y: 4, w: 6, h: 6, minW: 3, minH: 4 },
     { i: 'devices',  x: 6, y: 7, w: 4, h: 5, minW: 3, minH: 4 },
     { i: 'announce', x: 10, y: 0, w: 2, h: 12, minW: 2, minH: 4 },
+    { i: 'tasks',    x: 0, y: 12, w: 6, h: 5, minW: 3, minH: 4 },
   ]),
   md: mkLayout([
     { i: 'clock',    x: 0, y: 0, w: 3, h: 4 },
@@ -30,6 +32,7 @@ const DEFAULT_LAYOUTS: ResponsiveLayouts = {
     { i: 'goals',    x: 0, y: 4, w: 6, h: 6 },
     { i: 'devices',  x: 6, y: 7, w: 6, h: 5 },
     { i: 'announce', x: 0, y: 10, w: 12, h: 5 },
+    { i: 'tasks',    x: 0, y: 15, w: 12, h: 5 },
   ]),
   sm: mkLayout([
     { i: 'clock',    x: 0, y: 0, w: 3, h: 4 },
@@ -38,6 +41,7 @@ const DEFAULT_LAYOUTS: ResponsiveLayouts = {
     { i: 'goals',    x: 0, y: 10, w: 6, h: 5 },
     { i: 'devices',  x: 0, y: 15, w: 6, h: 5 },
     { i: 'announce', x: 0, y: 20, w: 6, h: 5 },
+    { i: 'tasks',    x: 0, y: 25, w: 6, h: 5 },
   ]),
   xs: mkLayout([
     { i: 'clock',    x: 0, y: 0, w: 2, h: 4 },
@@ -46,6 +50,7 @@ const DEFAULT_LAYOUTS: ResponsiveLayouts = {
     { i: 'goals',    x: 0, y: 10, w: 4, h: 5 },
     { i: 'devices',  x: 0, y: 15, w: 4, h: 5 },
     { i: 'announce', x: 0, y: 20, w: 4, h: 5 },
+    { i: 'tasks',    x: 0, y: 25, w: 4, h: 5 },
   ]),
 }
 
@@ -70,6 +75,7 @@ const WIDGETS: Record<string, React.ReactNode> = {
   goals:    <GoalsWidget />,
   devices:  <DeviceSearchWidget />,
   announce: <AnnouncementWidget />,
+  tasks:    <TasksWidget />,
 }
 
 function GridContainer({ isEditing, layouts, onLayoutChange }: {

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Employee, Shift } from '../store/scheduleStore'
 import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
+import type { Task, TaskCategory } from '../store/tasksStore'
 
 export const supabase = createClient(
   'https://vzbuboclkpdthztfprgg.supabase.co',
@@ -159,4 +160,49 @@ export async function dbGetSettings(storeId: string): Promise<DbSettings | null>
 
 export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSettings, 'store_id'>>) {
   await supabase.from('app_settings').upsert({ store_id: storeId, ...patch })
+}
+
+// ── Tasks ─────────────────────────────────────────────────────────────────────
+
+type DbTask = {
+  id: string; store_id: string; title: string; category: string
+  sort_order: number; completed_date: string | null; created_at: string
+}
+
+function taskToDb(t: Task, storeId: string) {
+  return {
+    id: t.id, store_id: storeId, title: t.title, category: t.category,
+    sort_order: t.sortOrder, completed_date: t.completedDate ?? null,
+  }
+}
+
+function dbToTask(r: DbTask): Task {
+  return {
+    id: r.id, title: r.title, category: r.category as TaskCategory,
+    sortOrder: r.sort_order, completedDate: r.completed_date ?? null,
+    createdAt: r.created_at,
+  }
+}
+
+export async function dbGetTasks(storeId: string): Promise<Task[]> {
+  const { data } = await supabase
+    .from('tasks').select('*').eq('store_id', storeId).order('sort_order').order('created_at')
+  return (data ?? []).map(dbToTask)
+}
+
+export async function dbInsertTask(t: Task, storeId: string) {
+  await supabase.from('tasks').insert(taskToDb(t, storeId))
+}
+
+export async function dbUpdateTask(id: string, patch: Partial<Task>) {
+  const dbPatch: any = {}
+  if (patch.title         !== undefined) dbPatch.title          = patch.title
+  if (patch.category      !== undefined) dbPatch.category       = patch.category
+  if (patch.sortOrder     !== undefined) dbPatch.sort_order     = patch.sortOrder
+  if (patch.completedDate !== undefined) dbPatch.completed_date = patch.completedDate
+  await supabase.from('tasks').update(dbPatch).eq('id', id)
+}
+
+export async function dbDeleteTask(id: string) {
+  await supabase.from('tasks').delete().eq('id', id)
 }

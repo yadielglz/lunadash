@@ -1,29 +1,33 @@
 import { useEffect, useRef } from 'react'
-import { supabase, dbGetEmployees, dbGetShifts, dbGetGoals, dbGetAnnouncements, dbGetSettings } from '../lib/supabase'
+import { supabase, dbGetEmployees, dbGetShifts, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetTasks } from '../lib/supabase'
 import { useScheduleStore } from '../store/scheduleStore'
 import { useGoalsStore } from '../store/goalsStore'
 import { useDisplayStore } from '../store/displayStore'
 import { useUiStore } from '../store/uiStore'
+import { useTasksStore } from '../store/tasksStore'
 import type { Employee, Shift } from '../store/scheduleStore'
 import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
+import type { Task } from '../store/tasksStore'
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const storeId      = useUiStore((s) => s.storeId)
   const scheduleInit = useScheduleStore((s) => s._init)
   const goalsInit    = useGoalsStore((s) => s._init)
   const displayInit  = useDisplayStore((s) => s._init)
+  const tasksInit    = useTasksStore((s) => s._init)
   const channelRef   = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   useEffect(() => {
     // ── Load all data for this store ────────────────────────────
     async function load() {
-      const [employees, shifts, goals, announcements, settings] = await Promise.all([
+      const [employees, shifts, goals, announcements, settings, tasks] = await Promise.all([
         dbGetEmployees(storeId),
         dbGetShifts(storeId),
         dbGetGoals(storeId),
         dbGetAnnouncements(storeId),
         dbGetSettings(storeId),
+        dbGetTasks(storeId),
       ])
       scheduleInit(employees, shifts)
       goalsInit(goals)
@@ -31,6 +35,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         announcements,
         settings ?? { company_name: 'Luna Store', store_number: '', slide_interval: 8 }
       )
+      tasksInit(tasks)
     }
     load()
 
@@ -100,11 +105,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         useDisplayStore.setState({ companyName: r.company_name, storeNumber: r.store_number, slideInterval: r.slide_interval })
       })
 
+      // Tasks
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks', filter: `store_id=eq.${storeId}` }, (p) => {
+        const r = p.new as any
+        const task: Task = { id: r.id, title: r.title, category: r.category, sortOrder: r.sort_order, completedDate: r.completed_date ?? null, createdAt: r.created_at }
+        useTasksStore.setState((s) => ({ tasks: [...s.tasks.filter((t) => t.id !== task.id), task] }))
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks', filter: `store_id=eq.${storeId}` }, (p) => {
+        const r = p.new as any
+        const task: Task = { id: r.id, title: r.title, category: r.category, sortOrder: r.sort_order, completedDate: r.completed_date ?? null, createdAt: r.created_at }
+        useTasksStore.setState((s) => ({ tasks: s.tasks.map((t) => t.id === task.id ? task : t) }))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tasks' }, (p) => {
+        useTasksStore.setState((s) => ({ tasks: s.tasks.filter((t) => t.id !== (p.old as any).id) }))
+      })
+
       .subscribe()
 
     channelRef.current = channel
     return () => { supabase.removeChannel(channel) }
-  }, [storeId, scheduleInit, goalsInit, displayInit])
+  }, [storeId, scheduleInit, goalsInit, displayInit, tasksInit])
 
   return <>{children}</>
 }

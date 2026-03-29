@@ -94,3 +94,18 @@ alter publication supabase_realtime add table shifts;
 alter publication supabase_realtime add table goals;
 alter publication supabase_realtime add table announcements;
 alter publication supabase_realtime add table app_settings;
+
+-- ── Tasks ──────────────────────────────────────────────────────
+create table if not exists tasks (
+  id             text primary key,
+  store_id       text not null default 'default',
+  title          text not null,
+  category       text not null default 'general',
+  sort_order     integer default 0,
+  completed_date text,
+  created_at     timestamptz default now()
+);
+create index if not exists tasks_store_idx on tasks(store_id);
+alter table tasks enable row level security;
+create policy "public" on tasks for all using (true) with check (true);
+alter publication supabase_realtime add table tasks;

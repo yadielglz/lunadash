@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type Tab = 'home' | 'devices' | 'schedule' | 'goals' | 'weather' | 'display' | 'settings'
+export type Tab = 'home' | 'devices' | 'schedule' | 'goals' | 'weather' | 'display' | 'tasks' | 'settings'
 export type Theme = 'dark' | 'light'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
@@ -57,7 +57,7 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'luna-ui',
-      partialize: (s) => ({ theme: s.theme, tempUnit: s.tempUnit, timeFormat: s.timeFormat, storeId: s.storeId }),
+      partialize: (s) => ({ theme: s.theme, tempUnit: s.tempUnit, timeFormat: s.timeFormat, storeId: s.storeId, activeTab: s.activeTab }),
       onRehydrateStorage: () => (state) => {
         if (state) document.documentElement.className = state.theme
       },
