@@ -101,7 +101,7 @@ export function WeeklyGrid() {
               return (
                 <div
                   key={d.toISOString()}
-                  className={`flex flex-col items-center gap-0.5 py-2 rounded-2xl transition-colors ${today ? 'bg-[var(--accent)]/10' : ''}`}
+                  className={`flex flex-col items-center gap-0.5 py-2 rounded-lg transition-colors ${today ? 'bg-[var(--accent)]/10' : ''}`}
                 >
                   <span className={`text-[10px] font-medium uppercase tracking-wider ${today ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'}`}>
                     {format(d, 'EEE')}
@@ -129,7 +129,7 @@ export function WeeklyGrid() {
                 style={{ gridTemplateColumns: '160px repeat(7, 1fr)' }}
               >
                 {/* Employee label */}
-                <div className="flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] h-full">
+                <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] h-full">
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                     style={{ background: emp.color }}
@@ -152,7 +152,7 @@ export function WeeklyGrid() {
                     <div
                       key={dateStr}
                       onClick={() => openAdd(dateStr)}
-                      className={`group relative flex flex-col gap-1 p-1.5 rounded-2xl min-h-[68px] cursor-pointer transition-colors border ${
+                      className={`group relative flex flex-col gap-1 p-1.5 rounded-lg min-h-[68px] cursor-pointer transition-colors border ${
                         today
                           ? 'bg-[var(--accent)]/5 border-[var(--accent)]/20'
                           : 'bg-[var(--surface-2)] border-[var(--border)] hover:border-[var(--accent)]/30 hover:bg-[var(--reveal-bg)]'

@@ -39,14 +39,14 @@ export function Modal({ open, onClose, title, children, className, size = 'md' }
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/45"
             onClick={onClose}
           />
 
           {/* Sheet */}
           <motion.div
             className={cn(
-              'relative w-full rounded-t-2xl sm:rounded-2xl glass-strong shadow-modal overflow-hidden flex flex-col',
+              'relative w-full rounded-t-xl sm:rounded-xl bg-[var(--surface)] border border-[var(--border-strong)] shadow-[var(--shadow-modal)] overflow-hidden flex flex-col',
               sizes[size],
               'max-h-[90vh] sm:max-h-[85vh]',
               className

@@ -17,10 +17,6 @@ export function GoalsWidget() {
       className="h-full flex flex-col gap-3 cursor-pointer group"
       interactive
       onClick={() => setTab('goals')}
-      style={{
-        background: 'linear-gradient(135deg, rgba(124,95,245,0.08) 0%, rgba(0,120,212,0.06) 100%)',
-        borderColor: 'rgba(124,95,245,0.2)',
-      }}
     >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--text)]">Goals</h3>

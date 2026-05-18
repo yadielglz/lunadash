@@ -27,10 +27,6 @@ export function TasksWidget() {
       className="h-full flex flex-col gap-3 cursor-pointer group"
       interactive
       onClick={() => setTab('tasks')}
-      style={{
-        background: 'linear-gradient(135deg, rgba(22,198,12,0.07) 0%, rgba(0,120,212,0.05) 100%)',
-        borderColor: 'rgba(22,198,12,0.18)',
-      }}
     >
       {/* Header */}
       <div className="flex items-center justify-between">

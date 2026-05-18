@@ -7,7 +7,7 @@ import { cn } from '../../lib/utils'
 
 const TABS: { id: Tab; icon: React.ReactNode; label: string }[] = [
   { id: 'home',     icon: <LayoutGrid size={18} />,  label: 'Home'     },
-  { id: 'devices',  icon: <Monitor size={18} />,     label: 'Devices'  },
+  { id: 'devices',  icon: <Monitor size={18} />,     label: 'Protect'  },
   { id: 'schedule', icon: <Calendar size={18} />,    label: 'Schedule' },
   { id: 'goals',    icon: <Target size={18} />,      label: 'Goals'    },
   { id: 'weather',  icon: <CloudSun size={18} />,    label: 'Weather'  },
@@ -21,7 +21,7 @@ export function Taskbar() {
 
   return (
     <nav
-      className="mica border-t border-[var(--border)] flex-shrink-0 z-50"
+      className="bg-[var(--taskbar-bg)] border-t border-[var(--border)] flex-shrink-0 z-50"
       style={{ borderTop: '1px solid var(--border)' }}
     >
       {/* Desktop: centered icon bar */}
@@ -33,7 +33,7 @@ export function Taskbar() {
               key={id}
               onClick={() => setTab(id)}
               className={cn(
-                'relative flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-colors duration-150 min-w-[64px]',
+                'relative flex flex-col items-center gap-0.5 px-4 py-2 rounded-md transition-colors duration-150 min-w-[64px]',
                 active
                   ? 'text-[var(--accent)] bg-[var(--accent)]/10'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--reveal-bg)]'

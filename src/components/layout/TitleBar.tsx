@@ -66,10 +66,10 @@ export function TitleBar() {
   const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
-    <div className="mica border-b border-[var(--border)] flex items-center justify-between px-4 h-12 flex-shrink-0 z-50">
+    <div className="bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex items-center justify-between px-4 h-12 flex-shrink-0 z-50">
       {/* Logo + store info */}
       <div className="flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-secondary)] flex items-center justify-center shadow-sm flex-shrink-0">
+        <div className="w-7 h-7 rounded-md bg-[var(--accent)] flex items-center justify-center flex-shrink-0">
           <span className="text-white text-xs font-bold tracking-tight">L</span>
         </div>
         <div className="hidden sm:flex flex-col leading-none gap-0.5">
@@ -101,7 +101,7 @@ export function TitleBar() {
         <span className="text-xs text-[var(--text-secondary)] mr-2 hidden sm:inline tabular-nums">{timeStr}</span>
         <button
           onClick={toggleTheme}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
+          className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
           title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {isDark ? <Sun size={15} /> : <Moon size={15} />}

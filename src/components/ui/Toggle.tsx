@@ -29,7 +29,7 @@ export function Toggle({ checked, onChange, label, size = 'md' }: ToggleProps) {
         }}
       >
         <motion.span
-          className="absolute top-0 bottom-0 my-auto rounded-full bg-white shadow-sm"
+          className="absolute top-0 bottom-0 my-auto rounded-full bg-white"
           style={{ width: d.dot, height: d.dot }}
           animate={{ left: checked ? d.tx - 2 : 2 }}
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}

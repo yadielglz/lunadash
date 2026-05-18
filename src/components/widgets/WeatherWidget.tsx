@@ -16,10 +16,6 @@ export function WeatherWidget() {
       className="h-full flex flex-col justify-between cursor-pointer group"
       interactive
       onClick={() => setTab('weather')}
-      style={{
-        background: 'linear-gradient(135deg, rgba(0,183,195,0.10) 0%, rgba(0,120,212,0.08) 100%)',
-        borderColor: 'rgba(0,183,195,0.2)',
-      }}
     >
       {isLoading && (
         <div className="h-full flex flex-col gap-3">

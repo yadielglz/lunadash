@@ -50,7 +50,7 @@ export function WeatherPage() {
             onChange={(e) => setCitySearch(e.target.value)}
           />
           {geoResults && geoResults.length > 0 && citySearch.length > 2 && (
-            <div className="absolute top-full left-0 right-0 mt-1 glass-strong rounded-xl border border-[var(--border)] overflow-hidden z-50 shadow-float">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] rounded-lg border border-[var(--border)] overflow-hidden z-50 shadow-[var(--shadow-float)]">
               {geoResults.map((r) => (
                 <button
                   key={r.id}
@@ -77,8 +77,8 @@ export function WeatherPage() {
 
         {isLoading && (
           <div className="space-y-4">
-            <div className="shimmer h-40 rounded-2xl" />
-            <div className="shimmer h-24 rounded-2xl" />
+            <div className="shimmer h-40 rounded-lg" />
+            <div className="shimmer h-24 rounded-lg" />
             <div className="grid grid-cols-7 gap-2">
               {[...Array(7)].map((_, i) => <div key={i} className="shimmer h-28 rounded-xl" />)}
             </div>
@@ -90,11 +90,6 @@ export function WeatherPage() {
             {/* Current conditions hero */}
             <Card
               className="!p-6 relative overflow-hidden"
-              style={{
-                background: cw.is_day
-                  ? 'linear-gradient(135deg, rgba(0,120,212,0.15) 0%, rgba(0,183,195,0.08) 100%)'
-                  : 'linear-gradient(135deg, rgba(28,28,50,0.8) 0%, rgba(40,40,80,0.6) 100%)',
-              }}
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -116,8 +111,6 @@ export function WeatherPage() {
                 </div>
                 <motion.span
                   className="text-7xl leading-none"
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
                 >
                   {weather.icon}
                 </motion.span>
@@ -131,7 +124,7 @@ export function WeatherPage() {
                   { icon: <Thermometer size={14} />, label: 'High / Low', value: `${fmt(data.daily.temperature_2m_max[0])}${unit} / ${fmt(data.daily.temperature_2m_min[0])}${unit}` },
                   { icon: <MapPin size={14} />, label: 'Timezone', value: timezone },
                 ].map(({ icon, label, value }) => (
-                  <div key={label} className="glass rounded-xl p-3">
+                  <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-3)] p-3">
                     <div className="flex items-center gap-1.5 text-[var(--text-secondary)] mb-1">
                       {icon}
                       <span className="text-xs">{label}</span>

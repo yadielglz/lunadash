@@ -3,17 +3,17 @@
 @tailwind utilities;
 
 /* ============================================================
-   WIN11 DESIGN TOKENS
+   FLAT MODERN DESIGN TOKENS
    ============================================================ */
 :root {
   --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
   --font-text: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
 
-  --accent: #0078d4;
-  --accent-hover: #106ebe;
-  --accent-light: #2899f5;
-  --accent-secondary: #7c5ff5;
-  --accent-glow: rgba(0, 120, 212, 0.3);
+  --accent: #0f7ad8;
+  --accent-hover: #0a67ba;
+  --accent-light: #dceeff;
+  --accent-secondary: #18a058;
+  --accent-glow: rgba(15, 122, 216, 0.16);
 
   --radius-sm: 4px;
   --radius-md: 8px;
@@ -22,9 +22,9 @@
   --radius-2xl: 20px;
   --radius-pill: 100px;
 
-  --shadow-card: 0 2px 8px rgba(0,0,0,0.08), 0 0 1px rgba(0,0,0,0.06);
-  --shadow-float: 0 8px 32px rgba(0,0,0,0.14), 0 0 1px rgba(0,0,0,0.08);
-  --shadow-modal: 0 24px 64px rgba(0,0,0,0.22), 0 0 1px rgba(0,0,0,0.10);
+  --shadow-card: none;
+  --shadow-float: 0 8px 18px rgba(15, 23, 42, 0.08);
+  --shadow-modal: 0 18px 40px rgba(15, 23, 42, 0.16);
 
   --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
   --transition-normal: 250ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -35,27 +35,25 @@
    DARK THEME (default)
    ============================================================ */
 :root, .dark {
-  --bg: #0f0f0f;
-  --bg-gradient: radial-gradient(ellipse at 20% 50%, rgba(124, 95, 245, 0.06) 0%, transparent 50%),
-                 radial-gradient(ellipse at 80% 20%, rgba(0, 120, 212, 0.05) 0%, transparent 50%),
-                 #0f0f0f;
-  --surface: rgba(28, 28, 28, 0.85);
-  --surface-2: rgba(38, 38, 38, 0.9);
-  --surface-3: rgba(48, 48, 48, 0.95);
-  --surface-solid: #1c1c1c;
-  --surface-2-solid: #262626;
-  --border: rgba(255,255,255,0.07);
-  --border-strong: rgba(255,255,255,0.12);
-  --text: rgba(255,255,255,0.95);
-  --text-secondary: rgba(255,255,255,0.55);
-  --text-tertiary: rgba(255,255,255,0.32);
-  --acrylic: rgba(22, 22, 22, 0.75);
-  --mica: rgba(15, 15, 15, 0.90);
-  --taskbar-bg: rgba(16, 16, 16, 0.88);
-  --titlebar-bg: rgba(12, 12, 12, 0.92);
-  --reveal-bg: rgba(255,255,255,0.06);
-  --reveal-border: rgba(255,255,255,0.08);
-  --input-bg: rgba(255,255,255,0.06);
+  --bg: #111318;
+  --bg-gradient: #111318;
+  --surface: #171a21;
+  --surface-2: #1d222b;
+  --surface-3: #252b35;
+  --surface-solid: #171a21;
+  --surface-2-solid: #1d222b;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.16);
+  --text: rgba(255,255,255,0.94);
+  --text-secondary: rgba(255,255,255,0.66);
+  --text-tertiary: rgba(255,255,255,0.42);
+  --acrylic: #171a21;
+  --mica: #14171d;
+  --taskbar-bg: #14171d;
+  --titlebar-bg: #14171d;
+  --reveal-bg: rgba(255,255,255,0.055);
+  --reveal-border: rgba(255,255,255,0.10);
+  --input-bg: #111318;
   --scrollbar-track: rgba(255,255,255,0.04);
   --scrollbar-thumb: rgba(255,255,255,0.15);
   --scrollbar-thumb-hover: rgba(255,255,255,0.25);
@@ -65,34 +63,32 @@
    LIGHT THEME
    ============================================================ */
 .light {
-  --bg: #f0f0f0;
-  --bg-gradient: radial-gradient(ellipse at 20% 50%, rgba(124, 95, 245, 0.04) 0%, transparent 50%),
-                 radial-gradient(ellipse at 80% 20%, rgba(0, 120, 212, 0.04) 0%, transparent 50%),
-                 #f0f0f0;
-  --surface: rgba(255,255,255,0.80);
-  --surface-2: rgba(255,255,255,0.92);
-  --surface-3: rgba(255,255,255,0.98);
+  --bg: #f4f6f8;
+  --bg-gradient: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --surface-3: #f7f9fb;
   --surface-solid: #ffffff;
-  --surface-2-solid: #f8f8f8;
-  --border: rgba(0,0,0,0.07);
-  --border-strong: rgba(0,0,0,0.12);
-  --text: rgba(0,0,0,0.90);
-  --text-secondary: rgba(0,0,0,0.55);
-  --text-tertiary: rgba(0,0,0,0.35);
-  --acrylic: rgba(243,243,243,0.78);
-  --mica: rgba(255,255,255,0.92);
-  --taskbar-bg: rgba(240,240,240,0.90);
-  --titlebar-bg: rgba(245,245,245,0.95);
-  --reveal-bg: rgba(0,0,0,0.04);
-  --reveal-border: rgba(0,0,0,0.06);
-  --input-bg: rgba(0,0,0,0.04);
+  --surface-2-solid: #ffffff;
+  --border: rgba(15,23,42,0.10);
+  --border-strong: rgba(15,23,42,0.18);
+  --text: #18202b;
+  --text-secondary: #647084;
+  --text-tertiary: #8d99aa;
+  --acrylic: #ffffff;
+  --mica: #ffffff;
+  --taskbar-bg: #ffffff;
+  --titlebar-bg: #ffffff;
+  --reveal-bg: rgba(15,23,42,0.045);
+  --reveal-border: rgba(15,23,42,0.08);
+  --input-bg: #f7f9fb;
   --scrollbar-track: rgba(0,0,0,0.04);
   --scrollbar-thumb: rgba(0,0,0,0.15);
   --scrollbar-thumb-hover: rgba(0,0,0,0.25);
-  --accent: #0067be;
-  --accent-hover: #005ba0;
-  --accent-light: #1a78cc;
-  --accent-glow: rgba(0, 103, 190, 0.25);
+  --accent: #0f6fca;
+  --accent-hover: #0b5dad;
+  --accent-light: #dceeff;
+  --accent-glow: rgba(15, 111, 202, 0.14);
 }
 
 /* ============================================================
@@ -225,20 +221,20 @@ body {
    ============================================================ */
 .glass {
   background: var(--surface);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--border);
 }
 .glass-strong {
   background: var(--surface-2);
-  backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--border-strong);
 }
 .mica {
   background: var(--mica);
-  backdrop-filter: blur(60px) saturate(200%);
-  -webkit-backdrop-filter: blur(60px) saturate(200%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .text-gradient {
   background: linear-gradient(135deg, var(--accent), var(--accent-secondary));

@@ -117,7 +117,6 @@ function GoalCard({ goal }: { goal: Goal }) {
         className="flex flex-col gap-0 overflow-hidden"
         style={{
           borderColor: `${goal.color}33`,
-          background: `linear-gradient(135deg, ${goal.color}0d 0%, transparent 55%)`,
         }}
       >
         {/* Daily highlight strip */}

@@ -112,10 +112,10 @@ function GridContainer({ isEditing, layouts, onLayoutChange }: {
         {Object.entries(WIDGETS).map(([key, widget]) => (
           <div
             key={key}
-            className={`relative overflow-hidden rounded-xl ${isEditing ? 'ring-2 ring-[var(--accent)]/40' : ''}`}
+            className={`relative overflow-hidden rounded-lg ${isEditing ? 'ring-2 ring-[var(--accent)]/40' : ''}`}
           >
             {isEditing && (
-              <div className="widget-drag-handle absolute inset-0 z-10 cursor-grab active:cursor-grabbing rounded-xl" />
+              <div className="widget-drag-handle absolute inset-0 z-10 cursor-grab active:cursor-grabbing rounded-lg" />
             )}
             {widget}
           </div>
@@ -141,12 +141,12 @@ export function WidgetGrid() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div>
-          <h1 className="text-lg font-semibold text-[var(--text)]">Good day! 👋</h1>
+          <h1 className="text-lg font-semibold text-[var(--text)]">Workspace</h1>
           <p className="text-xs text-[var(--text-secondary)]">Here's your workspace overview</p>
         </div>
         <motion.button
           onClick={() => setIsEditing((v) => !v)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
             isEditing
               ? 'bg-[var(--accent)] border-[var(--accent)] text-white'
               : 'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text)]'
@@ -162,7 +162,7 @@ export function WidgetGrid() {
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-4 mb-2 px-3 py-2 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/20 text-xs text-[var(--accent)]"
+          className="mx-4 mb-2 px-3 py-2 rounded-md bg-[var(--accent)]/10 border border-[var(--accent)]/20 text-xs text-[var(--accent)]"
         >
           Drag widgets to rearrange • Drag corner handle to resize
         </motion.div>

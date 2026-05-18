@@ -88,17 +88,11 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
   }
 
   const wrapperClass = inline
-    ? 'flex-1 w-full bg-gradient-to-br from-[#0a0d1a] to-[#0d1428] flex flex-col items-center justify-center relative'
-    : 'fixed inset-0 z-[999] bg-gradient-to-br from-[#0a0d1a] to-[#0d1428] flex flex-col items-center justify-center'
+    ? 'flex-1 w-full bg-[var(--bg)] flex flex-col items-center justify-center relative'
+    : 'fixed inset-0 z-[999] bg-[var(--bg)] flex flex-col items-center justify-center'
 
   return (
     <div className={wrapperClass}>
-      {/* Background ambient */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/4 -left-1/4 w-2/3 h-2/3 rounded-full bg-[var(--accent)]/8 blur-[150px]" />
-        <div className="absolute -bottom-1/4 -right-1/4 w-2/3 h-2/3 rounded-full bg-[var(--accent-secondary)]/8 blur-[150px]" />
-      </div>
-
       <motion.div
         animate={shake ? { x: [-12, 12, -10, 10, -6, 6, 0] } : { x: 0 }}
         transition={{ duration: 0.5 }}
@@ -106,12 +100,12 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
       >
         {/* Logo */}
         <div className="flex flex-col items-center gap-3">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-secondary)] flex items-center justify-center shadow-float">
+          <div className="w-16 h-16 rounded-xl bg-[var(--accent)] flex items-center justify-center">
             <span className="text-white text-3xl font-bold">L</span>
           </div>
           <div className="text-center">
-            <p className="text-white/80 text-lg font-semibold">Luna Dashboard</p>
-            <p className="text-white/40 text-sm mt-0.5">Enter your PIN to continue</p>
+            <p className="text-[var(--text)] text-lg font-semibold">Luna Dashboard</p>
+            <p className="text-[var(--text-secondary)] text-sm mt-0.5">Enter your PIN to continue</p>
           </div>
         </div>
 
@@ -123,7 +117,7 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
               animate={i < input.length ? { scale: 1, opacity: 1 } : { scale: 0.5, opacity: 0.3 }}
               transition={{ type: 'spring', stiffness: 400, damping: 20 }}
               className="w-3 h-3 rounded-full"
-              style={{ background: i < input.length ? 'var(--accent)' : 'white' }}
+              style={{ background: i < input.length ? 'var(--accent)' : 'var(--border-strong)' }}
             />
           ))}
         </div>
@@ -139,7 +133,7 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
               className="flex flex-col items-center gap-1 absolute -bottom-10"
             >
               <p className="text-red-400 text-sm">Too many attempts</p>
-              <p className="text-white/40 text-xs">Try again in {countdown}s</p>
+              <p className="text-[var(--text-secondary)] text-xs">Try again in {countdown}s</p>
             </motion.div>
           ) : error ? (
             <motion.p
@@ -164,12 +158,12 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
                 onClick={() => handlePress(key)}
                 whileTap={!isLockedOut ? { scale: 0.88 } : {}}
                 disabled={isLockedOut}
-                className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white font-semibold text-xl transition-colors ${
+                className={`w-16 h-16 rounded-xl flex items-center justify-center font-semibold text-xl transition-colors ${
                   isLockedOut
-                    ? 'opacity-30 cursor-not-allowed bg-white/5'
+                    ? 'opacity-30 cursor-not-allowed bg-[var(--surface)] text-[var(--text-tertiary)]'
                     : key === '⌫'
-                      ? 'bg-white/5 hover:bg-white/10'
-                      : 'bg-white/10 hover:bg-white/20'
+                      ? 'bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-3)]'
+                      : 'bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--surface-3)]'
                 }`}
               >
                 {key === '⌫' ? <Delete size={20} /> : key}

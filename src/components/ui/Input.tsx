@@ -22,7 +22,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={cn(
-              'w-full rounded-lg border bg-[var(--input-bg)] text-[var(--text)] placeholder:text-[var(--text-tertiary)]',
+              'w-full rounded-md border bg-[var(--input-bg)] text-[var(--text)] placeholder:text-[var(--text-tertiary)]',
               'text-sm px-3 py-2 h-9',
               'border-[var(--border)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30',
               'transition-colors duration-150',
@@ -55,7 +55,7 @@ export function Select({ label, children, className, ...rest }: SelectProps) {
       {label && <label className="text-xs font-medium text-[var(--text-secondary)]">{label}</label>}
       <select
         className={cn(
-          'w-full rounded-lg border bg-[var(--input-bg)] text-[var(--text)]',
+          'w-full rounded-md border bg-[var(--input-bg)] text-[var(--text)]',
           'text-sm px-3 py-2 h-9',
           'border-[var(--border)] focus:border-[var(--accent)] focus:outline-none',
           '[&>option]:bg-[var(--surface-solid)]',
@@ -81,7 +81,7 @@ export function Textarea({ label, className, rows = 3, ...rest }: TextareaProps)
       <textarea
         rows={rows}
         className={cn(
-          'w-full rounded-lg border bg-[var(--input-bg)] text-[var(--text)] placeholder:text-[var(--text-tertiary)]',
+          'w-full rounded-md border bg-[var(--input-bg)] text-[var(--text)] placeholder:text-[var(--text-tertiary)]',
           'text-sm px-3 py-2',
           'border-[var(--border)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30',
           'resize-none transition-colors duration-150',

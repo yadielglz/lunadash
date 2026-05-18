@@ -19,7 +19,7 @@ export function DeviceSearchWidget() {
   return (
     <Card className="h-full flex flex-col gap-2.5">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--text)]">Device Browser</h3>
+        <h3 className="text-sm font-semibold text-[var(--text)]">Protect Lookup</h3>
         <button
           onClick={() => setTab('devices')}
           className="text-[10px] text-[var(--accent)] flex items-center gap-0.5 hover:underline"
@@ -34,7 +34,7 @@ export function DeviceSearchWidget() {
           value={q}
           onChange={(e) => handleSearch(e.target.value)}
           onFocus={() => setTab('devices')}
-          placeholder="Search UPC or device…"
+          placeholder="Search brand, model, UPC…"
           className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-[var(--input-bg)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] transition-colors"
         />
       </div>
@@ -67,7 +67,7 @@ export function DeviceSearchWidget() {
               ))}
               {totalRows > 3 && (
                 <p className="text-[10px] text-[var(--text-tertiary)] text-center pt-1">
-                  {totalRows} total devices
+                  {totalRows} protect rows
                 </p>
               )}
             </div>

@@ -1,401 +1,516 @@
-import { useState, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Search, RefreshCw, ChevronDown, ChevronRight, Monitor,
-  Layers, LayoutList, Eye, EyeOff, Copy, Check, ShieldAlert
+  ArrowLeft,
+  Box,
+  ChevronRight,
+  Layers3,
+  PackageCheck,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  X,
 } from 'lucide-react'
 import { useDevices } from '../../../hooks/useDevices'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Input'
 
-// CPNI-sensitive columns — shown masked by default, reveal on request
-const CPNI_COLS   = /upc|barcode|sku|mdn|mobile.directory|phone.number|imei|serial/i
-
-// Column role detection for hierarchy
-const BRAND_COLS  = /brand|manufacturer|make/i
-const MODEL_COLS  = /model|device.model|product/i
-const TYPE_COLS   = /type|category|device.type|kind|class/i
-
 interface DeviceRow { [key: string]: string }
 
-// ── Masked CPNI field ─────────────────────────────────────────────────────────
-function CpniField({ value, label }: { value: string; label: string }) {
-  const [revealed, setRevealed] = useState(false)
-  const [copied, setCopied] = useState(false)
+const BRAND_COLS = /brand|manufacturer|make/i
+const MODEL_COLS = /model|product/i
+const TYPE_COLS = /protection|protect|type|category|film|cover/i
+const UPC_COLS = /upc|barcode|sku|item.?number|item.?id/i
+const MDN_COLS = /mdn|mobile.directory|phone.number|phone|msisdn/i
 
-  const copy = async () => {
-    await navigator.clipboard.writeText(value)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+type Step = 'brand' | 'model' | 'type' | 'result'
+
+function normalize(value: string) {
+  return value.trim() || 'Other'
+}
+
+function uniqueValues(rows: DeviceRow[], column: string) {
+  return Array.from(new Set(rows.map((row) => normalize(row[column] ?? ''))))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+}
+
+function normalizeHeader(header: string) {
+  return header.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function findColumn(headers: string[], preferredNames: string[], matcher: RegExp) {
+  const normalizedPreferred = preferredNames.map(normalizeHeader)
+  return (
+    headers.find((header) => normalizedPreferred.includes(normalizeHeader(header))) ??
+    headers.find((header) => matcher.test(header)) ??
+    ''
+  )
+}
+
+function getInitials(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'P'
+}
+
+function plural(count: number, word: string) {
+  return `${count} ${word}${count === 1 ? '' : 's'}`
+}
+
+function StepPill({ active, complete, label }: { active: boolean; complete: boolean; label: string }) {
+  return (
+    <div
+      className={`h-1.5 flex-1 rounded-full transition-colors ${
+        active ? 'bg-[var(--accent)]' : complete ? 'bg-emerald-400' : 'bg-[var(--surface-3)]'
+      }`}
+      aria-label={label}
+      title={label}
+    />
+  )
+}
+
+function ChoiceButton({
+  icon,
+  title,
+  subtitle,
+  count,
+  onClick,
+}: {
+  icon: React.ReactNode
+  title: string
+  subtitle: string
+  count?: number
+  onClick: () => void
+}) {
+  return (
+    <motion.button
+      layout
+      onClick={onClick}
+      whileTap={{ scale: 0.98 }}
+      className="group w-full min-h-[76px] rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-left transition-colors hover:border-[var(--accent)]/40 hover:bg-[var(--surface-3)]"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md bg-[var(--accent)]/10 text-[var(--accent)]">
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-base font-semibold text-[var(--text)]">{title}</div>
+          <div className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">{subtitle}</div>
+        </div>
+        {typeof count === 'number' && (
+          <div className="rounded-full bg-[var(--reveal-bg)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)]">
+            {count}
+          </div>
+        )}
+        <ChevronRight size={17} className="flex-shrink-0 text-[var(--text-tertiary)] transition-transform group-hover:translate-x-0.5" />
+      </div>
+    </motion.button>
+  )
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center">
+      <Search size={28} className="text-[var(--text-tertiary)]" />
+      <p className="max-w-xs text-sm text-[var(--text-secondary)]">{message}</p>
+    </div>
+  )
+}
+
+function MdnList({ mdns }: { mdns: string[] }) {
+  return (
+    <div className="rounded-lg border border-amber-400/20 bg-amber-400/10 p-3">
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-amber-300">Associated MDN</div>
+        <div className="text-sm text-[var(--text-secondary)]">
+          {plural(mdns.length, 'MDN match')} for the selected UPC.
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {mdns.map((mdn, index) => (
+          <div
+            key={`${mdn}-${index}`}
+            className="rounded-md border border-amber-400/20 bg-black/10 px-3 py-2 font-mono text-sm text-[var(--text)]"
+          >
+            {mdn}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function DevicesPage() {
+  const { headers, allRows, totalRows, isLoading, isError, refetch, search, setSearch } = useDevices()
+  const [selectedBrand, setSelectedBrand] = useState('')
+  const [selectedModel, setSelectedModel] = useState('')
+  const [selectedType, setSelectedType] = useState('')
+  const [selectedUpc, setSelectedUpc] = useState('')
+
+  const columns = useMemo(() => ({
+    brand: findColumn(headers, ['Device Brand', 'Manufacturer', 'Make', 'Brand'], BRAND_COLS),
+    model: findColumn(headers, ['Device Model', 'Model', 'Product'], MODEL_COLS),
+    type: findColumn(headers, ['Type', 'Protection Type', 'Protect Type'], TYPE_COLS),
+    upc: findColumn(headers, ['UPC', 'Barcode', 'SKU'], UPC_COLS),
+    mdn: findColumn(headers, ['MDN', 'Mobile Directory Number', 'Phone Number'], MDN_COLS),
+  }), [headers])
+
+  const brandRows = allRows
+  const brands = useMemo(() => uniqueValues(brandRows, columns.brand), [brandRows, columns.brand])
+
+  const modelRows = useMemo(() => (
+    selectedBrand
+      ? brandRows.filter((row) => normalize(row[columns.brand] ?? '') === selectedBrand)
+      : []
+  ), [brandRows, columns.brand, selectedBrand])
+
+  const models = useMemo(() => uniqueValues(modelRows, columns.model), [modelRows, columns.model])
+
+  const typeRows = useMemo(() => (
+    selectedModel
+      ? modelRows.filter((row) => normalize(row[columns.model] ?? '') === selectedModel)
+      : []
+  ), [modelRows, columns.model, selectedModel])
+
+  const types = useMemo(() => uniqueValues(typeRows, columns.type), [typeRows, columns.type])
+
+  const upcRows = useMemo(() => (
+    selectedType
+      ? typeRows.filter((row) => normalize(row[columns.type] ?? '') === selectedType)
+      : []
+  ), [columns.type, selectedType, typeRows])
+
+  const upcs = useMemo(() => (
+    columns.upc ? uniqueValues(upcRows.filter((row) => row[columns.upc]), columns.upc) : []
+  ), [columns.upc, upcRows])
+
+  const selectedUpcRows = useMemo(() => (
+    selectedUpc
+      ? upcRows.filter((row) => normalize(row[columns.upc] ?? '') === selectedUpc)
+      : []
+  ), [columns.upc, selectedUpc, upcRows])
+
+  const mdns = useMemo(() => (
+    columns.mdn ? uniqueValues(selectedUpcRows.filter((row) => row[columns.mdn]), columns.mdn) : []
+  ), [columns.mdn, selectedUpcRows])
+
+  const step: Step = selectedType ? 'result' : selectedModel ? 'type' : selectedBrand ? 'model' : 'brand'
+  const stepIndex = ['brand', 'model', 'type', 'result'].indexOf(step)
+
+  const resetFrom = (target: Step) => {
+    if (target === 'brand') {
+      setSelectedBrand('')
+      setSelectedModel('')
+      setSelectedType('')
+      setSelectedUpc('')
+    }
+    if (target === 'model') {
+      setSelectedModel('')
+      setSelectedType('')
+      setSelectedUpc('')
+    }
+    if (target === 'type') {
+      setSelectedType('')
+      setSelectedUpc('')
+    }
   }
 
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--surface-3)] border border-[var(--border)]">
-        <ShieldAlert size={10} className="text-amber-400 flex-shrink-0" />
-        <span className="text-[10px] text-amber-400 font-medium uppercase tracking-wide">{label}</span>
-        <span className="mx-1 text-[var(--border-strong)]">·</span>
-        {revealed ? (
-          <span className="text-xs text-[var(--text)] font-mono">{value}</span>
-        ) : (
-          <span className="text-xs text-[var(--text-tertiary)] tracking-widest">{'•'.repeat(Math.min(value.length, 10))}</span>
-        )}
-      </div>
-      <button
-        onClick={() => setRevealed((r) => !r)}
-        title={revealed ? 'Hide' : 'Reveal'}
-        className="p-1 rounded text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--reveal-bg)] transition-colors"
-      >
-        {revealed ? <EyeOff size={11} /> : <Eye size={11} />}
-      </button>
-      {revealed && (
-        <button
-          onClick={copy}
-          title="Copy"
-          className="p-1 rounded text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--reveal-bg)] transition-colors"
-        >
-          {copied ? <Check size={11} className="text-green-400" /> : <Copy size={11} />}
-        </button>
-      )}
-    </div>
-  )
-}
-
-// ── Device card — shows visible fields + CPNI masked ────────────────────────
-function DeviceCard({
-  row, visibleHeaders, cpniHeaders,
-}: { row: DeviceRow; visibleHeaders: string[]; cpniHeaders: string[] }) {
-  const shown = visibleHeaders.filter((h) => row[h])
+  const filteredBrands = brands.filter((brand) => brand.toLowerCase().includes(search.toLowerCase()))
+  const filteredModels = models.filter((model) => model.toLowerCase().includes(search.toLowerCase()))
+  const filteredTypes = types.filter((type) => type.toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] hover:border-[var(--accent)]/30 transition-colors space-y-1.5"
-    >
-      {/* Visible fields */}
-      {shown.length > 0 && (
-        <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-          {shown.map((h) => (
-            <div key={h} className="flex items-center gap-1">
-              <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">{h}:</span>
-              <span className="text-xs text-[var(--text)]">{row[h]}</span>
+    <div className="flex h-full flex-col bg-[var(--bg)]">
+      <div className="border-b border-[var(--border)] bg-[var(--mica)] px-4 pb-3 pt-4">
+        <div className="mx-auto flex max-w-5xl flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
+                <ShieldCheck size={14} />
+                Protect
+              </div>
+              <h1 className="truncate text-2xl font-semibold text-[var(--text)]">Protection Lookup</h1>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                {isLoading ? 'Loading catalog...' : `${totalRows} catalog rows ready`}
+              </p>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* CPNI masked fields */}
-      {cpniHeaders.filter((h) => row[h]).length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-0.5">
-          {cpniHeaders.filter((h) => row[h]).map((h) => (
-            <CpniField key={h} value={row[h]} label={h} />
-          ))}
-        </div>
-      )}
-    </motion.div>
-  )
-}
-
-// ── Type group ────────────────────────────────────────────────────────────────
-function TypeGroup({
-  type, rows, visibleHeaders, cpniHeaders,
-}: { type: string; rows: DeviceRow[]; visibleHeaders: string[]; cpniHeaders: string[] }) {
-  const [open, setOpen] = useState(true)
-  return (
-    <div className="space-y-1.5">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors"
-      >
-        <ChevronDown size={12} className={`transition-transform ${open ? '' : '-rotate-90'}`} />
-        <span className="uppercase tracking-wide">{type || 'Other'}</span>
-        <span className="text-[10px] font-normal text-[var(--text-tertiary)]">{rows.length}</span>
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden space-y-1.5 pl-4"
-          >
-            {rows.map((r, i) => (
-              <DeviceCard key={i} row={r} visibleHeaders={visibleHeaders} cpniHeaders={cpniHeaders} />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-// ── Model group ───────────────────────────────────────────────────────────────
-function ModelGroup({
-  model, rows, typeCol, visibleHeaders, cpniHeaders,
-}: { model: string; rows: DeviceRow[]; typeCol: string; visibleHeaders: string[]; cpniHeaders: string[] }) {
-  const [open, setOpen] = useState(false)
-
-  const byType = useMemo(() => {
-    const map: Record<string, DeviceRow[]> = {}
-    for (const r of rows) {
-      const t = typeCol ? (r[typeCol] || '') : ''
-      ;(map[t] ??= []).push(r)
-    }
-    return map
-  }, [rows, typeCol])
-
-  return (
-    <div className="rounded-xl border border-[var(--border)] overflow-hidden">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-2.5 px-4 py-3 bg-[var(--surface-2)] hover:bg-[var(--reveal-bg)] transition-colors"
-      >
-        <Monitor size={13} className="text-[var(--accent)] flex-shrink-0" />
-        <span className="text-sm font-semibold text-[var(--text)] flex-1 text-left">{model || 'Unknown Model'}</span>
-        <span className="text-xs text-[var(--text-tertiary)]">{rows.length} device{rows.length !== 1 ? 's' : ''}</span>
-        <ChevronRight size={14} className={`text-[var(--text-tertiary)] transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="p-3 space-y-3 border-t border-[var(--border)]">
-              {typeCol
-                ? Object.entries(byType).map(([type, tRows]) => (
-                    <TypeGroup key={type} type={type} rows={tRows} visibleHeaders={visibleHeaders} cpniHeaders={cpniHeaders} />
-                  ))
-                : rows.map((r, i) => (
-                    <DeviceCard key={i} row={r} visibleHeaders={visibleHeaders} cpniHeaders={cpniHeaders} />
-                  ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-// ── Brand section ─────────────────────────────────────────────────────────────
-function BrandSection({
-  brand, rows, modelCol, typeCol, visibleHeaders, cpniHeaders,
-}: {
-  brand: string; rows: DeviceRow[]; modelCol: string; typeCol: string;
-  visibleHeaders: string[]; cpniHeaders: string[]
-}) {
-  const [open, setOpen] = useState(true)
-
-  const byModel = useMemo(() => {
-    const map: Record<string, DeviceRow[]> = {}
-    for (const r of rows) {
-      const m = modelCol ? (r[modelCol] || '') : ''
-      ;(map[m] ??= []).push(r)
-    }
-    return map
-  }, [rows, modelCol])
-
-  return (
-    <div className="space-y-2">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2.5 w-full group"
-      >
-        <div className="w-9 h-9 rounded-xl bg-[var(--accent)]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[var(--accent)]/20 transition-colors">
-          <span className="text-sm font-black text-[var(--accent)]">{brand.charAt(0).toUpperCase()}</span>
-        </div>
-        <div className="flex-1 text-left">
-          <span className="text-base font-bold text-[var(--text)]">{brand || 'Other'}</span>
-          <span className="text-xs text-[var(--text-tertiary)] ml-2">
-            {rows.length} device{rows.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-        <ChevronDown size={16} className={`text-[var(--text-tertiary)] transition-transform ${open ? '' : '-rotate-90'}`} />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden space-y-2 pl-11"
-          >
-            {modelCol
-              ? Object.entries(byModel).map(([model, mRows]) => (
-                  <ModelGroup
-                    key={model} model={model} rows={mRows}
-                    typeCol={typeCol} visibleHeaders={visibleHeaders} cpniHeaders={cpniHeaders}
-                  />
-                ))
-              : rows.map((r, i) => (
-                  <DeviceCard key={i} row={r} visibleHeaders={visibleHeaders} cpniHeaders={cpniHeaders} />
-                ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
-export function DevicesPage() {
-  const {
-    headers, rows, allRows, totalRows, isLoading, isError, refetch,
-    search, setSearch,
-    page, setPage, pageSize, setPageSize, totalPages,
-  } = useDevices()
-
-  const [viewMode, setViewMode] = useState<'hierarchy' | 'list'>('hierarchy')
-
-  // Split columns: CPNI (masked) vs visible
-  const cpniHeaders    = headers.filter((h) => CPNI_COLS.test(h))
-  const visibleHeaders = headers.filter((h) => !CPNI_COLS.test(h))
-
-  // Detect structural columns from visible set
-  const brandCol  = visibleHeaders.find((h) => BRAND_COLS.test(h)) ?? ''
-  const modelCol  = visibleHeaders.find((h) => MODEL_COLS.test(h)) ?? ''
-  const typeCol   = visibleHeaders.find((h) => TYPE_COLS.test(h)) ?? ''
-
-  // Detail fields exclude brand/model/type (shown as section headers)
-  const detailHeaders = visibleHeaders.filter((h) => h !== brandCol && h !== modelCol && h !== typeCol)
-
-  // Hierarchy uses ALL filtered rows (not paginated)
-  const byBrand = useMemo(() => {
-    const map: Record<string, DeviceRow[]> = {}
-    for (const r of allRows) {
-      const b = brandCol ? (r[brandCol] || 'Other') : 'Devices'
-      ;(map[b] ??= []).push(r)
-    }
-    return map
-  }, [allRows, brandCol])
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-[var(--border)]">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div>
-            <h1 className="text-xl font-semibold text-[var(--text)] flex items-center gap-2">
-              <Monitor size={18} className="text-[var(--accent)]" />
-              Device Browser
-            </h1>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5 flex items-center gap-1.5">
-              {isLoading ? 'Loading…' : `${totalRows} devices`}
-              {cpniHeaders.length > 0 && (
-                <span className="flex items-center gap-1 text-amber-400">
-                  <ShieldAlert size={10} />
-                  {cpniHeaders.join(', ')} hidden — reveal per device
-                </span>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
             <Button
-              size="sm" variant="ghost"
-              icon={<RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />}
+              size="icon"
+              variant="ghost"
+              title="Refresh"
+              icon={<RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />}
               onClick={() => refetch()}
             >
-              Refresh
+              <span className="sr-only">Refresh</span>
             </Button>
-            <div className="flex rounded-lg border border-[var(--border)] overflow-hidden">
-              <button
-                onClick={() => setViewMode('hierarchy')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'hierarchy' ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)]'}`}
-              >
-                <Layers size={12} /> Hierarchy
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)]'}`}
-              >
-                <LayoutList size={12} /> List
-              </button>
-            </div>
           </div>
-        </div>
 
-        <Input
-          icon={<Search size={14} />}
-          placeholder="Search devices…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+          <div className="flex items-center gap-1.5" aria-label="Lookup progress">
+            {(['Brand', 'Device Model', 'Protection Type', 'Result'] as const).map((label, index) => (
+              <StepPill key={label} label={label} active={index === stepIndex} complete={index < stepIndex} />
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {selectedBrand && (
+              <button
+                onClick={() => resetFrom('brand')}
+                className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--text)]"
+              >
+                {selectedBrand}
+                <X size={13} className="text-[var(--text-tertiary)]" />
+              </button>
+            )}
+            {selectedModel && (
+              <button
+                onClick={() => resetFrom('model')}
+                className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--text)]"
+              >
+                {selectedModel}
+                <X size={13} className="text-[var(--text-tertiary)]" />
+              </button>
+            )}
+            {selectedType && (
+              <button
+                onClick={() => resetFrom('type')}
+                className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--text)]"
+              >
+                {selectedType}
+                <X size={13} className="text-[var(--text-tertiary)]" />
+              </button>
+            )}
+          </div>
+
+          {step !== 'result' && (
+            <Input
+              icon={<Search size={15} />}
+              placeholder={step === 'model' ? 'Search device models...' : `Search ${step}s...`}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          )}
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {isError && (
-          <div className="flex flex-col items-center justify-center gap-3 py-16">
-            <span className="text-4xl">📡</span>
-            <p className="text-sm text-[var(--text-secondary)]">Failed to load device data</p>
-            <Button onClick={() => refetch()}>Try Again</Button>
-          </div>
-        )}
-
-        {isLoading && (
-          <div className="space-y-3">
-            {[...Array(6)].map((_, i) => <div key={i} className="shimmer h-14 rounded-xl" />)}
-          </div>
-        )}
-
-        {!isLoading && !isError && allRows.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 gap-2 text-[var(--text-tertiary)]">
-            <span className="text-4xl">🔍</span>
-            <p className="text-sm">No devices match "{search}"</p>
-          </div>
-        )}
-
-        {!isLoading && !isError && allRows.length > 0 && (
-          viewMode === 'hierarchy' ? (
-            /* Hierarchy: Brand → Model → Type — uses ALL filtered rows */
-            <div className="space-y-6">
-              {Object.entries(byBrand)
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([brand, bRows]) => (
-                  <BrandSection
-                    key={brand}
-                    brand={brand} rows={bRows}
-                    modelCol={modelCol} typeCol={typeCol}
-                    visibleHeaders={detailHeaders} cpniHeaders={cpniHeaders}
-                  />
-                ))}
+      <div className="flex-1 overflow-y-auto px-4 py-5">
+        <div className="mx-auto max-w-5xl">
+          {isError && (
+            <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 text-center">
+              <PackageCheck size={34} className="text-[var(--text-tertiary)]" />
+              <p className="text-sm text-[var(--text-secondary)]">Protect catalog could not be loaded.</p>
+              <Button onClick={() => refetch()}>Try Again</Button>
             </div>
-          ) : (
-            /* List view — paginated */
-            <>
-              <div className="space-y-1.5">
-                {rows.map((row, i) => (
-                  <DeviceCard key={i} row={row} visibleHeaders={visibleHeaders} cpniHeaders={cpniHeaders} />
-                ))}
-              </div>
+          )}
 
-              {/* Pagination */}
-              <div className="flex items-center justify-between pt-4 mt-2 border-t border-[var(--border)] flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[var(--text-secondary)]">Per page:</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="text-xs px-2 py-1 rounded-md bg-[var(--input-bg)] border border-[var(--border)] text-[var(--text)] focus:outline-none"
-                  >
-                    {[25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-                  <span>{page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalRows)} of {totalRows}</span>
-                  <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>‹</Button>
-                  <span className="px-2">{page + 1} / {totalPages || 1}</span>
-                  <Button size="sm" variant="ghost" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>›</Button>
-                </div>
-              </div>
-            </>
-          )
-        )}
+          {isLoading && (
+            <div className="grid gap-3 md:grid-cols-2">
+              {[...Array(8)].map((_, index) => (
+                <div key={index} className="shimmer h-[76px] rounded-lg" />
+              ))}
+            </div>
+          )}
+
+          {!isLoading && !isError && (
+            <AnimatePresence mode="wait">
+              {step === 'brand' && (
+                <motion.div
+                  key="brand"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="grid gap-3 md:grid-cols-2"
+                >
+                  {filteredBrands.length === 0 ? (
+                    <div className="md:col-span-2">
+                      <EmptyState message="No brands match the current search." />
+                    </div>
+                  ) : filteredBrands.map((brand) => {
+                    const rows = brandRows.filter((row) => normalize(row[columns.brand] ?? '') === brand)
+                    const modelCount = uniqueValues(rows, columns.model).length
+                    return (
+                      <ChoiceButton
+                        key={brand}
+                        icon={<span className="text-sm font-black">{getInitials(brand)}</span>}
+                        title={brand}
+                        subtitle={`${plural(modelCount, 'model')} available`}
+                        count={rows.length}
+                          onClick={() => {
+                            setSelectedBrand(brand)
+                            setSelectedModel('')
+                            setSelectedType('')
+                            setSelectedUpc('')
+                            setSearch('')
+                          }}
+                        />
+                    )
+                  })}
+                </motion.div>
+              )}
+
+              {step === 'model' && (
+                <motion.div
+                  key="model"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-4"
+                >
+                  <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => resetFrom('brand')}>
+                    Brands
+                  </Button>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {filteredModels.length === 0 ? (
+                      <div className="md:col-span-2">
+                        <EmptyState message="No models match the current search." />
+                      </div>
+                    ) : filteredModels.map((model) => {
+                      const rows = modelRows.filter((row) => normalize(row[columns.model] ?? '') === model)
+                      const typeCount = uniqueValues(rows, columns.type).length
+                      return (
+                        <ChoiceButton
+                          key={model}
+                          icon={<Smartphone size={21} />}
+                          title={model}
+                          subtitle={`${selectedBrand} • ${plural(typeCount, 'type')}`}
+                          count={rows.length}
+                          onClick={() => {
+                            setSelectedModel(model)
+                            setSelectedType('')
+                            setSelectedUpc('')
+                            setSearch('')
+                          }}
+                        />
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 'type' && (
+                <motion.div
+                  key="type"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-4"
+                >
+                  <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => resetFrom('model')}>
+                    Models
+                  </Button>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {filteredTypes.length === 0 ? (
+                      <div className="md:col-span-2">
+                        <EmptyState message="No protection types match the current search." />
+                      </div>
+                    ) : filteredTypes.map((type) => {
+                      const rows = typeRows.filter((row) => normalize(row[columns.type] ?? '') === type)
+                      const upcCount = columns.upc ? uniqueValues(rows.filter((row) => row[columns.upc]), columns.upc).length : rows.length
+                      return (
+                        <ChoiceButton
+                          key={type}
+                          icon={<Layers3 size={21} />}
+                          title={type}
+                          subtitle={`${plural(upcCount, 'UPC')} available`}
+                          count={rows.length}
+                          onClick={() => {
+                            setSelectedType(type)
+                            setSelectedUpc('')
+                            setSearch('')
+                          }}
+                        />
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 'result' && (
+                <motion.div
+                  key="result"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-4"
+                >
+                  <Button variant="ghost" size="sm" icon={<ArrowLeft size={14} />} onClick={() => resetFrom('type')}>
+                    Types
+                  </Button>
+
+                  <section className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+                    <div className="bg-[var(--surface-2)] px-5 py-5">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+                            <ShieldCheck size={14} />
+                            {plural(upcRows.length, 'match')}
+                          </div>
+                          <h2 className="text-2xl font-semibold text-[var(--text)]">{selectedType}</h2>
+                          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                            {selectedBrand} • {selectedModel}
+                          </p>
+                        </div>
+                        <div className="flex h-14 w-14 items-center justify-center rounded-md bg-[var(--accent)]/10 text-[var(--accent)]">
+                          <Sparkles size={25} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 p-5">
+                      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+                          <Box size={14} />
+                          UPC of selected type
+                        </div>
+                        {upcs.length === 0 ? (
+                          <div className="rounded-md bg-[var(--reveal-bg)] px-3 py-3 text-sm text-[var(--text-secondary)]">
+                            No UPC is available for this selection.
+                          </div>
+                        ) : (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {upcs.map((upc) => {
+                              const rows = upcRows.filter((row) => normalize(row[columns.upc] ?? '') === upc)
+                              const mdnCount = columns.mdn ? uniqueValues(rows.filter((row) => row[columns.mdn]), columns.mdn).length : rows.length
+                              const active = selectedUpc === upc
+
+                              return (
+                                <button
+                                  key={upc}
+                                  onClick={() => setSelectedUpc(upc)}
+                                  className={`flex min-h-12 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors ${
+                                    active
+                                      ? 'border-[var(--accent)] bg-[var(--accent)]/10'
+                                      : 'border-[var(--border)] bg-[var(--surface-3)] hover:border-[var(--accent)]/40'
+                                  }`}
+                                >
+                                  <span className="font-mono text-base font-semibold text-[var(--text)]">{upc}</span>
+                                  <span className="text-xs text-[var(--text-secondary)]">{plural(mdnCount, 'MDN')}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedUpc && mdns.length > 0 ? (
+                        <MdnList mdns={mdns} />
+                      ) : selectedUpc ? (
+                        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4 text-sm text-[var(--text-secondary)]">
+                          No MDN column/value was found for this UPC.
+                        </div>
+                      ) : null}
+                    </div>
+                  </section>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+        </div>
       </div>
     </div>
   )
