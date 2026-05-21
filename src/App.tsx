@@ -45,6 +45,18 @@ export default function App() {
     if (activeTab !== 'devices') setDevicesUnlocked(false)
   }, [activeTab])
 
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 639px)')
+    const leaveDisplayOnMobile = () => {
+      if (media.matches && useUiStore.getState().activeTab === 'display') {
+        useUiStore.getState().setTab('home')
+      }
+    }
+    leaveDisplayOnMobile()
+    media.addEventListener('change', leaveDisplayOnMobile)
+    return () => media.removeEventListener('change', leaveDisplayOnMobile)
+  }, [])
+
   // Close the selected-store session after 2 minutes of inactivity unless a passive display is active.
   useEffect(() => {
     if (!storeId || !sessionExpiresAt) return

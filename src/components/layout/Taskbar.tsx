@@ -5,12 +5,12 @@ import {
 import { useUiStore, Tab } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
 
-const TABS: { id: Tab; icon: React.ReactNode; label: string }[] = [
+const TABS: { id: Tab; icon: React.ReactNode; label: string; mobile?: boolean }[] = [
   { id: 'home',     icon: <LayoutGrid size={18} />,  label: 'Home'     },
   { id: 'schedule', icon: <Calendar size={18} />,    label: 'Schedule' },
   { id: 'goals',    icon: <Target size={18} />,      label: 'Goals'    },
   { id: 'weather',  icon: <CloudSun size={18} />,    label: 'Weather'  },
-  { id: 'display',  icon: <Tv2 size={18} />,         label: 'Display'  },
+  { id: 'display',  icon: <Tv2 size={18} />,         label: 'Display', mobile: false },
   { id: 'tasks',    icon: <CheckSquare size={18} />, label: 'Tasks'    },
   { id: 'settings', icon: <Settings size={18} />,    label: 'Settings' },
 ]
@@ -54,7 +54,7 @@ export function Taskbar() {
 
       {/* Mobile: full-width tabs */}
       <div className="sm:hidden flex items-stretch h-16">
-        {TABS.map(({ id, icon, label }) => {
+        {TABS.filter((tab) => tab.mobile !== false).map(({ id, icon, label }) => {
           const active = activeTab === id
           return (
             <button

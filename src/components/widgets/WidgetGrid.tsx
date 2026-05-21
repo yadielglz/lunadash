@@ -134,17 +134,17 @@ export function WidgetGrid() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-3 min-w-0">
-          <LunaWirelessLogo className="h-12 w-32 flex-shrink-0" />
+          <LunaWirelessLogo className="h-10 w-24 sm:h-12 sm:w-32 flex-shrink-0" />
           <div className="min-w-0">
             <h1 className="text-lg font-semibold text-[var(--text)]">Workspace</h1>
-            <p className="text-xs text-[var(--text-secondary)] truncate">Here's your workspace overview</p>
+            <p className="hidden sm:block text-xs text-[var(--text-secondary)] truncate">Here's your workspace overview</p>
           </div>
         </div>
         <motion.button
           onClick={() => setIsEditing((v) => !v)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium border transition-colors flex-shrink-0 ${
             isEditing
               ? 'bg-[var(--accent)] border-[var(--accent)] text-white'
               : 'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text)]'

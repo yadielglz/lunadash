@@ -119,8 +119,8 @@ export function SchedulePage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-[var(--border)] flex items-center justify-between gap-3 flex-wrap">
-        <div>
+      <div className="px-4 pt-4 pb-3 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold text-[var(--text)] flex items-center gap-2">
             <Calendar size={18} className="text-[var(--accent)]" />
             Schedule
@@ -129,13 +129,14 @@ export function SchedulePage() {
             {employees.length} employees · {shifts.length} shifts total
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           {saveMessage && (
             <span className={`hidden md:inline text-xs ${saveState === 'error' ? 'text-red-400' : 'text-[var(--accent)]'}`}>
               {saveMessage}
             </span>
           )}
           <Button
+            className="flex-shrink-0"
             size="sm"
             variant={saveState === 'saved' ? 'accent' : 'secondary'}
             icon={<Save size={13} />}
@@ -145,11 +146,11 @@ export function SchedulePage() {
           >
             Save
           </Button>
-          <Button size="sm" variant="ghost" icon={<Users size={13} />} onClick={() => setEmpModalOpen(true)}>
+          <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Users size={13} />} onClick={() => setEmpModalOpen(true)}>
             Employees
           </Button>
           {/* View toggle */}
-          <div className="flex rounded-lg border border-[var(--border)] overflow-hidden">
+          <div className="flex rounded-lg border border-[var(--border)] overflow-hidden flex-shrink-0">
             {(['weekly', 'monthly'] as const).map((v) => (
               <button
                 key={v}

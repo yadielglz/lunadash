@@ -265,15 +265,15 @@ export function WeeklyGrid() {
   return (
     <div className="flex flex-col h-full gap-0">
       {/* Week navigation */}
-      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 flex-shrink-0">
+        <div className="flex items-center justify-between sm:justify-start gap-2">
           <button
             onClick={() => setWeekOffset((w) => w - 1)}
             className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[var(--reveal-bg)] text-[var(--text-secondary)] transition-colors"
           >
             <ChevronLeft size={16} />
           </button>
-          <span className="text-sm font-semibold text-[var(--text)] min-w-[160px] text-center">
+          <span className="text-sm font-semibold text-[var(--text)] min-w-[150px] text-center">
             {format(weekStart, 'MMM d')} – {format(addDays(weekStart, 6), 'MMM d, yyyy')}
           </span>
           <button
@@ -283,7 +283,7 @@ export function WeeklyGrid() {
             <ChevronRight size={16} />
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <Button
             size="sm"
             variant="ghost"
@@ -319,11 +319,11 @@ export function WeeklyGrid() {
       </div>
 
       {/* Main grid */}
-      <div className="flex-1 overflow-auto px-4 pb-4">
-        <div className="min-w-[700px]">
+      <div className="flex-1 overflow-auto px-3 sm:px-4 pb-4">
+        <div className="min-w-[760px] sm:min-w-[700px]">
           {/* Day headers */}
-          <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: '160px repeat(7, 1fr)' }}>
-            <div /> {/* Employee column spacer */}
+          <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}>
+            <div className="sticky left-0 z-20 bg-[var(--bg)]" /> {/* Employee column spacer */}
             {days.map((d) => {
               const today = isToday(d)
               return (
@@ -354,10 +354,10 @@ export function WeeklyGrid() {
                 key={emp.id}
                 layout
                 className="grid gap-2 items-start"
-                style={{ gridTemplateColumns: '160px repeat(7, 1fr)' }}
+                style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}
               >
                 {/* Employee label */}
-                <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] h-full">
+                <div className="sticky left-0 z-10 flex items-center gap-2.5 px-2.5 sm:px-3 py-2 rounded-lg bg-[var(--surface-2-solid)] border border-[var(--border)] h-full shadow-[4px_0_10px_rgba(0,0,0,0.08)]">
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                     style={{ background: emp.color }}
