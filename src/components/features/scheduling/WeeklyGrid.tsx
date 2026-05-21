@@ -10,6 +10,7 @@ import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
 import { useScheduleBlocksStore } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore } from '../../../store/schedulePreferencesStore'
+import { useUiStore } from '../../../store/uiStore'
 import { PrintableScheduleModal } from './PrintableScheduleModal'
 
 const TEMPLATE_KEY = 'luna-schedule-templates'
@@ -229,6 +230,7 @@ export function WeeklyGrid() {
   const { employees, shifts, addShifts, removeShifts } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
   const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
+  const isMainDashboard = useUiStore((s) => s.storeId === 'main')
   const [weekOffset, setWeekOffset] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
@@ -363,7 +365,9 @@ export function WeeklyGrid() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-semibold text-[var(--text)] truncate">{emp.name}</div>
-                    <div className="text-[10px] text-[var(--text-tertiary)] truncate">{emp.role}</div>
+                    <div className="text-[10px] text-[var(--text-tertiary)] truncate">
+                      {isMainDashboard && emp.storeId ? `${emp.storeId} · ` : ''}{emp.role}
+                    </div>
                   </div>
                 </div>
 

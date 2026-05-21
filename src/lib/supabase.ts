@@ -22,6 +22,8 @@ type DbSettings = {
   store_id: string; company_name: string; store_number: string; slide_interval: number
 }
 
+export type StoreSummary = DbSettings
+
 type DbEmployee = {
   id: string; store_id: string; name: string; role: string; color: string; created_at: string
 }
@@ -110,7 +112,7 @@ export async function dbGetEmployees(storeId: string): Promise<Employee[]> {
 }
 
 function dbToEmployee(r: DbEmployee): Employee {
-  return { id: r.id, name: r.name, role: r.role, color: r.color }
+  return { id: r.id, storeId: r.store_id, name: r.name, role: r.role, color: r.color }
 }
 
 export async function dbInsertEmployee(e: Employee, storeId: string) {
@@ -134,7 +136,7 @@ export async function dbGetShifts(storeId: string): Promise<Shift[]> {
     .from('shifts').select('*').eq('store_id', storeId).order('date')
   throwIfError(error, 'Could not load shifts')
   return ((data ?? []) as DbShift[]).map((r) => ({
-    id: r.id, employeeId: r.employee_id, date: r.date,
+    id: r.id, storeId: r.store_id, employeeId: r.employee_id, date: r.date,
     startTime: r.start_time, endTime: r.end_time, type: r.type, note: r.note ?? '',
   }))
 }
@@ -176,6 +178,7 @@ function goalToDb(g: Goal, storeId: string) {
 function dbToGoal(r: DbGoal): Goal {
   return {
     id: r.id, title: r.title, description: r.description, category: r.category,
+    storeId: r.store_id,
     target: r.target, current: r.current_val, unit: r.unit, deadline: r.deadline,
     color: r.color, dailyTarget: r.daily_target ?? 1, dailyLog: r.daily_log ?? {},
     milestones: r.milestones ?? [], createdAt: r.created_at,
@@ -223,7 +226,7 @@ export async function dbGetAnnouncements(storeId: string): Promise<Announcement[
 }
 
 function dbToAnnouncement(r: DbAnnouncement): Announcement {
-  return { id: r.id, text: r.text, priority: r.priority, createdAt: r.created_at }
+  return { id: r.id, storeId: r.store_id, text: r.text, priority: r.priority, createdAt: r.created_at }
 }
 
 export async function dbInsertAnnouncement(a: Announcement, storeId: string) {
@@ -249,6 +252,15 @@ export async function dbGetSettings(storeId: string): Promise<DbSettings | null>
   return data as DbSettings | null
 }
 
+export async function dbGetStores(): Promise<StoreSummary[]> {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('store_id, company_name, store_number, slide_interval')
+    .order('store_id')
+  throwIfError(error, 'Could not load stores')
+  return (data ?? []) as StoreSummary[]
+}
+
 export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSettings, 'store_id'>>) {
   await supabase.from('app_settings').upsert({ store_id: storeId, ...patch })
 }
@@ -270,6 +282,7 @@ function taskToDb(t: Task, storeId: string) {
 function dbToTask(r: DbTask): Task {
   return {
     id: r.id, title: r.title, category: r.category as TaskCategory,
+    storeId: r.store_id,
     sortOrder: r.sort_order, completedDate: r.completed_date ?? null,
     createdAt: r.created_at,
   }

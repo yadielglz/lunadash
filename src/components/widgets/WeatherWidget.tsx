@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion'
-import { MapPin, Wind } from 'lucide-react'
+import { AlertTriangle, Clock, Wind } from 'lucide-react'
 import { Card } from '../ui/Card'
 import { useWeather } from '../../hooks/useWeather'
-import { getWeatherInfo } from '../../lib/openMeteo'
+import { formatWeatherTimezone, getWeatherInfo } from '../../lib/openMeteo'
 import { useUiStore } from '../../store/uiStore'
 import { useTempDisplay } from '../../hooks/useTempDisplay'
 
@@ -13,7 +13,7 @@ export function WeatherWidget() {
 
   return (
     <Card
-      className="h-full flex flex-col justify-between cursor-pointer group"
+      className="h-full flex flex-col justify-between cursor-pointer group !p-5"
       interactive
       onClick={() => setTab('weather')}
     >
@@ -49,11 +49,11 @@ export function WeatherWidget() {
 
         return (
           <>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="flex items-end gap-1">
+                <div className="flex items-end gap-1.5">
                   <motion.span
-                    className="text-4xl font-light text-[var(--text)] tabular-nums leading-none"
+                    className="text-6xl font-light text-[var(--text)] tabular-nums leading-none"
                     initial={{ scale: 0.9 }} animate={{ scale: 1 }}
                     transition={{ type: 'spring', stiffness: 300 }}
                   >
@@ -61,29 +61,38 @@ export function WeatherWidget() {
                   </motion.span>
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleTempUnit() }}
-                    className="text-sm text-[var(--accent)] hover:underline mb-1 font-medium"
+                    className="text-xl text-[var(--accent)] hover:underline mb-1.5 font-medium"
                     title="Toggle °F / °C"
                   >
                     {unit}
                   </button>
                 </div>
-                <p className="text-xs text-[var(--text-secondary)] mt-1">{weather.label}</p>
+                <p className="text-base font-medium text-[var(--text)] mt-2">{weather.label}</p>
               </div>
-              <span className="text-3xl">{weather.icon}</span>
+              <span className="text-5xl leading-none">{weather.icon}</span>
             </div>
 
-            <div className="space-y-1.5 mt-2">
-              <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+            <div className="space-y-2 mt-4">
+              <div className="flex items-center justify-between text-sm text-[var(--text-secondary)]">
                 <span>H:{high} L:{low}</span>
                 <span>💧 {precip}%</span>
               </div>
-              <div className="flex items-center gap-1 text-xs text-[var(--text-tertiary)]">
-                <Wind size={10} />
-                <span>{Math.round(cw.windspeed)} km/h</span>
-                <MapPin size={10} className="ml-1" />
-                <span className="truncate">{data.timezone.split('/').pop()?.replace('_', ' ')}</span>
+              <div className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+                <Wind size={12} />
+                <span>{Math.round(cw.windspeed)} mph</span>
+                <Clock size={12} className="ml-1" />
+                <span className="truncate">{formatWeatherTimezone(data.timezone)}</span>
               </div>
-            </div>
+              {data.alerts.length > 0 && (
+                <div className="flex items-center gap-1.5 text-xs font-medium text-red-400">
+                  <AlertTriangle size={12} />
+                  <span>{data.alerts.length} active alert{data.alerts.length === 1 ? '' : 's'}</span>
+                </div>
+              )}
+              {data.alertsUnavailable && (
+                <div className="text-[10px] text-[var(--text-tertiary)]">Alerts unavailable outside NWS coverage</div>
+              )}
+              </div>
           </>
         )
       })()}

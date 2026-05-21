@@ -1,104 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Target, Plus, Check, Trash2, Edit2, ChevronDown, ChevronUp, Minus } from 'lucide-react'
+import { Target, Plus, Check, ChevronDown, ChevronUp, Minus } from 'lucide-react'
 import { useGoalsStore, Goal } from '../../../store/goalsStore'
 import { ProgressRing } from '../../ui/ProgressRing'
 import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
-import { Button } from '../../ui/Button'
-import { Modal } from '../../ui/Modal'
-import { Input, Select, Textarea } from '../../ui/Input'
 
-const GOAL_COLORS = ['#0078d4','#7c5ff5','#16c60c','#f7630c','#e74856','#00b7c3','#e3008c']
 const todayKey = () => new Date().toISOString().split('T')[0]
-
-// ── Goal form modal ───────────────────────────────────────────────────────────
-function GoalFormModal({ open, onClose, editGoal }: { open: boolean; onClose: () => void; editGoal?: Goal }) {
-  const { addGoal, updateGoal, categories } = useGoalsStore()
-  const [title, setTitle]       = useState('')
-  const [desc, setDesc]         = useState('')
-  const [category, setCategory] = useState(categories[0])
-  const [target, setTarget]     = useState('100')
-  const [dailyTarget, setDailyTarget] = useState('2')
-  const [current, setCurrent]   = useState('0')
-  const [unit, setUnit]         = useState('')
-  const [deadline, setDeadline] = useState(
-    new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]
-  )
-  const [color, setColor] = useState(GOAL_COLORS[0])
-
-  useEffect(() => {
-    if (editGoal) {
-      setTitle(editGoal.title); setDesc(editGoal.description); setCategory(editGoal.category)
-      setTarget(String(editGoal.target)); setCurrent(String(editGoal.current))
-      setDailyTarget(String(editGoal.dailyTarget ?? 1))
-      setUnit(editGoal.unit); setDeadline(editGoal.deadline.split('T')[0]); setColor(editGoal.color)
-    } else {
-      setTitle(''); setDesc(''); setCategory(categories[0])
-      setTarget(''); setDailyTarget(''); setCurrent('0'); setUnit('')
-      setDeadline(new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0])
-      setColor(GOAL_COLORS[0])
-    }
-  }, [editGoal, open, categories])
-
-  const save = () => {
-    if (!title.trim()) return
-    const data = {
-      title: title.trim(), description: desc, category,
-      target: Number(target), current: Number(current),
-      dailyTarget: Number(dailyTarget) || 1,
-      unit, deadline: new Date(deadline).toISOString(),
-      color, milestones: editGoal?.milestones ?? [],
-    }
-    if (editGoal) updateGoal(editGoal.id, data)
-    else addGoal(data)
-    onClose()
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title={editGoal ? 'Edit Goal' : 'New Goal'} size="md">
-      <div className="space-y-4">
-        <Input label="Goal Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Voice Lines" />
-        <Textarea label="Description" value={desc} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDesc(e.target.value)} placeholder="Describe this goal…" />
-        <div className="grid grid-cols-2 gap-3">
-          <Select label="Category" value={category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}>
-            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-          </Select>
-          <Input label="Unit (e.g. lines, %)" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="lines" />
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <Input label="Daily Target" type="number" value={dailyTarget} onChange={(e) => setDailyTarget(e.target.value)} />
-          <Input label="Monthly Target" type="number" value={target} onChange={(e) => setTarget(e.target.value)} />
-          <Input label="Monthly Current" type="number" value={current} onChange={(e) => setCurrent(e.target.value)} />
-        </div>
-        <Input label="Month End" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
-        <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Color</label>
-          <div className="flex gap-2">
-            {GOAL_COLORS.map((c) => (
-              <button key={c} onClick={() => setColor(c)}
-                className={`w-7 h-7 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-white/30' : 'hover:scale-110'}`}
-                style={{ background: c }}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={!title.trim()}>
-            {editGoal ? 'Update' : 'Create Goal'}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  )
-}
 
 // ── Goal card ─────────────────────────────────────────────────────────────────
 function GoalCard({ goal }: { goal: Goal }) {
-  const { toggleMilestone, removeGoal, logDaily } = useGoalsStore()
+  const { toggleMilestone, logDaily } = useGoalsStore()
   const [expanded, setExpanded] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
 
   const key        = todayKey()
   const log        = goal.dailyLog ?? {}
@@ -112,8 +25,7 @@ function GoalCard({ goal }: { goal: Goal }) {
   const step = (delta: number) => logDaily(goal.id, Math.max(0, todayVal + delta))
 
   return (
-    <>
-      <Card
+    <Card
         className="flex flex-col gap-0 overflow-hidden"
         style={{
           borderColor: `${goal.color}33`,
@@ -139,10 +51,6 @@ function GoalCard({ goal }: { goal: Goal }) {
                     <Badge size="sm" color="#16c60c" variant="soft">✓ Daily done!</Badge>
                   )}
                 </div>
-              </div>
-              <div className="flex gap-1 flex-shrink-0">
-                <button onClick={() => setEditOpen(true)} className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"><Edit2 size={12} /></button>
-                <button onClick={() => removeGoal(goal.id)} className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
               </div>
             </div>
 
@@ -243,16 +151,12 @@ function GoalCard({ goal }: { goal: Goal }) {
           )}
         </AnimatePresence>
       </Card>
-
-      <GoalFormModal open={editOpen} onClose={() => setEditOpen(false)} editGoal={goal} />
-    </>
   )
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export function GoalsPage() {
   const { goals, categories } = useGoalsStore()
-  const [addOpen, setAddOpen] = useState(false)
   const [filterCat, setFilterCat] = useState('All')
 
   const key      = todayKey()
@@ -277,9 +181,6 @@ export function GoalsPage() {
               {new Date().toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
             </p>
           </div>
-          <Button size="sm" variant="primary" icon={<Plus size={13} />} onClick={() => setAddOpen(true)}>
-            New Goal
-          </Button>
         </div>
 
         {/* Category filters */}
@@ -304,8 +205,7 @@ export function GoalsPage() {
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <span className="text-5xl">🎯</span>
-            <p className="text-sm text-[var(--text-secondary)]">No goals yet — create your first one!</p>
-            <Button variant="primary" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>New Goal</Button>
+            <p className="text-sm text-[var(--text-secondary)]">No goals yet — create one in Settings.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -325,8 +225,6 @@ export function GoalsPage() {
           </div>
         )}
       </div>
-
-      <GoalFormModal open={addOpen} onClose={() => setAddOpen(false)} />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
-import { supabase, dbGetEmployees, dbGetShifts, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetTasks } from '../lib/supabase'
+import { supabase, dbGetEmployees, dbGetShifts, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetStores, dbGetTasks } from '../lib/supabase'
 import { useScheduleStore } from '../store/scheduleStore'
 import { useGoalsStore } from '../store/goalsStore'
 import { useDisplayStore } from '../store/displayStore'
@@ -53,10 +53,11 @@ type TaskRow = StoreScopedRow & {
   created_at: string
 }
 
-const employeeFromRow = (r: EmployeeRow): Employee => ({ id: r.id, name: r.name, role: r.role, color: r.color })
+const employeeFromRow = (r: EmployeeRow): Employee => ({ id: r.id, storeId: r.store_id, name: r.name, role: r.role, color: r.color })
 
 const shiftFromRow = (r: ShiftRow): Shift => ({
   id: r.id,
+  storeId: r.store_id,
   employeeId: r.employee_id,
   date: r.date,
   startTime: r.start_time,
@@ -67,6 +68,7 @@ const shiftFromRow = (r: ShiftRow): Shift => ({
 
 const goalFromRow = (r: GoalRow): Goal => ({
   id: r.id,
+  storeId: r.store_id,
   title: r.title,
   description: r.description,
   category: r.category,
@@ -83,6 +85,7 @@ const goalFromRow = (r: GoalRow): Goal => ({
 
 const announcementFromRow = (r: AnnouncementRow): Announcement => ({
   id: r.id,
+  storeId: r.store_id,
   text: r.text,
   priority: r.priority,
   createdAt: r.created_at,
@@ -90,6 +93,7 @@ const announcementFromRow = (r: AnnouncementRow): Announcement => ({
 
 const taskFromRow = (r: TaskRow): Task => ({
   id: r.id,
+  storeId: r.store_id,
   title: r.title,
   category: r.category,
   sortOrder: r.sort_order,
@@ -110,28 +114,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    const isMain = storeId === 'main'
 
     // ── Load all data for this store ────────────────────────────
     async function load() {
       setIsLoading(true)
       setError(null)
       try {
-        const [employees, shifts, goals, announcements, settings, tasks] = await Promise.all([
-          dbGetEmployees(storeId),
-          dbGetShifts(storeId),
-          dbGetGoals(storeId),
-          dbGetAnnouncements(storeId),
-          dbGetSettings(storeId),
-          dbGetTasks(storeId),
+        const storeIds = isMain
+          ? (await dbGetStores()).map((store) => store.store_id).filter((id) => id && id !== 'main')
+          : [storeId || 'default']
+
+        const [employeeSets, shiftSets, goalSets, announcementSets, settings, taskSets] = await Promise.all([
+          Promise.all(storeIds.map(dbGetEmployees)),
+          Promise.all(storeIds.map(dbGetShifts)),
+          Promise.all(storeIds.map(dbGetGoals)),
+          Promise.all(storeIds.map(dbGetAnnouncements)),
+          isMain ? Promise.resolve({ company_name: 'Main Dashboard', store_number: 'All Stores', slide_interval: 8 }) : dbGetSettings(storeIds[0]),
+          Promise.all(storeIds.map(dbGetTasks)),
         ])
         if (cancelled) return
-        scheduleInit(employees, shifts)
-        goalsInit(goals)
+        scheduleInit(employeeSets.flat(), shiftSets.flat())
+        goalsInit(goalSets.flat())
         displayInit(
-          announcements,
+          announcementSets.flat(),
           settings ?? { company_name: 'Luna Store', store_number: '', slide_interval: 8 }
         )
-        tasksInit(tasks)
+        tasksInit(taskSets.flat())
       } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : 'Could not load dashboard data')
@@ -148,83 +157,84 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       .channel(`luna-${storeId}`)
 
       // Employees
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employees', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employees', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const employee = employeeFromRow(p.new as EmployeeRow)
         useScheduleStore.setState((s) => ({ employees: [...s.employees.filter((e) => e.id !== employee.id), employee] }))
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employees', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employees', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const employee = employeeFromRow(p.new as EmployeeRow)
         useScheduleStore.setState((s) => ({ employees: s.employees.map((e) => e.id === employee.id ? employee : e) }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'employees' }, (p) => {
         const old = p.old as StoreScopedRow
-        if (old.store_id !== storeId) return
+        if (!isMain && old.store_id !== storeId) return
         useScheduleStore.setState((s) => ({ employees: s.employees.filter((e) => e.id !== old.id) }))
       })
 
       // Shifts
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'shifts', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'shifts', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const shift = shiftFromRow(p.new as ShiftRow)
         useScheduleStore.setState((s) => ({ shifts: [...s.shifts.filter((sh) => sh.id !== shift.id), shift] }))
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shifts', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'shifts', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const shift = shiftFromRow(p.new as ShiftRow)
         useScheduleStore.setState((s) => ({ shifts: s.shifts.map((sh) => sh.id === shift.id ? shift : sh) }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'shifts' }, (p) => {
         const old = p.old as StoreScopedRow
-        if (old.store_id !== storeId) return
+        if (!isMain && old.store_id !== storeId) return
         useScheduleStore.setState((s) => ({ shifts: s.shifts.filter((sh) => sh.id !== old.id) }))
       })
 
       // Goals
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'goals', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'goals', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const goal = goalFromRow(p.new as GoalRow)
         useGoalsStore.setState((s) => ({ goals: [...s.goals.filter((g) => g.id !== goal.id), goal] }))
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'goals', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'goals', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const goal = goalFromRow(p.new as GoalRow)
         useGoalsStore.setState((s) => ({ goals: s.goals.map((g) => g.id === goal.id ? goal : g) }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'goals' }, (p) => {
         const old = p.old as StoreScopedRow
-        if (old.store_id !== storeId) return
+        if (!isMain && old.store_id !== storeId) return
         useGoalsStore.setState((s) => ({ goals: s.goals.filter((g) => g.id !== old.id) }))
       })
 
       // Announcements
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const a = announcementFromRow(p.new as AnnouncementRow)
         useDisplayStore.setState((s) => ({ announcements: [...s.announcements.filter((x) => x.id !== a.id), a] }))
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'announcements', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'announcements', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const a = announcementFromRow(p.new as AnnouncementRow)
         useDisplayStore.setState((s) => ({ announcements: s.announcements.map((x) => x.id === a.id ? a : x) }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'announcements' }, (p) => {
         const old = p.old as StoreScopedRow
-        if (old.store_id !== storeId) return
+        if (!isMain && old.store_id !== storeId) return
         useDisplayStore.setState((s) => ({ announcements: s.announcements.filter((x) => x.id !== old.id) }))
       })
 
       // Settings
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+        if (isMain) return
         const r = p.new as SettingsRow
         useDisplayStore.setState({ companyName: r.company_name, storeNumber: r.store_number, slideInterval: r.slide_interval })
       })
 
       // Tasks
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const task = taskFromRow(p.new as TaskRow)
         useTasksStore.setState((s) => ({ tasks: [...s.tasks.filter((t) => t.id !== task.id), task] }))
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks', filter: `store_id=eq.${storeId}` }, (p) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const task = taskFromRow(p.new as TaskRow)
         useTasksStore.setState((s) => ({ tasks: s.tasks.map((t) => t.id === task.id ? task : t) }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tasks' }, (p) => {
         const old = p.old as StoreScopedRow
-        if (old.store_id !== storeId) return
+        if (!isMain && old.store_id !== storeId) return
         useTasksStore.setState((s) => ({ tasks: s.tasks.filter((t) => t.id !== old.id) }))
       })
 

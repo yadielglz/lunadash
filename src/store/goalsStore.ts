@@ -16,6 +16,7 @@ export interface Milestone {
 
 export interface Goal {
   id: string
+  storeId?: string
   title: string
   description: string
   category: string

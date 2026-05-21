@@ -14,6 +14,7 @@ export type TaskCategory = 'opening' | 'closing' | 'general'
 
 export interface Task {
   id: string
+  storeId?: string
   title: string
   category: TaskCategory
   sortOrder: number

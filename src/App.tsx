@@ -10,6 +10,7 @@ import { DisplayPage } from './components/features/screendisplay/DisplayPage'
 import { SettingsPage } from './components/features/settings/SettingsPage'
 import { TasksPage } from './components/features/tasks/TasksPage'
 import { LockScreen } from './components/LockScreen'
+import { StoreLaunchScreen } from './components/StoreLaunchScreen'
 import { useUiStore } from './store/uiStore'
 import { useLockStore, hashPin } from './store/lockStore'
 import { useTheme } from './hooks/useTheme'
@@ -18,6 +19,7 @@ const DEFAULT_PIN = '6974'
 
 export default function App() {
   const { activeTab } = useUiStore()
+  const storeId = useUiStore((s) => s.storeId)
   const { pinHash } = useLockStore()
   const [devicesUnlocked, setDevicesUnlocked] = useState(false)
   useTheme()
@@ -42,6 +44,10 @@ export default function App() {
 
   if (activeTab === 'display') {
     return <DisplayPage />
+  }
+
+  if (!storeId) {
+    return <StoreLaunchScreen />
   }
 
   const devicesContent = pinHash && !devicesUnlocked

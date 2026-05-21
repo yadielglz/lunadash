@@ -14,6 +14,7 @@ const sid = () => {
 
 export interface Announcement {
   id: string
+  storeId?: string
   text: string
   priority: 'normal' | 'important' | 'urgent'
   createdAt: string

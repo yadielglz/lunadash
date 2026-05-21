@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Wind, Droplets, Thermometer, MapPin } from 'lucide-react'
+import { AlertTriangle, Search, Wind, Droplets, Thermometer, MapPin } from 'lucide-react'
 import { useWeather, useGeocode } from '../../../hooks/useWeather'
-import { getWeatherInfo, getWindDirection, type GeocodingResult } from '../../../lib/openMeteo'
+import { formatWeatherTimezone, getWeatherInfo, getWindDirection, type GeocodingResult } from '../../../lib/openMeteo'
 import { useTempDisplay } from '../../../hooks/useTempDisplay'
 import { format } from 'date-fns'
 import { Input } from '../../ui/Input'
@@ -24,7 +24,8 @@ export function WeatherPage() {
 
   const cw = data?.current_weather
   const weather = cw ? getWeatherInfo(cw.weathercode, cw.is_day) : null
-  const timezone = data?.timezone.split('/').pop()?.replace('_', ' ') ?? ''
+  const timezoneLabel = data ? formatWeatherTimezone(data.timezone) : ''
+  const timezoneName = data?.timezone.split('/').pop()?.replace('_', ' ') ?? ''
 
   return (
     <div className="flex flex-col h-full">
@@ -106,7 +107,7 @@ export function WeatherPage() {
                   <p className="text-lg font-medium text-[var(--text)]">{weather.label}</p>
                   <div className="flex items-center gap-1 mt-1 text-sm text-[var(--text-secondary)]">
                     <MapPin size={13} />
-                    <span>{locationName ?? timezone}</span>
+                    <span>{locationName ?? timezoneName}</span>
                   </div>
                 </div>
                 <motion.span
@@ -116,13 +117,30 @@ export function WeatherPage() {
                 </motion.span>
               </div>
 
+              {data.alerts.length > 0 && (
+                <div className="mt-5 space-y-2">
+                  {data.alerts.slice(0, 3).map((alert) => (
+                    <div key={alert.id} className="rounded-lg border border-red-500/25 bg-red-500/10 p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle size={16} className="mt-0.5 text-red-400" />
+                        <div>
+                          <div className="text-sm font-semibold text-[var(--text)]">{alert.event}</div>
+                          <div className="text-xs text-[var(--text-secondary)] mt-0.5">{alert.headline}</div>
+                          {alert.area && <div className="text-[10px] text-[var(--text-tertiary)] mt-1">{alert.area}</div>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Stats row */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
                 {[
-                  { icon: <Wind size={14} />, label: 'Wind', value: `${Math.round(cw.windspeed)} km/h ${getWindDirection(cw.winddirection)}` },
+                  { icon: <Wind size={14} />, label: 'Wind', value: `${Math.round(cw.windspeed)} mph ${getWindDirection(cw.winddirection)}` },
                   { icon: <Droplets size={14} />, label: 'Precip.', value: `${data.daily.precipitation_probability_max[0]}%` },
                   { icon: <Thermometer size={14} />, label: 'High / Low', value: `${fmt(data.daily.temperature_2m_max[0])}${unit} / ${fmt(data.daily.temperature_2m_min[0])}${unit}` },
-                  { icon: <MapPin size={14} />, label: 'Timezone', value: timezone },
+                  { icon: <MapPin size={14} />, label: 'Local Time', value: timezoneLabel },
                 ].map(({ icon, label, value }) => (
                   <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-3)] p-3">
                     <div className="flex items-center gap-1.5 text-[var(--text-secondary)] mb-1">

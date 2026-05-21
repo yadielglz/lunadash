@@ -26,9 +26,24 @@ export interface WeatherData {
   current_weather: CurrentWeather
   daily: DailyForecast
   hourly: HourlyForecast
+  alerts: WeatherAlert[]
+  alertsUnavailable?: boolean
   latitude: number
   longitude: number
   timezone: string
+}
+
+export interface WeatherAlert {
+  id: string
+  event: string
+  headline: string
+  severity: string
+  urgency: string
+  area: string
+  effective: string
+  expires: string
+  description: string
+  instruction?: string
 }
 
 export interface GeocodingResult {
@@ -50,10 +65,54 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
   url.searchParams.set('hourly', 'temperature_2m,precipitation_probability,weathercode')
   url.searchParams.set('timezone', 'auto')
   url.searchParams.set('forecast_days', '7')
+  url.searchParams.set('windspeed_unit', 'mph')
 
   const res = await fetch(url.toString())
   if (!res.ok) throw new Error('Weather fetch failed')
-  return res.json()
+  const data = await res.json()
+
+  try {
+    const alerts = await fetchWeatherAlerts(lat, lon)
+    return { ...data, alerts, alertsUnavailable: false }
+  } catch {
+    return { ...data, alerts: [], alertsUnavailable: true }
+  }
+}
+
+async function fetchWeatherAlerts(lat: number, lon: number): Promise<WeatherAlert[]> {
+  const url = `https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`
+  const res = await fetch(url, { headers: { Accept: 'application/geo+json' } })
+  if (!res.ok) throw new Error('Weather alerts unavailable')
+  const data = await res.json()
+  return (data.features ?? []).map((feature: {
+    id?: string
+    properties?: {
+      id?: string
+      event?: string
+      headline?: string
+      severity?: string
+      urgency?: string
+      areaDesc?: string
+      effective?: string
+      expires?: string
+      description?: string
+      instruction?: string
+    }
+  }) => {
+    const p = feature.properties ?? {}
+    return {
+      id: feature.id ?? p.id ?? crypto.randomUUID(),
+      event: p.event ?? 'Weather Alert',
+      headline: p.headline ?? p.event ?? 'Weather Alert',
+      severity: p.severity ?? 'Unknown',
+      urgency: p.urgency ?? 'Unknown',
+      area: p.areaDesc ?? '',
+      effective: p.effective ?? '',
+      expires: p.expires ?? '',
+      description: p.description ?? '',
+      instruction: p.instruction ?? '',
+    }
+  })
 }
 
 export async function geocodeCity(city: string): Promise<GeocodingResult[]> {
@@ -103,4 +162,18 @@ export function getWeatherInfo(code: number, isDay = 1) {
 export function getWindDirection(deg: number): string {
   const dirs = ['N','NE','E','SE','S','SW','W','NW']
   return dirs[Math.round(deg / 45) % 8]
+}
+
+export function formatWeatherTimezone(timezone: string): string {
+  if (!timezone) return ''
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: timezone,
+      timeZoneName: 'short',
+    }).format(new Date())
+  } catch {
+    return timezone.split('/').pop()?.replace('_', ' ') ?? timezone
+  }
 }

@@ -1,13 +1,12 @@
 import { motion } from 'framer-motion'
 import {
-  LayoutGrid, Monitor, Calendar, Target, CloudSun, Tv2, CheckSquare, Settings
+  LayoutGrid, Calendar, Target, CloudSun, Tv2, CheckSquare, Settings
 } from 'lucide-react'
 import { useUiStore, Tab } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
 
 const TABS: { id: Tab; icon: React.ReactNode; label: string }[] = [
   { id: 'home',     icon: <LayoutGrid size={18} />,  label: 'Home'     },
-  { id: 'devices',  icon: <Monitor size={18} />,     label: 'Protect'  },
   { id: 'schedule', icon: <Calendar size={18} />,    label: 'Schedule' },
   { id: 'goals',    icon: <Target size={18} />,      label: 'Goals'    },
   { id: 'weather',  icon: <CloudSun size={18} />,    label: 'Weather'  },

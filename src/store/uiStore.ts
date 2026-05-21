@@ -37,13 +37,13 @@ export const useUiStore = create<UiState>()(
       theme: getSystemTheme(),
       tempUnit: 'F' as TempUnit,
       timeFormat: '12' as TimeFormat,
-      storeId: 'default',
+      storeId: '',
       isEditingWidgets: false,
       setTab: (tab) => set({ activeTab: tab }),
       setTempUnit: (unit) => set({ tempUnit: unit }),
       toggleTempUnit: () => set((s) => ({ tempUnit: s.tempUnit === 'C' ? 'F' : 'C' })),
       setTimeFormat: (fmt) => set({ timeFormat: fmt }),
-      setStoreId: (id) => set({ storeId: id || 'default' }),
+      setStoreId: (id) => set({ storeId: id }),
       setTheme: (theme) => {
         set({ theme })
         document.documentElement.className = theme

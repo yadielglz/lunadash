@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, Store, Target, Megaphone, Calendar,
-  Check, ChevronRight, Trash2, Plus, Edit2, Info
+  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw
 } from 'lucide-react'
 import { useUiStore } from '../../../store/uiStore'
 
@@ -11,7 +11,8 @@ import { useGoalsStore, Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../../../store/schedulePreferencesStore'
-import { Input, Select } from '../../ui/Input'
+import { dbGetStores, dbUpdateSettings, StoreSummary } from '../../../lib/supabase'
+import { Input, Select, Textarea } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 
 // ── Section wrapper ──────────────────────────────────────────────────────────
@@ -86,22 +87,114 @@ function StoreSection() {
   const { storeId, setStoreId } = useUiStore()
   const [name, setName]       = useState(companyName)
   const [num, setNum]         = useState(storeNumber)
-  const [sid, setSid]         = useState(storeId)
+  const [newStoreId, setNewStoreId] = useState('')
+  const [stores, setStores] = useState<StoreSummary[]>([])
+  const [storesLoading, setStoresLoading] = useState(false)
+  const [storesError, setStoresError] = useState('')
   const [sidSaved, setSidSaved] = useState(false)
+
+  const loadStores = async () => {
+    setStoresLoading(true)
+    setStoresError('')
+    try {
+      const rows = await dbGetStores()
+      const hasDefault = rows.some((store) => store.store_id === 'default')
+      setStores(hasDefault ? rows : [
+        { store_id: 'default', company_name: 'Luna Store', store_number: '', slide_interval: 8 },
+        ...rows,
+      ])
+    } catch (err) {
+      setStoresError(err instanceof Error ? err.message : 'Could not load stores')
+      setStores([{ store_id: 'default', company_name: 'Luna Store', store_number: '', slide_interval: 8 }])
+    } finally {
+      setStoresLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadStores()
+  }, [])
+
+  useEffect(() => {
+    setName(companyName)
+    setNum(storeNumber)
+  }, [companyName, storeNumber])
 
   const saveDetails = () => {
     setCompanyName(name.trim() || companyName)
     setStoreNumber(num.trim())
+    loadStores()
   }
 
-  const saveStoreId = () => {
-    setStoreId(sid.trim() || 'default')
+  const switchStore = (nextStoreId: string) => {
+    setStoreId(nextStoreId || 'default')
     setSidSaved(true)
     setTimeout(() => setSidSaved(false), 2000)
   }
 
+  const addStore = async () => {
+    const id = newStoreId.trim() || 'default'
+    await dbUpdateSettings(id, {
+      company_name: id === storeId ? companyName : 'Luna Store',
+      store_number: id === storeId ? storeNumber : '',
+      slide_interval: id === storeId ? slideInterval : 8,
+    })
+    setNewStoreId('')
+    await loadStores()
+    switchStore(id)
+  }
+
   return (
     <Section icon={<Store size={14} />} title="Store Details">
+      {/* Store selector */}
+      <div className="px-4 py-4 rounded-xl bg-[var(--surface-2)] border border-[var(--accent)]/20 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-[var(--text)]">Store Selection</p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+              Select a store already configured in Supabase, or add one by Store Data ID.
+            </p>
+          </div>
+          <Button variant="ghost" size="sm" icon={<RefreshCw size={12} />} onClick={loadStores} loading={storesLoading}>
+            Refresh
+          </Button>
+        </div>
+
+        <Select
+          label="Known Stores"
+          value={storeId}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => switchStore(e.target.value)}
+        >
+          <option value="main">Main Dashboard - All Stores</option>
+          {stores.map((store) => (
+            <option key={store.store_id} value={store.store_id}>
+              {store.company_name || 'Luna Store'}{store.store_number ? ` #${store.store_number}` : ''} ({store.store_id})
+            </option>
+          ))}
+          {storeId !== 'main' && !stores.some((store) => store.store_id === storeId) && (
+            <option value={storeId}>{storeId} (current)</option>
+          )}
+        </Select>
+
+        <div className="flex gap-2">
+          <Input
+            value={newStoreId}
+            onChange={(e) => setNewStoreId(e.target.value)}
+            placeholder="New store ID, e.g. 693D"
+            onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') addStore() }}
+          />
+          <Button size="sm" onClick={addStore} icon={<Plus size={12} />}>
+            Add / Use
+          </Button>
+        </div>
+
+        <p className="text-[10px] text-[var(--text-tertiary)]">
+          Current: <span className="font-mono text-[var(--accent)]">{storeId || 'default'}</span>
+          {sidSaved && <span className="ml-2 text-[var(--accent)]">Applied</span>}
+        </p>
+        {storesError && <p className="text-xs text-red-400">{storesError}</p>}
+      </div>
+
       {/* Display info */}
       <div className="px-4 py-4 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
         <div className="grid grid-cols-2 gap-3">
@@ -111,31 +204,6 @@ function StoreSection() {
         <div className="flex justify-end">
           <Button size="sm" onClick={saveDetails} icon={<Check size={12} />}>Save</Button>
         </div>
-      </div>
-
-      {/* Store ID — data isolation per store */}
-      <div className="px-4 py-4 rounded-xl bg-[var(--surface-2)] border border-[var(--accent)]/20 space-y-2">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold text-[var(--text)]">Store Data ID</p>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-              All devices in the same store must use the same ID to share schedules, goals, and announcements.
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Input
-            value={sid}
-            onChange={(e) => setSid(e.target.value)}
-            placeholder="e.g. store-1234 or TMO-NYC-5"
-          />
-          <Button size="sm" onClick={saveStoreId} icon={<Check size={12} />}>
-            {sidSaved ? 'Saved!' : 'Apply'}
-          </Button>
-        </div>
-        <p className="text-[10px] text-[var(--text-tertiary)]">
-          Current: <span className="font-mono text-[var(--accent)]">{storeId}</span>
-        </p>
       </div>
 
       <Row label="Display Slide Interval" description={`Each slide shows for ${slideInterval}s`}>
@@ -153,26 +221,118 @@ function StoreSection() {
 }
 
 // ── Goals section ─────────────────────────────────────────────────────────────
-function GoalRow({ g }: { g: Goal }) {
-  const { updateGoal, removeGoal } = useGoalsStore()
-  const [editing, setEditing] = useState(false)
-  const [current, setCurrent] = useState(String(g.current))
+const GOAL_COLORS = ['#0078d4','#7c5ff5','#16c60c','#f7630c','#e74856','#00b7c3','#e3008c']
+
+function GoalEditor({ editingGoal, onDone }: { editingGoal: Goal | null; onDone: () => void }) {
+  const { addGoal, updateGoal, categories } = useGoalsStore()
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [category, setCategory] = useState(categories[0] ?? 'General')
+  const [unit, setUnit] = useState('')
+  const [dailyTarget, setDailyTarget] = useState('1')
+  const [target, setTarget] = useState('100')
+  const [current, setCurrent] = useState('0')
+  const [deadline, setDeadline] = useState(new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0])
+  const [color, setColor] = useState(GOAL_COLORS[0])
+
+  useEffect(() => {
+    if (editingGoal) {
+      setTitle(editingGoal.title)
+      setDescription(editingGoal.description)
+      setCategory(editingGoal.category)
+      setUnit(editingGoal.unit)
+      setDailyTarget(String(editingGoal.dailyTarget ?? 1))
+      setTarget(String(editingGoal.target))
+      setCurrent(String(editingGoal.current))
+      setDeadline(editingGoal.deadline ? editingGoal.deadline.split('T')[0] : new Date().toISOString().split('T')[0])
+      setColor(editingGoal.color)
+      return
+    }
+
+    setTitle('')
+    setDescription('')
+    setCategory(categories[0] ?? 'General')
+    setUnit('')
+    setDailyTarget('1')
+    setTarget('100')
+    setCurrent('0')
+    setDeadline(new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0])
+    setColor(GOAL_COLORS[0])
+  }, [editingGoal, categories])
 
   const save = () => {
-    const val = parseFloat(current)
-    if (!isNaN(val)) updateGoal(g.id, { current: val })
-    setEditing(false)
+    if (!title.trim()) return
+    const data = {
+      title: title.trim(),
+      description: description.trim(),
+      category,
+      unit: unit.trim(),
+      dailyTarget: Number(dailyTarget) || 1,
+      target: Number(target) || 0,
+      current: Number(current) || 0,
+      deadline: new Date(deadline).toISOString(),
+      color,
+      milestones: editingGoal?.milestones ?? [],
+    }
+
+    if (editingGoal) updateGoal(editingGoal.id, data)
+    else addGoal(data)
+    onDone()
   }
 
-  const pct = Math.min(Math.round((g.current / g.target) * 100), 100)
+  return (
+    <div className="px-4 py-4 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
+      <p className="text-xs font-semibold text-[var(--text)]">{editingGoal ? 'Edit Goal' : 'Create Goal'}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Input label="Goal Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Voice Lines" />
+        <Select label="Category" value={category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}>
+          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+        </Select>
+      </div>
+      <Textarea label="Description" value={description} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)} placeholder="Optional goal context" />
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <Input label="Unit" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="lines" />
+        <Input label="Daily Target" type="number" value={dailyTarget} onChange={(e) => setDailyTarget(e.target.value)} />
+        <Input label="Monthly Target" type="number" value={target} onChange={(e) => setTarget(e.target.value)} />
+        <Input label="Monthly Current" type="number" value={current} onChange={(e) => setCurrent(e.target.value)} />
+        <Input label="Month End" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+      </div>
+      <div>
+        <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Color</label>
+        <div className="flex flex-wrap gap-2">
+          {GOAL_COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-white/40' : 'hover:scale-110'}`}
+              style={{ background: c }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        {editingGoal && <Button variant="ghost" size="sm" onClick={onDone}>Cancel</Button>}
+        <Button size="sm" onClick={save} disabled={!title.trim()} icon={<Check size={12} />}>
+          {editingGoal ? 'Update Goal' : 'Save Goal'}
+        </Button>
+      </div>
+    </div>
+  )
+}
 
+function GoalSettingsRow({ g, onEdit }: { g: Goal; onEdit: (goal: Goal) => void }) {
+  const { removeGoal } = useGoalsStore()
+  const pct = g.target > 0 ? Math.min(Math.round((g.current / g.target) * 100), 100) : 0
   return (
     <motion.div layout className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] group">
-      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: g.color }} />
+      <div className="w-2.5 h-10 rounded-full flex-shrink-0" style={{ background: g.color }} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[var(--text)] truncate">{g.title}</span>
           <span className="text-[10px] text-[var(--text-tertiary)]">{g.category}</span>
+        </div>
+        <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
+          Daily {g.dailyTarget ?? 1}{g.unit} · Monthly {g.current}{g.unit} / {g.target}{g.unit}
         </div>
         <div className="flex items-center gap-2 mt-1">
           <div className="flex-1 h-1 rounded-full bg-[var(--border)]">
@@ -181,38 +341,20 @@ function GoalRow({ g }: { g: Goal }) {
           <span className="text-[10px] text-[var(--text-secondary)] whitespace-nowrap">{pct}%</span>
         </div>
       </div>
-      <div className="flex items-center gap-1 text-xs text-[var(--text-secondary)]">
-        {editing ? (
-          <div className="flex items-center gap-1">
-            <input
-              type="number"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-              className="w-16 text-xs px-2 py-1 rounded-md bg-[var(--input-bg)] border border-[var(--accent)]/50 text-[var(--text)] focus:outline-none"
-              onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
-              autoFocus
-            />
-            <span className="text-[var(--text-tertiary)]">/ {g.target}{g.unit}</span>
-            <button onClick={save} className="p-1 text-[var(--accent)]"><Check size={12} /></button>
-          </div>
-        ) : (
-          <>
-            <button
-              onClick={() => { setCurrent(String(g.current)); setEditing(true) }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-all"
-            >
-              <Edit2 size={12} />
-            </button>
-            <span className="whitespace-nowrap">{g.current}{g.unit} / {g.target}{g.unit}</span>
-          </>
-        )}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={() => onEdit(g)}
+          className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-all"
+        >
+          <Edit2 size={12} />
+        </button>
+        <button
+          onClick={() => removeGoal(g.id)}
+          className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-red-400 transition-all flex-shrink-0"
+        >
+          <Trash2 size={12} />
+        </button>
       </div>
-      <button
-        onClick={() => removeGoal(g.id)}
-        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-red-400 transition-all flex-shrink-0"
-      >
-        <Trash2 size={12} />
-      </button>
     </motion.div>
   )
 }
@@ -220,10 +362,13 @@ function GoalRow({ g }: { g: Goal }) {
 function GoalsSection() {
   const { goals, categories } = useGoalsStore()
   const [filter, setFilter] = useState('All')
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
   const shown = filter === 'All' ? goals : goals.filter((g) => g.category === filter)
 
   return (
     <Section icon={<Target size={14} />} title="Goals">
+      <GoalEditor editingGoal={editingGoal} onDone={() => setEditingGoal(null)} />
+
       <div className="flex items-center gap-1.5 flex-wrap">
         {['All', ...categories].map((c) => (
           <button
@@ -237,7 +382,7 @@ function GoalsSection() {
       </div>
       <div className="space-y-1.5">
         <AnimatePresence>
-          {shown.map((g) => <GoalRow key={g.id} g={g} />)}
+          {shown.map((g) => <GoalSettingsRow key={g.id} g={g} onEdit={setEditingGoal} />)}
         </AnimatePresence>
       </div>
       {shown.length === 0 && (
@@ -505,14 +650,94 @@ function ScheduleBlocksSection() {
   )
 }
 
+// ── Configured stores section ────────────────────────────────────────────────
+function ConfiguredStoresSection() {
+  const { storeId, setStoreId } = useUiStore()
+  const [stores, setStores] = useState<StoreSummary[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const loadStores = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const rows = await dbGetStores()
+      setStores(rows)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load stores')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadStores()
+  }, [])
+
+  return (
+    <Section icon={<Store size={14} />} title="Configured Stores">
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" icon={<RefreshCw size={12} />} onClick={loadStores} loading={loading}>
+          Refresh
+        </Button>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-[var(--text)] truncate">Main Dashboard</span>
+              {storeId === 'main' && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">Current</span>
+              )}
+            </div>
+            <div className="text-xs text-[var(--text-tertiary)] mt-0.5">All configured stores</div>
+          </div>
+          <Button size="sm" variant={storeId === 'main' ? 'accent' : 'ghost'} onClick={() => setStoreId('main')}>
+            {storeId === 'main' ? 'Selected' : 'Use'}
+          </Button>
+        </div>
+
+        {stores.map((store) => (
+          <div key={store.store_id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-[var(--text)] truncate">{store.company_name || 'Luna Store'}</span>
+                {store.store_id === storeId && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">Current</span>
+                )}
+              </div>
+              <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                ID: <span className="font-mono">{store.store_id}</span>
+                {store.store_number ? ` · Store #${store.store_number}` : ''}
+                {` · Slides ${store.slide_interval}s`}
+              </div>
+            </div>
+            <Button size="sm" variant={store.store_id === storeId ? 'accent' : 'ghost'} onClick={() => setStoreId(store.store_id)}>
+              {store.store_id === storeId ? 'Selected' : 'Use'}
+            </Button>
+          </div>
+        ))}
+
+        {stores.length === 0 && !loading && (
+          <p className="text-xs text-[var(--text-tertiary)] text-center py-4">No configured stores found in Supabase.</p>
+        )}
+        {error && <p className="text-xs text-red-400 text-center py-2">{error}</p>}
+      </div>
+    </Section>
+  )
+}
+
 // ── About section ─────────────────────────────────────────────────────────────
 function AboutSection() {
+  const { setTab } = useUiStore()
+
   return (
     <Section icon={<Info size={14} />} title="About">
       <div className="px-4 py-5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
         <div>
           <h3 className="text-lg font-semibold text-[var(--text)]">LunaDash</h3>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver 3.15 | Build 52126.1218</p>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver 3.31 | Build 52126.1344</p>
         </div>
         <div className="text-sm text-[var(--text-secondary)] space-y-1">
           <p>© 2026 Glz Technical Services | Glz Tech</p>
@@ -523,6 +748,14 @@ function AboutSection() {
             </a>
           </p>
         </div>
+        <div className="pt-2 border-t border-[var(--border)]">
+          <button
+            onClick={() => setTab('devices')}
+            className="text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            Internal reference
+          </button>
+        </div>
       </div>
     </Section>
   )
@@ -532,6 +765,7 @@ function AboutSection() {
 const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
   { id: 'store',         label: 'Store Details',  icon: <Store size={14} /> },
+  { id: 'configuredStores', label: 'Configured Stores', icon: <Store size={14} /> },
   { id: 'goals',         label: 'Goals',          icon: <Target size={14} /> },
   { id: 'announcements', label: 'Announcements',  icon: <Megaphone size={14} /> },
   { id: 'scheduling',    label: 'Scheduling',     icon: <Calendar size={14} /> },
@@ -548,6 +782,7 @@ export function SettingsPage() {
   const content: Record<SectionId, React.ReactNode> = {
     general:       <GeneralSection />,
     store:         <StoreSection />,
+    configuredStores: <ConfiguredStoresSection />,
     goals:         <GoalsSection />,
     announcements: <AnnouncementsSection />,
     scheduling:    <SchedulingSection />,

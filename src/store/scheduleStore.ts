@@ -17,6 +17,7 @@ export type ShiftType = string
 
 export interface Employee {
   id: string
+  storeId?: string
   name: string
   role: string
   color: string
@@ -25,6 +26,7 @@ export interface Employee {
 
 export interface Shift {
   id: string
+  storeId?: string
   employeeId: string
   date: string        // YYYY-MM-DD
   startTime: string   // HH:mm
