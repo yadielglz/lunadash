@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { Building2, RefreshCw } from 'lucide-react'
 import { dbGetStores, dbUpdateSettings, StoreSummary } from '../lib/supabase'
 import { useUiStore } from '../store/uiStore'
+import { AdminMainAccess } from './AdminMainAccess'
 import { Button } from './ui/Button'
 import { Input, Select } from './ui/Input'
 
 export function StoreLaunchScreen() {
   const setStoreId = useUiStore((s) => s.setStoreId)
   const [stores, setStores] = useState<StoreSummary[]>([])
-  const [selected, setSelected] = useState('main')
+  const [selected, setSelected] = useState('default')
   const [newStoreId, setNewStoreId] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -19,11 +20,9 @@ export function StoreLaunchScreen() {
     try {
       const rows = await dbGetStores()
       setStores(rows)
-      if (rows.length === 0) setSelected('default')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load stores')
       setStores([])
-      setSelected('default')
     } finally {
       setIsLoading(false)
     }
@@ -55,7 +54,6 @@ export function StoreLaunchScreen() {
 
         <div className="mt-5 space-y-4">
           <Select label="Dashboard View" value={selected} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelected(e.target.value)}>
-            <option value="main">Main Dashboard - All Stores</option>
             {stores.map((store) => (
               <option key={store.store_id} value={store.store_id}>
                 {store.company_name || 'Luna Store'}{store.store_number ? ` #${store.store_number}` : ''} ({store.store_id})
@@ -71,6 +69,10 @@ export function StoreLaunchScreen() {
             <Button variant="primary" onClick={() => setStoreId(selected || 'default')}>
               Continue
             </Button>
+          </div>
+
+          <div className="border-t border-[var(--border)] pt-4">
+            <AdminMainAccess onUnlock={() => setStoreId('main')} />
           </div>
 
           <div className="border-t border-[var(--border)] pt-4 space-y-2">

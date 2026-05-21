@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, Store, Target, Megaphone, Calendar,
-  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw
+  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun
 } from 'lucide-react'
-import { useUiStore } from '../../../store/uiStore'
+import { Theme, useUiStore } from '../../../store/uiStore'
 
 import { useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, Goal } from '../../../store/goalsStore'
@@ -14,6 +14,7 @@ import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../.
 import { dbGetStores, dbUpdateSettings, StoreSummary } from '../../../lib/supabase'
 import { Input, Select, Textarea } from '../../ui/Input'
 import { Button } from '../../ui/Button'
+import { AdminMainAccess } from '../../AdminMainAccess'
 
 // ── Section wrapper ──────────────────────────────────────────────────────────
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
@@ -58,11 +59,56 @@ function Segment<T extends string>({ options, value, onChange }: { options: { va
   )
 }
 
+function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Theme) => void }) {
+  const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string }[] = [
+    { value: 'dark', label: 'Dark', icon: <Moon size={14} />, preview: 'bg-[#111318]' },
+    { value: 'light', label: 'Light', icon: <Sun size={14} />, preview: 'bg-[#f4f6f8]' },
+  ]
+
+  return (
+    <div className="grid grid-cols-2 gap-2 w-72 max-w-full">
+      {choices.map((choice) => {
+        const selected = value === choice.value
+        return (
+          <button
+            key={choice.value}
+            type="button"
+            onClick={() => onChange(choice.value)}
+            className={`group rounded-lg border p-2 text-left transition-colors ${
+              selected
+                ? 'border-[var(--accent)] bg-[var(--accent)]/10'
+                : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]'
+            }`}
+          >
+            <div className={`h-12 rounded-md border border-[var(--border)] ${choice.preview} overflow-hidden`}>
+              <div className="h-3 border-b border-white/10 bg-white/10" />
+              <div className="p-1.5 space-y-1">
+                <div className="h-2 w-10 rounded bg-[var(--accent)]" />
+                <div className="h-1.5 w-14 rounded bg-slate-400/45" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--text)]">
+                {choice.icon}
+                {choice.label}
+              </span>
+              {selected && <Check size={13} className="text-[var(--accent)]" />}
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── General section ──────────────────────────────────────────────────────────
 function GeneralSection() {
-  const { timeFormat, setTimeFormat, tempUnit, toggleTempUnit } = useUiStore()
+  const { theme, setTheme, timeFormat, setTimeFormat, tempUnit, toggleTempUnit } = useUiStore()
   return (
     <Section icon={<Clock size={14} />} title="General">
+      <Row label="Theme" description="Choose the dashboard appearance">
+        <ThemePicker value={theme} onChange={setTheme} />
+      </Row>
       <Row label="Time Format" description="How time is displayed across the app">
         <Segment
           options={[{ value: '12', label: '12h' }, { value: '24', label: '24h' }]}
@@ -162,10 +208,10 @@ function StoreSection() {
 
         <Select
           label="Known Stores"
-          value={storeId}
+          value={storeId === 'main' ? '' : storeId}
           onChange={(e: React.ChangeEvent<HTMLSelectElement>) => switchStore(e.target.value)}
         >
-          <option value="main">Main Dashboard - All Stores</option>
+          <option value="" disabled>{storeId === 'main' ? 'Main Dashboard active' : 'Select a store'}</option>
           {stores.map((store) => (
             <option key={store.store_id} value={store.store_id}>
               {store.company_name || 'Luna Store'}{store.store_number ? ` #${store.store_number}` : ''} ({store.store_id})
@@ -175,6 +221,8 @@ function StoreSection() {
             <option value={storeId}>{storeId} (current)</option>
           )}
         </Select>
+
+        <AdminMainAccess onUnlock={() => switchStore('main')} />
 
         <div className="flex gap-2">
           <Input
@@ -730,14 +778,23 @@ function ConfiguredStoresSection() {
 
 // ── About section ─────────────────────────────────────────────────────────────
 function AboutSection() {
-  const { setTab } = useUiStore()
+  const { setTab, sessionExpiresAt, extendStoreSession } = useUiStore()
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const remaining = Math.max(0, Math.ceil(((sessionExpiresAt ?? now) - now) / 1000))
+  const remainingLabel = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`
 
   return (
     <Section icon={<Info size={14} />} title="About">
       <div className="px-4 py-5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
         <div>
           <h3 className="text-lg font-semibold text-[var(--text)]">LunaDash</h3>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver 3.31 | Build 52126.1344</p>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver 3.43 | Build 52126.1835</p>
         </div>
         <div className="text-sm text-[var(--text-secondary)] space-y-1">
           <p>© 2026 Glz Technical Services | Glz Tech</p>
@@ -747,6 +804,25 @@ function AboutSection() {
               service@glztech.com
             </a>
           </p>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+          <p className="text-xs font-medium text-[var(--text)]">Update Notes</p>
+          <ul className="mt-2 list-disc pl-4 text-xs text-[var(--text-secondary)] space-y-1">
+            <li>Added theme-aware Luna Wireless branding, AM/PM dashboard time, and a visual theme picker.</li>
+            <li>Updated store selection with activity-based sessions and locked Admin location access.</li>
+          </ul>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-[var(--text)]">Store Session</p>
+              <p className="text-[10px] text-[var(--text-tertiary)]">Timer resets with activity. Display and Goals stay open.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm text-[var(--accent)]">{remainingLabel}</span>
+              <Button size="sm" variant="ghost" onClick={extendStoreSession}>Extend</Button>
+            </div>
+          </div>
         </div>
         <div className="pt-2 border-t border-[var(--border)]">
           <button

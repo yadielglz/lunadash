@@ -6,7 +6,7 @@ export function ClockWidget() {
   const now = useClock()
   const { setTab } = useUiStore()
 
-  const hours = now.getHours().toString().padStart(2, '0')
+  const hours = (now.getHours() % 12 || 12).toString()
   const minutes = now.getMinutes().toString().padStart(2, '0')
   const seconds = now.getSeconds().toString().padStart(2, '0')
   const dateStr = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })

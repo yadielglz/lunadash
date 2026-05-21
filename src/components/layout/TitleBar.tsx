@@ -62,7 +62,7 @@ export function TitleBar() {
   const now = useClock()
   const { companyName, storeNumber, setCompanyName, setStoreNumber } = useDisplayStore()
 
-  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
   const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (

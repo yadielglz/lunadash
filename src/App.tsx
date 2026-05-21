@@ -20,6 +20,9 @@ const DEFAULT_PIN = '6974'
 export default function App() {
   const { activeTab } = useUiStore()
   const storeId = useUiStore((s) => s.storeId)
+  const sessionExpiresAt = useUiStore((s) => s.sessionExpiresAt)
+  const clearStoreSession = useUiStore((s) => s.clearStoreSession)
+  const extendStoreSession = useUiStore((s) => s.extendStoreSession)
   const { pinHash } = useLockStore()
   const [devicesUnlocked, setDevicesUnlocked] = useState(false)
   useTheme()
@@ -42,12 +45,51 @@ export default function App() {
     if (activeTab !== 'devices') setDevicesUnlocked(false)
   }, [activeTab])
 
-  if (activeTab === 'display') {
-    return <DisplayPage />
-  }
+  // Close the selected-store session after 2 minutes of inactivity unless a passive display is active.
+  useEffect(() => {
+    if (!storeId || !sessionExpiresAt) return
+    if (activeTab === 'display' || activeTab === 'goals') return
+
+    const remaining = sessionExpiresAt - Date.now()
+    if (remaining <= 0) {
+      clearStoreSession()
+      return
+    }
+
+    const id = window.setTimeout(() => clearStoreSession(), remaining)
+    return () => window.clearTimeout(id)
+  }, [activeTab, clearStoreSession, sessionExpiresAt, storeId])
+
+  useEffect(() => {
+    if (!storeId) return
+    if (activeTab === 'display' || activeTab === 'goals') return
+
+    let lastExtended = 0
+    const refreshSession = () => {
+      const now = Date.now()
+      if (now - lastExtended < 10_000) return
+      lastExtended = now
+      extendStoreSession()
+    }
+    const options: AddEventListenerOptions = { capture: true, passive: true }
+    const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll']
+
+    events.forEach((eventName) => window.addEventListener(eventName, refreshSession, options))
+    return () => {
+      events.forEach((eventName) => window.removeEventListener(eventName, refreshSession, options))
+    }
+  }, [activeTab, extendStoreSession, storeId])
 
   if (!storeId) {
     return <StoreLaunchScreen />
+  }
+
+  if (activeTab === 'display') {
+    return (
+      <DataProvider>
+        <DisplayPage />
+      </DataProvider>
+    )
   }
 
   const devicesContent = pinHash && !devicesUnlocked

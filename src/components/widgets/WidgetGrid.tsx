@@ -9,6 +9,7 @@ import { ScheduleWidget } from './ScheduleWidget'
 import { GoalsWidget } from './GoalsWidget'
 import { AnnouncementWidget } from './AnnouncementWidget'
 import { TasksWidget } from './TasksWidget'
+import { LunaWirelessLogo } from '../brand/LunaWirelessLogo'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 
@@ -134,9 +135,12 @@ export function WidgetGrid() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
-        <div>
-          <h1 className="text-lg font-semibold text-[var(--text)]">Workspace</h1>
-          <p className="text-xs text-[var(--text-secondary)]">Here's your workspace overview</p>
+        <div className="flex items-center gap-3 min-w-0">
+          <LunaWirelessLogo className="h-12 w-32 flex-shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold text-[var(--text)]">Workspace</h1>
+            <p className="text-xs text-[var(--text-secondary)] truncate">Here's your workspace overview</p>
+          </div>
         </div>
         <motion.button
           onClick={() => setIsEditing((v) => !v)}
