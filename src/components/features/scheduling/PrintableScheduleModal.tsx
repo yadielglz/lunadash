@@ -122,7 +122,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
               margin: 0;
               color: #0f172a;
               background: #fff;
-              font-family: Inter, "Segoe UI", Arial, sans-serif;
+              font-family: GoogleSansFlex, "Google Sans Flex", "Google Sans", "Segoe UI", Arial, sans-serif;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }

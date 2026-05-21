@@ -237,6 +237,7 @@ export function WeeklyGrid() {
   const [printOpen, setPrintOpen] = useState(false)
   const [editShift, setEditShift] = useState<Shift | undefined>()
   const [clickedDate, setClickedDate] = useState<string | undefined>()
+  const [clickedEmployeeId, setClickedEmployeeId] = useState<string | undefined>()
 
   const weekStart = addDays(startOfWeek(new Date(), { weekStartsOn }), weekOffset * 7)
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -247,11 +248,11 @@ export function WeeklyGrid() {
   const previousWeekShifts = shifts.filter((shift) => previousWeekDates.includes(shift.date))
   const blockColors = new Map(blocks.map((block) => [block.name, block.color]))
 
-  const openAdd = (date: string) => {
-    setEditShift(undefined); setClickedDate(date); setModalOpen(true)
+  const openAdd = (date: string, employeeId: string) => {
+    setEditShift(undefined); setClickedDate(date); setClickedEmployeeId(employeeId); setModalOpen(true)
   }
   const openEdit = (shift: Shift) => {
-    setEditShift(shift); setClickedDate(undefined); setModalOpen(true)
+    setEditShift(shift); setClickedDate(undefined); setClickedEmployeeId(undefined); setModalOpen(true)
   }
 
   const copyPreviousWeek = () => {
@@ -380,7 +381,7 @@ export function WeeklyGrid() {
                   return (
                     <div
                       key={dateStr}
-                      onClick={() => openAdd(dateStr)}
+                      onClick={() => openAdd(dateStr, emp.id)}
                       className={`group relative flex flex-col gap-1 p-1.5 rounded-lg min-h-[68px] cursor-pointer transition-colors border ${
                         today
                           ? 'bg-[var(--accent)]/5 border-[var(--accent)]/20'
@@ -425,6 +426,7 @@ export function WeeklyGrid() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         initialDate={clickedDate}
+        initialEmployeeId={clickedEmployeeId}
         editShift={editShift}
       />
       <ScheduleTemplatesModal

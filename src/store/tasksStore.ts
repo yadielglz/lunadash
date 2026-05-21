@@ -1,12 +1,6 @@
 import { create } from 'zustand'
 import { dbInsertTask, dbUpdateTask, dbDeleteTask } from '../lib/supabase'
-
-const sid = () => {
-  try {
-    const raw = localStorage.getItem('luna-ui')
-    return JSON.parse(raw ?? '{}')?.state?.storeId || 'default'
-  } catch { return 'default' }
-}
+import { currentStoreId } from './currentStoreId'
 
 const today = () => new Date().toISOString().split('T')[0]
 
@@ -49,7 +43,7 @@ export const useTasksStore = create<TasksState>()((set) => ({
       createdAt: new Date().toISOString(),
     }
     set((s) => ({ tasks: [...s.tasks, task] }))
-    dbInsertTask(task, sid())
+    dbInsertTask(task, currentStoreId())
   },
 
   updateTask: (id, patch) => {

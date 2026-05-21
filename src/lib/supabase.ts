@@ -116,17 +116,20 @@ function dbToEmployee(r: DbEmployee): Employee {
 }
 
 export async function dbInsertEmployee(e: Employee, storeId: string) {
-  await supabase.from('employees').insert({
+  const { error } = await supabase.from('employees').insert({
     id: e.id, store_id: storeId, name: e.name, role: e.role, color: e.color,
   })
+  throwIfError(error, 'Could not save employee')
 }
 
 export async function dbUpdateEmployee(id: string, patch: Partial<Employee>) {
-  await supabase.from('employees').update(patch).eq('id', id)
+  const { error } = await supabase.from('employees').update(patch).eq('id', id)
+  throwIfError(error, 'Could not update employee')
 }
 
 export async function dbDeleteEmployee(id: string) {
-  await supabase.from('employees').delete().eq('id', id)
+  const { error } = await supabase.from('employees').delete().eq('id', id)
+  throwIfError(error, 'Could not delete employee')
 }
 
 // ── Shifts ────────────────────────────────────────────────────────────────────
@@ -142,10 +145,11 @@ export async function dbGetShifts(storeId: string): Promise<Shift[]> {
 }
 
 export async function dbInsertShift(s: Shift, storeId: string) {
-  await supabase.from('shifts').insert({
+  const { error } = await supabase.from('shifts').insert({
     id: s.id, store_id: storeId, employee_id: s.employeeId, date: s.date,
     start_time: s.startTime, end_time: s.endTime, type: s.type, note: s.note ?? '',
   })
+  throwIfError(error, 'Could not save shift')
 }
 
 export async function dbUpdateShift(id: string, s: Partial<Shift>) {
@@ -156,11 +160,13 @@ export async function dbUpdateShift(id: string, s: Partial<Shift>) {
   if (s.endTime    !== undefined) patch.end_time    = s.endTime
   if (s.type       !== undefined) patch.type        = s.type
   if (s.note       !== undefined) patch.note        = s.note
-  await supabase.from('shifts').update(patch).eq('id', id)
+  const { error } = await supabase.from('shifts').update(patch).eq('id', id)
+  throwIfError(error, 'Could not update shift')
 }
 
 export async function dbDeleteShift(id: string) {
-  await supabase.from('shifts').delete().eq('id', id)
+  const { error } = await supabase.from('shifts').delete().eq('id', id)
+  throwIfError(error, 'Could not delete shift')
 }
 
 // ── Goals ─────────────────────────────────────────────────────────────────────
@@ -193,7 +199,8 @@ export async function dbGetGoals(storeId: string): Promise<Goal[]> {
 }
 
 export async function dbInsertGoal(g: Goal, storeId: string) {
-  await supabase.from('goals').insert(goalToDb(g, storeId))
+  const { error } = await supabase.from('goals').insert(goalToDb(g, storeId))
+  throwIfError(error, 'Could not save goal')
 }
 
 export async function dbUpdateGoal(id: string, patch: Partial<Goal>) {
@@ -209,11 +216,13 @@ export async function dbUpdateGoal(id: string, patch: Partial<Goal>) {
   if (patch.dailyTarget !== undefined) dbPatch.daily_target = patch.dailyTarget
   if (patch.dailyLog    !== undefined) dbPatch.daily_log    = patch.dailyLog
   if (patch.milestones  !== undefined) dbPatch.milestones   = patch.milestones
-  await supabase.from('goals').update(dbPatch).eq('id', id)
+  const { error } = await supabase.from('goals').update(dbPatch).eq('id', id)
+  throwIfError(error, 'Could not update goal')
 }
 
 export async function dbDeleteGoal(id: string) {
-  await supabase.from('goals').delete().eq('id', id)
+  const { error } = await supabase.from('goals').delete().eq('id', id)
+  throwIfError(error, 'Could not delete goal')
 }
 
 // ── Announcements ─────────────────────────────────────────────────────────────
@@ -230,17 +239,20 @@ function dbToAnnouncement(r: DbAnnouncement): Announcement {
 }
 
 export async function dbInsertAnnouncement(a: Announcement, storeId: string) {
-  await supabase.from('announcements').insert({
+  const { error } = await supabase.from('announcements').insert({
     id: a.id, store_id: storeId, text: a.text, priority: a.priority,
   })
+  throwIfError(error, 'Could not save announcement')
 }
 
 export async function dbUpdateAnnouncement(id: string, patch: Partial<Announcement>) {
-  await supabase.from('announcements').update(patch).eq('id', id)
+  const { error } = await supabase.from('announcements').update(patch).eq('id', id)
+  throwIfError(error, 'Could not update announcement')
 }
 
 export async function dbDeleteAnnouncement(id: string) {
-  await supabase.from('announcements').delete().eq('id', id)
+  const { error } = await supabase.from('announcements').delete().eq('id', id)
+  throwIfError(error, 'Could not delete announcement')
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -262,7 +274,8 @@ export async function dbGetStores(): Promise<StoreSummary[]> {
 }
 
 export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSettings, 'store_id'>>) {
-  await supabase.from('app_settings').upsert({ store_id: storeId, ...patch })
+  const { error } = await supabase.from('app_settings').upsert({ store_id: storeId, ...patch })
+  throwIfError(error, 'Could not save app settings')
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────

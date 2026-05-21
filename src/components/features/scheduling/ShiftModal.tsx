@@ -9,6 +9,7 @@ interface Props {
   open: boolean
   onClose: () => void
   initialDate?: string
+  initialEmployeeId?: string
   editShift?: Shift
 }
 
@@ -24,7 +25,7 @@ function legacyBlockForShift(shift: Shift): ScheduleBlock {
   }
 }
 
-export function ShiftModal({ open, onClose, initialDate, editShift }: Props) {
+export function ShiftModal({ open, onClose, initialDate, initialEmployeeId, editShift }: Props) {
   const { employees, addShift, updateShift, removeShift } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
 
@@ -49,11 +50,11 @@ export function ShiftModal({ open, onClose, initialDate, editShift }: Props) {
       setDate(editShift.date)
       setBlockId(matchingBlock?.id ?? '')
     } else {
-      setEmployeeId(employees[0]?.id ?? '')
+      setEmployeeId(initialEmployeeId || employees[0]?.id || '')
       setDate(initialDate ?? new Date().toISOString().split('T')[0])
       setBlockId(sortedBlocks[0]?.id ?? '')
     }
-  }, [editShift, initialDate, employees, open, sortedBlocks])
+  }, [editShift, initialDate, initialEmployeeId, employees, open, sortedBlocks])
 
   const handleSave = () => {
     const block = selectedBlock ?? (editShift ? legacyBlockForShift(editShift) : undefined)

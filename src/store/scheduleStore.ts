@@ -4,14 +4,7 @@ import {
   dbInsertEmployee, dbUpdateEmployee, dbDeleteEmployee,
   dbInsertShift, dbUpdateShift, dbDeleteShift,
 } from '../lib/supabase'
-
-// Read storeId at call time to avoid circular imports
-const sid = () => {
-  try {
-    const raw = localStorage.getItem('luna-ui')
-    return JSON.parse(raw ?? '{}')?.state?.storeId || 'default'
-  } catch { return 'default' }
-}
+import { currentStoreId } from './currentStoreId'
 
 export type ShiftType = string
 
@@ -73,7 +66,7 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
   addEmployee: (emp) => {
     const newEmp: Employee = { ...emp, id: crypto.randomUUID() }
     set((s) => ({ employees: [...s.employees, newEmp] }))
-    dbInsertEmployee(newEmp, sid())
+    dbInsertEmployee(newEmp, currentStoreId())
   },
 
   updateEmployee: (id, updates) => {
@@ -94,7 +87,7 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
   addShift: (shift) => {
     const newShift: Shift = { ...shift, id: crypto.randomUUID() }
     set((s) => ({ shifts: [...s.shifts, newShift] }))
-    dbInsertShift(newShift, sid())
+    dbInsertShift(newShift, currentStoreId())
   },
 
   updateShift: (id, updates) => {
@@ -110,7 +103,8 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
   addShifts: (shifts) => {
     const newShifts: Shift[] = shifts.map((shift) => ({ ...shift, id: crypto.randomUUID() }))
     set((s) => ({ shifts: [...s.shifts, ...newShifts] }))
-    newShifts.forEach((shift) => dbInsertShift(shift, sid()))
+    const storeId = currentStoreId()
+    newShifts.forEach((shift) => dbInsertShift(shift, storeId))
   },
 
   removeShifts: (ids) => {

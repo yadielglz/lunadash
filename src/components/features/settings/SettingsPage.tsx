@@ -794,7 +794,7 @@ function AboutSection() {
       <div className="px-4 py-5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
         <div>
           <h3 className="text-lg font-semibold text-[var(--text)]">LunaDash</h3>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver 3.43 | Build 52126.1835</p>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver 3.51 | Build 52126.1859</p>
         </div>
         <div className="text-sm text-[var(--text-secondary)] space-y-1">
           <p>© 2026 Glz Technical Services | Glz Tech</p>
