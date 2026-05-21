@@ -169,6 +169,47 @@ export async function dbDeleteShift(id: string) {
   throwIfError(error, 'Could not delete shift')
 }
 
+export async function dbSaveScheduleSnapshot(storeId: string, employees: Employee[], shifts: Shift[]) {
+  if (employees.length > 0) {
+    const { error } = await supabase.from('employees').upsert(employees.map((e) => ({
+      id: e.id,
+      store_id: e.storeId ?? storeId,
+      name: e.name,
+      role: e.role,
+      color: e.color,
+    })))
+    throwIfError(error, 'Could not save schedule employees')
+  }
+
+  if (shifts.length > 0) {
+    const { error } = await supabase.from('shifts').upsert(shifts.map((s) => ({
+      id: s.id,
+      store_id: s.storeId ?? storeId,
+      employee_id: s.employeeId,
+      date: s.date,
+      start_time: s.startTime,
+      end_time: s.endTime,
+      type: s.type,
+      note: s.note ?? '',
+    })))
+    throwIfError(error, 'Could not save schedule shifts')
+  }
+
+  const [savedEmployees, savedShifts] = await Promise.all([
+    dbGetEmployees(storeId),
+    dbGetShifts(storeId),
+  ])
+
+  const employeeIds = new Set(savedEmployees.map((employee) => employee.id))
+  const shiftIds = new Set(savedShifts.map((shift) => shift.id))
+  const missingEmployees = employees.filter((employee) => (employee.storeId ?? storeId) === storeId && !employeeIds.has(employee.id))
+  const missingShifts = shifts.filter((shift) => (shift.storeId ?? storeId) === storeId && !shiftIds.has(shift.id))
+
+  if (missingEmployees.length > 0 || missingShifts.length > 0) {
+    throw new Error(`Schedule validation failed: ${missingEmployees.length} employees and ${missingShifts.length} shifts were not confirmed in Supabase`)
+  }
+}
+
 // ── Goals ─────────────────────────────────────────────────────────────────────
 
 function goalToDb(g: Goal, storeId: string) {
@@ -327,4 +368,22 @@ export async function dbUpdateTask(id: string, patch: Partial<Task>) {
 export async function dbDeleteTask(id: string) {
   const { error } = await supabase.from('tasks').delete().eq('id', id)
   if (!logOptionalTasksWarning('task deletion', error)) throwIfError(error, 'Could not delete task')
+}
+
+export async function dbSaveTasksSnapshot(storeId: string, tasks: Task[]) {
+  if (tasks.length > 0) {
+    const { error } = await supabase.from('tasks').upsert(tasks.map((t) => taskToDb(t, t.storeId ?? storeId)))
+    if (logOptionalTasksWarning('tasks', error)) {
+      throw new Error('Tasks table is not available in this Supabase project')
+    }
+    throwIfError(error, 'Could not save tasks')
+  }
+
+  const savedTasks = await dbGetTasks(storeId)
+  const savedIds = new Set(savedTasks.map((task) => task.id))
+  const missingTasks = tasks.filter((task) => (task.storeId ?? storeId) === storeId && !savedIds.has(task.id))
+
+  if (missingTasks.length > 0) {
+    throw new Error(`Task validation failed: ${missingTasks.length} tasks were not confirmed in Supabase`)
+  }
 }

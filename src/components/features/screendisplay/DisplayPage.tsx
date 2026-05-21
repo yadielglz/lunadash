@@ -269,14 +269,24 @@ function ScheduleSlide() {
 // ── Slide: Schedule Outlook ───────────────────────────────────────────────────
 function ScheduleOutlookSlide() {
   const { employees, getShiftsForDate } = useScheduleStore()
+  const { data: weatherData } = useWeather()
+  const { fmt, unit } = useTempDisplay()
 
   const days = [1, 2, 3, 4].map((offset) => {
     const date    = addDays(new Date(), offset)
     const dateStr = format(date, 'yyyy-MM-dd')
     const shifts  = [...getShiftsForDate(dateStr)].sort((a, b) => a.startTime.localeCompare(b.startTime))
+    const forecastIndex = weatherData?.daily.time.findIndex((day) => day === dateStr) ?? -1
+    const forecast = weatherData && forecastIndex >= 0
+      ? {
+          icon: getWeatherInfo(weatherData.daily.weathercode[forecastIndex]).icon,
+          high: fmt(weatherData.daily.temperature_2m_max[forecastIndex]),
+        }
+      : null
     return {
       label:    offset === 1 ? 'Tomorrow' : format(date, 'EEEE'),
       sublabel: format(date, 'MMM d'),
+      forecast,
       shifts,
     }
   })
@@ -291,7 +301,7 @@ function ScheduleOutlookSlide() {
 
       {/* 4-column grid */}
       <div className="flex-1 grid grid-cols-4 gap-[1.5vw] overflow-hidden">
-        {days.map(({ label, sublabel, shifts }, i) => (
+        {days.map(({ label, sublabel, forecast, shifts }, i) => (
           <div
             key={i}
             className="flex flex-col gap-[1vh] rounded-2xl p-[1.2vw]"
@@ -308,7 +318,16 @@ function ScheduleOutlookSlide() {
               <div className="font-bold text-[1.6vw]" style={{ color: i === 0 ? MG : 'white' }}>
                 {label}
               </div>
-              <div className="text-[1vw] text-white/40">{sublabel}</div>
+              <div className="flex items-center gap-[0.45vw] text-[1vw] text-white/40">
+                <span>{sublabel}</span>
+                {forecast && (
+                  <>
+                    <span className="text-white/15">·</span>
+                    <span className="text-[1.05vw] leading-none">{forecast.icon}</span>
+                    <span className="tabular-nums">{forecast.high}{unit}</span>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Shifts */}

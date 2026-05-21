@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowDown, ArrowUp, CheckSquare, Edit2, Plus, Check, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckSquare, Edit2, Plus, Check, Trash2, X, Save } from 'lucide-react'
 import { useTasksStore } from '../../../store/tasksStore'
 import type { Task, TaskCategory } from '../../../store/tasksStore'
 import { Button } from '../../ui/Button'
 import { Modal } from '../../ui/Modal'
 import { Input, Select } from '../../ui/Input'
+import { dbSaveTasksSnapshot } from '../../../lib/supabase'
+import { currentStoreId } from '../../../store/currentStoreId'
+import { useUiStore } from '../../../store/uiStore'
 
 const today = () => new Date().toISOString().split('T')[0]
 
@@ -201,8 +204,11 @@ function AddTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function TasksPage() {
   const { tasks } = useTasksStore()
+  const storeId = useUiStore((s) => s.storeId)
   const [filter, setFilter] = useState<'all' | TaskCategory>('all')
   const [addOpen, setAddOpen] = useState(false)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [saveMessage, setSaveMessage] = useState('')
 
   const todayStr = today()
   const done = tasks.filter((t) => t.completedDate === todayStr).length
@@ -224,6 +230,25 @@ export function TasksPage() {
     tasks: sortedVisibleTasks.filter((t) => t.category === cat),
   })).filter((g) => g.tasks.length > 0)
 
+  const saveTasks = async () => {
+    if (storeId === 'main') {
+      setSaveState('error')
+      setSaveMessage('Select a single store before saving tasks.')
+      return
+    }
+
+    setSaveState('saving')
+    setSaveMessage('')
+    try {
+      await dbSaveTasksSnapshot(currentStoreId(), tasks)
+      setSaveState('saved')
+      setSaveMessage('Tasks confirmed in Supabase.')
+    } catch (err) {
+      setSaveState('error')
+      setSaveMessage(err instanceof Error ? err.message : 'Task save could not be confirmed.')
+    }
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
@@ -236,7 +261,24 @@ export function TasksPage() {
             </div>
             <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{dateLabel} · {done}/{tasks.length} complete</p>
           </div>
-          <Button size="sm" icon={<Plus size={12} />} onClick={() => setAddOpen(true)}>New Task</Button>
+          <div className="flex items-center gap-2">
+            {saveMessage && (
+              <span className={`hidden md:inline text-xs ${saveState === 'error' ? 'text-red-400' : 'text-[var(--accent)]'}`}>
+                {saveMessage}
+              </span>
+            )}
+            <Button
+              size="sm"
+              variant={saveState === 'saved' ? 'accent' : 'secondary'}
+              icon={<Save size={12} />}
+              loading={saveState === 'saving'}
+              onClick={saveTasks}
+              disabled={storeId === 'main'}
+            >
+              Save
+            </Button>
+            <Button size="sm" icon={<Plus size={12} />} onClick={() => setAddOpen(true)}>New Task</Button>
+          </div>
         </div>
 
         {/* Progress bar */}

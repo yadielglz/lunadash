@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Calendar, LayoutGrid, Users, Trash2, Edit2 } from 'lucide-react'
+import { Calendar, LayoutGrid, Users, Trash2, Edit2, Save } from 'lucide-react'
 import { WeeklyGrid } from './WeeklyGrid'
 import { MonthlyCalendar } from './MonthlyCalendar'
 import { Modal } from '../../ui/Modal'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Input'
 import { useScheduleStore } from '../../../store/scheduleStore'
+import { dbSaveScheduleSnapshot } from '../../../lib/supabase'
+import { currentStoreId } from '../../../store/currentStoreId'
+import { useUiStore } from '../../../store/uiStore'
 
 const COLORS = ['#0078d4','#7c5ff5','#e74856','#16c60c','#f7630c','#00b7c3','#e3008c','#8764b8','#10893e']
 
@@ -90,6 +93,28 @@ export function SchedulePage() {
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly')
   const [empModalOpen, setEmpModalOpen] = useState(false)
   const { employees, shifts } = useScheduleStore()
+  const storeId = useUiStore((s) => s.storeId)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [saveMessage, setSaveMessage] = useState('')
+
+  const saveSchedule = async () => {
+    if (storeId === 'main') {
+      setSaveState('error')
+      setSaveMessage('Select a single store before saving schedules.')
+      return
+    }
+
+    setSaveState('saving')
+    setSaveMessage('')
+    try {
+      await dbSaveScheduleSnapshot(currentStoreId(), employees, shifts)
+      setSaveState('saved')
+      setSaveMessage('Schedule confirmed in Supabase.')
+    } catch (err) {
+      setSaveState('error')
+      setSaveMessage(err instanceof Error ? err.message : 'Schedule save could not be confirmed.')
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -105,6 +130,21 @@ export function SchedulePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {saveMessage && (
+            <span className={`hidden md:inline text-xs ${saveState === 'error' ? 'text-red-400' : 'text-[var(--accent)]'}`}>
+              {saveMessage}
+            </span>
+          )}
+          <Button
+            size="sm"
+            variant={saveState === 'saved' ? 'accent' : 'secondary'}
+            icon={<Save size={13} />}
+            loading={saveState === 'saving'}
+            onClick={saveSchedule}
+            disabled={storeId === 'main'}
+          >
+            Save
+          </Button>
           <Button size="sm" variant="ghost" icon={<Users size={13} />} onClick={() => setEmpModalOpen(true)}>
             Employees
           </Button>
