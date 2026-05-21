@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, Store, Target, Megaphone, Calendar,
-  Check, ChevronRight, Trash2, Plus, Edit2
+  Check, ChevronRight, Trash2, Plus, Edit2, Info
 } from 'lucide-react'
 import { useUiStore } from '../../../store/uiStore'
 
@@ -505,6 +505,29 @@ function ScheduleBlocksSection() {
   )
 }
 
+// ── About section ─────────────────────────────────────────────────────────────
+function AboutSection() {
+  return (
+    <Section icon={<Info size={14} />} title="About">
+      <div className="px-4 py-5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold text-[var(--text)]">LunaDash</h3>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver 3.15 | Build 52126.1218</p>
+        </div>
+        <div className="text-sm text-[var(--text-secondary)] space-y-1">
+          <p>© 2026 Glz Technical Services | Glz Tech</p>
+          <p>
+            Any Issues? email:{' '}
+            <a className="text-[var(--accent)] hover:underline" href="mailto:service@glztech.com">
+              service@glztech.com
+            </a>
+          </p>
+        </div>
+      </div>
+    </Section>
+  )
+}
+
 // ── Sidebar nav ───────────────────────────────────────────────────────────────
 const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
@@ -513,6 +536,7 @@ const SECTIONS = [
   { id: 'announcements', label: 'Announcements',  icon: <Megaphone size={14} /> },
   { id: 'scheduling',    label: 'Scheduling',     icon: <Calendar size={14} /> },
   { id: 'scheduleBlocks', label: 'Schedule Blocks', icon: <Calendar size={14} /> },
+  { id: 'about',         label: 'About',          icon: <Info size={14} /> },
 ] as const
 
 type SectionId = typeof SECTIONS[number]['id']
@@ -528,6 +552,7 @@ export function SettingsPage() {
     announcements: <AnnouncementsSection />,
     scheduling:    <SchedulingSection />,
     scheduleBlocks: <ScheduleBlocksSection />,
+    about:         <AboutSection />,
   }
 
   return (

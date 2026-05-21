@@ -218,21 +218,19 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
             ${header}
             ${displayedEmployees.length > 0 ? `<table><thead><tr><th>Team</th>${dayHeaders}</tr></thead><tbody>${rows}</tbody></table>` : emptyState}
           </main>
-          <script>
-            window.addEventListener('load', () => {
-              window.focus();
-              window.print();
-            });
-          </script>
         </body>
       </html>
     `
 
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1200,height=800')
+    const printWindow = window.open('about:blank', 'lunadash-schedule-print', 'width=1200,height=800')
     if (!printWindow) return
     printWindow.document.open()
     printWindow.document.write(html)
     printWindow.document.close()
+    window.setTimeout(() => {
+      printWindow.focus()
+      printWindow.print()
+    }, 300)
   }
 
   return (
