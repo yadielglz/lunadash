@@ -31,6 +31,7 @@ interface TasksState {
   updateTask: (id: string, patch: Partial<Task>) => void
   removeTask: (id: string) => void
   toggleTask: (id: string) => void
+  moveTask: (id: string, direction: 'up' | 'down') => void
 }
 
 export const useTasksStore = create<TasksState>()((set) => ({
@@ -69,5 +70,34 @@ export const useTasksStore = create<TasksState>()((set) => ({
         return { ...t, completedDate }
       }),
     }))
+  },
+
+  moveTask: (id, direction) => {
+    set((s) => {
+      const task = s.tasks.find((t) => t.id === id)
+      if (!task) return s
+
+      const categoryTasks = s.tasks
+        .filter((t) => t.category === task.category)
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt))
+      const currentIndex = categoryTasks.findIndex((t) => t.id === id)
+      const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= categoryTasks.length) return s
+
+      const reordered = [...categoryTasks]
+      const [moved] = reordered.splice(currentIndex, 1)
+      reordered.splice(nextIndex, 0, moved)
+
+      const orderPatch = new Map(reordered.map((t, index) => [t.id, index]))
+      const tasks = s.tasks.map((t) => (
+        orderPatch.has(t.id) ? { ...t, sortOrder: orderPatch.get(t.id)! } : t
+      ))
+
+      reordered.forEach((t, index) => {
+        if (t.sortOrder !== index) dbUpdateTask(t.id, { sortOrder: index })
+      })
+
+      return { tasks }
+    })
   },
 }))

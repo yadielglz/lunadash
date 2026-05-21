@@ -59,9 +59,9 @@ function GoalFormModal({ open, onClose, editGoal }: { open: boolean; onClose: ()
     <Modal open={open} onClose={onClose} title={editGoal ? 'Edit Goal' : 'New Goal'} size="md">
       <div className="space-y-4">
         <Input label="Goal Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Voice Lines" />
-        <Textarea label="Description" value={desc} onChange={(e: any) => setDesc(e.target.value)} placeholder="Describe this goal…" />
+        <Textarea label="Description" value={desc} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDesc(e.target.value)} placeholder="Describe this goal…" />
         <div className="grid grid-cols-2 gap-3">
-          <Select label="Category" value={category} onChange={(e: any) => setCategory(e.target.value)}>
+          <Select label="Category" value={category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}>
             {categories.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
           <Input label="Unit (e.g. lines, %)" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="lines" />

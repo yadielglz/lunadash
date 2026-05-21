@@ -6,9 +6,11 @@ import { useScheduleStore, Shift } from '../../../store/scheduleStore'
 import { ShiftModal } from './ShiftModal'
 import { hexToRgba, formatShiftTime } from '../../../lib/utils'
 import { Card } from '../../ui/Card'
+import { useSchedulePreferencesStore, WEEKDAY_OPTIONS } from '../../../store/schedulePreferencesStore'
 
 export function MonthlyCalendar() {
   const { employees, shifts } = useScheduleStore()
+  const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
   const [current, setCurrent] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -16,9 +18,10 @@ export function MonthlyCalendar() {
 
   const monthStart = startOfMonth(current)
   const monthEnd = endOfMonth(current)
-  const gridStart = startOfWeek(monthStart)
-  const gridEnd = addDays(startOfWeek(addDays(monthEnd, 6)), 6)
+  const gridStart = startOfWeek(monthStart, { weekStartsOn })
+  const gridEnd = addDays(startOfWeek(addDays(monthEnd, 6), { weekStartsOn }), 6)
   const allDays = eachDayOfInterval({ start: gridStart, end: gridEnd })
+  const weekdayHeaders = Array.from({ length: 7 }, (_, i) => WEEKDAY_OPTIONS[(weekStartsOn + i) % 7].label.slice(0, 3))
 
   const getShiftsForDay = (date: Date) =>
     shifts.filter((s) => s.date === format(date, 'yyyy-MM-dd'))
@@ -60,7 +63,7 @@ export function MonthlyCalendar() {
         <div className="flex-1 overflow-auto">
           {/* Weekday headers */}
           <div className="grid grid-cols-7 border-b border-[var(--border)]">
-            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
+            {weekdayHeaders.map((d) => (
               <div key={d} className="py-2 text-center text-[10px] font-medium text-[var(--text-secondary)]">{d}</div>
             ))}
           </div>

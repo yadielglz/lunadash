@@ -13,7 +13,7 @@ const sid = () => {
   } catch { return 'default' }
 }
 
-export type ShiftType = 'Morning' | 'Afternoon' | 'Evening' | 'Night' | 'Custom'
+export type ShiftType = string
 
 export interface Employee {
   id: string
@@ -49,6 +49,8 @@ interface ScheduleState {
   addShift: (shift: Omit<Shift, 'id'>) => void
   updateShift: (id: string, updates: Partial<Shift>) => void
   removeShift: (id: string) => void
+  addShifts: (shifts: Omit<Shift, 'id'>[]) => void
+  removeShifts: (ids: string[]) => void
 
   setSelectedDate: (date: string) => void
   getShiftsForDate: (date: string) => Shift[]
@@ -101,6 +103,19 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
   removeShift: (id) => {
     set((s) => ({ shifts: s.shifts.filter((sh) => sh.id !== id) }))
     dbDeleteShift(id)
+  },
+
+  addShifts: (shifts) => {
+    const newShifts: Shift[] = shifts.map((shift) => ({ ...shift, id: crypto.randomUUID() }))
+    set((s) => ({ shifts: [...s.shifts, ...newShifts] }))
+    newShifts.forEach((shift) => dbInsertShift(shift, sid()))
+  },
+
+  removeShifts: (ids) => {
+    if (ids.length === 0) return
+    const idSet = new Set(ids)
+    set((s) => ({ shifts: s.shifts.filter((sh) => !idSet.has(sh.id)) }))
+    ids.forEach(dbDeleteShift)
   },
 
   setSelectedDate: (date) => set({ selectedDate: date }),

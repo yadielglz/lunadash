@@ -22,12 +22,95 @@ type DbSettings = {
   store_id: string; company_name: string; store_number: string; slide_interval: number
 }
 
+type DbEmployee = {
+  id: string; store_id: string; name: string; role: string; color: string; created_at: string
+}
+
+type DbShift = {
+  id: string; store_id: string; employee_id: string; date: string
+  start_time: string; end_time: string; type: Shift['type']; note: string | null
+  created_at: string
+}
+
+type DbAnnouncement = {
+  id: string; store_id: string; text: string; priority: Announcement['priority']; created_at: string
+}
+
+type DbShiftPatch = Partial<{
+  employee_id: string
+  date: string
+  start_time: string
+  end_time: string
+  type: Shift['type']
+  note: string
+}>
+
+type DbGoalPatch = Partial<{
+  title: string
+  description: string
+  category: string
+  target: number
+  current_val: number
+  unit: string
+  deadline: string
+  color: string
+  daily_target: number
+  daily_log: Goal['dailyLog']
+  milestones: Goal['milestones']
+}>
+
+type DbTaskPatch = Partial<{
+  title: string
+  category: Task['category']
+  sort_order: number
+  completed_date: string | null
+}>
+
+type SupabaseError = {
+  code?: string
+  message?: string
+  details?: string
+  hint?: string
+}
+
+function isSupabaseError(error: unknown): error is SupabaseError {
+  return typeof error === 'object' && error !== null
+}
+
+function isMissingTableError(error: unknown) {
+  if (!isSupabaseError(error)) return false
+  const text = `${error.code ?? ''} ${error.message ?? ''} ${error.details ?? ''}`.toLowerCase()
+  return text.includes('42p01')
+    || text.includes('pgrst205')
+    || text.includes('could not find the table')
+    || text.includes('relation "public.tasks" does not exist')
+}
+
+function throwIfError(error: unknown, context: string) {
+  if (!error) return
+  const message = isSupabaseError(error)
+    ? error.message ?? error.details ?? String(error)
+    : error instanceof Error ? error.message : String(error)
+  throw new Error(`${context}: ${message}`)
+}
+
+function logOptionalTasksWarning(action: string, error: unknown) {
+  if (!isMissingTableError(error)) return false
+  console.warn(`Tasks table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
+  return true
+}
+
 // ── Employees ─────────────────────────────────────────────────────────────────
 
 export async function dbGetEmployees(storeId: string): Promise<Employee[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('employees').select('*').eq('store_id', storeId).order('created_at')
-  return (data ?? []) as Employee[]
+  throwIfError(error, 'Could not load employees')
+  return (data ?? []).map(dbToEmployee)
+}
+
+function dbToEmployee(r: DbEmployee): Employee {
+  return { id: r.id, name: r.name, role: r.role, color: r.color }
 }
 
 export async function dbInsertEmployee(e: Employee, storeId: string) {
@@ -47,12 +130,13 @@ export async function dbDeleteEmployee(id: string) {
 // ── Shifts ────────────────────────────────────────────────────────────────────
 
 export async function dbGetShifts(storeId: string): Promise<Shift[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('shifts').select('*').eq('store_id', storeId).order('date')
-  return (data ?? []).map((r: any) => ({
+  throwIfError(error, 'Could not load shifts')
+  return ((data ?? []) as DbShift[]).map((r) => ({
     id: r.id, employeeId: r.employee_id, date: r.date,
     startTime: r.start_time, endTime: r.end_time, type: r.type, note: r.note ?? '',
-  })) as Shift[]
+  }))
 }
 
 export async function dbInsertShift(s: Shift, storeId: string) {
@@ -63,7 +147,7 @@ export async function dbInsertShift(s: Shift, storeId: string) {
 }
 
 export async function dbUpdateShift(id: string, s: Partial<Shift>) {
-  const patch: any = {}
+  const patch: DbShiftPatch = {}
   if (s.employeeId !== undefined) patch.employee_id = s.employeeId
   if (s.date       !== undefined) patch.date        = s.date
   if (s.startTime  !== undefined) patch.start_time  = s.startTime
@@ -99,8 +183,9 @@ function dbToGoal(r: DbGoal): Goal {
 }
 
 export async function dbGetGoals(storeId: string): Promise<Goal[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('goals').select('*').eq('store_id', storeId).order('created_at')
+  throwIfError(error, 'Could not load goals')
   return (data ?? []).map(dbToGoal)
 }
 
@@ -109,7 +194,7 @@ export async function dbInsertGoal(g: Goal, storeId: string) {
 }
 
 export async function dbUpdateGoal(id: string, patch: Partial<Goal>) {
-  const dbPatch: any = {}
+  const dbPatch: DbGoalPatch = {}
   if (patch.title       !== undefined) dbPatch.title        = patch.title
   if (patch.description !== undefined) dbPatch.description  = patch.description
   if (patch.category    !== undefined) dbPatch.category     = patch.category
@@ -131,9 +216,14 @@ export async function dbDeleteGoal(id: string) {
 // ── Announcements ─────────────────────────────────────────────────────────────
 
 export async function dbGetAnnouncements(storeId: string): Promise<Announcement[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('announcements').select('*').eq('store_id', storeId).order('created_at')
-  return (data ?? []) as Announcement[]
+  throwIfError(error, 'Could not load announcements')
+  return (data ?? []).map(dbToAnnouncement)
+}
+
+function dbToAnnouncement(r: DbAnnouncement): Announcement {
+  return { id: r.id, text: r.text, priority: r.priority, createdAt: r.created_at }
 }
 
 export async function dbInsertAnnouncement(a: Announcement, storeId: string) {
@@ -153,8 +243,9 @@ export async function dbDeleteAnnouncement(id: string) {
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 export async function dbGetSettings(storeId: string): Promise<DbSettings | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('app_settings').select('*').eq('store_id', storeId).maybeSingle()
+  throwIfError(error, 'Could not load app settings')
   return data as DbSettings | null
 }
 
@@ -185,24 +276,29 @@ function dbToTask(r: DbTask): Task {
 }
 
 export async function dbGetTasks(storeId: string): Promise<Task[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('tasks').select('*').eq('store_id', storeId).order('sort_order').order('created_at')
+  if (logOptionalTasksWarning('task data', error)) return []
+  throwIfError(error, 'Could not load tasks')
   return (data ?? []).map(dbToTask)
 }
 
 export async function dbInsertTask(t: Task, storeId: string) {
-  await supabase.from('tasks').insert(taskToDb(t, storeId))
+  const { error } = await supabase.from('tasks').insert(taskToDb(t, storeId))
+  if (!logOptionalTasksWarning('new tasks', error)) throwIfError(error, 'Could not save task')
 }
 
 export async function dbUpdateTask(id: string, patch: Partial<Task>) {
-  const dbPatch: any = {}
+  const dbPatch: DbTaskPatch = {}
   if (patch.title         !== undefined) dbPatch.title          = patch.title
   if (patch.category      !== undefined) dbPatch.category       = patch.category
   if (patch.sortOrder     !== undefined) dbPatch.sort_order     = patch.sortOrder
   if (patch.completedDate !== undefined) dbPatch.completed_date = patch.completedDate
-  await supabase.from('tasks').update(dbPatch).eq('id', id)
+  const { error } = await supabase.from('tasks').update(dbPatch).eq('id', id)
+  if (!logOptionalTasksWarning('task updates', error)) throwIfError(error, 'Could not update task')
 }
 
 export async function dbDeleteTask(id: string) {
-  await supabase.from('tasks').delete().eq('id', id)
+  const { error } = await supabase.from('tasks').delete().eq('id', id)
+  if (!logOptionalTasksWarning('task deletion', error)) throwIfError(error, 'Could not delete task')
 }

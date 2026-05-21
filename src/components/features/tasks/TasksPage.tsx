@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckSquare, Plus, Check, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckSquare, Edit2, Plus, Check, Trash2, X } from 'lucide-react'
 import { useTasksStore } from '../../../store/tasksStore'
 import type { Task, TaskCategory } from '../../../store/tasksStore'
 import { Button } from '../../ui/Button'
@@ -17,10 +17,36 @@ const CATEGORY_COLORS: Record<TaskCategory, string> = {
 
 const CATEGORY_ORDER: TaskCategory[] = ['opening', 'closing', 'general']
 
+function categoryLabel(category: TaskCategory) {
+  return category.charAt(0).toUpperCase() + category.slice(1)
+}
+
 // ── Task row ──────────────────────────────────────────────────────────────────
-function TaskRow({ task }: { task: Task }) {
-  const { toggleTask, removeTask } = useTasksStore()
+function TaskRow({ task, canMoveUp, canMoveDown }: { task: Task; canMoveUp: boolean; canMoveDown: boolean }) {
+  const { tasks, toggleTask, removeTask, updateTask, moveTask } = useTasksStore()
+  const [editing, setEditing] = useState(false)
+  const [title, setTitle] = useState(task.title)
+  const [category, setCategory] = useState<TaskCategory>(task.category)
   const isDone = task.completedDate === today()
+
+  useEffect(() => {
+    if (!editing) {
+      setTitle(task.title)
+      setCategory(task.category)
+    }
+  }, [editing, task.category, task.title])
+
+  const save = () => {
+    if (!title.trim()) return
+    updateTask(task.id, {
+      title: title.trim(),
+      category,
+      sortOrder: category === task.category
+        ? task.sortOrder
+        : tasks.filter((t) => t.category === category).length,
+    })
+    setEditing(false)
+  }
 
   return (
     <motion.div
@@ -49,18 +75,79 @@ function TaskRow({ task }: { task: Task }) {
         </AnimatePresence>
       </button>
 
-      <span className={`flex-1 text-sm transition-colors ${
-        isDone ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text)]'
-      }`}>
-        {task.title}
-      </span>
+      {editing ? (
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_130px_auto] gap-2 items-center">
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') save()
+              if (e.key === 'Escape') setEditing(false)
+            }}
+            autoFocus
+          />
+          <Select
+            value={category}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value as TaskCategory)}
+          >
+            {CATEGORY_ORDER.map((cat) => (
+              <option key={cat} value={cat}>{categoryLabel(cat)}</option>
+            ))}
+          </Select>
+          <div className="flex justify-end gap-1">
+            <button
+              onClick={save}
+              disabled={!title.trim()}
+              className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-40"
+            >
+              <Check size={14} />
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <span className={`flex-1 text-sm transition-colors ${
+          isDone ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text)]'
+        }`}>
+          {task.title}
+        </span>
+      )}
 
-      <button
-        onClick={() => removeTask(task.id)}
-        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-red-400 transition-all flex-shrink-0"
-      >
-        <Trash2 size={12} />
-      </button>
+      {!editing && (
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          <button
+            onClick={() => moveTask(task.id, 'up')}
+            disabled={!canMoveUp}
+            className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--text)] disabled:opacity-30 disabled:hover:text-[var(--text-tertiary)]"
+          >
+            <ArrowUp size={12} />
+          </button>
+          <button
+            onClick={() => moveTask(task.id, 'down')}
+            disabled={!canMoveDown}
+            className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--text)] disabled:opacity-30 disabled:hover:text-[var(--text-tertiary)]"
+          >
+            <ArrowDown size={12} />
+          </button>
+          <button
+            onClick={() => setEditing(true)}
+            className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--accent)]"
+          >
+            <Edit2 size={12} />
+          </button>
+          <button
+            onClick={() => removeTask(task.id)}
+            className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-red-400"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      )}
     </motion.div>
   )
 }
@@ -126,10 +213,15 @@ export function TasksPage() {
   const visibleTasks = filter === 'all'
     ? tasks
     : tasks.filter((t) => t.category === filter)
+  const sortedVisibleTasks = [...visibleTasks].sort((a, b) => (
+    CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category)
+    || a.sortOrder - b.sortOrder
+    || a.createdAt.localeCompare(b.createdAt)
+  ))
 
   const grouped = CATEGORY_ORDER.map((cat) => ({
     cat,
-    tasks: visibleTasks.filter((t) => t.category === cat),
+    tasks: sortedVisibleTasks.filter((t) => t.category === cat),
   })).filter((g) => g.tasks.length > 0)
 
   return (
@@ -198,7 +290,7 @@ export function TasksPage() {
                       style={{ background: CATEGORY_COLORS[cat] }}
                     />
                     <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      {categoryLabel(cat)}
                     </span>
                     <span
                       className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
@@ -208,7 +300,14 @@ export function TasksPage() {
                     </span>
                   </div>
                   <AnimatePresence>
-                    {catTasks.map((t) => <TaskRow key={t.id} task={t} />)}
+                    {catTasks.map((t, index) => (
+                      <TaskRow
+                        key={t.id}
+                        task={t}
+                        canMoveUp={index > 0}
+                        canMoveDown={index < catTasks.length - 1}
+                      />
+                    ))}
                   </AnimatePresence>
                 </div>
               )
@@ -216,7 +315,14 @@ export function TasksPage() {
           </div>
         ) : (
           <AnimatePresence>
-            {visibleTasks.map((t) => <TaskRow key={t.id} task={t} />)}
+            {sortedVisibleTasks.map((t, index) => (
+              <TaskRow
+                key={t.id}
+                task={t}
+                canMoveUp={index > 0}
+                canMoveDown={index < sortedVisibleTasks.length - 1}
+              />
+            ))}
           </AnimatePresence>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, ReactNode, forwardRef } from 'react'
+import { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes, forwardRef } from 'react'
 import { cn } from '../../lib/utils'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -44,7 +44,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 )
 Input.displayName = 'Input'
 
-interface SelectProps extends InputHTMLAttributes<HTMLSelectElement> {
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
   children: ReactNode
 }
@@ -61,7 +61,7 @@ export function Select({ label, children, className, ...rest }: SelectProps) {
           '[&>option]:bg-[var(--surface-solid)]',
           className
         )}
-        {...(rest as any)}
+        {...rest}
       >
         {children}
       </select>
@@ -69,7 +69,7 @@ export function Select({ label, children, className, ...rest }: SelectProps) {
   )
 }
 
-interface TextareaProps extends InputHTMLAttributes<HTMLTextAreaElement> {
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
   rows?: number
 }
@@ -87,7 +87,7 @@ export function Textarea({ label, className, rows = 3, ...rest }: TextareaProps)
           'resize-none transition-colors duration-150',
           className
         )}
-        {...(rest as any)}
+        {...rest}
       />
     </div>
   )

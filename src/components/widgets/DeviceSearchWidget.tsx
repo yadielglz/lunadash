@@ -6,7 +6,7 @@ import { useUiStore } from '../../store/uiStore'
 
 export function DeviceSearchWidget() {
   const [q, setQ] = useState('')
-  const { headers, rows, totalRows, isLoading, setSearch, setTab: _setTab } = { ...useDevices(), setTab: useUiStore().setTab }
+  const { headers, rows, totalRows, isLoading, setSearch } = useDevices()
   const { setTab } = useUiStore()
 
   const handleSearch = (v: string) => {

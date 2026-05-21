@@ -9,7 +9,9 @@ import { useUiStore } from '../../../store/uiStore'
 import { useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
-import { Input } from '../../ui/Input'
+import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
+import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../../../store/schedulePreferencesStore'
+import { Input, Select } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 
 // ── Section wrapper ──────────────────────────────────────────────────────────
@@ -319,6 +321,7 @@ function AnnouncementsSection() {
 // ── Scheduling section ────────────────────────────────────────────────────────
 function SchedulingSection() {
   const { employees, addEmployee, updateEmployee, removeEmployee } = useScheduleStore()
+  const { weekStartsOn, setWeekStartsOn } = useSchedulePreferencesStore()
   const [name, setName] = useState('')
   const [role, setRole] = useState('Associate')
   const [color, setColor] = useState('#0078d4')
@@ -340,6 +343,18 @@ function SchedulingSection() {
 
   return (
     <Section icon={<Calendar size={14} />} title="Scheduling">
+      <Row label="Week Starts On" description={`Weekly schedules run ${WEEKDAY_OPTIONS.find((d) => d.value === weekStartsOn)?.label} through ${WEEKDAY_OPTIONS.find((d) => d.value === ((weekStartsOn + 6) % 7))?.label}`}>
+        <Select
+          value={weekStartsOn}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setWeekStartsOn(Number(e.target.value) as WeekStartDay)}
+          className="w-36"
+        >
+          {WEEKDAY_OPTIONS.map((day) => (
+            <option key={day.value} value={day.value}>{day.label}</option>
+          ))}
+        </Select>
+      </Row>
+
       {/* Add / Edit employee */}
       <div className="px-4 py-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
         <p className="text-xs font-semibold text-[var(--text)]">{editId ? 'Edit Employee' : 'Add Employee'}</p>
@@ -389,6 +404,107 @@ function SchedulingSection() {
   )
 }
 
+// ── Schedule blocks section ──────────────────────────────────────────────────
+const BLOCK_COLORS = ['#0078d4','#7c5ff5','#e74856','#16c60c','#f7630c','#00b7c3','#e3008c','#8764b8','#10893e']
+
+function ScheduleBlocksSection() {
+  const { blocks, addBlock, updateBlock, removeBlock } = useScheduleBlocksStore()
+  const [editId, setEditId] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [startTime, setStartTime] = useState('09:00')
+  const [endTime, setEndTime] = useState('17:00')
+  const [note, setNote] = useState('')
+  const [color, setColor] = useState(BLOCK_COLORS[0])
+
+  const reset = () => {
+    setEditId(null)
+    setName('')
+    setStartTime('09:00')
+    setEndTime('17:00')
+    setNote('')
+    setColor(BLOCK_COLORS[0])
+  }
+
+  const startEdit = (block: ScheduleBlock) => {
+    setEditId(block.id)
+    setName(block.name)
+    setStartTime(block.startTime)
+    setEndTime(block.endTime)
+    setNote(block.note)
+    setColor(block.color)
+  }
+
+  const save = () => {
+    if (!name.trim()) return
+    const data = {
+      name: name.trim(),
+      startTime,
+      endTime,
+      note: note.trim(),
+      color,
+    }
+    if (editId) updateBlock(editId, data)
+    else addBlock(data)
+    reset()
+  }
+
+  const sortedBlocks = [...blocks].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+
+  return (
+    <Section icon={<Calendar size={14} />} title="Schedule Blocks">
+      <div className="px-4 py-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
+        <p className="text-xs font-semibold text-[var(--text)]">{editId ? 'Edit Schedule Block' : 'Create Schedule Block'}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Input label="Block Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Mid 10-7" />
+          <Input label="Start Time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          <Input label="End Time" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+        </div>
+        <Input label="Default Note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note for this block" />
+        <div>
+          <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Color</label>
+          <div className="flex flex-wrap gap-2">
+            {BLOCK_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-white/40' : 'hover:scale-110'}`}
+                style={{ background: c }}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          {editId && <Button variant="ghost" size="sm" onClick={reset}>Cancel</Button>}
+          <Button size="sm" onClick={save} disabled={!name.trim()} icon={<Check size={12} />}>
+            {editId ? 'Update Block' : 'Save Block'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        {sortedBlocks.map((block) => (
+          <div key={block.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] group">
+            <div className="w-2.5 h-9 rounded-full flex-shrink-0" style={{ background: block.color }} />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-[var(--text)] truncate">{block.name}</div>
+              <div className="text-xs text-[var(--text-tertiary)]">
+                {block.startTime} - {block.endTime}{block.note ? ` · ${block.note}` : ''}
+              </div>
+            </div>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => startEdit(block)} className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--accent)]"><Edit2 size={12} /></button>
+              <button onClick={() => removeBlock(block.id)} className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-red-400"><Trash2 size={12} /></button>
+            </div>
+          </div>
+        ))}
+        {sortedBlocks.length === 0 && (
+          <p className="text-xs text-[var(--text-tertiary)] text-center py-4">No schedule blocks yet</p>
+        )}
+      </div>
+    </Section>
+  )
+}
+
 // ── Sidebar nav ───────────────────────────────────────────────────────────────
 const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
@@ -396,6 +512,7 @@ const SECTIONS = [
   { id: 'goals',         label: 'Goals',          icon: <Target size={14} /> },
   { id: 'announcements', label: 'Announcements',  icon: <Megaphone size={14} /> },
   { id: 'scheduling',    label: 'Scheduling',     icon: <Calendar size={14} /> },
+  { id: 'scheduleBlocks', label: 'Schedule Blocks', icon: <Calendar size={14} /> },
 ] as const
 
 type SectionId = typeof SECTIONS[number]['id']
@@ -410,6 +527,7 @@ export function SettingsPage() {
     goals:         <GoalsSection />,
     announcements: <AnnouncementsSection />,
     scheduling:    <SchedulingSection />,
+    scheduleBlocks: <ScheduleBlocksSection />,
   }
 
   return (

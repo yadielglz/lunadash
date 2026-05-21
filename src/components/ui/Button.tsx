@@ -2,7 +2,7 @@ import { ReactNode, ButtonHTMLAttributes } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '../../lib/utils'
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart'> {
   children: ReactNode
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent'
   size?: 'sm' | 'md' | 'lg' | 'icon'
@@ -36,7 +36,7 @@ export function Button({
       className={cn(base, variants[variant], sizes[size], className)}
       disabled={disabled || loading}
       whileTap={{ scale: 0.97 }}
-      {...(rest as any)}
+      {...rest}
     >
       {loading ? (
         <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">

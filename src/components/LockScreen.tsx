@@ -65,7 +65,8 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
     if (h === pinHash) {
       setAttempts(0)
       setError('')
-      onUnlock ? onUnlock() : unlock()
+      if (onUnlock) onUnlock()
+      else unlock()
     } else {
       const next = attempts + 1
       setAttempts(next)

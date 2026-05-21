@@ -1,17 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Modal } from '../../ui/Modal'
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
-import { useScheduleStore, Shift, ShiftType } from '../../../store/scheduleStore'
-
-const SHIFT_TYPES: ShiftType[] = ['Morning', 'Afternoon', 'Evening', 'Night', 'Custom']
-const SHIFT_PRESETS: Record<ShiftType, { start: string; end: string }> = {
-  Morning:   { start: '09:00', end: '17:00' },
-  Afternoon: { start: '13:00', end: '21:00' },
-  Evening:   { start: '17:00', end: '01:00' },
-  Night:     { start: '22:00', end: '06:00' },
-  Custom:    { start: '08:00', end: '16:00' },
-}
+import { useScheduleStore, Shift } from '../../../store/scheduleStore'
+import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
 
 interface Props {
   open: boolean
@@ -20,44 +12,60 @@ interface Props {
   editShift?: Shift
 }
 
+function legacyBlockForShift(shift: Shift): ScheduleBlock {
+  return {
+    id: `legacy-${shift.id}`,
+    name: shift.type,
+    startTime: shift.startTime,
+    endTime: shift.endTime,
+    note: shift.note ?? '',
+    color: '#0078d4',
+    sortOrder: -1,
+  }
+}
+
 export function ShiftModal({ open, onClose, initialDate, editShift }: Props) {
   const { employees, addShift, updateShift, removeShift } = useScheduleStore()
+  const blocks = useScheduleBlocksStore((s) => s.blocks)
 
   const [employeeId, setEmployeeId] = useState(employees[0]?.id ?? '')
   const [date, setDate]             = useState(initialDate ?? new Date().toISOString().split('T')[0])
-  const [type, setType]             = useState<ShiftType>('Morning')
-  const [start, setStart]           = useState('09:00')
-  const [end, setEnd]               = useState('17:00')
-  const [note, setNote]             = useState('')
+  const [blockId, setBlockId]       = useState(blocks[0]?.id ?? '')
+  const sortedBlocks = useMemo(
+    () => [...blocks].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
+    [blocks]
+  )
+  const selectedBlock = sortedBlocks.find((block) => block.id === blockId)
+  const displayBlock = selectedBlock ?? (editShift ? legacyBlockForShift(editShift) : undefined)
 
   useEffect(() => {
     if (editShift) {
+      const matchingBlock = sortedBlocks.find((block) =>
+        block.name === editShift.type
+        && block.startTime === editShift.startTime
+        && block.endTime === editShift.endTime
+      )
       setEmployeeId(editShift.employeeId)
       setDate(editShift.date)
-      setType(editShift.type)
-      setStart(editShift.startTime)
-      setEnd(editShift.endTime)
-      setNote(editShift.note ?? '')
+      setBlockId(matchingBlock?.id ?? '')
     } else {
       setEmployeeId(employees[0]?.id ?? '')
       setDate(initialDate ?? new Date().toISOString().split('T')[0])
-      setType('Morning')
-      setStart('09:00')
-      setEnd('17:00')
-      setNote('')
+      setBlockId(sortedBlocks[0]?.id ?? '')
     }
-  }, [editShift, initialDate, employees, open])
-
-  const handleTypeChange = (t: ShiftType) => {
-    setType(t)
-    const preset = SHIFT_PRESETS[t]
-    setStart(preset.start)
-    setEnd(preset.end)
-  }
+  }, [editShift, initialDate, employees, open, sortedBlocks])
 
   const handleSave = () => {
-    if (!employeeId || !date) return
-    const data = { employeeId, date, startTime: start, endTime: end, type, note: note || undefined }
+    const block = selectedBlock ?? (editShift ? legacyBlockForShift(editShift) : undefined)
+    if (!employeeId || !date || !block) return
+    const data = {
+      employeeId,
+      date,
+      startTime: block.startTime,
+      endTime: block.endTime,
+      type: block.name,
+      note: block.note || undefined,
+    }
     if (editShift) updateShift(editShift.id, data)
     else addShift(data)
     onClose()
@@ -70,7 +78,7 @@ export function ShiftModal({ open, onClose, initialDate, editShift }: Props) {
   return (
     <Modal open={open} onClose={onClose} title={editShift ? 'Edit Shift' : 'Add Shift'} size="sm">
       <div className="space-y-4">
-        <Select label="Employee" value={employeeId} onChange={(e: any) => setEmployeeId(e.target.value)}>
+        <Select label="Employee" value={employeeId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEmployeeId(e.target.value)}>
           {employees.map((e) => (
             <option key={e.id} value={e.id}>{e.name} — {e.role}</option>
           ))}
@@ -78,31 +86,32 @@ export function ShiftModal({ open, onClose, initialDate, editShift }: Props) {
 
         <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
 
-        <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Shift Type</label>
-          <div className="flex flex-wrap gap-1.5">
-            {SHIFT_TYPES.map((t) => (
-              <button
-                key={t}
-                onClick={() => handleTypeChange(t)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  type === t
-                    ? 'bg-[var(--accent)] border-[var(--accent)] text-white'
-                    : 'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
+        <Select
+          label="Schedule Block"
+          value={blockId}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setBlockId(e.target.value)}
+        >
+          <option value="">Select a saved block</option>
+          {sortedBlocks.map((block) => (
+            <option key={block.id} value={block.id}>{block.name} · {block.startTime}-{block.endTime}</option>
+          ))}
+        </Select>
+
+        {displayBlock ? (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: displayBlock.color }} />
+              <span className="text-sm font-medium text-[var(--text)]">{displayBlock.name}</span>
+            </div>
+            <div className="mt-1 text-xs text-[var(--text-tertiary)]">
+              {displayBlock.startTime} - {displayBlock.endTime}{displayBlock.note ? ` · ${displayBlock.note}` : ''}
+            </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Start Time" type="time" value={start} onChange={(e) => setStart(e.target.value)} />
-          <Input label="End Time"   type="time" value={end}   onChange={(e) => setEnd(e.target.value)} />
-        </div>
-
-        <Input label="Note (optional)" placeholder="Add a note…" value={note} onChange={(e) => setNote(e.target.value)} />
+        ) : (
+          <p className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-3 text-xs text-[var(--text-tertiary)]">
+            Create schedule blocks in Settings before assigning shifts.
+          </p>
+        )}
 
         <div className="flex justify-between pt-2">
           {editShift ? (
@@ -112,7 +121,7 @@ export function ShiftModal({ open, onClose, initialDate, editShift }: Props) {
           )}
           <div className="flex gap-2">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button variant="primary" onClick={handleSave}>
+            <Button variant="primary" onClick={handleSave} disabled={!selectedBlock && !editShift}>
               {editShift ? 'Update' : 'Add Shift'}
             </Button>
           </div>

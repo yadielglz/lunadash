@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Search, Wind, Droplets, Thermometer, MapPin } from 'lucide-react'
 import { useWeather, useGeocode } from '../../../hooks/useWeather'
-import { getWeatherInfo, getWindDirection } from '../../../lib/openMeteo'
+import { getWeatherInfo, getWindDirection, type GeocodingResult } from '../../../lib/openMeteo'
 import { useTempDisplay } from '../../../hooks/useTempDisplay'
 import { format } from 'date-fns'
 import { Input } from '../../ui/Input'
@@ -16,7 +16,7 @@ export function WeatherPage() {
   const { data, isLoading, isError } = useWeather(manualCoords)
   const { fmt, unit, toggleTempUnit } = useTempDisplay()
 
-  const selectCity = (result: any) => {
+  const selectCity = (result: GeocodingResult) => {
     setManualCoords({ lat: result.latitude, lon: result.longitude })
     setLocationName(`${result.name}, ${result.country}`)
     setCitySearch('')
