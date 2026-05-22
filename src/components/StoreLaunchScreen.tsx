@@ -6,8 +6,10 @@ import { AccessMode, useUiStore } from '../store/uiStore'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { APP_META } from '../config/appMeta'
+import { LunaWirelessLogo } from './brand/LunaWirelessLogo'
 
 const DEALER_PLACEHOLDERS = ['1047293', '2384517', '4829160', '7603148', '9158026']
+const LOGIN_BACKDROP_URL = 'https://i.ibb.co/39JLm174/Wall.png'
 
 export function StoreLaunchScreen() {
   const setAccessSession = useUiStore((s) => s.setAccessSession)
@@ -62,19 +64,34 @@ export function StoreLaunchScreen() {
   }
 
   return (
-    <div className="h-full w-full flex items-center justify-center bg-[var(--bg)] px-6">
-      <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow-modal)]">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-[var(--accent)]/12 text-[var(--accent)] flex items-center justify-center">
-            <KeyRound size={20} />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-[var(--text)]">LunaDash Access</h1>
-            <p className="text-xs text-[var(--text-secondary)]">Enter your dealer code and 4-digit PIN.</p>
+    <div
+      className="relative h-full w-full flex items-center justify-center bg-[var(--bg)] px-6 overflow-hidden"
+      style={{
+        backgroundImage: `url(${LOGIN_BACKDROP_URL})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      <div className="absolute inset-0 bg-black/55" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,122,216,0.18),transparent_45%)]" />
+      <div className="relative w-full max-w-md rounded-xl border border-white/12 bg-[var(--surface)]/95 shadow-[0_24px_80px_rgba(0,0,0,0.55)] overflow-hidden backdrop-blur-md">
+        <div className="relative px-6 pt-7 pb-5 border-b border-[var(--border)] bg-[var(--surface-2)]/92">
+          <div className="absolute inset-x-0 top-0 h-1 bg-[var(--accent)]" />
+          <div className="flex flex-col items-center text-center">
+            <LunaWirelessLogo className="h-20 w-52" />
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <span className="h-8 w-8 rounded-lg bg-[var(--accent)]/12 text-[var(--accent)] flex items-center justify-center">
+                <KeyRound size={16} />
+              </span>
+              <div className="text-left">
+                <h1 className="text-lg font-semibold text-[var(--text)]">LunaDash Access</h1>
+                <p className="text-xs text-[var(--text-secondary)]">Enter your dealer code and 4-digit PIN.</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="mt-5 space-y-4">
+        <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-2 sm:hidden">
             {([
               { id: 'manager', label: 'Manage', icon: <Smartphone size={14} /> },

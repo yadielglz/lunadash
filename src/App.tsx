@@ -1,14 +1,6 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { AppShell } from './components/layout/AppShell'
 import { DataProvider } from './components/DataProvider'
-import { WidgetGrid } from './components/widgets/WidgetGrid'
-import { DevicesPage } from './components/features/devices/DevicesPage'
-import { SchedulePage } from './components/features/scheduling/SchedulePage'
-import { GoalsPage } from './components/features/goals/GoalsPage'
-import { WeatherPage } from './components/features/weather/WeatherPage'
-import { DisplayPage } from './components/features/screendisplay/DisplayPage'
-import { SettingsPage } from './components/features/settings/SettingsPage'
-import { TasksPage } from './components/features/tasks/TasksPage'
 import { LockScreen } from './components/LockScreen'
 import { StoreLaunchScreen } from './components/StoreLaunchScreen'
 import { useUiStore } from './store/uiStore'
@@ -17,6 +9,22 @@ import { useTheme } from './hooks/useTheme'
 import { canAccessTab, defaultTabForRole } from './lib/accessControl'
 
 const DEFAULT_PIN = '6974'
+const WidgetGrid = lazy(() => import('./components/widgets/WidgetGrid').then((m) => ({ default: m.WidgetGrid })))
+const DevicesPage = lazy(() => import('./components/features/devices/DevicesPage').then((m) => ({ default: m.DevicesPage })))
+const SchedulePage = lazy(() => import('./components/features/scheduling/SchedulePage').then((m) => ({ default: m.SchedulePage })))
+const GoalsPage = lazy(() => import('./components/features/goals/GoalsPage').then((m) => ({ default: m.GoalsPage })))
+const WeatherPage = lazy(() => import('./components/features/weather/WeatherPage').then((m) => ({ default: m.WeatherPage })))
+const DisplayPage = lazy(() => import('./components/features/screendisplay/DisplayPage').then((m) => ({ default: m.DisplayPage })))
+const SettingsPage = lazy(() => import('./components/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const TasksPage = lazy(() => import('./components/features/tasks/TasksPage').then((m) => ({ default: m.TasksPage })))
+
+function PageFallback() {
+  return (
+    <div className="h-full w-full flex items-center justify-center text-xs text-[var(--text-tertiary)]">
+      Loading LunaDash...
+    </div>
+  )
+}
 
 export default function App() {
   const { activeTab } = useUiStore()
@@ -115,7 +123,9 @@ export default function App() {
   if (activeTab === 'display') {
     return (
       <DataProvider>
-        <DisplayPage />
+        <Suspense fallback={<PageFallback />}>
+          <DisplayPage />
+        </Suspense>
       </DataProvider>
     )
   }
@@ -137,7 +147,9 @@ export default function App() {
   return (
     <DataProvider>
       <AppShell activeKey={activeTab}>
-        {pages[activeTab]}
+        <Suspense fallback={<PageFallback />}>
+          {pages[activeTab]}
+        </Suspense>
       </AppShell>
     </DataProvider>
   )
