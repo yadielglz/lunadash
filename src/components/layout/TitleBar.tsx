@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Sun, Moon, Store, Pencil, Check } from 'lucide-react'
+import { Sun, Moon, Store, Pencil, Check, LogOut } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore'
 import { useTheme } from '../../hooks/useTheme'
 import { useClock } from '../../hooks/useClock'
@@ -58,7 +58,7 @@ function EditableField({
 
 export function TitleBar() {
   const { toggleTheme, isDark } = useTheme()
-  const { activeTab } = useUiStore()
+  const { activeTab, accessRole, accessLabel, clearStoreSession } = useUiStore()
   const now = useClock()
   const { companyName, storeNumber, setCompanyName, setStoreNumber } = useDisplayStore()
 
@@ -99,12 +99,25 @@ export function TitleBar() {
       {/* Actions */}
       <div className="flex items-center gap-1">
         <span className="text-xs text-[var(--text-secondary)] mr-2 hidden sm:inline tabular-nums">{timeStr}</span>
+        {accessRole && (
+          <div className="hidden md:flex flex-col items-end leading-none mr-1">
+            <span className="text-[10px] font-semibold uppercase text-[var(--accent)]">{accessRole}</span>
+            <span className="text-[10px] text-[var(--text-tertiary)] max-w-[120px] truncate">{accessLabel || 'Access session'}</span>
+          </div>
+        )}
         <button
           onClick={toggleTheme}
           className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
           title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {isDark ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+        <button
+          onClick={clearStoreSession}
+          className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
+          title="Log out"
+        >
+          <LogOut size={15} />
         </button>
       </div>
     </div>

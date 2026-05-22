@@ -109,3 +109,24 @@ create index if not exists tasks_store_idx on tasks(store_id);
 alter table tasks enable row level security;
 create policy "public" on tasks for all using (true) with check (true);
 alter publication supabase_realtime add table tasks;
+
+-- ── Store access codes ─────────────────────────────────────────
+create table if not exists store_access_codes (
+  id uuid primary key default gen_random_uuid(),
+  dealer_code text not null,
+  store_id text not null,
+  pin_hash text not null,
+  role text not null check (role in ('admin', 'manager', 'employee', 'display')),
+  label text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz
+);
+alter table store_access_codes drop constraint if exists store_access_codes_role_check;
+alter table store_access_codes add constraint store_access_codes_role_check
+check (role in ('admin', 'manager', 'employee', 'display'));
+create unique index if not exists store_access_codes_dealer_pin_idx
+on store_access_codes (dealer_code, pin_hash)
+where is_active = true;
+alter table store_access_codes enable row level security;
+create policy "public" on store_access_codes for all using (true) with check (true);

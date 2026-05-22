@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, Store, Target, Megaphone, Calendar,
-  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud
+  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Power
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
@@ -11,12 +11,13 @@ import { useGoalsStore, Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../../../store/schedulePreferencesStore'
-import { dbGetStores, dbUpdateSettings, StoreSummary } from '../../../lib/supabase'
+import { dbCheckSchemaHealth, dbCreateAccessCode, dbGetAccessCodes, dbGetStores, dbUpdateAccessCode, dbUpdateSettings, StoreAccessCode, StoreSummary } from '../../../lib/supabase'
 import { Input, Select, Textarea } from '../../ui/Input'
 import { Button } from '../../ui/Button'
-import { AdminMainAccess } from '../../AdminMainAccess'
 import { APP_META } from '../../../config/appMeta'
 import { SyncArea, useSyncStore } from '../../../store/syncStore'
+import { AccessRole } from '../../../store/uiStore'
+import { hashPin } from '../../../store/lockStore'
 
 // ── Section wrapper ──────────────────────────────────────────────────────────
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
@@ -132,7 +133,7 @@ function GeneralSection() {
 // ── Store details ────────────────────────────────────────────────────────────
 function StoreSection() {
   const { companyName, storeNumber, slideInterval, setCompanyName, setStoreNumber, setSlideInterval } = useDisplayStore()
-  const { storeId, setStoreId } = useUiStore()
+  const { storeId, setStoreId, accessRole } = useUiStore()
   const [name, setName]       = useState(companyName)
   const [num, setNum]         = useState(storeNumber)
   const [newStoreId, setNewStoreId] = useState('')
@@ -224,7 +225,11 @@ function StoreSection() {
           )}
         </Select>
 
-        <AdminMainAccess onUnlock={() => switchStore('main')} />
+        {accessRole === 'admin' && (
+          <Button size="sm" variant={storeId === 'main' ? 'accent' : 'ghost'} onClick={() => switchStore('main')}>
+            {storeId === 'main' ? 'Main Dashboard active' : 'Use Main Dashboard'}
+          </Button>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-2">
           <Input
@@ -717,7 +722,7 @@ function ScheduleBlocksSection() {
 
 // ── Configured stores section ────────────────────────────────────────────────
 function ConfiguredStoresSection() {
-  const { storeId, setStoreId } = useUiStore()
+  const { storeId, setStoreId, accessRole } = useUiStore()
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -748,20 +753,22 @@ function ConfiguredStoresSection() {
       </div>
 
       <div className="space-y-1.5">
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-[var(--text)] truncate">Main Dashboard</span>
-              {storeId === 'main' && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">Current</span>
-              )}
+        {accessRole === 'admin' && (
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-[var(--text)] truncate">Main Dashboard</span>
+                {storeId === 'main' && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">Current</span>
+                )}
+              </div>
+              <div className="text-xs text-[var(--text-tertiary)] mt-0.5">All configured stores</div>
             </div>
-            <div className="text-xs text-[var(--text-tertiary)] mt-0.5">All configured stores</div>
+            <Button size="sm" variant={storeId === 'main' ? 'accent' : 'ghost'} onClick={() => setStoreId('main')}>
+              {storeId === 'main' ? 'Selected' : 'Use'}
+            </Button>
           </div>
-          <Button size="sm" variant={storeId === 'main' ? 'accent' : 'ghost'} onClick={() => setStoreId('main')}>
-            {storeId === 'main' ? 'Selected' : 'Use'}
-          </Button>
-        </div>
+        )}
 
         {stores.map((store) => (
           <div key={store.store_id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
@@ -855,6 +862,9 @@ function AboutSection() {
 
 function SyncStatusSection() {
   const entries = useSyncStore((s) => s.entries)
+  const [schema, setSchema] = useState<{ table: string; ok: boolean; message: string }[]>([])
+  const [checking, setChecking] = useState(false)
+  const [schemaError, setSchemaError] = useState('')
   const rows: { area: SyncArea; label: string }[] = [
     { area: 'settings', label: 'Settings' },
     { area: 'schedule', label: 'Schedule' },
@@ -870,9 +880,26 @@ function SyncStatusSection() {
     : 'text-[var(--text-tertiary)]'
   )
 
+  const checkSchema = async () => {
+    setChecking(true)
+    setSchemaError('')
+    try {
+      setSchema(await dbCheckSchemaHealth())
+    } catch (err) {
+      setSchemaError(err instanceof Error ? err.message : 'Could not check Supabase schema')
+    } finally {
+      setChecking(false)
+    }
+  }
+
   return (
     <Section icon={<Cloud size={14} />} title="Sync Status">
-      <div className="space-y-2">
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button size="sm" variant="ghost" icon={<RefreshCw size={12} />} loading={checking} onClick={checkSchema}>
+            Check Schema
+          </Button>
+        </div>
         {rows.map(({ area, label }) => {
           const entry = entries[area]
           return (
@@ -890,6 +917,253 @@ function SyncStatusSection() {
             </div>
           )
         })}
+        {schema.length > 0 && (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] divide-y divide-[var(--border)] overflow-hidden">
+            {schema.map((row) => (
+              <div key={row.table} className="flex items-center justify-between gap-3 px-4 py-3">
+                <span className="text-sm font-medium text-[var(--text)]">{row.table}</span>
+                <span className={`text-xs font-semibold ${row.ok ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {row.ok ? 'Ready' : row.message}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {schemaError && <p className="text-xs text-red-400">{schemaError}</p>}
+      </div>
+    </Section>
+  )
+}
+
+function AccessSection() {
+  const { accessRole, storeId, dealerCode, accessLabel } = useUiStore()
+  const [codes, setCodes] = useState<StoreAccessCode[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [dealer, setDealer] = useState('')
+  const [pin, setPin] = useState('')
+  const [newStoreId, setNewStoreId] = useState(storeId === 'main' ? '' : storeId)
+  const [role, setRole] = useState<AccessRole>('employee')
+  const [label, setLabel] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editLabel, setEditLabel] = useState('')
+  const [editStoreId, setEditStoreId] = useState('')
+  const [editRole, setEditRole] = useState<AccessRole>('employee')
+
+  const canManageAccess = accessRole === 'admin' || accessRole === 'manager'
+  const visibleCodes = accessRole === 'admin'
+    ? codes
+    : codes.filter((code) => code.store_id === storeId)
+
+  const loadCodes = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setCodes(await dbGetAccessCodes())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load access codes')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (canManageAccess) loadCodes()
+  }, [canManageAccess])
+
+  const createCode = async () => {
+    const cleanDealer = dealer.trim()
+    const cleanPin = pin.trim()
+    const targetStore = accessRole === 'admin' ? newStoreId.trim() : storeId
+    if (!/^\d{7}$/.test(cleanDealer)) {
+      setError('Dealer code must be 7 digits.')
+      return
+    }
+    if (!/^\d{4}$/.test(cleanPin)) {
+      setError('PIN must be 4 digits.')
+      return
+    }
+    if (!targetStore) {
+      setError('Store ID / SAP is required.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    try {
+      await dbCreateAccessCode({
+        dealer_code: cleanDealer,
+        store_id: targetStore,
+        pin_hash: await hashPin(cleanPin),
+        role,
+        label: label.trim() || `${role} access`,
+      })
+      setDealer('')
+      setPin('')
+      setLabel('')
+      await loadCodes()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create access code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const toggleCode = async (code: StoreAccessCode) => {
+    setLoading(true)
+    setError('')
+    try {
+      await dbUpdateAccessCode(code.id, { is_active: !code.is_active })
+      await loadCodes()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update access code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const startEditCode = (code: StoreAccessCode) => {
+    setEditingId(code.id)
+    setEditLabel(code.label ?? '')
+    setEditStoreId(code.store_id)
+    setEditRole(code.role)
+    setError('')
+  }
+
+  const cancelEditCode = () => {
+    setEditingId(null)
+    setEditLabel('')
+    setEditStoreId('')
+    setEditRole('employee')
+  }
+
+  const saveEditCode = async (code: StoreAccessCode) => {
+    const targetStore = accessRole === 'admin' ? editStoreId.trim() : storeId
+    if (!editLabel.trim()) {
+      setError('Name / label is required.')
+      return
+    }
+    if (!targetStore) {
+      setError('Store ID / SAP is required.')
+      return
+    }
+    if (accessRole !== 'admin' && code.store_id !== storeId) {
+      setError('Managers can only edit access for their current store.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    try {
+      await dbUpdateAccessCode(code.id, {
+        label: editLabel.trim(),
+        store_id: targetStore,
+        role: accessRole === 'admin' ? editRole : editRole === 'admin' ? 'manager' : editRole,
+      })
+      cancelEditCode()
+      await loadCodes()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update access code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!canManageAccess) {
+    return (
+      <Section icon={<KeyRound size={14} />} title="Access">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-5 text-sm text-[var(--text-secondary)]">
+          Access management is available to admin and manager sessions.
+        </div>
+      </Section>
+    )
+  }
+
+  return (
+    <Section icon={<KeyRound size={14} />} title="Access">
+      <div className="space-y-4">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+          <p className="text-sm font-semibold text-[var(--text)]">Current Session</p>
+          <p className="text-xs text-[var(--text-secondary)] mt-1">
+            {accessLabel || 'Access user'} · Dealer {dealerCode || 'n/a'} · Role {accessRole ?? 'none'} · Store {storeId || 'none'}
+          </p>
+          <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
+            Employee: Dashboard and Schedule · Manager: store operations · Admin: all stores and access management · Display: display-only
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
+          <p className="text-xs font-semibold text-[var(--text)]">Create Access Code</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <Input label="Dealer Code" inputMode="numeric" maxLength={7} value={dealer} onChange={(e) => setDealer(e.target.value.replace(/\D/g, '').slice(0, 7))} placeholder="7 digits" />
+            <Input label="PIN" type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4 digits" />
+            <Input label="Store ID / SAP" value={accessRole === 'admin' ? newStoreId : storeId} onChange={(e) => setNewStoreId(e.target.value)} disabled={accessRole !== 'admin'} placeholder="697D or main" />
+            <Select label="Role" value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as AccessRole)}>
+              {accessRole === 'admin' && <option value="admin">Admin</option>}
+              <option value="manager">Manager</option>
+              <option value="employee">Employee</option>
+              <option value="display">Display</option>
+            </Select>
+            <Input label="Label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Manager name" />
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" icon={<Plus size={12} />} loading={loading} onClick={createCode}>
+              Add Access
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] divide-y divide-[var(--border)] overflow-hidden">
+          {visibleCodes.map((code) => {
+            const isEditing = editingId === code.id
+            return (
+              <div key={code.id} className="px-4 py-3">
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <Input label="Name" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} placeholder="User name" />
+                      <Input label="Store ID / SAP" value={accessRole === 'admin' ? editStoreId : storeId} onChange={(e) => setEditStoreId(e.target.value)} disabled={accessRole !== 'admin'} placeholder="697D or main" />
+                      <Select label="Role" value={editRole} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditRole(e.target.value as AccessRole)}>
+                        {accessRole === 'admin' && <option value="admin">Admin</option>}
+                        <option value="manager">Manager</option>
+                        <option value="employee">Employee</option>
+                        <option value="display">Display</option>
+                      </Select>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="ghost" onClick={cancelEditCode}>Cancel</Button>
+                      <Button size="sm" icon={<Check size={12} />} loading={loading} onClick={() => saveEditCode(code)}>Save User</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[var(--text)] truncate">{code.label || 'Access code'}</p>
+                      <p className="text-xs text-[var(--text-tertiary)]">
+                        Dealer {code.dealer_code} · {code.store_id} · {code.role}
+                        {code.last_used_at ? ` · Last used ${new Date(code.last_used_at).toLocaleDateString()}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="ghost" icon={<Edit2 size={12} />} onClick={() => startEditCode(code)}>
+                        Edit
+                      </Button>
+                      <Button size="sm" variant={code.is_active ? 'ghost' : 'accent'} icon={<Power size={12} />} onClick={() => toggleCode(code)}>
+                        {code.is_active ? 'Disable' : 'Enable'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {visibleCodes.length === 0 && (
+            <p className="px-4 py-6 text-center text-xs text-[var(--text-tertiary)]">No access codes found.</p>
+          )}
+        </div>
+
+        {error && <p className="text-xs text-red-400">{error}</p>}
       </div>
     </Section>
   )
@@ -904,6 +1178,7 @@ const SECTIONS = [
   { id: 'announcements', label: 'Announcements',  icon: <Megaphone size={14} /> },
   { id: 'scheduling',    label: 'Scheduling',     icon: <Calendar size={14} /> },
   { id: 'scheduleBlocks', label: 'Schedule Blocks', icon: <Calendar size={14} /> },
+  { id: 'access',        label: 'Access',         icon: <KeyRound size={14} /> },
   { id: 'sync',          label: 'Sync Status',    icon: <Cloud size={14} /> },
   { id: 'about',         label: 'About',          icon: <Info size={14} /> },
 ] as const
@@ -922,6 +1197,7 @@ export function SettingsPage() {
     announcements: <AnnouncementsSection />,
     scheduling:    <SchedulingSection />,
     scheduleBlocks: <ScheduleBlocksSection />,
+    access:        <AccessSection />,
     sync:          <SyncStatusSection />,
     about:         <AboutSection />,
   }

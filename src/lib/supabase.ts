@@ -4,6 +4,7 @@ import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
 import type { Task, TaskCategory } from '../store/tasksStore'
 import { useSyncStore } from '../store/syncStore'
+import type { AccessRole } from '../store/uiStore'
 
 export const supabase = createClient(
   'https://vzbuboclkpdthztfprgg.supabase.co',
@@ -69,6 +70,21 @@ type DbTaskPatch = Partial<{
   completed_date: string | null
 }>
 
+export type StoreAccessCode = {
+  id: string
+  dealer_code: string
+  store_id: string
+  role: AccessRole
+  label: string | null
+  is_active: boolean
+  created_at: string
+  last_used_at: string | null
+}
+
+type DbStoreAccessCode = StoreAccessCode & {
+  pin_hash: string
+}
+
 type SupabaseError = {
   code?: string
   message?: string
@@ -101,6 +117,68 @@ function logOptionalTasksWarning(action: string, error: unknown) {
   if (!isMissingTableError(error)) return false
   console.warn(`Tasks table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
   return true
+}
+
+// ── Access ───────────────────────────────────────────────────────────────────
+
+export async function dbAuthenticateAccess(dealerCode: string, pinHash: string): Promise<StoreAccessCode | null> {
+  const { data, error } = await supabase
+    .from('store_access_codes')
+    .select('id, dealer_code, store_id, role, label, is_active, created_at, last_used_at')
+    .eq('dealer_code', dealerCode)
+    .eq('pin_hash', pinHash)
+    .eq('is_active', true)
+    .maybeSingle()
+  throwIfError(error, 'Could not validate access')
+  if (!data) return null
+
+  await supabase
+    .from('store_access_codes')
+    .update({ last_used_at: new Date().toISOString() })
+    .eq('id', (data as StoreAccessCode).id)
+
+  return data as StoreAccessCode
+}
+
+export async function dbGetAccessCodes(): Promise<StoreAccessCode[]> {
+  const { data, error } = await supabase
+    .from('store_access_codes')
+    .select('id, dealer_code, store_id, role, label, is_active, created_at, last_used_at')
+    .order('created_at', { ascending: false })
+  throwIfError(error, 'Could not load access codes')
+  return (data ?? []) as StoreAccessCode[]
+}
+
+export async function dbCreateAccessCode(code: {
+  dealer_code: string
+  store_id: string
+  pin_hash: string
+  role: AccessRole
+  label: string
+}) {
+  const { error } = await supabase.from('store_access_codes').insert({
+    ...code,
+    is_active: true,
+  } satisfies Partial<DbStoreAccessCode>)
+  throwIfError(error, 'Could not create access code')
+}
+
+export async function dbUpdateAccessCode(id: string, patch: Partial<Pick<StoreAccessCode, 'label' | 'role' | 'store_id' | 'is_active'>>) {
+  const { error } = await supabase.from('store_access_codes').update(patch).eq('id', id)
+  throwIfError(error, 'Could not update access code')
+}
+
+export async function dbCheckSchemaHealth() {
+  const tables = ['employees', 'shifts', 'goals', 'announcements', 'app_settings', 'tasks', 'store_access_codes']
+  const results = await Promise.all(tables.map(async (table) => {
+    const { error } = await supabase.from(table).select('*', { head: true, count: 'exact' })
+    return {
+      table,
+      ok: !error,
+      message: error ? (isSupabaseError(error) ? error.message ?? error.details ?? 'Unavailable' : 'Unavailable') : 'Ready',
+    }
+  }))
+  return results
 }
 
 // ── Employees ─────────────────────────────────────────────────────────────────

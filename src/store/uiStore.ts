@@ -6,6 +6,7 @@ export type Theme = 'dark' | 'light'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
 export type AccessMode = 'manager' | 'display' | 'admin'
+export type AccessRole = 'admin' | 'manager' | 'employee' | 'display'
 
 const SESSION_MS = 2 * 60 * 1000
 
@@ -16,6 +17,9 @@ interface UiState {
   timeFormat: TimeFormat
   storeId: string          // unique per-store key, shared across all devices in that store
   accessMode: AccessMode
+  accessRole: AccessRole | null
+  dealerCode: string
+  accessLabel: string
   sessionExpiresAt: number | null
   isEditingWidgets: boolean
   setTab: (tab: Tab) => void
@@ -26,6 +30,7 @@ interface UiState {
   setTimeFormat: (fmt: TimeFormat) => void
   setStoreId: (id: string) => void
   setAccessMode: (mode: AccessMode) => void
+  setAccessSession: (access: { storeId: string; role: AccessRole; dealerCode: string; label?: string | null; mode?: AccessMode }) => void
   clearStoreSession: () => void
   extendStoreSession: () => void
   setEditingWidgets: (v: boolean) => void
@@ -47,6 +52,9 @@ export const useUiStore = create<UiState>()(
       timeFormat: '12' as TimeFormat,
       storeId: '',
       accessMode: 'manager',
+      accessRole: null,
+      dealerCode: '',
+      accessLabel: '',
       sessionExpiresAt: null,
       isEditingWidgets: false,
       setTab: (tab) => set({ activeTab: tab }),
@@ -55,7 +63,19 @@ export const useUiStore = create<UiState>()(
       setTimeFormat: (fmt) => set({ timeFormat: fmt }),
       setStoreId: (id) => set({ storeId: id, sessionExpiresAt: id ? Date.now() + SESSION_MS : null }),
       setAccessMode: (mode) => set({ accessMode: mode, activeTab: mode === 'display' ? 'display' : get().activeTab }),
-      clearStoreSession: () => set({ storeId: '', sessionExpiresAt: null, activeTab: 'home' }),
+      setAccessSession: ({ storeId, role, dealerCode, label, mode }) => {
+        const accessMode = mode ?? (role === 'admin' ? 'admin' : role === 'display' ? 'display' : 'manager')
+        set({
+          storeId,
+          accessRole: role,
+          accessMode,
+          dealerCode,
+          accessLabel: label ?? '',
+          sessionExpiresAt: Date.now() + SESSION_MS,
+          activeTab: accessMode === 'display' ? 'display' : 'home',
+        })
+      },
+      clearStoreSession: () => set({ storeId: '', accessMode: 'manager', accessRole: null, dealerCode: '', accessLabel: '', sessionExpiresAt: null, activeTab: 'home' }),
       extendStoreSession: () => set((s) => s.storeId ? { sessionExpiresAt: Date.now() + SESSION_MS } : s),
       setTheme: (theme) => {
         set({ theme })

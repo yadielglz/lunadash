@@ -4,6 +4,7 @@ import {
 } from 'lucide-react'
 import { useUiStore, Tab } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
+import { canAccessTab } from '../../lib/accessControl'
 
 const TABS: { id: Tab; icon: React.ReactNode; label: string; mobile?: boolean }[] = [
   { id: 'home',     icon: <LayoutGrid size={18} />,  label: 'Home'     },
@@ -16,7 +17,8 @@ const TABS: { id: Tab; icon: React.ReactNode; label: string; mobile?: boolean }[
 ]
 
 export function Taskbar() {
-  const { activeTab, setTab } = useUiStore()
+  const { activeTab, accessRole, setTab } = useUiStore()
+  const visibleTabs = TABS.filter((tab) => canAccessTab(accessRole, tab.id))
 
   return (
     <nav
@@ -25,7 +27,7 @@ export function Taskbar() {
     >
       {/* Desktop: centered icon bar */}
       <div className="hidden sm:flex items-center justify-center gap-1 px-4 h-14">
-        {TABS.map(({ id, icon, label }) => {
+        {visibleTabs.map(({ id, icon, label }) => {
           const active = activeTab === id
           return (
             <motion.button
@@ -54,7 +56,7 @@ export function Taskbar() {
 
       {/* Mobile: full-width tabs */}
       <div className="sm:hidden flex items-stretch h-16">
-        {TABS.filter((tab) => tab.mobile !== false).map(({ id, icon, label }) => {
+        {visibleTabs.filter((tab) => tab.mobile !== false).map(({ id, icon, label }) => {
           const active = activeTab === id
           return (
             <button

@@ -14,6 +14,7 @@ import { StoreLaunchScreen } from './components/StoreLaunchScreen'
 import { useUiStore } from './store/uiStore'
 import { useLockStore, hashPin } from './store/lockStore'
 import { useTheme } from './hooks/useTheme'
+import { canAccessTab, defaultTabForRole } from './lib/accessControl'
 
 const DEFAULT_PIN = '6974'
 
@@ -21,6 +22,7 @@ export default function App() {
   const { activeTab } = useUiStore()
   const storeId = useUiStore((s) => s.storeId)
   const accessMode = useUiStore((s) => s.accessMode)
+  const accessRole = useUiStore((s) => s.accessRole)
   const sessionExpiresAt = useUiStore((s) => s.sessionExpiresAt)
   const clearStoreSession = useUiStore((s) => s.clearStoreSession)
   const extendStoreSession = useUiStore((s) => s.extendStoreSession)
@@ -63,6 +65,13 @@ export default function App() {
       useUiStore.getState().setTab('display')
     }
   }, [accessMode, activeTab])
+
+  useEffect(() => {
+    if (!storeId || !accessRole) return
+    if (!canAccessTab(accessRole, activeTab, accessMode)) {
+      useUiStore.getState().setTab(defaultTabForRole(accessRole, accessMode))
+    }
+  }, [accessMode, accessRole, activeTab, storeId])
 
   // Close the selected-store session after 2 minutes of inactivity unless a passive display is active.
   useEffect(() => {
