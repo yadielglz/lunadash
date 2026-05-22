@@ -17,9 +17,12 @@ create table employees (
   name        text not null,
   role        text not null default 'Associate',
   color       text not null default '#0078d4',
+  sort_order  integer default 0,
   created_at  timestamptz default now()
 );
+alter table employees add column if not exists sort_order integer default 0;
 create index employees_store_idx on employees(store_id);
+create index if not exists employees_store_sort_idx on employees(store_id, sort_order);
 
 -- Shifts
 create table shifts (

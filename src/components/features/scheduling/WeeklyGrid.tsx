@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { format, addDays, startOfWeek, isToday } from 'date-fns'
-import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Plus, Printer, Save, Upload } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, GripVertical, Plus, Printer, Save, Upload } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useScheduleStore, Shift, ShiftType } from '../../../store/scheduleStore'
 import { ShiftModal } from './ShiftModal'
@@ -14,6 +14,7 @@ import { useUiStore } from '../../../store/uiStore'
 import { PrintableScheduleModal } from './PrintableScheduleModal'
 
 const TEMPLATE_KEY = 'luna-schedule-templates'
+const SCHEDULE_GRID_COLUMNS = '220px repeat(7, minmax(118px, 1fr))'
 
 type TemplateShift = {
   employeeId: string
@@ -262,7 +263,7 @@ function ShiftCard({
 }
 
 export function WeeklyGrid() {
-  const { employees, shifts, addShift, addShifts, updateShift, removeShifts } = useScheduleStore()
+  const { employees, shifts, addShift, addShifts, updateShift, removeShifts, reorderEmployees } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
   const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
   const isMainDashboard = useUiStore((s) => s.storeId === 'main')
@@ -274,6 +275,8 @@ export function WeeklyGrid() {
   const [clickedDate, setClickedDate] = useState<string | undefined>()
   const [clickedEmployeeId, setClickedEmployeeId] = useState<string | undefined>()
   const [dragShiftId, setDragShiftId] = useState<string | null>(null)
+  const [dragEmployeeId, setDragEmployeeId] = useState<string | null>(null)
+  const [dragOverEmployeeId, setDragOverEmployeeId] = useState<string | null>(null)
 
   const weekStart = addDays(startOfWeek(new Date(), { weekStartsOn }), weekOffset * 7)
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -327,6 +330,19 @@ export function WeeklyGrid() {
     if (!dragShiftId) return
     updateShift(dragShiftId, { date, employeeId })
     setDragShiftId(null)
+  }
+
+  const moveEmployee = (targetEmployeeId: string) => {
+    if (!dragEmployeeId || dragEmployeeId === targetEmployeeId) return
+    const fromIndex = employees.findIndex((employee) => employee.id === dragEmployeeId)
+    const toIndex = employees.findIndex((employee) => employee.id === targetEmployeeId)
+    if (fromIndex < 0 || toIndex < 0) return
+    const ordered = [...employees]
+    const [moved] = ordered.splice(fromIndex, 1)
+    ordered.splice(toIndex, 0, moved)
+    reorderEmployees(ordered)
+    setDragEmployeeId(null)
+    setDragOverEmployeeId(null)
   }
 
   return (
@@ -387,9 +403,9 @@ export function WeeklyGrid() {
 
       {/* Main grid */}
       <div className="flex-1 overflow-auto px-3 sm:px-4 pb-4">
-        <div className="min-w-[760px] sm:min-w-[700px]">
+        <div className="min-w-[1060px]">
           {/* Day headers */}
-          <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}>
+          <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: SCHEDULE_GRID_COLUMNS }}>
             <div className="sticky left-0 z-20 bg-[var(--bg)]" /> {/* Employee column spacer */}
             {days.map((d) => {
               const today = isToday(d)
@@ -421,24 +437,58 @@ export function WeeklyGrid() {
                 key={emp.id}
                 layout
                 className="grid gap-2 items-start"
-                style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}
+                style={{ gridTemplateColumns: SCHEDULE_GRID_COLUMNS }}
               >
                 {/* Employee label */}
-                <div className="sticky left-0 z-10 flex items-center gap-2.5 px-2.5 sm:px-3 py-2 rounded-lg bg-[var(--surface-2-solid)] border border-[var(--border)] h-full shadow-[4px_0_10px_rgba(0,0,0,0.08)] group/emp">
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    setDragEmployeeId(emp.id)
+                    e.dataTransfer.effectAllowed = 'move'
+                    e.dataTransfer.setData('application/luna-employee-id', emp.id)
+                  }}
+                  onDragOver={(e) => {
+                    if (!dragEmployeeId || dragEmployeeId === emp.id) return
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                    setDragOverEmployeeId(emp.id)
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverEmployeeId === emp.id) setDragOverEmployeeId(null)
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    moveEmployee(emp.id)
+                  }}
+                  onDragEnd={() => {
+                    setDragEmployeeId(null)
+                    setDragOverEmployeeId(null)
+                  }}
+                  className={`sticky left-0 z-10 flex items-center gap-2.5 px-2.5 sm:px-3 py-2 rounded-lg bg-[var(--surface-2-solid)] border h-full shadow-[4px_0_10px_rgba(0,0,0,0.08)] group/emp cursor-grab active:cursor-grabbing transition-colors ${
+                    dragOverEmployeeId === emp.id
+                      ? 'border-[var(--accent)] bg-[var(--accent)]/10'
+                      : 'border-[var(--border)]'
+                  }`}
+                  title="Drag to reorder employees"
+                >
+                  <GripVertical size={13} className="hidden sm:block flex-shrink-0 text-[var(--text-tertiary)]" />
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                     style={{ background: emp.color }}
                   >
                     {emp.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold text-[var(--text)] truncate">{emp.name}</div>
-                    <div className="text-[10px] text-[var(--text-tertiary)] truncate">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold leading-snug text-[var(--text)] break-words">{emp.name}</div>
+                    <div className="text-[10px] leading-snug text-[var(--text-tertiary)] break-words">
                       {isMainDashboard && emp.storeId ? `${emp.storeId} · ` : ''}{emp.role}
                     </div>
                   </div>
                   <button
-                    onClick={() => copyEmployeeWeek(emp.id)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      copyEmployeeWeek(emp.id)
+                    }}
                     className="ml-auto hidden sm:flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--reveal-bg)] opacity-0 group-hover/emp:opacity-100 transition-opacity"
                     title="Copy employee week to next week"
                   >

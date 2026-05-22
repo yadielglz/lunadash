@@ -12,7 +12,7 @@ import type { Announcement } from '../store/displayStore'
 import type { Task } from '../store/tasksStore'
 
 type StoreScopedRow = { id: string; store_id: string }
-type EmployeeRow = StoreScopedRow & { name: string; role: string; color: string }
+type EmployeeRow = StoreScopedRow & { name: string; role: string; color: string; sort_order?: number | null }
 type ShiftRow = StoreScopedRow & {
   employee_id: string
   date: string
@@ -53,7 +53,23 @@ type TaskRow = StoreScopedRow & {
   created_at: string
 }
 
-const employeeFromRow = (r: EmployeeRow): Employee => ({ id: r.id, storeId: r.store_id, name: r.name, role: r.role, color: r.color })
+const employeeFromRow = (r: EmployeeRow): Employee => ({
+  id: r.id,
+  storeId: r.store_id,
+  name: r.name,
+  role: r.role,
+  color: r.color,
+  sortOrder: r.sort_order ?? undefined,
+})
+
+function sortEmployees(employees: Employee[]) {
+  return [...employees].sort((a, b) => {
+    const aOrder = a.sortOrder ?? Number.MAX_SAFE_INTEGER
+    const bOrder = b.sortOrder ?? Number.MAX_SAFE_INTEGER
+    if (aOrder !== bOrder) return aOrder - bOrder
+    return a.name.localeCompare(b.name)
+  })
+}
 
 const shiftFromRow = (r: ShiftRow): Shift => ({
   id: r.id,
@@ -134,7 +150,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           Promise.all(storeIds.map(dbGetTasks)),
         ])
         if (cancelled) return
-        scheduleInit(employeeSets.flat(), shiftSets.flat())
+        scheduleInit(sortEmployees(employeeSets.flat()), shiftSets.flat())
         goalsInit(goalSets.flat())
         displayInit(
           announcementSets.flat(),
@@ -159,11 +175,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // Employees
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'employees', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const employee = employeeFromRow(p.new as EmployeeRow)
-        useScheduleStore.setState((s) => ({ employees: [...s.employees.filter((e) => e.id !== employee.id), employee] }))
+        useScheduleStore.setState((s) => ({ employees: sortEmployees([...s.employees.filter((e) => e.id !== employee.id), employee]) }))
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'employees', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
         const employee = employeeFromRow(p.new as EmployeeRow)
-        useScheduleStore.setState((s) => ({ employees: s.employees.map((e) => e.id === employee.id ? employee : e) }))
+        useScheduleStore.setState((s) => ({ employees: sortEmployees(s.employees.map((e) => e.id === employee.id ? employee : e)) }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'employees' }, (p) => {
         const old = p.old as StoreScopedRow

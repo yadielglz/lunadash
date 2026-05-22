@@ -27,7 +27,7 @@ type DbSettings = {
 export type StoreSummary = DbSettings
 
 type DbEmployee = {
-  id: string; store_id: string; name: string; role: string; color: string; created_at: string
+  id: string; store_id: string; name: string; role: string; color: string; sort_order?: number | null; created_at: string
 }
 
 type DbShift = {
@@ -111,6 +111,14 @@ function isMissingOnboardingColumnError(error: unknown) {
   const text = `${error.code ?? ''} ${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
   return text.includes('onboarded_at')
     || text.includes('column store_access_codes.onboarded_at does not exist')
+    || text.includes('could not find the')
+}
+
+function isMissingEmployeeSortColumnError(error: unknown) {
+  if (!isSupabaseError(error)) return false
+  const text = `${error.code ?? ''} ${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
+  return text.includes('sort_order')
+    || text.includes('column employees.sort_order does not exist')
     || text.includes('could not find the')
 }
 
@@ -239,25 +247,72 @@ export async function dbCheckSchemaHealth() {
 // ── Employees ─────────────────────────────────────────────────────────────────
 
 export async function dbGetEmployees(storeId: string): Promise<Employee[]> {
-  const { data, error } = await supabase
-    .from('employees').select('*').eq('store_id', storeId).order('created_at')
+  let { data, error } = await supabase
+    .from('employees')
+    .select('*')
+    .eq('store_id', storeId)
+    .order('sort_order', { ascending: true, nullsFirst: false })
+    .order('created_at')
+  if (error && isMissingEmployeeSortColumnError(error)) {
+    const legacy = await supabase
+      .from('employees')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('created_at')
+    data = legacy.data
+    error = legacy.error
+  }
   throwIfError(error, 'Could not load employees')
-  return (data ?? []).map(dbToEmployee)
+  return (data ?? []).map(dbToEmployee).sort(compareEmployees)
 }
 
 function dbToEmployee(r: DbEmployee): Employee {
-  return { id: r.id, storeId: r.store_id, name: r.name, role: r.role, color: r.color }
+  return { id: r.id, storeId: r.store_id, name: r.name, role: r.role, color: r.color, sortOrder: r.sort_order ?? undefined }
+}
+
+function compareEmployees(a: Employee, b: Employee) {
+  const aOrder = a.sortOrder ?? Number.MAX_SAFE_INTEGER
+  const bOrder = b.sortOrder ?? Number.MAX_SAFE_INTEGER
+  if (aOrder !== bOrder) return aOrder - bOrder
+  return a.name.localeCompare(b.name)
+}
+
+function employeePatchToDb(patch: Partial<Employee>) {
+  const dbPatch: Record<string, string | number | undefined> = {}
+  if (patch.name !== undefined) dbPatch.name = patch.name
+  if (patch.role !== undefined) dbPatch.role = patch.role
+  if (patch.color !== undefined) dbPatch.color = patch.color
+  if (patch.storeId !== undefined) dbPatch.store_id = patch.storeId
+  if (patch.sortOrder !== undefined) dbPatch.sort_order = patch.sortOrder
+  return dbPatch
 }
 
 export async function dbInsertEmployee(e: Employee, storeId: string) {
   const { error } = await supabase.from('employees').insert({
-    id: e.id, store_id: storeId, name: e.name, role: e.role, color: e.color,
+    id: e.id, store_id: storeId, name: e.name, role: e.role, color: e.color, sort_order: e.sortOrder ?? 0,
   })
+  if (error && isMissingEmployeeSortColumnError(error)) {
+    const legacy = await supabase.from('employees').insert({
+      id: e.id, store_id: storeId, name: e.name, role: e.role, color: e.color,
+    })
+    throwIfError(legacy.error, 'Could not save employee')
+    return
+  }
   throwIfError(error, 'Could not save employee')
 }
 
 export async function dbUpdateEmployee(id: string, patch: Partial<Employee>) {
-  const { error } = await supabase.from('employees').update(patch).eq('id', id)
+  const dbPatch = employeePatchToDb(patch)
+  if (Object.keys(dbPatch).length === 0) return
+  const { error } = await supabase.from('employees').update(dbPatch).eq('id', id)
+  if (error && isMissingEmployeeSortColumnError(error)) {
+    const legacyPatch = { ...dbPatch }
+    delete legacyPatch.sort_order
+    if (Object.keys(legacyPatch).length === 0) return
+    const legacy = await supabase.from('employees').update(legacyPatch).eq('id', id)
+    throwIfError(legacy.error, 'Could not update employee')
+    return
+  }
   throwIfError(error, 'Could not update employee')
 }
 
@@ -306,14 +361,26 @@ export async function dbDeleteShift(id: string) {
 export async function dbSaveScheduleSnapshot(storeId: string, employees: Employee[], shifts: Shift[]) {
   useSyncStore.getState().setSync('schedule', 'saving', 'Saving schedule snapshot')
   if (employees.length > 0) {
-    const { error } = await supabase.from('employees').upsert(employees.map((e) => ({
+    const { error } = await supabase.from('employees').upsert(employees.map((e, index) => ({
       id: e.id,
       store_id: e.storeId ?? storeId,
       name: e.name,
       role: e.role,
       color: e.color,
+      sort_order: e.sortOrder ?? index,
     })))
-    throwIfError(error, 'Could not save schedule employees')
+    if (error && isMissingEmployeeSortColumnError(error)) {
+      const legacy = await supabase.from('employees').upsert(employees.map((e) => ({
+        id: e.id,
+        store_id: e.storeId ?? storeId,
+        name: e.name,
+        role: e.role,
+        color: e.color,
+      })))
+      throwIfError(legacy.error, 'Could not save schedule employees')
+    } else {
+      throwIfError(error, 'Could not save schedule employees')
+    }
   }
 
   if (shifts.length > 0) {

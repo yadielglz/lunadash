@@ -160,7 +160,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
               padding: 8px 6px;
               text-align: center;
             }
-            th:first-child { border-left: 0; width: 142px; text-align: left; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+            th:first-child { border-left: 0; width: 190px; text-align: left; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
             th span { display: block; color: #475569; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
             th strong { display: block; color: #0f172a; font-size: 18px; line-height: 1.1; }
             td {
@@ -171,17 +171,19 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
               padding: 7px;
             }
             td:first-child { border-left: 0; }
-            .employee { width: 142px; }
+            .employee { width: 190px; }
             .employee-name {
               display: flex;
               gap: 7px;
-              align-items: center;
+              align-items: flex-start;
               color: #0f172a;
               font-size: 12px;
+              line-height: 1.2;
               font-weight: 800;
+              overflow-wrap: anywhere;
             }
-            .employee-name span { width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto; }
-            .employee-role { margin-top: 3px; color: #64748b; font-size: 10px; }
+            .employee-name span { width: 9px; height: 9px; margin-top: 2px; border-radius: 999px; flex: 0 0 auto; }
+            .employee-role { margin-top: 3px; color: #64748b; font-size: 10px; line-height: 1.2; overflow-wrap: anywhere; }
             .employee-hours { margin-top: 8px; color: #475569; font-size: 10px; font-weight: 800; }
             .shift {
               border: 1px solid;
@@ -263,7 +265,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
               </div>
             </div>
 
-            <div className="mt-4 grid border border-slate-200" style={{ gridTemplateColumns: '150px repeat(7, minmax(110px, 1fr))' }}>
+            <div className="mt-4 grid border border-slate-200" style={{ gridTemplateColumns: '210px repeat(7, minmax(110px, 1fr))' }}>
               <div className="bg-slate-100 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600">Team</div>
               {days.map((day) => (
                 <div key={day.toISOString()} className="border-l border-slate-200 bg-slate-100 px-3 py-2 text-center">
@@ -282,8 +284,8 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
                       <div className="flex items-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full" style={{ background: employee.color }} />
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-bold text-slate-950">{employee.name}</div>
-                          <div className="truncate text-[11px] text-slate-500">{employee.role}</div>
+                          <div className="text-sm font-bold leading-snug text-slate-950 break-words">{employee.name}</div>
+                          <div className="text-[11px] leading-snug text-slate-500 break-words">{employee.role}</div>
                         </div>
                       </div>
                       <div className="mt-2 text-[11px] font-semibold text-slate-500">

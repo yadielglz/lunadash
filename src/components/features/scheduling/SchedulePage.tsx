@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Calendar, LayoutGrid, Users, Trash2, Edit2, Save } from 'lucide-react'
+import { ArrowDown, ArrowUp, Calendar, GripVertical, LayoutGrid, Users, Trash2, Edit2, Save } from 'lucide-react'
 import { WeeklyGrid } from './WeeklyGrid'
 import { MonthlyCalendar } from './MonthlyCalendar'
 import { Modal } from '../../ui/Modal'
@@ -14,7 +14,7 @@ import { useUiStore } from '../../../store/uiStore'
 const COLORS = ['#0078d4','#7c5ff5','#e74856','#16c60c','#f7630c','#00b7c3','#e3008c','#8764b8','#10893e']
 
 function EmployeeManagerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { employees, addEmployee, removeEmployee, updateEmployee } = useScheduleStore()
+  const { employees, addEmployee, removeEmployee, updateEmployee, reorderEmployees } = useScheduleStore()
   const [name, setName] = useState('')
   const [role, setRole] = useState('Associate')
   const [color, setColor] = useState(COLORS[0])
@@ -35,6 +35,15 @@ function EmployeeManagerModal({ open, onClose }: { open: boolean; onClose: () =>
       addEmployee({ name: name.trim(), role, color })
     }
     setName(''); setRole('Associate'); setColor(COLORS[0])
+  }
+
+  const moveEmployee = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction
+    if (nextIndex < 0 || nextIndex >= employees.length) return
+    const ordered = [...employees]
+    const [moved] = ordered.splice(index, 1)
+    ordered.splice(nextIndex, 0, moved)
+    reorderEmployees(ordered)
   }
 
   return (
@@ -70,14 +79,31 @@ function EmployeeManagerModal({ open, onClose }: { open: boolean; onClose: () =>
 
         {/* Employee list */}
         <div className="space-y-1.5">
-          {employees.map((emp) => (
+          {employees.map((emp, index) => (
             <div key={emp.id} className="flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-[var(--reveal-bg)] group transition-colors">
+              <GripVertical size={14} className="text-[var(--text-tertiary)]" />
               <div className="w-3 h-3 rounded-full" style={{ background: emp.color }} />
               <div className="flex-1">
                 <div className="text-sm font-medium text-[var(--text)]">{emp.name}</div>
                 <div className="text-xs text-[var(--text-tertiary)]">{emp.role}</div>
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => moveEmployee(index, -1)}
+                  disabled={index === 0}
+                  aria-label={`Move ${emp.name} up`}
+                  className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--accent)] disabled:opacity-30 disabled:hover:text-[var(--text-tertiary)]"
+                >
+                  <ArrowUp size={12} />
+                </button>
+                <button
+                  onClick={() => moveEmployee(index, 1)}
+                  disabled={index === employees.length - 1}
+                  aria-label={`Move ${emp.name} down`}
+                  className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--accent)] disabled:opacity-30 disabled:hover:text-[var(--text-tertiary)]"
+                >
+                  <ArrowDown size={12} />
+                </button>
                 <button onClick={() => startEdit(emp.id)} className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--accent)]"><Edit2 size={12} /></button>
                 <button onClick={() => removeEmployee(emp.id)} className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-red-400"><Trash2 size={12} /></button>
               </div>

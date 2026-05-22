@@ -14,6 +14,7 @@ export interface Employee {
   name: string
   role: string
   color: string
+  sortOrder?: number
   avatar?: string
 }
 
@@ -64,7 +65,7 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
   _init: (employees, shifts) => set({ employees, shifts, isLoaded: true }),
 
   addEmployee: (emp) => {
-    const newEmp: Employee = { ...emp, id: crypto.randomUUID() }
+    const newEmp: Employee = { ...emp, id: crypto.randomUUID(), sortOrder: get().employees.length }
     set((s) => ({ employees: [...s.employees, newEmp] }))
     dbInsertEmployee(newEmp, currentStoreId())
   },
@@ -82,7 +83,11 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
     dbDeleteEmployee(id)
   },
 
-  reorderEmployees: (employees) => set({ employees }),
+  reorderEmployees: (employees) => {
+    const ordered = employees.map((employee, index) => ({ ...employee, sortOrder: index }))
+    set({ employees: ordered })
+    ordered.forEach((employee) => dbUpdateEmployee(employee.id, { sortOrder: employee.sortOrder }))
+  },
 
   addShift: (shift) => {
     const newShift: Shift = { ...shift, id: crypto.randomUUID() }
