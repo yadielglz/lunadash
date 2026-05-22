@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, Store, Target, Megaphone, Calendar,
-  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun
+  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
@@ -15,6 +15,8 @@ import { dbGetStores, dbUpdateSettings, StoreSummary } from '../../../lib/supaba
 import { Input, Select, Textarea } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 import { AdminMainAccess } from '../../AdminMainAccess'
+import { APP_META } from '../../../config/appMeta'
+import { SyncArea, useSyncStore } from '../../../store/syncStore'
 
 // ── Section wrapper ──────────────────────────────────────────────────────────
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
@@ -271,6 +273,15 @@ function StoreSection() {
 // ── Goals section ─────────────────────────────────────────────────────────────
 const GOAL_COLORS = ['#0078d4','#7c5ff5','#16c60c','#f7630c','#e74856','#00b7c3','#e3008c']
 
+function isMoneyGoalLabel(unit: string, category: string, title = '') {
+  const text = `${unit} ${category} ${title}`.toLowerCase()
+  return unit.includes('$') || text.includes('accessor')
+}
+
+function formatGoalAmount(value: number, unit: string, category: string, title = '') {
+  return isMoneyGoalLabel(unit, category, title) ? `$${value.toLocaleString()}` : `${value}${unit}`
+}
+
 function GoalEditor({ editingGoal, onDone }: { editingGoal: Goal | null; onDone: () => void }) {
   const { addGoal, updateGoal, categories } = useGoalsStore()
   const [title, setTitle] = useState('')
@@ -307,6 +318,12 @@ function GoalEditor({ editingGoal, onDone }: { editingGoal: Goal | null; onDone:
     setDeadline(new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0])
     setColor(GOAL_COLORS[0])
   }, [editingGoal, categories])
+
+  useEffect(() => {
+    if (!editingGoal && isMoneyGoalLabel(unit, category, title) && !unit.trim()) {
+      setUnit('$')
+    }
+  }, [category, editingGoal, title, unit])
 
   const save = () => {
     if (!title.trim()) return
@@ -380,7 +397,7 @@ function GoalSettingsRow({ g, onEdit }: { g: Goal; onEdit: (goal: Goal) => void 
           <span className="text-[10px] text-[var(--text-tertiary)]">{g.category}</span>
         </div>
         <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
-          Daily {g.dailyTarget ?? 1}{g.unit} · Monthly {g.current}{g.unit} / {g.target}{g.unit}
+          Daily {formatGoalAmount(g.dailyTarget ?? 1, g.unit, g.category, g.title)} · MTD {formatGoalAmount(g.current, g.unit, g.category, g.title)} / {formatGoalAmount(g.target, g.unit, g.category, g.title)}
         </div>
         <div className="flex items-center gap-2 mt-1">
           <div className="flex-1 h-1 rounded-full bg-[var(--border)]">
@@ -794,22 +811,21 @@ function AboutSection() {
       <div className="px-4 py-5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
         <div>
           <h3 className="text-lg font-semibold text-[var(--text)]">LunaDash</h3>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver 3.63 | Build 52126.1919</p>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver {APP_META.version} | Build {APP_META.build}</p>
         </div>
         <div className="text-sm text-[var(--text-secondary)] space-y-1">
-          <p>© 2026 Glz Technical Services | Glz Tech</p>
+          <p>{APP_META.copyright}</p>
           <p>
             Any Issues? email:{' '}
-            <a className="text-[var(--accent)] hover:underline" href="mailto:service@glztech.com">
-              service@glztech.com
+            <a className="text-[var(--accent)] hover:underline" href={`mailto:${APP_META.supportEmail}`}>
+              {APP_META.supportEmail}
             </a>
           </p>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
           <p className="text-xs font-medium text-[var(--text)]">Update Notes</p>
           <ul className="mt-2 list-disc pl-4 text-xs text-[var(--text-secondary)] space-y-1">
-            <li>Optimized mobile Dashboard, Schedule, and Settings layouts for cleaner small-screen use.</li>
-            <li>Removed Display from mobile navigation and redirected phone-sized Display views back home.</li>
+            {APP_META.updateNotes.map((note) => <li key={note}>{note}</li>)}
           </ul>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
@@ -837,6 +853,48 @@ function AboutSection() {
   )
 }
 
+function SyncStatusSection() {
+  const entries = useSyncStore((s) => s.entries)
+  const rows: { area: SyncArea; label: string }[] = [
+    { area: 'settings', label: 'Settings' },
+    { area: 'schedule', label: 'Schedule' },
+    { area: 'tasks', label: 'Tasks' },
+    { area: 'goals', label: 'Goals' },
+    { area: 'announcements', label: 'Announcements' },
+  ]
+
+  const colorFor = (state: string) => (
+    state === 'synced' ? 'text-emerald-400'
+    : state === 'saving' ? 'text-[var(--accent)]'
+    : state === 'error' ? 'text-red-400'
+    : 'text-[var(--text-tertiary)]'
+  )
+
+  return (
+    <Section icon={<Cloud size={14} />} title="Sync Status">
+      <div className="space-y-2">
+        {rows.map(({ area, label }) => {
+          const entry = entries[area]
+          return (
+            <div key={area} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">{label}</p>
+                <p className="text-xs text-[var(--text-tertiary)]">{entry.message}</p>
+              </div>
+              <div className="text-right">
+                <p className={`text-xs font-semibold uppercase ${colorFor(entry.state)}`}>{entry.state}</p>
+                <p className="text-[10px] text-[var(--text-tertiary)]">
+                  {entry.updatedAt ? new Date(entry.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Pending'}
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </Section>
+  )
+}
+
 // ── Sidebar nav ───────────────────────────────────────────────────────────────
 const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
@@ -846,6 +904,7 @@ const SECTIONS = [
   { id: 'announcements', label: 'Announcements',  icon: <Megaphone size={14} /> },
   { id: 'scheduling',    label: 'Scheduling',     icon: <Calendar size={14} /> },
   { id: 'scheduleBlocks', label: 'Schedule Blocks', icon: <Calendar size={14} /> },
+  { id: 'sync',          label: 'Sync Status',    icon: <Cloud size={14} /> },
   { id: 'about',         label: 'About',          icon: <Info size={14} /> },
 ] as const
 
@@ -863,6 +922,7 @@ export function SettingsPage() {
     announcements: <AnnouncementsSection />,
     scheduling:    <SchedulingSection />,
     scheduleBlocks: <ScheduleBlocksSection />,
+    sync:          <SyncStatusSection />,
     about:         <AboutSection />,
   }
 

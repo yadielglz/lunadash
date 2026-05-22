@@ -3,6 +3,7 @@ import type { Employee, Shift } from '../store/scheduleStore'
 import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
 import type { Task, TaskCategory } from '../store/tasksStore'
+import { useSyncStore } from '../store/syncStore'
 
 export const supabase = createClient(
   'https://vzbuboclkpdthztfprgg.supabase.co',
@@ -170,6 +171,7 @@ export async function dbDeleteShift(id: string) {
 }
 
 export async function dbSaveScheduleSnapshot(storeId: string, employees: Employee[], shifts: Shift[]) {
+  useSyncStore.getState().setSync('schedule', 'saving', 'Saving schedule snapshot')
   if (employees.length > 0) {
     const { error } = await supabase.from('employees').upsert(employees.map((e) => ({
       id: e.id,
@@ -206,8 +208,10 @@ export async function dbSaveScheduleSnapshot(storeId: string, employees: Employe
   const missingShifts = shifts.filter((shift) => (shift.storeId ?? storeId) === storeId && !shiftIds.has(shift.id))
 
   if (missingEmployees.length > 0 || missingShifts.length > 0) {
+    useSyncStore.getState().setSync('schedule', 'error', 'Schedule validation failed')
     throw new Error(`Schedule validation failed: ${missingEmployees.length} employees and ${missingShifts.length} shifts were not confirmed in Supabase`)
   }
+  useSyncStore.getState().setSync('schedule', 'synced', `${employees.length} employees and ${shifts.length} shifts confirmed`)
 }
 
 // ── Goals ─────────────────────────────────────────────────────────────────────
@@ -315,8 +319,11 @@ export async function dbGetStores(): Promise<StoreSummary[]> {
 }
 
 export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSettings, 'store_id'>>) {
+  useSyncStore.getState().setSync('settings', 'saving', 'Saving app settings')
   const { error } = await supabase.from('app_settings').upsert({ store_id: storeId, ...patch })
+  if (error) useSyncStore.getState().setSync('settings', 'error', isSupabaseError(error) ? error.message ?? 'Settings sync failed' : 'Settings sync failed')
   throwIfError(error, 'Could not save app settings')
+  useSyncStore.getState().setSync('settings', 'synced', 'Settings confirmed in Supabase')
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -371,6 +378,7 @@ export async function dbDeleteTask(id: string) {
 }
 
 export async function dbSaveTasksSnapshot(storeId: string, tasks: Task[]) {
+  useSyncStore.getState().setSync('tasks', 'saving', 'Saving task snapshot')
   if (tasks.length > 0) {
     const { error } = await supabase.from('tasks').upsert(tasks.map((t) => taskToDb(t, t.storeId ?? storeId)))
     if (logOptionalTasksWarning('tasks', error)) {
@@ -384,6 +392,8 @@ export async function dbSaveTasksSnapshot(storeId: string, tasks: Task[]) {
   const missingTasks = tasks.filter((task) => (task.storeId ?? storeId) === storeId && !savedIds.has(task.id))
 
   if (missingTasks.length > 0) {
+    useSyncStore.getState().setSync('tasks', 'error', 'Task validation failed')
     throw new Error(`Task validation failed: ${missingTasks.length} tasks were not confirmed in Supabase`)
   }
+  useSyncStore.getState().setSync('tasks', 'synced', `${tasks.length} tasks confirmed`)
 }

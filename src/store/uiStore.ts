@@ -5,6 +5,7 @@ export type Tab = 'home' | 'devices' | 'schedule' | 'goals' | 'weather' | 'displ
 export type Theme = 'dark' | 'light'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
+export type AccessMode = 'manager' | 'display' | 'admin'
 
 const SESSION_MS = 2 * 60 * 1000
 
@@ -14,6 +15,7 @@ interface UiState {
   tempUnit: TempUnit
   timeFormat: TimeFormat
   storeId: string          // unique per-store key, shared across all devices in that store
+  accessMode: AccessMode
   sessionExpiresAt: number | null
   isEditingWidgets: boolean
   setTab: (tab: Tab) => void
@@ -23,6 +25,7 @@ interface UiState {
   toggleTempUnit: () => void
   setTimeFormat: (fmt: TimeFormat) => void
   setStoreId: (id: string) => void
+  setAccessMode: (mode: AccessMode) => void
   clearStoreSession: () => void
   extendStoreSession: () => void
   setEditingWidgets: (v: boolean) => void
@@ -43,6 +46,7 @@ export const useUiStore = create<UiState>()(
       tempUnit: 'F' as TempUnit,
       timeFormat: '12' as TimeFormat,
       storeId: '',
+      accessMode: 'manager',
       sessionExpiresAt: null,
       isEditingWidgets: false,
       setTab: (tab) => set({ activeTab: tab }),
@@ -50,6 +54,7 @@ export const useUiStore = create<UiState>()(
       toggleTempUnit: () => set((s) => ({ tempUnit: s.tempUnit === 'C' ? 'F' : 'C' })),
       setTimeFormat: (fmt) => set({ timeFormat: fmt }),
       setStoreId: (id) => set({ storeId: id, sessionExpiresAt: id ? Date.now() + SESSION_MS : null }),
+      setAccessMode: (mode) => set({ accessMode: mode, activeTab: mode === 'display' ? 'display' : get().activeTab }),
       clearStoreSession: () => set({ storeId: '', sessionExpiresAt: null, activeTab: 'home' }),
       extendStoreSession: () => set((s) => s.storeId ? { sessionExpiresAt: Date.now() + SESSION_MS } : s),
       setTheme: (theme) => {

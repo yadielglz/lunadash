@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Building2, RefreshCw } from 'lucide-react'
+import { Building2, Monitor, RefreshCw, Smartphone } from 'lucide-react'
 import { dbGetStores, dbUpdateSettings, StoreSummary } from '../lib/supabase'
 import { useUiStore } from '../store/uiStore'
 import { AdminMainAccess } from './AdminMainAccess'
@@ -8,8 +8,11 @@ import { Input, Select } from './ui/Input'
 
 export function StoreLaunchScreen() {
   const setStoreId = useUiStore((s) => s.setStoreId)
+  const setAccessMode = useUiStore((s) => s.setAccessMode)
+  const setTab = useUiStore((s) => s.setTab)
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [selected, setSelected] = useState('default')
+  const [mode, setMode] = useState<'manager' | 'display'>('manager')
   const [newStoreId, setNewStoreId] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -36,7 +39,15 @@ export function StoreLaunchScreen() {
     const id = newStoreId.trim() || 'default'
     await dbUpdateSettings(id, { company_name: 'Luna Store', store_number: '', slide_interval: 8 })
     setNewStoreId('')
+    setAccessMode(mode)
     setStoreId(id)
+    setTab(mode === 'display' ? 'display' : 'home')
+  }
+
+  const continueToStore = () => {
+    setAccessMode(mode)
+    setStoreId(selected || 'default')
+    setTab(mode === 'display' ? 'display' : 'home')
   }
 
   return (
@@ -53,6 +64,26 @@ export function StoreLaunchScreen() {
         </div>
 
         <div className="mt-5 space-y-4">
+          <div className="grid grid-cols-2 gap-2 sm:hidden">
+            {([
+              { id: 'manager', label: 'Manage', icon: <Smartphone size={14} /> },
+              { id: 'display', label: 'Display', icon: <Monitor size={14} /> },
+            ] as const).map((choice) => (
+              <button
+                key={choice.id}
+                onClick={() => setMode(choice.id)}
+                className={`rounded-lg border px-3 py-2 text-sm font-medium flex items-center justify-center gap-2 ${
+                  mode === choice.id
+                    ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                    : 'border-[var(--border)] text-[var(--text-secondary)] bg-[var(--surface-2)]'
+                }`}
+              >
+                {choice.icon}
+                {choice.label}
+              </button>
+            ))}
+          </div>
+
           <Select label="Dashboard View" value={selected} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelected(e.target.value)}>
             {stores.map((store) => (
               <option key={store.store_id} value={store.store_id}>
@@ -66,13 +97,13 @@ export function StoreLaunchScreen() {
             <Button variant="ghost" size="sm" icon={<RefreshCw size={12} />} loading={isLoading} onClick={loadStores}>
               Refresh
             </Button>
-            <Button variant="primary" onClick={() => setStoreId(selected || 'default')}>
+            <Button variant="primary" onClick={continueToStore}>
               Continue
             </Button>
           </div>
 
           <div className="border-t border-[var(--border)] pt-4">
-            <AdminMainAccess onUnlock={() => setStoreId('main')} />
+            <AdminMainAccess onUnlock={() => { setAccessMode('admin'); setStoreId('main'); setTab('home') }} />
           </div>
 
           <div className="border-t border-[var(--border)] pt-4 space-y-2">

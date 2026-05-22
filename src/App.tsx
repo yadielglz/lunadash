@@ -20,6 +20,7 @@ const DEFAULT_PIN = '6974'
 export default function App() {
   const { activeTab } = useUiStore()
   const storeId = useUiStore((s) => s.storeId)
+  const accessMode = useUiStore((s) => s.accessMode)
   const sessionExpiresAt = useUiStore((s) => s.sessionExpiresAt)
   const clearStoreSession = useUiStore((s) => s.clearStoreSession)
   const extendStoreSession = useUiStore((s) => s.extendStoreSession)
@@ -48,7 +49,7 @@ export default function App() {
   useEffect(() => {
     const media = window.matchMedia('(max-width: 639px)')
     const leaveDisplayOnMobile = () => {
-      if (media.matches && useUiStore.getState().activeTab === 'display') {
+      if (media.matches && useUiStore.getState().activeTab === 'display' && useUiStore.getState().accessMode !== 'display') {
         useUiStore.getState().setTab('home')
       }
     }
@@ -56,6 +57,12 @@ export default function App() {
     media.addEventListener('change', leaveDisplayOnMobile)
     return () => media.removeEventListener('change', leaveDisplayOnMobile)
   }, [])
+
+  useEffect(() => {
+    if (accessMode === 'display' && activeTab !== 'display') {
+      useUiStore.getState().setTab('display')
+    }
+  }, [accessMode, activeTab])
 
   // Close the selected-store session after 2 minutes of inactivity unless a passive display is active.
   useEffect(() => {

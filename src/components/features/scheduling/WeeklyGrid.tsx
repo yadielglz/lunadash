@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { format, addDays, startOfWeek, isToday } from 'date-fns'
-import { ChevronLeft, ChevronRight, Copy, Plus, Printer, Save, Upload } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Plus, Printer, Save, Upload } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useScheduleStore, Shift, ShiftType } from '../../../store/scheduleStore'
 import { ShiftModal } from './ShiftModal'
@@ -197,27 +197,62 @@ function ScheduleTemplatesModal({
   )
 }
 
-function ShiftCard({ shift, accentColor, onClick }: { shift: Shift; accentColor: string; onClick: () => void }) {
+function shiftsOverlap(a: Shift, b: Shift) {
+  return a.id !== b.id && a.startTime < b.endTime && b.startTime < a.endTime
+}
+
+function ShiftCard({
+  shift,
+  accentColor,
+  hasConflict,
+  onClick,
+  onDuplicate,
+  onDragStart,
+}: {
+  shift: Shift
+  accentColor: string
+  hasConflict: boolean
+  onClick: () => void
+  onDuplicate: () => void
+  onDragStart: () => void
+}) {
   return (
     <motion.button
       layout
+      draggable
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.97 }}
       onClick={(e) => { e.stopPropagation(); onClick() }}
+      onDragStart={(e) => { e.stopPropagation(); onDragStart() }}
       className="w-full text-left rounded-xl px-2.5 py-2 transition-all"
       style={{
         background: hexToRgba(accentColor, 0.12),
-        border: `1px solid ${hexToRgba(accentColor, 0.25)}`,
+        border: `1px solid ${hasConflict ? '#ef4444' : hexToRgba(accentColor, 0.25)}`,
       }}
     >
-      <div
-        className="text-[11px] font-semibold leading-tight truncate"
-        style={{ color: accentColor }}
-      >
-        {shift.type}
+      <div className="flex items-center justify-between gap-1">
+        <div
+          className="text-[11px] font-semibold leading-tight truncate"
+          style={{ color: accentColor }}
+        >
+          {shift.type}
+        </div>
+        <div className="flex items-center gap-1">
+          {hasConflict && <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />}
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); onDuplicate() }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onDuplicate() } }}
+            className="rounded p-0.5 text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--reveal-bg)]"
+            title="Duplicate shift"
+          >
+            <Copy size={10} />
+          </span>
+        </div>
       </div>
       <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5 truncate">
         {formatShiftTime(shift.startTime, shift.endTime)}
@@ -227,7 +262,7 @@ function ShiftCard({ shift, accentColor, onClick }: { shift: Shift; accentColor:
 }
 
 export function WeeklyGrid() {
-  const { employees, shifts, addShifts, removeShifts } = useScheduleStore()
+  const { employees, shifts, addShift, addShifts, updateShift, removeShifts } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
   const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
   const isMainDashboard = useUiStore((s) => s.storeId === 'main')
@@ -238,6 +273,7 @@ export function WeeklyGrid() {
   const [editShift, setEditShift] = useState<Shift | undefined>()
   const [clickedDate, setClickedDate] = useState<string | undefined>()
   const [clickedEmployeeId, setClickedEmployeeId] = useState<string | undefined>()
+  const [dragShiftId, setDragShiftId] = useState<string | null>(null)
 
   const weekStart = addDays(startOfWeek(new Date(), { weekStartsOn }), weekOffset * 7)
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -260,6 +296,37 @@ export function WeeklyGrid() {
     const shouldReplace = currentWeekShifts.length === 0 || window.confirm('Replace shifts already scheduled in this week?')
     if (shouldReplace) removeShifts(currentWeekShifts.map((shift) => shift.id))
     addShifts(templateShiftsToShifts(shiftsToTemplateShifts(previousWeekShifts, previousWeekStart), weekStart))
+  }
+
+  const duplicateShift = (shift: Shift) => {
+    addShift({
+      employeeId: shift.employeeId,
+      date: shift.date,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      type: shift.type,
+      note: shift.note,
+    })
+  }
+
+  const copyEmployeeWeek = (employeeId: string) => {
+    const employeeShifts = currentWeekShifts.filter((shift) => shift.employeeId === employeeId)
+    if (employeeShifts.length === 0) return
+    addShifts(employeeShifts.map((shift) => ({
+      employeeId,
+      date: format(addDays(new Date(`${shift.date}T12:00:00`), 7), 'yyyy-MM-dd'),
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      type: shift.type,
+      note: shift.note,
+    })))
+    setWeekOffset((w) => w + 1)
+  }
+
+  const dropShift = (date: string, employeeId: string) => {
+    if (!dragShiftId) return
+    updateShift(dragShiftId, { date, employeeId })
+    setDragShiftId(null)
   }
 
   return (
@@ -357,7 +424,7 @@ export function WeeklyGrid() {
                 style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}
               >
                 {/* Employee label */}
-                <div className="sticky left-0 z-10 flex items-center gap-2.5 px-2.5 sm:px-3 py-2 rounded-lg bg-[var(--surface-2-solid)] border border-[var(--border)] h-full shadow-[4px_0_10px_rgba(0,0,0,0.08)]">
+                <div className="sticky left-0 z-10 flex items-center gap-2.5 px-2.5 sm:px-3 py-2 rounded-lg bg-[var(--surface-2-solid)] border border-[var(--border)] h-full shadow-[4px_0_10px_rgba(0,0,0,0.08)] group/emp">
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                     style={{ background: emp.color }}
@@ -370,6 +437,13 @@ export function WeeklyGrid() {
                       {isMainDashboard && emp.storeId ? `${emp.storeId} · ` : ''}{emp.role}
                     </div>
                   </div>
+                  <button
+                    onClick={() => copyEmployeeWeek(emp.id)}
+                    className="ml-auto hidden sm:flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--reveal-bg)] opacity-0 group-hover/emp:opacity-100 transition-opacity"
+                    title="Copy employee week to next week"
+                  >
+                    <Copy size={11} />
+                  </button>
                 </div>
 
                 {/* Day cells */}
@@ -377,11 +451,16 @@ export function WeeklyGrid() {
                   const dateStr = format(d, 'yyyy-MM-dd')
                   const dayShifts = shifts.filter((s) => s.employeeId === emp.id && s.date === dateStr)
                   const today = isToday(d)
+                  const conflictIds = new Set(dayShifts.flatMap((shift) => (
+                    dayShifts.some((other) => shiftsOverlap(shift, other)) ? [shift.id] : []
+                  )))
 
                   return (
                     <div
                       key={dateStr}
                       onClick={() => openAdd(dateStr, emp.id)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.preventDefault(); dropShift(dateStr, emp.id) }}
                       className={`group relative flex flex-col gap-1 p-1.5 rounded-lg min-h-[68px] cursor-pointer transition-colors border ${
                         today
                           ? 'bg-[var(--accent)]/5 border-[var(--accent)]/20'
@@ -394,7 +473,10 @@ export function WeeklyGrid() {
                             key={shift.id}
                             shift={shift}
                             accentColor={blockColors.get(shift.type) ?? emp.color}
+                            hasConflict={conflictIds.has(shift.id)}
                             onClick={() => openEdit(shift)}
+                            onDuplicate={() => duplicateShift(shift)}
+                            onDragStart={() => setDragShiftId(shift.id)}
                           />
                         ))}
                       </AnimatePresence>

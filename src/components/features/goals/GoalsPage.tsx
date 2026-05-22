@@ -5,24 +5,42 @@ import { useGoalsStore, Goal } from '../../../store/goalsStore'
 import { ProgressRing } from '../../ui/ProgressRing'
 import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
+import { Input } from '../../ui/Input'
 
 const todayKey = () => new Date().toISOString().split('T')[0]
+
+function isMoneyGoal(goal: Goal) {
+  const text = `${goal.unit} ${goal.category} ${goal.title}`.toLowerCase()
+  return goal.unit.includes('$') || text.includes('accessor')
+}
+
+function formatGoalValue(value: number, goal: Goal) {
+  if (isMoneyGoal(goal)) return `$${value.toLocaleString()}`
+  return `${value}${goal.unit}`
+}
 
 // ── Goal card ─────────────────────────────────────────────────────────────────
 function GoalCard({ goal }: { goal: Goal }) {
   const { toggleMilestone, logDaily } = useGoalsStore()
   const [expanded, setExpanded] = useState(false)
+  const [amount, setAmount] = useState('')
 
   const key        = todayKey()
   const log        = goal.dailyLog ?? {}
   const dailyTgt   = goal.dailyTarget ?? 1
   const todayVal   = log[key] ?? 0
   const dailyPct   = Math.min(Math.round((todayVal / dailyTgt) * 100), 100)
-  const monthlyPct = Math.min(Math.round((goal.current / goal.target) * 100), 100)
-  const daysLeft   = Math.ceil((new Date(goal.deadline).getTime() - Date.now()) / 86400000)
   const dailyDone  = todayVal >= dailyTgt
+  const moneyGoal  = isMoneyGoal(goal)
 
   const step = (delta: number) => logDaily(goal.id, Math.max(0, todayVal + delta))
+  const addAmount = (value: number) => step(value)
+  const saveAmount = () => {
+    const value = Number(amount)
+    if (!Number.isFinite(value) || value <= 0) return
+    addAmount(value)
+    setAmount('')
+  }
 
   return (
     <Card
@@ -54,58 +72,63 @@ function GoalCard({ goal }: { goal: Goal }) {
               </div>
             </div>
 
-            {/* Daily counter */}
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">Today</span>
               <div className="flex items-center gap-1 rounded-lg border border-[var(--border)] overflow-hidden">
                 <button
-                  onClick={() => step(-1)}
+                  onClick={() => step(moneyGoal ? -25 : -1)}
                   className="w-6 h-6 flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] transition-colors"
                 >
                   <Minus size={10} />
                 </button>
                 <span
-                  className="text-sm font-bold px-1 tabular-nums min-w-[2ch] text-center"
+                  className="text-sm font-bold px-2 tabular-nums min-w-[4ch] text-center"
                   style={{ color: goal.color }}
                 >
-                  {todayVal}
+                  {formatGoalValue(todayVal, goal)}
                 </span>
                 <button
-                  onClick={() => step(1)}
+                  onClick={() => step(moneyGoal ? 25 : 1)}
                   className="w-6 h-6 flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] transition-colors"
                 >
                   <Plus size={10} />
                 </button>
               </div>
-              <span className="text-xs text-[var(--text-tertiary)]">/ {dailyTgt}{goal.unit} target</span>
+              <span className="text-xs text-[var(--text-tertiary)]">/ {formatGoalValue(dailyTgt, goal)} daily target</span>
             </div>
-          </div>
-        </div>
 
-        {/* Monthly section */}
-        <div className="px-4 py-2.5 flex items-center gap-3">
-          <div className="flex-1">
-            <div className="flex justify-between text-[10px] text-[var(--text-tertiary)] mb-1">
-              <span className="uppercase tracking-wide">Monthly</span>
-              <span>{goal.current}{goal.unit} / {goal.target}{goal.unit}
-                <span className="ml-2 text-[var(--text-tertiary)]">
-                  · {daysLeft > 0 ? `${daysLeft}d left` : 'Overdue'}
-                </span>
-              </span>
-            </div>
-            <div className="h-1 rounded-full bg-[var(--border)] overflow-hidden">
-              <motion.div
-                className="h-full rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${monthlyPct}%` }}
-                transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                style={{ background: goal.color }}
-              />
-            </div>
+            {moneyGoal && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {[25, 50, 100, 250].map((value) => (
+                  <button
+                    key={value}
+                    onClick={() => addAmount(value)}
+                    className="rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[10px] font-semibold text-[var(--text-secondary)] hover:border-[var(--accent)]/40 hover:text-[var(--text)]"
+                  >
+                    +${value}
+                  </button>
+                ))}
+                <div className="flex items-center gap-1 w-full sm:w-auto sm:min-w-[160px]">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="Amount"
+                    onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') saveAmount() }}
+                    className="h-8 text-xs"
+                  />
+                  <button
+                    onClick={saveAmount}
+                    disabled={!amount}
+                    className="h-8 rounded-md bg-[var(--accent)] px-2 text-xs font-semibold text-white disabled:opacity-40"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-          <span className="text-xs font-semibold tabular-nums" style={{ color: goal.color }}>
-            {monthlyPct}%
-          </span>
         </div>
 
         {/* Milestones toggle */}
@@ -171,10 +194,10 @@ export function GoalsPage() {
       <div className="px-4 pt-4 pb-3 border-b border-[var(--border)]">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
-            <h1 className="text-xl font-semibold text-[var(--text)] flex items-center gap-2">
-              <Target size={18} className="text-[var(--accent)]" />
-              Goal Tracker
-            </h1>
+              <h1 className="text-xl font-semibold text-[var(--text)] flex items-center gap-2">
+                <Target size={18} className="text-[var(--accent)]" />
+              Daily Goals
+              </h1>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               Today: <span className="text-[var(--accent)] font-semibold">{dailyDone}/{totalGoals}</span> daily goals hit
               <span className="mx-1.5 text-[var(--text-tertiary)]">·</span>
