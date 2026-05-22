@@ -79,6 +79,7 @@ export type StoreAccessCode = {
   is_active: boolean
   created_at: string
   last_used_at: string | null
+  onboarded_at: string | null
 }
 
 type DbStoreAccessCode = StoreAccessCode & {
@@ -105,6 +106,14 @@ function isMissingTableError(error: unknown) {
     || text.includes('relation "public.tasks" does not exist')
 }
 
+function isMissingOnboardingColumnError(error: unknown) {
+  if (!isSupabaseError(error)) return false
+  const text = `${error.code ?? ''} ${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
+  return text.includes('onboarded_at')
+    || text.includes('column store_access_codes.onboarded_at does not exist')
+    || text.includes('could not find the')
+}
+
 function throwIfError(error: unknown, context: string) {
   if (!error) return
   const message = isSupabaseError(error)
@@ -121,14 +130,32 @@ function logOptionalTasksWarning(action: string, error: unknown) {
 
 // ── Access ───────────────────────────────────────────────────────────────────
 
+const ACCESS_SELECT = 'id, dealer_code, store_id, role, label, is_active, created_at, last_used_at, onboarded_at'
+const ACCESS_SELECT_LEGACY = 'id, dealer_code, store_id, role, label, is_active, created_at, last_used_at'
+
+function withLegacyOnboarding(row: Omit<StoreAccessCode, 'onboarded_at'>): StoreAccessCode {
+  return { ...row, onboarded_at: null }
+}
+
 export async function dbAuthenticateAccess(dealerCode: string, pinHash: string): Promise<StoreAccessCode | null> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('store_access_codes')
-    .select('id, dealer_code, store_id, role, label, is_active, created_at, last_used_at')
+    .select(ACCESS_SELECT)
     .eq('dealer_code', dealerCode)
     .eq('pin_hash', pinHash)
     .eq('is_active', true)
     .maybeSingle()
+  if (error && isMissingOnboardingColumnError(error)) {
+    const legacy = await supabase
+      .from('store_access_codes')
+      .select(ACCESS_SELECT_LEGACY)
+      .eq('dealer_code', dealerCode)
+      .eq('pin_hash', pinHash)
+      .eq('is_active', true)
+      .maybeSingle()
+    data = legacy.data ? withLegacyOnboarding(legacy.data as Omit<StoreAccessCode, 'onboarded_at'>) : null
+    error = legacy.error
+  }
   throwIfError(error, 'Could not validate access')
   if (!data) return null
 
@@ -141,10 +168,18 @@ export async function dbAuthenticateAccess(dealerCode: string, pinHash: string):
 }
 
 export async function dbGetAccessCodes(): Promise<StoreAccessCode[]> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('store_access_codes')
-    .select('id, dealer_code, store_id, role, label, is_active, created_at, last_used_at')
+    .select(ACCESS_SELECT)
     .order('created_at', { ascending: false })
+  if (error && isMissingOnboardingColumnError(error)) {
+    const legacy = await supabase
+      .from('store_access_codes')
+      .select(ACCESS_SELECT_LEGACY)
+      .order('created_at', { ascending: false })
+    data = (legacy.data ?? []).map((row) => withLegacyOnboarding(row as Omit<StoreAccessCode, 'onboarded_at'>))
+    error = legacy.error
+  }
   throwIfError(error, 'Could not load access codes')
   return (data ?? []) as StoreAccessCode[]
 }
@@ -166,6 +201,26 @@ export async function dbCreateAccessCode(code: {
 export async function dbUpdateAccessCode(id: string, patch: Partial<Pick<StoreAccessCode, 'label' | 'role' | 'store_id' | 'is_active'>>) {
   const { error } = await supabase.from('store_access_codes').update(patch).eq('id', id)
   throwIfError(error, 'Could not update access code')
+}
+
+export async function dbMarkAccessOnboarded(id: string) {
+  const { error } = await supabase
+    .from('store_access_codes')
+    .update({ onboarded_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error && isMissingOnboardingColumnError(error)) return false
+  throwIfError(error, 'Could not complete onboarding')
+  return true
+}
+
+export async function dbResetAccessOnboarding(id: string) {
+  const { error } = await supabase
+    .from('store_access_codes')
+    .update({ onboarded_at: null })
+    .eq('id', id)
+  if (error && isMissingOnboardingColumnError(error)) return false
+  throwIfError(error, 'Could not reset onboarding')
+  return true
 }
 
 export async function dbCheckSchemaHealth() {

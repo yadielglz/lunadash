@@ -8,6 +8,7 @@
 :root {
   --font-display: 'GoogleSansFlex', 'Google Sans Flex', 'Google Sans', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
   --font-text: 'GoogleSansFlex', 'Google Sans Flex', 'Google Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --app-wallpaper: url('https://i.ibb.co/39JLm174/Wall.png');
 
   --accent: #0f7ad8;
   --accent-hover: #0a67ba;
@@ -57,6 +58,8 @@
   --scrollbar-track: rgba(255,255,255,0.04);
   --scrollbar-thumb: rgba(255,255,255,0.15);
   --scrollbar-thumb-hover: rgba(255,255,255,0.25);
+  --wallpaper-opacity: 0.18;
+  --wallpaper-overlay: rgba(17, 19, 24, 0.84);
 }
 
 /* ============================================================
@@ -89,6 +92,8 @@
   --accent-hover: #0b5dad;
   --accent-light: #dceeff;
   --accent-glow: rgba(15, 111, 202, 0.14);
+  --wallpaper-opacity: 0.24;
+  --wallpaper-overlay: rgba(244, 246, 248, 0.82);
 }
 
 /* ============================================================
@@ -112,12 +117,40 @@ body {
   background: var(--bg-gradient);
   color: var(--text);
   overflow: hidden;
+  position: relative;
+}
+
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+body::before {
+  z-index: 0;
+  background-image: var(--app-wallpaper);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--wallpaper-opacity);
+}
+
+body::after {
+  z-index: 0;
+  background:
+    linear-gradient(180deg, var(--wallpaper-overlay), var(--wallpaper-overlay)),
+    var(--bg-gradient);
 }
 
 #root {
   height: 100%;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
 }
 
 /* ============================================================

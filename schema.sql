@@ -120,8 +120,10 @@ create table if not exists store_access_codes (
   label text,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
-  last_used_at timestamptz
+  last_used_at timestamptz,
+  onboarded_at timestamptz
 );
+alter table store_access_codes add column if not exists onboarded_at timestamptz;
 alter table store_access_codes drop constraint if exists store_access_codes_role_check;
 alter table store_access_codes add constraint store_access_codes_role_check
 check (role in ('admin', 'manager', 'employee', 'display'));

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { AppShell } from './components/layout/AppShell'
 import { DataProvider } from './components/DataProvider'
+import { FirstLoginOnboarding } from './components/FirstLoginOnboarding'
 import { LockScreen } from './components/LockScreen'
 import { StoreLaunchScreen } from './components/StoreLaunchScreen'
 import { useUiStore } from './store/uiStore'
@@ -31,6 +32,7 @@ export default function App() {
   const storeId = useUiStore((s) => s.storeId)
   const accessMode = useUiStore((s) => s.accessMode)
   const accessRole = useUiStore((s) => s.accessRole)
+  const needsOnboarding = useUiStore((s) => s.needsOnboarding)
   const sessionExpiresAt = useUiStore((s) => s.sessionExpiresAt)
   const clearStoreSession = useUiStore((s) => s.clearStoreSession)
   const extendStoreSession = useUiStore((s) => s.extendStoreSession)
@@ -118,6 +120,10 @@ export default function App() {
 
   if (!storeId) {
     return <StoreLaunchScreen />
+  }
+
+  if (needsOnboarding && accessRole !== 'display') {
+    return <FirstLoginOnboarding />
   }
 
   if (activeTab === 'display') {

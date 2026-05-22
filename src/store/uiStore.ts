@@ -18,8 +18,10 @@ interface UiState {
   storeId: string          // unique per-store key, shared across all devices in that store
   accessMode: AccessMode
   accessRole: AccessRole | null
+  accessId: string
   dealerCode: string
   accessLabel: string
+  needsOnboarding: boolean
   sessionExpiresAt: number | null
   isEditingWidgets: boolean
   setTab: (tab: Tab) => void
@@ -30,7 +32,8 @@ interface UiState {
   setTimeFormat: (fmt: TimeFormat) => void
   setStoreId: (id: string) => void
   setAccessMode: (mode: AccessMode) => void
-  setAccessSession: (access: { storeId: string; role: AccessRole; dealerCode: string; label?: string | null; mode?: AccessMode }) => void
+  setAccessSession: (access: { id: string; storeId: string; role: AccessRole; dealerCode: string; label?: string | null; mode?: AccessMode; onboardedAt?: string | null }) => void
+  setAccessOnboarded: () => void
   clearStoreSession: () => void
   extendStoreSession: () => void
   setEditingWidgets: (v: boolean) => void
@@ -53,8 +56,10 @@ export const useUiStore = create<UiState>()(
       storeId: '',
       accessMode: 'manager',
       accessRole: null,
+      accessId: '',
       dealerCode: '',
       accessLabel: '',
+      needsOnboarding: false,
       sessionExpiresAt: null,
       isEditingWidgets: false,
       setTab: (tab) => set({ activeTab: tab }),
@@ -63,19 +68,22 @@ export const useUiStore = create<UiState>()(
       setTimeFormat: (fmt) => set({ timeFormat: fmt }),
       setStoreId: (id) => set({ storeId: id, sessionExpiresAt: id ? Date.now() + SESSION_MS : null }),
       setAccessMode: (mode) => set({ accessMode: mode, activeTab: mode === 'display' ? 'display' : get().activeTab }),
-      setAccessSession: ({ storeId, role, dealerCode, label, mode }) => {
+      setAccessSession: ({ id, storeId, role, dealerCode, label, mode, onboardedAt }) => {
         const accessMode = mode ?? (role === 'admin' ? 'admin' : role === 'display' ? 'display' : 'manager')
         set({
           storeId,
           accessRole: role,
+          accessId: id,
           accessMode,
           dealerCode,
           accessLabel: label ?? '',
+          needsOnboarding: role !== 'display' && !onboardedAt,
           sessionExpiresAt: Date.now() + SESSION_MS,
           activeTab: accessMode === 'display' ? 'display' : 'home',
         })
       },
-      clearStoreSession: () => set({ storeId: '', accessMode: 'manager', accessRole: null, dealerCode: '', accessLabel: '', sessionExpiresAt: null, activeTab: 'home' }),
+      setAccessOnboarded: () => set({ needsOnboarding: false }),
+      clearStoreSession: () => set({ storeId: '', accessMode: 'manager', accessRole: null, accessId: '', dealerCode: '', accessLabel: '', needsOnboarding: false, sessionExpiresAt: null, activeTab: 'home' }),
       extendStoreSession: () => set((s) => s.storeId ? { sessionExpiresAt: Date.now() + SESSION_MS } : s),
       setTheme: (theme) => {
         set({ theme })

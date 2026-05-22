@@ -11,7 +11,7 @@ import { useGoalsStore, Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../../../store/schedulePreferencesStore'
-import { dbCheckSchemaHealth, dbCreateAccessCode, dbGetAccessCodes, dbGetStores, dbUpdateAccessCode, dbUpdateSettings, StoreAccessCode, StoreSummary } from '../../../lib/supabase'
+import { dbCheckSchemaHealth, dbCreateAccessCode, dbGetAccessCodes, dbGetStores, dbResetAccessOnboarding, dbUpdateAccessCode, dbUpdateSettings, StoreAccessCode, StoreSummary } from '../../../lib/supabase'
 import { Input, Select, Textarea } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 import { APP_META } from '../../../config/appMeta'
@@ -1022,6 +1022,22 @@ function AccessSection() {
     }
   }
 
+  const resetOnboarding = async (code: StoreAccessCode) => {
+    setLoading(true)
+    setError('')
+    try {
+      const saved = await dbResetAccessOnboarding(code.id)
+      if (!saved) {
+        setError('Run the latest schema.sql to enable first-login onboarding sync.')
+      }
+      await loadCodes()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reset onboarding')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const startEditCode = (code: StoreAccessCode) => {
     setEditingId(code.id)
     setEditLabel(code.label ?? '')
@@ -1142,9 +1158,15 @@ function AccessSection() {
                       <p className="text-xs text-[var(--text-tertiary)]">
                         Dealer {code.dealer_code} · {code.store_id} · {code.role}
                         {code.last_used_at ? ` · Last used ${new Date(code.last_used_at).toLocaleDateString()}` : ''}
+                        {code.onboarded_at ? ` · Intro completed ${new Date(code.onboarded_at).toLocaleDateString()}` : ' · Intro pending'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
+                      {code.onboarded_at && (
+                        <Button size="sm" variant="ghost" onClick={() => resetOnboarding(code)}>
+                          Reset Intro
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" icon={<Edit2 size={12} />} onClick={() => startEditCode(code)}>
                         Edit
                       </Button>

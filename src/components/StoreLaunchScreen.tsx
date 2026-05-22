@@ -50,10 +50,12 @@ export function StoreLaunchScreen() {
             : mode
 
       setAccessSession({
+        id: access.id,
         storeId: access.store_id,
         role: access.role,
         dealerCode: access.dealer_code,
         label: access.label,
+        onboardedAt: access.onboarded_at,
         mode: accessMode,
       })
     } catch (err) {
