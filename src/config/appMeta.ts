@@ -1,11 +1,11 @@
 export const APP_META = {
   name: 'LunaDash',
-  version: '4.35',
-  build: '26523.0029',
+  version: '4.50',
+  build: '26523.0035',
   copyright: '© 2026 Glz Technical Services | Glz Tech',
   supportEmail: 'service@glztech.com',
   updateNotes: [
-    'General refresh: made Google Sans the primary app font across LunaDash.',
-    'Updated the global and Tailwind font stacks for a cleaner, more consistent interface.',
+    'Added store row drill-down windows for Phoenix sales performance numbers.',
+    'Added automatic Google Sheets refresh every 60 seconds with live modal updates.',
   ],
 } as const

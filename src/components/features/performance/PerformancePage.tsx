@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, ArrowDown, ArrowUp, BarChart3, RefreshCw, Search, Trophy } from 'lucide-react'
+import { AlertCircle, ArrowDown, ArrowUp, BarChart3, Clock, Package, RefreshCw, Search, Trophy } from 'lucide-react'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input } from '../../ui/Input'
+import { Modal } from '../../ui/Modal'
 import {
   fetchPerformanceData,
   formatMoney,
@@ -24,6 +25,8 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'ppPct', label: 'PP %' },
   { key: 'traffic', label: 'Traffic' },
 ]
+
+const SHEET_REFRESH_MS = 60_000
 
 function metricColor(value: number, warning = 80) {
   if (value >= 100) return '#16c60c'
@@ -97,6 +100,116 @@ function SortButton({ option, active, direction, onClick }: {
   )
 }
 
+function MetricPanel({ label, value, helper, percent }: { label: string; value: string; helper?: string; percent?: number }) {
+  const color = percent === undefined ? undefined : metricColor(percent)
+
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+      <div className="text-xs font-medium uppercase text-[var(--text-tertiary)]">{label}</div>
+      <div className="mt-1 text-xl font-semibold tabular-nums text-[var(--text)]">{value}</div>
+      {percent !== undefined ? (
+        <div className="mt-2">
+          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
+            <div className="h-full rounded-full" style={{ width: `${Math.min(Math.max(percent, 0), 100)}%`, background: color }} />
+          </div>
+          <div className="mt-1 text-xs tabular-nums" style={{ color }}>{formatPercent(percent)} to goal</div>
+        </div>
+      ) : helper && (
+        <div className="mt-1 text-xs text-[var(--text-secondary)]">{helper}</div>
+      )}
+    </div>
+  )
+}
+
+function StoreDetailModal({ row, updated, onClose }: { row: PerformanceRow | null; updated: string; onClose: () => void }) {
+  const netLeft = row ? row.netRevenueGoal - row.netRevenue : 0
+  const accLeft = row ? row.accessoryGoal - row.accessoryRevenue : 0
+  const ppLeft = row ? row.dortGoal - row.totalPp : 0
+
+  return (
+    <Modal open={!!row} onClose={onClose} title={row ? `${row.teamName || row.store} Numbers` : undefined} size="full">
+      {row && (
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge color="#0f7ad8">{row.storeCode}</Badge>
+                <span className="text-sm font-semibold text-[var(--text)]">{row.store}</span>
+              </div>
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+                <Clock size={12} />
+                Sheet refreshed {updated || 'just now'}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              {[
+                ['VL', row.vl],
+                ['BTS', row.bts],
+                ['HSI', row.hsi],
+                ['VISA', row.visa],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+                  <div className="text-[10px] font-medium text-[var(--text-tertiary)]">{label}</div>
+                  <div className="text-lg font-semibold tabular-nums text-[var(--text)]">{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <MetricPanel label="Net Revenue" value={formatMoney(row.netRevenue)} helper={`${formatMoney(Math.max(netLeft, 0))} left`} percent={row.netRevenuePct} />
+            <MetricPanel label="Accessories" value={formatMoney(row.accessoryRevenue)} helper={`${formatMoney(Math.max(accLeft, 0))} left`} percent={row.accessoryPct} />
+            <MetricPanel label="Total PP" value={formatNumber(row.totalPp)} helper={`${formatNumber(Math.max(ppLeft, 0))} left`} percent={row.ppPct} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Card noPadding className="overflow-hidden">
+              <div className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text)]">Goal Breakdown</div>
+              <div className="divide-y divide-[var(--border)]">
+                {[
+                  ['Traffic', formatNumber(row.traffic), 'Store visits'],
+                  ['Post Conv', formatPercent(row.postConv), 'Conversion'],
+                  ['NR Goal', formatMoney(row.netRevenueGoal), `${netLeft <= 0 ? formatMoney(Math.abs(netLeft)) + ' over' : formatMoney(netLeft) + ' left'}`],
+                  ['ACC Goal', formatMoney(row.accessoryGoal), `${accLeft <= 0 ? formatMoney(Math.abs(accLeft)) + ' over' : formatMoney(accLeft) + ' left'}`],
+                  ['DORT Goal', formatNumber(row.dortGoal), `${ppLeft <= 0 ? formatNumber(Math.abs(ppLeft)) + ' over' : formatNumber(ppLeft) + ' left'}`],
+                ].map(([label, value, helper]) => (
+                  <div key={label} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <div>
+                      <div className="text-sm font-medium text-[var(--text)]">{label}</div>
+                      <div className="text-xs text-[var(--text-tertiary)]">{helper}</div>
+                    </div>
+                    <div className="text-sm font-semibold tabular-nums text-[var(--text)]">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card noPadding className="overflow-hidden">
+              <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text)]">
+                <Package size={14} className="text-[var(--accent)]" />
+                Product Mix
+              </div>
+              <div className="grid grid-cols-2 gap-3 p-4">
+                {[
+                  ['Voice Lines', row.vl],
+                  ['BTS', row.bts],
+                  ['HSI', row.hsi],
+                  ['VISA', row.visa],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                    <div className="text-xs text-[var(--text-tertiary)]">{label}</div>
+                    <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 export function PerformancePage() {
   const [data, setData] = useState<PerformanceData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -104,9 +217,10 @@ export function PerformancePage() {
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('netRevenue')
   const [direction, setDirection] = useState<'asc' | 'desc'>('desc')
+  const [selectedStore, setSelectedStore] = useState<PerformanceRow | null>(null)
 
-  const loadData = async () => {
-    setLoading(true)
+  const loadData = async (background = false) => {
+    if (!background) setLoading(true)
     setError('')
     try {
       setData(await fetchPerformanceData())
@@ -120,6 +234,17 @@ export function PerformancePage() {
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    const id = window.setInterval(() => loadData(true), SHEET_REFRESH_MS)
+    return () => window.clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    if (!selectedStore) return
+    const freshRow = data?.rows.find((row) => row.store === selectedStore.store)
+    if (freshRow) setSelectedStore(freshRow)
+  }, [data?.rows, selectedStore])
 
   const filteredRows = useMemo(() => {
     const rows = data?.rows ?? []
@@ -165,7 +290,7 @@ export function PerformancePage() {
               Phoenix Performance
             </h1>
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              First Google Sheet tab{updated ? ` · refreshed ${updated}` : ''}
+              First Google Sheet tab{updated ? ` · refreshed ${updated}` : ''} · auto-refreshes every 60s
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -178,7 +303,7 @@ export function PerformancePage() {
                 placeholder="Search stores"
               />
             </div>
-            <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={loadData} loading={loading}>
+            <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={() => loadData()} loading={loading}>
               Refresh
             </Button>
           </div>
@@ -318,7 +443,18 @@ export function PerformancePage() {
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
                     {filteredRows.map((row) => (
-                      <tr key={row.store} className="hover:bg-[var(--reveal-bg)]">
+                      <tr
+                        key={row.store}
+                        className="cursor-pointer hover:bg-[var(--reveal-bg)]"
+                        onClick={() => setSelectedStore(row)}
+                        tabIndex={0}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            setSelectedStore(row)
+                          }
+                        }}
+                      >
                         <td className="px-4 py-3">
                           <div className="font-semibold text-[var(--text)]">{row.teamName || row.store}</div>
                           <div className="text-[var(--text-tertiary)]">{row.storeCode}</div>
@@ -352,6 +488,7 @@ export function PerformancePage() {
           </div>
         )}
       </div>
+      <StoreDetailModal row={selectedStore} updated={updated} onClose={() => setSelectedStore(null)} />
     </div>
   )
 }
