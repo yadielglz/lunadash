@@ -10,7 +10,7 @@ import { useTheme } from './hooks/useTheme'
 import { canAccessTab, defaultTabForRole } from './lib/accessControl'
 
 const DEFAULT_PIN = '6974'
-const WidgetGrid = lazy(() => import('./components/widgets/WidgetGrid').then((m) => ({ default: m.WidgetGrid })))
+const SalesHomeDashboard = lazy(() => import('./components/features/performance/SalesHomeDashboard').then((m) => ({ default: m.SalesHomeDashboard })))
 const DevicesPage = lazy(() => import('./components/features/devices/DevicesPage').then((m) => ({ default: m.DevicesPage })))
 const SchedulePage = lazy(() => import('./components/features/scheduling/SchedulePage').then((m) => ({ default: m.SchedulePage })))
 const GoalsPage = lazy(() => import('./components/features/goals/GoalsPage').then((m) => ({ default: m.GoalsPage })))
@@ -141,7 +141,7 @@ export default function App() {
     : <DevicesPage />
 
   const pages: Record<string, React.ReactNode> = {
-    home:     <WidgetGrid />,
+    home:     <SalesHomeDashboard />,
     devices:  devicesContent,
     schedule: <SchedulePage />,
     goals:    <GoalsPage />,
