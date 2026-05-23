@@ -72,16 +72,21 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
   const data = await res.json()
 
   try {
-    const alerts = await fetchWeatherAlerts(lat, lon)
+    const alerts = await fetchWeatherAlerts(lat, lon, 2500)
     return { ...data, alerts, alertsUnavailable: false }
   } catch {
     return { ...data, alerts: [], alertsUnavailable: true }
   }
 }
 
-async function fetchWeatherAlerts(lat: number, lon: number): Promise<WeatherAlert[]> {
+async function fetchWeatherAlerts(lat: number, lon: number, timeoutMs: number): Promise<WeatherAlert[]> {
   const url = `https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`
-  const res = await fetch(url, { headers: { Accept: 'application/geo+json' } })
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+  const res = await fetch(url, {
+    headers: { Accept: 'application/geo+json' },
+    signal: controller.signal,
+  }).finally(() => window.clearTimeout(timeoutId))
   if (!res.ok) throw new Error('Weather alerts unavailable')
   const data = await res.json()
   return (data.features ?? []).map((feature: {

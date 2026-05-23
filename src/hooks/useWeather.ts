@@ -4,33 +4,60 @@ import { fetchWeather, geocodeCity } from '../lib/openMeteo'
 
 interface Coords { lat: number; lon: number }
 
-function useGeolocation() {
-  const [coords, setCoords] = useState<Coords | null>(null)
+const WEATHER_COORDS_KEY = 'luna-weather-coords'
+const DEFAULT_COORDS: Coords = { lat: 33.4484, lon: -112.0740 }
+
+function readCachedCoords(): Coords | null {
+  try {
+    const raw = localStorage.getItem(WEATHER_COORDS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<Coords>
+    if (typeof parsed.lat !== 'number' || typeof parsed.lon !== 'number') return null
+    return { lat: parsed.lat, lon: parsed.lon }
+  } catch {
+    return null
+  }
+}
+
+function writeCachedCoords(coords: Coords) {
+  try {
+    localStorage.setItem(WEATHER_COORDS_KEY, JSON.stringify(coords))
+  } catch {
+    // Weather should still work if storage is unavailable.
+  }
+}
+
+function useGeolocation(enabled = true) {
+  const [coords, setCoords] = useState<Coords | null>(() => readCachedCoords())
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!enabled) return
     if (!navigator.geolocation) {
       setError('Geolocation not supported')
       return
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      (pos) => {
+        const nextCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude }
+        setCoords(nextCoords)
+        writeCachedCoords(nextCoords)
+      },
       () => setError('Location denied'),
-      { timeout: 10000 }
+      { maximumAge: 30 * 60 * 1000, timeout: 3000 }
     )
-  }, [])
+  }, [enabled])
 
   return { coords, error }
 }
 
 export function useWeather(manualCoords?: Coords) {
-  const { coords: geoCoords, error: geoError } = useGeolocation()
-  const coords = manualCoords ?? geoCoords
+  const { coords: geoCoords, error: geoError } = useGeolocation(!manualCoords)
+  const coords = manualCoords ?? geoCoords ?? DEFAULT_COORDS
 
   return useQuery({
     queryKey: ['weather', coords?.lat, coords?.lon],
-    queryFn: () => fetchWeather(coords!.lat, coords!.lon),
-    enabled: !!coords,
+    queryFn: () => fetchWeather(coords.lat, coords.lon),
     staleTime: 5 * 60 * 1000,
     retry: 2,
     meta: { geoError },

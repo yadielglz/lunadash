@@ -130,9 +130,14 @@ function throwIfError(error: unknown, context: string) {
   throw new Error(`${context}: ${message}`)
 }
 
+let optionalTasksWarningShown = false
+
 function logOptionalTasksWarning(action: string, error: unknown) {
   if (!isMissingTableError(error)) return false
-  console.warn(`Tasks table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
+  if (!optionalTasksWarningShown) {
+    optionalTasksWarningShown = true
+    console.warn(`Tasks table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
+  }
   return true
 }
 
@@ -247,21 +252,11 @@ export async function dbCheckSchemaHealth() {
 // ── Employees ─────────────────────────────────────────────────────────────────
 
 export async function dbGetEmployees(storeId: string): Promise<Employee[]> {
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from('employees')
     .select('*')
     .eq('store_id', storeId)
-    .order('sort_order', { ascending: true, nullsFirst: false })
     .order('created_at')
-  if (error && isMissingEmployeeSortColumnError(error)) {
-    const legacy = await supabase
-      .from('employees')
-      .select('*')
-      .eq('store_id', storeId)
-      .order('created_at')
-    data = legacy.data
-    error = legacy.error
-  }
   throwIfError(error, 'Could not load employees')
   return (data ?? []).map(dbToEmployee).sort(compareEmployees)
 }
