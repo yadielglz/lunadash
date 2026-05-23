@@ -2,12 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'GoogleSans';
+  src:
+    local('Google Sans'),
+    local('GoogleSans-Regular'),
+    local('Product Sans');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GoogleSans';
+  src:
+    local('Google Sans Medium'),
+    local('GoogleSans-Medium'),
+    local('Product Sans Medium');
+  font-weight: 500 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ============================================================
    FLAT MODERN DESIGN TOKENS
    ============================================================ */
 :root {
-  --font-display: 'GoogleSansFlex', 'Google Sans Flex', 'Google Sans', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
-  --font-text: 'GoogleSansFlex', 'Google Sans Flex', 'Google Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'GoogleSans', 'Google Sans', 'Google Sans Text', 'Google Sans Flex', 'Product Sans', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --font-text: 'GoogleSans', 'Google Sans', 'Google Sans Text', 'Google Sans Flex', 'Product Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
   --app-wallpaper: url('https://i.ibb.co/39JLm174/Wall.png');
 
   --accent: #0f7ad8;
@@ -114,10 +136,27 @@ html {
 body {
   margin: 0;
   height: 100%;
+  font-family: var(--font-text);
   background: var(--bg-gradient);
   color: var(--text);
   overflow: hidden;
   position: relative;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
 }
 
 body::before,

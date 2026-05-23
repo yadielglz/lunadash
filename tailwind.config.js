@@ -5,8 +5,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Segoe UI Variable"', '"Segoe UI"', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['"Segoe UI Variable Display"', '"Segoe UI"', 'system-ui', 'sans-serif'],
+        sans: ['GoogleSans', '"Google Sans"', '"Google Sans Text"', '"Google Sans Flex"', '"Product Sans"', '"Segoe UI Variable"', '"Segoe UI"', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['GoogleSans', '"Google Sans"', '"Google Sans Text"', '"Google Sans Flex"', '"Product Sans"', '"Segoe UI Variable Display"', '"Segoe UI"', 'system-ui', 'sans-serif'],
       },
       colors: {
         accent: {
