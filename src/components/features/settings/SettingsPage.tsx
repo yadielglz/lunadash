@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, Store, Megaphone, Calendar,
-  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Power, Tv2
+  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Power, Tv2, FileText, Printer
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
 import { useDisplayStore } from '../../../store/displayStore'
+import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../../../store/schedulePreferencesStore'
@@ -618,6 +619,204 @@ function ConfiguredStoresSection() {
   )
 }
 
+// ── Reports section ──────────────────────────────────────────────────────────
+const SNAPSHOT_CATEGORY = 'Performance Snapshot'
+const SNAPSHOT_PREFIX = 'source-snapshot:'
+const REPORT_METRICS: Record<string, { label: string; kind: 'money' | 'number' | 'percent' }> = {
+  netRevenue: { label: 'Net Revenue', kind: 'money' },
+  accessoryRevenue: { label: 'Accessories', kind: 'money' },
+  totalPp: { label: 'Total PP', kind: 'number' },
+  traffic: { label: 'Traffic', kind: 'number' },
+  vl: { label: 'Voice Lines', kind: 'number' },
+  bts: { label: 'BTS', kind: 'number' },
+  hsi: { label: 'HSI', kind: 'number' },
+  visa: { label: 'VISA', kind: 'number' },
+}
+
+function snapshotKey(goal: Goal) {
+  return goal.description.startsWith(SNAPSHOT_PREFIX)
+    ? goal.description.slice(SNAPSHOT_PREFIX.length)
+    : ''
+}
+
+function monthLabel(month: string) {
+  const [year, monthIndex] = month.split('-').map(Number)
+  return new Date(year, monthIndex - 1, 1).toLocaleDateString([], { month: 'long', year: 'numeric' })
+}
+
+function formatReportValue(value: number, kind: 'money' | 'number' | 'percent') {
+  if (kind === 'money') {
+    return Math.round(value).toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    })
+  }
+  if (kind === 'percent') return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`
+  return Math.round(value).toLocaleString('en-US')
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+function ReportSection() {
+  const { goals } = useGoalsStore()
+  const { companyName, storeNumber } = useDisplayStore()
+  const { storeId } = useUiStore()
+  const currentMonth = new Date().toISOString().slice(0, 7)
+  const snapshotGoals = goals.filter((goal) => goal.category === SNAPSHOT_CATEGORY && snapshotKey(goal))
+  const months = Array.from(new Set(
+    snapshotGoals.flatMap((goal) => Object.keys(goal.dailyLog ?? {}).map((day) => day.slice(0, 7)))
+  ))
+    .filter((month) => month < currentMonth)
+    .sort()
+    .reverse()
+  const [selectedMonth, setSelectedMonth] = useState(months[0] ?? '')
+
+  useEffect(() => {
+    if (!selectedMonth && months[0]) setSelectedMonth(months[0])
+    if (selectedMonth && months.length > 0 && !months.includes(selectedMonth)) setSelectedMonth(months[0])
+  }, [months, selectedMonth])
+
+  const printReport = () => {
+    if (!selectedMonth) return
+
+    const rows = Object.entries(REPORT_METRICS).map(([key, meta]) => {
+      const goal = snapshotGoals.find((item) => snapshotKey(item) === key)
+      const total = Object.entries(goal?.dailyLog ?? {}).reduce((sum, [day, value]) => (
+        day.startsWith(selectedMonth) ? sum + (Number(value) || 0) : sum
+      ), 0)
+      return { ...meta, total }
+    })
+
+    const generatedAt = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+    const storeLabel = `${companyName || 'Luna Store'}${storeNumber ? ` #${storeNumber}` : ''}`
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(monthLabel(selectedMonth))} Performance Snapshot</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 0; color: #111827; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f8fb; }
+            main { width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.55in; background: white; }
+            header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 18px; }
+            h1 { margin: 0; font-size: 26px; letter-spacing: 0; }
+            .subtle { color: #64748b; font-size: 12px; }
+            .meta { text-align: right; line-height: 1.5; }
+            .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0; }
+            .tile { border: 1px solid #d8dee8; border-radius: 8px; padding: 14px; min-height: 92px; }
+            .label { color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+            .value { margin-top: 10px; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            th { text-align: left; color: #64748b; font-size: 10px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; padding: 10px 8px; }
+            td { border-bottom: 1px solid #e5e7eb; padding: 12px 8px; font-size: 13px; }
+            td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+            footer { margin-top: 28px; color: #64748b; font-size: 11px; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+            @media print {
+              body { background: white; }
+              main { width: auto; min-height: auto; margin: 0; padding: 0.45in; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <main>
+            <header>
+              <div>
+                <h1>Performance Snapshot</h1>
+                <div class="subtle">${escapeHtml(monthLabel(selectedMonth))}</div>
+              </div>
+              <div class="meta subtle">
+                <div>${escapeHtml(storeLabel)}</div>
+                <div>Store ID: ${escapeHtml(storeId || 'default')}</div>
+                <div>Generated ${escapeHtml(generatedAt)}</div>
+              </div>
+            </header>
+            <section class="summary">
+              ${rows.slice(0, 4).map((row) => `
+                <div class="tile">
+                  <div class="label">${escapeHtml(row.label)}</div>
+                  <div class="value">${escapeHtml(formatReportValue(row.total, row.kind))}</div>
+                </div>
+              `).join('')}
+            </section>
+            <table>
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>MTD Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map((row) => `
+                  <tr>
+                    <td>${escapeHtml(row.label)}</td>
+                    <td>${escapeHtml(formatReportValue(row.total, row.kind))}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            <footer>
+              Historical MTD is calculated from saved daily snapshots. Current-month MTD resets on the first day of each month and is not included in this historical report selector.
+            </footer>
+          </main>
+          <script>
+            window.addEventListener('load', () => {
+              window.focus();
+              window.print();
+            });
+          </script>
+        </body>
+      </html>
+    `
+
+    const reportWindow = window.open('', '_blank', 'noopener,noreferrer')
+    if (!reportWindow) return
+    reportWindow.document.write(html)
+    reportWindow.document.close()
+  }
+
+  return (
+    <Section icon={<FileText size={14} />} title="Reports">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-[var(--text)]">Historical MTD Report</p>
+          <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+            Select a completed month and open a print-ready Performance Snapshot report.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <Select
+            label="Month"
+            value={selectedMonth}
+            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setSelectedMonth(event.target.value)}
+            disabled={months.length === 0}
+          >
+            {months.length === 0 ? (
+              <option value="">No historical snapshots yet</option>
+            ) : months.map((month) => (
+              <option key={month} value={month}>{monthLabel(month)}</option>
+            ))}
+          </Select>
+          <Button size="sm" icon={<Printer size={13} />} disabled={!selectedMonth} onClick={printReport}>
+            Print / PDF
+          </Button>
+        </div>
+        <p className="text-[10px] text-[var(--text-tertiary)]">
+          Reports open in a print window so the Settings tab stays clean.
+        </p>
+      </div>
+    </Section>
+  )
+}
+
 // ── About section ─────────────────────────────────────────────────────────────
 function AboutSection() {
   const { setTab, sessionExpiresAt, extendStoreSession } = useUiStore()
@@ -1013,6 +1212,7 @@ const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
   { id: 'store',         label: 'Store Details',  icon: <Store size={14} /> },
   { id: 'configuredStores', label: 'Configured Stores', icon: <Store size={14} /> },
+  { id: 'reports',       label: 'Reports',        icon: <FileText size={14} /> },
   { id: 'announcements', label: 'Announcements',  icon: <Megaphone size={14} /> },
   { id: 'scheduling',    label: 'Scheduling',     icon: <Calendar size={14} /> },
   { id: 'scheduleBlocks', label: 'Schedule Blocks', icon: <Calendar size={14} /> },
@@ -1031,6 +1231,7 @@ export function SettingsPage() {
     general:       <GeneralSection />,
     store:         <StoreSection />,
     configuredStores: <ConfiguredStoresSection />,
+    reports:       <ReportSection />,
     announcements: <AnnouncementsSection />,
     scheduling:    <SchedulingSection />,
     scheduleBlocks: <ScheduleBlocksSection />,
