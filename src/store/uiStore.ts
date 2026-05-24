@@ -6,10 +6,11 @@ export type Theme = 'dark' | 'light'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
 export type AccessMode = 'manager' | 'display' | 'admin'
-export type AccessRole = 'admin' | 'manager' | 'employee' | 'display'
+export type AccessRole = 'admin' | 'district_manager' | 'manager' | 'employee' | 'display'
 
 export function accessRoleLabel(role: AccessRole | null) {
   if (role === 'employee' || role === 'display') return 'Store Access'
+  if (role === 'district_manager') return 'District Manager'
   if (role === 'manager') return 'Manager'
   if (role === 'admin') return 'Admin'
   return 'None'

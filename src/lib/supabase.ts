@@ -155,14 +155,6 @@ const BUILT_IN_ACCESS: Record<string, Omit<StoreAccessCode, 'created_at' | 'last
     label: 'Admin',
     is_active: true,
   },
-  '693D': {
-    id: 'built-in-gateway',
-    dealer_code: '693D',
-    store_id: '693D',
-    role: 'manager',
-    label: 'Gateway',
-    is_active: true,
-  },
 }
 
 function withLegacyOnboarding(row: Omit<StoreAccessCode, 'onboarded_at'>): StoreAccessCode {
@@ -244,6 +236,11 @@ export async function dbCreateAccessCode(code: {
 export async function dbUpdateAccessCode(id: string, patch: Partial<Pick<StoreAccessCode, 'label' | 'role' | 'store_id' | 'is_active'> & { pin_hash: string }>) {
   const { error } = await supabase.from('store_access_codes').update(patch).eq('id', id)
   throwIfError(error, 'Could not update access code')
+}
+
+export async function dbDeleteAccessCode(id: string) {
+  const { error } = await supabase.from('store_access_codes').delete().eq('id', id)
+  throwIfError(error, 'Could not delete access code')
 }
 
 export async function dbMarkAccessOnboarded(id: string) {

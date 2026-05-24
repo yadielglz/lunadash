@@ -116,17 +116,29 @@ function WeatherStatus() {
 function StoreSelector() {
   const { accessRole, storeId, setStoreId } = useUiStore()
   const { storeNumber } = useDisplayStore()
+  const canSwitchStores = accessRole === 'admin' || accessRole === 'district_manager'
   const accessQuery = useQuery({
     queryKey: ['titlebar-access-stores'],
     queryFn: dbGetAccessCodes,
+    enabled: canSwitchStores,
     staleTime: 60_000,
   })
   const sourceQuery = useQuery({
     queryKey: ['titlebar-performance-source'],
     queryFn: fetchPerformanceData,
+    enabled: canSwitchStores,
     staleTime: 55_000,
     refetchInterval: 60_000,
   })
+  const fallbackLabel = storeNumber ? `Store #${storeNumber}` : storeId || 'Store'
+
+  if (!canSwitchStores) {
+    return (
+      <span className="max-w-[170px] truncate text-xs text-[var(--text-secondary)]">
+        {fallbackLabel}
+      </span>
+    )
+  }
 
   const sourceRows = sourceQuery.data?.rows ?? []
   const sourceByCode = new Map(sourceRows.map((row) => [normalizeStoreCode(row.storeCode), row]))
@@ -149,8 +161,6 @@ function StoreSelector() {
   ]
 
   const currentValue = options.some((option) => option.id === storeId) ? storeId : ''
-  const fallbackLabel = storeNumber ? `Store #${storeNumber}` : storeId || 'Store'
-
   if (options.length === 0) {
     return (
       <span className="max-w-[170px] truncate text-xs text-[var(--text-secondary)]">

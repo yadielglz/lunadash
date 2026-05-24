@@ -119,7 +119,7 @@ create table if not exists store_access_codes (
   dealer_code text not null,
   store_id text not null,
   pin_hash text not null,
-  role text not null check (role in ('admin', 'manager', 'employee', 'display')),
+  role text not null check (role in ('admin', 'district_manager', 'manager', 'employee', 'display')),
   label text,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
@@ -129,7 +129,7 @@ create table if not exists store_access_codes (
 alter table store_access_codes add column if not exists onboarded_at timestamptz;
 alter table store_access_codes drop constraint if exists store_access_codes_role_check;
 alter table store_access_codes add constraint store_access_codes_role_check
-check (role in ('admin', 'manager', 'employee', 'display'));
+check (role in ('admin', 'district_manager', 'manager', 'employee', 'display'));
 create unique index if not exists store_access_codes_dealer_pin_idx
 on store_access_codes (dealer_code, pin_hash)
 where is_active = true;

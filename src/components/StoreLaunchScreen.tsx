@@ -65,7 +65,7 @@ export function StoreLaunchScreen() {
     try {
       const access = await dbAuthenticateAccess(code, await hashPin(cleanPin))
       if (!access) {
-        setError('Dealer code or PIN was not recognized.')
+        setError('Login or PIN was not recognized.')
         return
       }
 
@@ -75,7 +75,7 @@ export function StoreLaunchScreen() {
           ? 'display'
           : mode
 
-      if (access.role === 'admin' || access.role === 'manager') {
+      if (access.role === 'admin' || access.role === 'district_manager') {
         let stores: StoreSummary[] = []
         try {
           stores = await dbGetStores()
@@ -122,7 +122,7 @@ export function StoreLaunchScreen() {
               </span>
               <div className="text-left">
                 <h1 className="text-lg font-semibold text-[var(--text)]">LunaDash Access</h1>
-                <p className="text-xs text-[var(--text-secondary)]">Enter your dealer code and 4-digit PIN.</p>
+                <p className="text-xs text-[var(--text-secondary)]">Enter your store login and 4-digit PIN.</p>
               </div>
             </div>
           </div>

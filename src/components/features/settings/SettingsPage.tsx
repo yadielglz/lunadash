@@ -11,7 +11,7 @@ import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../../../store/schedulePreferencesStore'
-import { dbCheckSchemaHealth, dbCreateAccessCode, dbDeleteSettings, dbGetAccessCodes, dbGetStores, dbResetAccessOnboarding, dbUpdateAccessCode, dbUpdateSettings, StoreAccessCode, StoreSummary } from '../../../lib/supabase'
+import { dbCheckSchemaHealth, dbCreateAccessCode, dbDeleteAccessCode, dbDeleteSettings, dbGetAccessCodes, dbGetStores, dbResetAccessOnboarding, dbUpdateAccessCode, dbUpdateSettings, StoreAccessCode, StoreSummary } from '../../../lib/supabase'
 import { Input, Select } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 import { APP_META } from '../../../config/appMeta'
@@ -135,6 +135,7 @@ function GeneralSection() {
 function StoreSection() {
   const { companyName, storeNumber, slideInterval, setCompanyName, setStoreNumber } = useDisplayStore()
   const { storeId, setStoreId, accessRole } = useUiStore()
+  const canSwitchStores = accessRole === 'admin' || accessRole === 'district_manager'
   const [name, setName]       = useState(companyName)
   const [num, setNum]         = useState(storeNumber)
   const [newStoreId, setNewStoreId] = useState('')
@@ -196,7 +197,7 @@ function StoreSection() {
 
   return (
     <Section icon={<Store size={14} />} title="Store Details">
-      {/* Store selector */}
+      {canSwitchStores && (
       <div className="px-4 py-4 rounded-xl bg-[var(--surface-2)] border border-[var(--accent)]/20 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -250,6 +251,7 @@ function StoreSection() {
         </p>
         {storesError && <p className="text-xs text-red-400">{storesError}</p>}
       </div>
+      )}
 
       {/* Display info */}
       <div className="px-4 py-4 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
@@ -552,6 +554,7 @@ function ScheduleBlocksSection() {
 // ── Configured stores section ────────────────────────────────────────────────
 function ConfiguredStoresSection() {
   const { storeId, setStoreId, accessRole } = useUiStore()
+  const canEditStores = accessRole === 'admin' || accessRole === 'district_manager'
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -688,7 +691,7 @@ function ConfiguredStoresSection() {
                   <Button size="sm" variant={store.store_id === storeId ? 'accent' : 'ghost'} onClick={() => setStoreId(store.store_id)}>
                     {store.store_id === storeId ? 'Selected' : 'Use'}
                   </Button>
-                  {accessRole === 'admin' && (
+                  {canEditStores && (
                     <>
                       <Button size="sm" variant="ghost" icon={<Edit2 size={12} />} onClick={() => startEditStore(store)}>Edit</Button>
                       <Button size="sm" variant="ghost" icon={<Trash2 size={12} />} onClick={() => removeStore(store)}>Remove</Button>
@@ -1132,6 +1135,29 @@ function AccessSection() {
     }
   }
 
+  const deleteCode = async (code: StoreAccessCode) => {
+    if (code.id === 'built-in-admin') {
+      setError('Built-in access cannot be deleted here.')
+      return
+    }
+    if (accessRole !== 'admin' && code.store_id !== storeId) {
+      setError('Managers can only delete access for their current store.')
+      return
+    }
+    if (!window.confirm(`Delete access for ${code.label || code.dealer_code}? This cannot be undone.`)) return
+
+    setLoading(true)
+    setError('')
+    try {
+      await dbDeleteAccessCode(code.id)
+      await loadCodes()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete access code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const resetOnboarding = async (code: StoreAccessCode) => {
     setLoading(true)
     setError('')
@@ -1190,7 +1216,7 @@ function AccessSection() {
       await dbUpdateAccessCode(code.id, {
         label: editLabel.trim(),
         store_id: targetStore,
-        role: accessRole === 'admin' ? editRole : editRole === 'admin' ? 'manager' : editRole,
+        role: accessRole === 'admin' ? editRole : (editRole === 'admin' || editRole === 'district_manager') ? 'manager' : editRole,
         ...(editPin ? { pin_hash: await hashPin(editPin.trim()) } : {}),
       })
       cancelEditCode()
@@ -1221,7 +1247,7 @@ function AccessSection() {
             {accessLabel || 'Access user'} · Login {dealerCode || 'n/a'} · Role {accessRoleLabel(accessRole)} · Store {storeId || 'none'}
           </p>
           <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
-            Store Access: Dashboard, Schedule, Weather, and Display · Manager: store operations · Admin: all stores and access management
+            Store Access: Dashboard, Schedule, Performance, Weather settings, and Scheduling settings · Manager: assigned store operations · District Manager: district store operations · Admin: all stores and access management
           </p>
         </div>
 
@@ -1233,6 +1259,7 @@ function AccessSection() {
             <Input label="Store ID / SAP" value={accessRole === 'admin' ? newStoreId : storeId} onChange={(e) => setNewStoreId(e.target.value)} disabled={accessRole !== 'admin'} placeholder="697D or main" />
             <Select label="Role" value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as AccessRole)}>
               {accessRole === 'admin' && <option value="admin">Admin</option>}
+              {accessRole === 'admin' && <option value="district_manager">District Manager</option>}
               <option value="manager">Manager</option>
               <option value="employee">Store Access</option>
             </Select>
@@ -1257,6 +1284,7 @@ function AccessSection() {
                       <Input label="Store ID / SAP" value={accessRole === 'admin' ? editStoreId : storeId} onChange={(e) => setEditStoreId(e.target.value)} disabled={accessRole !== 'admin'} placeholder="697D or main" />
                       <Select label="Role" value={editRole} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditRole(e.target.value as AccessRole)}>
                         {accessRole === 'admin' && <option value="admin">Admin</option>}
+                        {accessRole === 'admin' && <option value="district_manager">District Manager</option>}
                         <option value="manager">Manager</option>
                         <option value="employee">Store Access</option>
                       </Select>
@@ -1288,6 +1316,9 @@ function AccessSection() {
                       </Button>
                       <Button size="sm" variant={code.is_active ? 'ghost' : 'accent'} icon={<Power size={12} />} onClick={() => toggleCode(code)}>
                         {code.is_active ? 'Disable' : 'Enable'}
+                      </Button>
+                      <Button size="sm" variant="danger" icon={<Trash2 size={12} />} onClick={() => deleteCode(code)}>
+                        Delete
                       </Button>
                     </div>
                   </div>
@@ -1324,7 +1355,9 @@ const SECTIONS = [
 ] as const
 
 type SectionId = typeof SECTIONS[number]['id']
-const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'display', 'about']
+const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'scheduling']
+const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['configuredStores']
+const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['access']
 
 function isSectionId(value: string): value is SectionId {
   return SECTIONS.some((section) => section.id === value)
@@ -1338,6 +1371,10 @@ export function SettingsPage() {
   const visibleSections = useMemo(() => (
     accessRole === 'employee'
       ? SECTIONS.filter((section) => LIMITED_SETTINGS_SECTIONS.includes(section.id))
+      : accessRole === 'manager'
+        ? SECTIONS.filter((section) => !MANAGER_HIDDEN_SECTIONS.includes(section.id))
+        : accessRole === 'district_manager'
+          ? SECTIONS.filter((section) => !DISTRICT_HIDDEN_SECTIONS.includes(section.id))
       : SECTIONS
   ), [accessRole])
   const fallbackSection = visibleSections[0]?.id ?? 'weather'

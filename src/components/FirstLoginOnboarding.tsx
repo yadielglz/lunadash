@@ -61,6 +61,29 @@ const ROLE_COPY: Record<AccessRole, Step[]> = {
       icon: <CalendarDays size={22} />,
     },
   ],
+  district_manager: [
+    {
+      kicker: 'Welcome to LunaDash',
+      title: 'Your district workspace is ready.',
+      body: 'This district manager session can move between assigned district stores without opening admin-only tools.',
+      bullets: ['Use the store selector to focus one location at a time.', 'Review dashboard, schedule, performance, and store setup for the selected store.'],
+      icon: <Sparkles size={22} />,
+    },
+    {
+      kicker: 'Store Operations',
+      title: 'Work each store in context.',
+      body: 'Store data loads after you choose a location, so schedule edits and settings apply to the active store.',
+      bullets: ['Switch stores from the title bar when needed.', 'Use Settings for weather, scheduling, store details, and configured stores.'],
+      icon: <Settings2 size={22} />,
+    },
+    {
+      kicker: 'Schedule',
+      title: 'Keep district coverage aligned.',
+      body: 'Reusable shift blocks and weekly tools are available for each selected store.',
+      bullets: ['Confirm the selected store before editing.', 'Print preview creates a cleaner schedule for posting.'],
+      icon: <CalendarDays size={22} />,
+    },
+  ],
   employee: [
     {
       kicker: 'Welcome to LunaDash',
