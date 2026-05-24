@@ -1,15 +1,29 @@
 import { useState } from 'react'
-import { KeyRound, Monitor, ShieldCheck, Smartphone } from 'lucide-react'
-import { dbAuthenticateAccess } from '../lib/supabase'
+import { KeyRound, Monitor, ShieldCheck, Smartphone, Store } from 'lucide-react'
+import { dbAuthenticateAccess, dbGetStores, type StoreAccessCode, type StoreSummary } from '../lib/supabase'
 import { hashPin } from '../store/lockStore'
-import { AccessMode, useUiStore } from '../store/uiStore'
+import { AccessMode, accessRoleLabel, useUiStore } from '../store/uiStore'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { APP_META } from '../config/appMeta'
 import { LunaWirelessLogo } from './brand/LunaWirelessLogo'
 
-const DEALER_PLACEHOLDERS = ['1047293', '2384517', '4829160', '7603148', '9158026']
+const DEALER_PLACEHOLDERS = ['693D', 'admin', 'Gateway']
 const LOGIN_BACKDROP_URL = 'https://i.ibb.co/39JLm174/Wall.png'
+
+type PendingAccess = {
+  access: StoreAccessCode
+  mode: AccessMode
+  stores: StoreSummary[]
+}
+
+function normalizeLoginCode(value: string) {
+  return value.trim().toUpperCase()
+}
+
+function isValidLoginCode(value: string) {
+  return /^[A-Z0-9_-]{2,20}$/i.test(value) || value.trim().toLowerCase() === 'admin'
+}
 
 export function StoreLaunchScreen() {
   const setAccessSession = useUiStore((s) => s.setAccessSession)
@@ -17,14 +31,28 @@ export function StoreLaunchScreen() {
   const [dealerCode, setDealerCode] = useState('')
   const [pin, setPin] = useState('')
   const [mode, setMode] = useState<'manager' | 'display'>('manager')
+  const [pendingAccess, setPendingAccess] = useState<PendingAccess | null>(null)
+  const [selectedStoreId, setSelectedStoreId] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const completeLogin = (access: StoreAccessCode, accessMode: AccessMode, storeId: string) => {
+    setAccessSession({
+      id: access.id,
+      storeId,
+      role: access.role,
+      dealerCode: access.dealer_code,
+      label: access.label,
+      onboardedAt: access.onboarded_at,
+      mode: accessMode,
+    })
+  }
+
   const login = async () => {
-    const code = dealerCode.trim()
+    const code = normalizeLoginCode(dealerCode)
     const cleanPin = pin.trim()
-    if (!/^\d{7}$/.test(code)) {
-      setError('Dealer code must be 7 digits.')
+    if (!isValidLoginCode(code)) {
+      setError('Use the store ID or admin login.')
       return
     }
     if (!/^\d{4}$/.test(cleanPin)) {
@@ -47,15 +75,24 @@ export function StoreLaunchScreen() {
           ? 'display'
           : mode
 
-      setAccessSession({
-        id: access.id,
-        storeId: access.store_id,
-        role: access.role,
-        dealerCode: access.dealer_code,
-        label: access.label,
-        onboardedAt: access.onboarded_at,
-        mode: accessMode,
-      })
+      if (access.role === 'admin' || access.role === 'manager') {
+        let stores: StoreSummary[] = []
+        try {
+          stores = await dbGetStores()
+        } catch {
+          stores = []
+        }
+        const fallbackStore = { store_id: access.store_id, company_name: access.store_id, store_number: '', slide_interval: 8 }
+        const availableStores = stores.length > 0 ? stores : [fallbackStore]
+        const storesWithAccessStore = access.store_id && access.store_id !== 'main' && !availableStores.some((store) => store.store_id === access.store_id)
+          ? [fallbackStore, ...availableStores]
+          : availableStores
+        setPendingAccess({ access, mode: accessMode, stores: storesWithAccessStore })
+        setSelectedStoreId(access.store_id === 'main' ? storesWithAccessStore[0]?.store_id ?? '' : access.store_id)
+        return
+      }
+
+      completeLogin(access, accessMode, access.store_id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not validate access.')
     } finally {
@@ -92,6 +129,82 @@ export function StoreLaunchScreen() {
         </div>
 
         <div className="p-6 space-y-4">
+          {pendingAccess ? (
+            <>
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+                <p className="text-sm font-semibold text-[var(--text)]">Choose store</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                  {pendingAccess.access.label || 'Access session'} · {accessRoleLabel(pendingAccess.access.role)}
+                </p>
+              </div>
+
+              <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                {pendingAccess.access.role === 'admin' && (
+                  <button
+                    onClick={() => setSelectedStoreId('main')}
+                    className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
+                      selectedStoreId === 'main'
+                        ? 'border-[var(--accent)] bg-[var(--accent)]/10'
+                        : 'border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--reveal-bg)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Store size={14} className="text-[var(--accent)]" />
+                      <span className="text-sm font-semibold text-[var(--text)]">Main Dashboard</span>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--text-tertiary)]">All configured stores</p>
+                  </button>
+                )}
+
+                {pendingAccess.stores.map((store) => (
+                  <button
+                    key={store.store_id}
+                    onClick={() => setSelectedStoreId(store.store_id)}
+                    className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
+                      selectedStoreId === store.store_id
+                        ? 'border-[var(--accent)] bg-[var(--accent)]/10'
+                        : 'border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--reveal-bg)]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-[var(--text)] truncate">{store.company_name || store.store_id}</span>
+                      <span className="font-mono text-xs text-[var(--text-tertiary)]">{store.store_id}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                      {store.store_number ? `Store #${store.store_number}` : 'Configured store'}
+                    </p>
+                  </button>
+                ))}
+              </div>
+
+              {error && <p className="text-xs text-red-400">{error}</p>}
+
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  variant="ghost"
+                  onClick={() => {
+                    setPendingAccess(null)
+                    setSelectedStoreId('')
+                    setPin('')
+                    setError('')
+                  }}
+                >
+                  Back
+                </Button>
+                <Button
+                  className="flex-1"
+                  variant="primary"
+                  icon={<ShieldCheck size={14} />}
+                  disabled={!selectedStoreId}
+                  onClick={() => completeLogin(pendingAccess.access, pendingAccess.mode, selectedStoreId)}
+                >
+                  Open Store
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
           <div className="grid grid-cols-2 gap-2 sm:hidden">
             {([
               { id: 'manager', label: 'Manage', icon: <Smartphone size={14} /> },
@@ -113,12 +226,12 @@ export function StoreLaunchScreen() {
           </div>
 
           <Input
-            label="Dealer Code"
-            inputMode="numeric"
-            maxLength={7}
+            label="Store ID / Login"
+            autoCapitalize="characters"
+            maxLength={20}
             value={dealerCode}
             onChange={(e) => {
-              setDealerCode(e.target.value.replace(/\D/g, '').slice(0, 7))
+              setDealerCode(e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20).toUpperCase())
               setError('')
             }}
             placeholder={dealerPlaceholder}
@@ -145,10 +258,12 @@ export function StoreLaunchScreen() {
             icon={<ShieldCheck size={14} />}
             loading={isLoading}
             onClick={login}
-            disabled={dealerCode.length !== 7 || pin.length !== 4}
+            disabled={!isValidLoginCode(dealerCode) || pin.length !== 4}
           >
             Continue
           </Button>
+            </>
+          )}
 
           <div className="border-t border-[var(--border)] pt-3 text-center">
             <p className="text-[10px] text-[var(--text-tertiary)]">

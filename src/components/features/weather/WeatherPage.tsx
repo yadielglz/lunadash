@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Search, Wind, Droplets, Thermometer, MapPin, RefreshCw } from 'lucide-react'
-import { useWeather, useGeocode, writeCachedWeatherCoords } from '../../../hooks/useWeather'
+import { AlertTriangle, LocateFixed, Search, Wind, Droplets, Thermometer, MapPin, RefreshCw } from 'lucide-react'
+import { CENTRAL_FLORIDA_WEATHER_POINTS, useWeather, useGeocode, type WeatherLocation } from '../../../hooks/useWeather'
 import { formatWeatherTimezone, getWeatherInfo, getWindDirection, type GeocodingResult } from '../../../lib/openMeteo'
 import { useTempDisplay } from '../../../hooks/useTempDisplay'
 import { format } from 'date-fns'
@@ -13,18 +13,35 @@ import { Button } from '../../ui/Button'
 export function WeatherPage() {
   const queryClient = useQueryClient()
   const [citySearch, setCitySearch] = useState('')
-  const [manualCoords, setManualCoords] = useState<{ lat: number; lon: number } | undefined>()
-  const [locationName, setLocationName] = useState<string | null>(null)
+  const [locating, setLocating] = useState(false)
   const { data: geoResults } = useGeocode(citySearch)
-  const { data, isLoading, isError, isFetching, refetch } = useWeather(manualCoords)
+  const { data, isLoading, isError, isFetching, refetch, location, setLocation, useDeviceLocation, locationError } = useWeather()
   const { fmt, unit, toggleTempUnit } = useTempDisplay()
 
   const selectCity = (result: GeocodingResult) => {
-    const coords = { lat: result.latitude, lon: result.longitude }
-    setManualCoords(coords)
-    writeCachedWeatherCoords(coords)
-    setLocationName(`${result.name}, ${result.country}`)
+    const nextLocation: WeatherLocation = {
+      lat: result.latitude,
+      lon: result.longitude,
+      name: [result.name, result.admin1, result.country_code].filter(Boolean).join(', '),
+      source: 'saved',
+    }
+    setLocation(nextLocation)
     setCitySearch('')
+  }
+
+  const selectWeatherPoint = (point: WeatherLocation) => {
+    setLocation({ ...point, source: 'saved' })
+  }
+
+  const locateDevice = async () => {
+    setLocating(true)
+    try {
+      await useDeviceLocation()
+    } catch {
+      // The hook exposes the permission/support message in the page.
+    } finally {
+      setLocating(false)
+    }
   }
 
   const refreshWeather = async () => {
@@ -35,7 +52,6 @@ export function WeatherPage() {
   const cw = data?.current_weather
   const weather = cw ? getWeatherInfo(cw.weathercode, cw.is_day) : null
   const timezoneLabel = data ? formatWeatherTimezone(data.timezone) : ''
-  const timezoneName = data?.timezone.split('/').pop()?.replace('_', ' ') ?? ''
 
   return (
     <div className="flex flex-col h-full">
@@ -64,29 +80,61 @@ export function WeatherPage() {
             </button>
           </div>
         </div>
-        <div className="relative max-w-sm">
-          <Input
-            icon={<Search size={14} />}
-            placeholder="Search city…"
-            value={citySearch}
-            onChange={(e) => setCitySearch(e.target.value)}
-          />
-          {geoResults && geoResults.length > 0 && citySearch.length > 2 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] rounded-lg border border-[var(--border)] overflow-hidden z-50 shadow-[var(--shadow-float)]">
-              {geoResults.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => selectCity(r)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--reveal-bg)] transition-colors flex items-center gap-2"
-                >
-                  <MapPin size={12} className="text-[var(--text-tertiary)]" />
-                  <span className="text-[var(--text)]">{r.name}</span>
-                  <span className="text-[var(--text-tertiary)] text-xs">{r.admin1}, {r.country}</span>
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+          <div className="relative max-w-sm w-full">
+            <Input
+              icon={<Search size={14} />}
+              placeholder="Search city..."
+              value={citySearch}
+              onChange={(e) => setCitySearch(e.target.value)}
+            />
+            {geoResults && geoResults.length > 0 && citySearch.length > 2 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] rounded-lg border border-[var(--border)] overflow-hidden z-50 shadow-[var(--shadow-float)]">
+                {geoResults.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => selectCity(r)}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--reveal-bg)] transition-colors flex items-center gap-2"
+                  >
+                    <MapPin size={12} className="text-[var(--text-tertiary)]" />
+                    <span className="text-[var(--text)]">{r.name}</span>
+                    <span className="text-[var(--text-tertiary)] text-xs">{r.admin1}, {r.country}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {CENTRAL_FLORIDA_WEATHER_POINTS.map((point) => (
+              <Button
+                key={point.name}
+                size="sm"
+                variant={Math.abs(location.lat - point.lat) < 0.01 && Math.abs(location.lon - point.lon) < 0.01 ? 'accent' : 'secondary'}
+                icon={<MapPin size={12} />}
+                onClick={() => selectWeatherPoint(point)}
+              >
+                {point.name.replace(', FL', '')}
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<LocateFixed size={12} />}
+              loading={locating}
+              onClick={locateDevice}
+            >
+              Use device
+            </Button>
+          </div>
         </div>
+        {locationError && (
+          <p className="mt-2 text-xs text-red-400">{locationError}</p>
+        )}
+        {location.source === 'default' && (
+          <p className="mt-2 text-xs text-[var(--text-secondary)]">
+            Using Haines City until GeoIP finishes or you pick a store weather point.
+          </p>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -128,7 +176,7 @@ export function WeatherPage() {
                   <p className="text-lg font-medium text-[var(--text)]">{weather.label}</p>
                   <div className="flex items-center gap-1 mt-1 text-sm text-[var(--text-secondary)]">
                     <MapPin size={13} />
-                    <span>{locationName ?? timezoneName}</span>
+                    <span>{location.name}</span>
                   </div>
                 </div>
                 <motion.span
@@ -152,6 +200,18 @@ export function WeatherPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {data.alerts.length === 0 && !data.alertsUnavailable && (
+                <div className="mt-5 rounded-lg border border-[var(--border)] bg-[var(--surface-3)] p-3 text-xs text-[var(--text-secondary)]">
+                  No active National Weather Service alerts for {location.name}. Expired alerts are not shown.
+                </div>
+              )}
+
+              {data.alertsUnavailable && (
+                <div className="mt-5 rounded-lg border border-yellow-500/25 bg-yellow-500/10 p-3 text-xs text-yellow-200">
+                  National Weather Service alerts could not be loaded for this location.
                 </div>
               )}
 

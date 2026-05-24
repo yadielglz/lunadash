@@ -1062,6 +1062,9 @@ function AccessSection() {
     ? codes
     : codes.filter((code) => code.store_id === storeId)
 
+  const cleanLoginCode = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20).toUpperCase()
+  const isValidLoginCode = (value: string) => /^[A-Z0-9_-]{2,20}$/i.test(value.trim()) || value.trim().toLowerCase() === 'admin'
+
   const loadCodes = async () => {
     setLoading(true)
     setError('')
@@ -1082,8 +1085,8 @@ function AccessSection() {
     const cleanDealer = dealer.trim()
     const cleanPin = pin.trim()
     const targetStore = accessRole === 'admin' ? newStoreId.trim() : storeId
-    if (!/^\d{7}$/.test(cleanDealer)) {
-      setError('Dealer code must be 7 digits.')
+    if (!isValidLoginCode(cleanDealer)) {
+      setError('Login must be a store ID or admin code.')
       return
     }
     if (!/^\d{4}$/.test(cleanPin)) {
@@ -1215,7 +1218,7 @@ function AccessSection() {
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
           <p className="text-sm font-semibold text-[var(--text)]">Current Session</p>
           <p className="text-xs text-[var(--text-secondary)] mt-1">
-            {accessLabel || 'Access user'} · Dealer {dealerCode || 'n/a'} · Role {accessRoleLabel(accessRole)} · Store {storeId || 'none'}
+            {accessLabel || 'Access user'} · Login {dealerCode || 'n/a'} · Role {accessRoleLabel(accessRole)} · Store {storeId || 'none'}
           </p>
           <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
             Store Access: Dashboard, Schedule, Weather, and Display · Manager: store operations · Admin: all stores and access management
@@ -1225,7 +1228,7 @@ function AccessSection() {
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
           <p className="text-xs font-semibold text-[var(--text)]">Create Access Code</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            <Input label="Dealer Code" inputMode="numeric" maxLength={7} value={dealer} onChange={(e) => setDealer(e.target.value.replace(/\D/g, '').slice(0, 7))} placeholder="7 digits" />
+            <Input label="Login / Store ID" autoCapitalize="characters" maxLength={20} value={dealer} onChange={(e) => setDealer(cleanLoginCode(e.target.value))} placeholder="693D or admin" />
             <Input label="PIN" type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4 digits" />
             <Input label="Store ID / SAP" value={accessRole === 'admin' ? newStoreId : storeId} onChange={(e) => setNewStoreId(e.target.value)} disabled={accessRole !== 'admin'} placeholder="697D or main" />
             <Select label="Role" value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as AccessRole)}>
@@ -1269,7 +1272,7 @@ function AccessSection() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-[var(--text)] truncate">{code.label || 'Access code'}</p>
                       <p className="text-xs text-[var(--text-tertiary)]">
-                        Dealer {code.dealer_code} · {code.store_id} · {accessRoleLabel(code.role)}
+                        Login {code.dealer_code} · {code.store_id} · {accessRoleLabel(code.role)}
                         {code.last_used_at ? ` · Last used ${new Date(code.last_used_at).toLocaleDateString()}` : ''}
                         {code.onboarded_at ? ` · Intro completed ${new Date(code.onboarded_at).toLocaleDateString()}` : ' · Intro pending'}
                       </p>

@@ -72,7 +72,7 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherDat
   const data = await res.json()
 
   try {
-    const alerts = await fetchWeatherAlerts(lat, lon, 2500)
+    const alerts = await fetchWeatherAlerts(lat, lon, 4500)
     return { ...data, alerts, alertsUnavailable: false }
   } catch {
     return { ...data, alerts: [], alertsUnavailable: true }

