@@ -38,6 +38,8 @@ type GoalRow = StoreScopedRow & {
 type AnnouncementRow = StoreScopedRow & {
   text: string
   priority: Announcement['priority']
+  start_at?: string | null
+  end_at?: string | null
   created_at: string
 }
 type SettingsRow = {
@@ -104,6 +106,8 @@ const announcementFromRow = (r: AnnouncementRow): Announcement => ({
   storeId: r.store_id,
   text: r.text,
   priority: r.priority,
+  startAt: r.start_at ?? undefined,
+  endAt: r.end_at ?? undefined,
   createdAt: r.created_at,
 })
 

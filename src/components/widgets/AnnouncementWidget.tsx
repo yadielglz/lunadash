@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Trash2, Megaphone, Check, X } from 'lucide-react'
 import { Card } from '../ui/Card'
-import { useDisplayStore, Announcement } from '../../store/displayStore'
+import { isAnnouncementActive, useDisplayStore, Announcement } from '../../store/displayStore'
+import { useUiStore } from '../../store/uiStore'
 
 const PRIORITY_COLORS = {
   normal:    '#0078d4',
@@ -13,10 +14,12 @@ const PRIORITY_COLORS = {
 const PRIORITY_LABELS: Announcement['priority'][] = ['normal', 'important', 'urgent']
 
 function AnnouncementRow({ a }: { a: Announcement }) {
+  const accessRole = useUiStore((s) => s.accessRole)
   const { updateAnnouncement, removeAnnouncement } = useDisplayStore()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(a.text)
   const [priority, setPriority] = useState<Announcement['priority']>(a.priority)
+  const canEdit = accessRole === 'admin' || accessRole === 'district_manager' || accessRole === 'manager'
 
   const commit = () => {
     if (draft.trim()) {
@@ -82,28 +85,33 @@ function AnnouncementRow({ a }: { a: Announcement }) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 8 }}
       className="flex items-start gap-2 p-2 rounded-lg hover:bg-[var(--reveal-bg)] group transition-colors cursor-pointer"
-      onClick={() => setEditing(true)}
+      onClick={() => { if (canEdit) setEditing(true) }}
     >
       <div
         className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
         style={{ background: PRIORITY_COLORS[a.priority] }}
       />
       <p className="flex-1 text-xs text-[var(--text)] leading-relaxed">{a.text}</p>
-      <button
-        onClick={(e) => { e.stopPropagation(); removeAnnouncement(a.id) }}
-        className="opacity-0 group-hover:opacity-100 text-[var(--text-tertiary)] hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
-      >
-        <Trash2 size={11} />
-      </button>
+      {canEdit && (
+        <button
+          onClick={(e) => { e.stopPropagation(); removeAnnouncement(a.id) }}
+          className="opacity-0 group-hover:opacity-100 text-[var(--text-tertiary)] hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
+        >
+          <Trash2 size={11} />
+        </button>
+      )}
     </motion.div>
   )
 }
 
 export function AnnouncementWidget() {
+  const accessRole = useUiStore((s) => s.accessRole)
   const { announcements, addAnnouncement } = useDisplayStore()
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
   const [newPriority, setNewPriority] = useState<Announcement['priority']>('normal')
+  const canEdit = accessRole === 'admin' || accessRole === 'district_manager' || accessRole === 'manager'
+  const visibleAnnouncements = announcements.filter((announcement) => isAnnouncementActive(announcement))
 
   const submit = () => {
     if (draft.trim()) {
@@ -121,17 +129,19 @@ export function AnnouncementWidget() {
           <Megaphone size={14} className="text-[var(--accent)]" />
           <h3 className="text-sm font-semibold text-[var(--text)]">Announcements</h3>
         </div>
-        <button
-          onClick={() => setAdding(true)}
-          className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--accent)] transition-colors"
-          title="Add announcement"
-        >
-          <Plus size={14} />
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setAdding(true)}
+            className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--accent)] transition-colors"
+            title="Add announcement"
+          >
+            <Plus size={14} />
+          </button>
+        )}
       </div>
 
       <AnimatePresence>
-        {adding && (
+        {canEdit && adding && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -175,17 +185,17 @@ export function AnnouncementWidget() {
       </AnimatePresence>
 
       <div className="flex-1 overflow-y-auto space-y-1 no-scrollbar">
-        {announcements.length === 0 && (
+        {visibleAnnouncements.length === 0 && (
           <p className="text-xs text-[var(--text-tertiary)] text-center py-4">No announcements — click + to add</p>
         )}
         <AnimatePresence>
-          {announcements.map((a) => (
+          {visibleAnnouncements.map((a) => (
             <AnnouncementRow key={a.id} a={a} />
           ))}
         </AnimatePresence>
       </div>
 
-      <p className="text-[10px] text-[var(--text-tertiary)] text-center">Click any announcement to edit</p>
+      {canEdit && <p className="text-[10px] text-[var(--text-tertiary)] text-center">Click any announcement to edit</p>}
     </Card>
   )
 }

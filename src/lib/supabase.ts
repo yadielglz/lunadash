@@ -38,7 +38,7 @@ type DbShift = {
 }
 
 type DbAnnouncement = {
-  id: string; store_id: string; text: string; priority: Announcement['priority']; created_at: string
+  id: string; store_id: string; text: string; priority: Announcement['priority']; start_at?: string | null; end_at?: string | null; created_at: string
 }
 
 type DbShiftPatch = Partial<{
@@ -69,6 +69,13 @@ type DbTaskPatch = Partial<{
   category: Task['category']
   sort_order: number
   completed_date: string | null
+}>
+
+type DbAnnouncementPatch = Partial<{
+  text: string
+  priority: Announcement['priority']
+  start_at: string | null
+  end_at: string | null
 }>
 
 export type StoreAccessCode = {
@@ -120,6 +127,15 @@ function isMissingEmployeeSortColumnError(error: unknown) {
   const text = `${error.code ?? ''} ${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
   return text.includes('sort_order')
     || text.includes('column employees.sort_order does not exist')
+    || text.includes('could not find the')
+}
+
+function isMissingAnnouncementPeriodColumnError(error: unknown) {
+  if (!isSupabaseError(error)) return false
+  const text = `${error.code ?? ''} ${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
+  return text.includes('start_at')
+    || text.includes('end_at')
+    || text.includes('announcement period')
     || text.includes('could not find the')
 }
 
@@ -531,19 +547,42 @@ export async function dbGetAnnouncements(storeId: string): Promise<Announcement[
 }
 
 function dbToAnnouncement(r: DbAnnouncement): Announcement {
-  return { id: r.id, storeId: r.store_id, text: r.text, priority: r.priority, createdAt: r.created_at }
+  return { id: r.id, storeId: r.store_id, text: r.text, priority: r.priority, startAt: r.start_at ?? undefined, endAt: r.end_at ?? undefined, createdAt: r.created_at }
 }
 
 export async function dbInsertAnnouncement(a: Announcement, storeId: string) {
   const sid = normalizeStoreId(storeId)
-  const { error } = await supabase.from('announcements').insert({
+  const row = {
     id: a.id, store_id: sid, text: a.text, priority: a.priority,
-  })
+    start_at: a.startAt ?? null, end_at: a.endAt ?? null,
+  }
+  const { error } = await supabase.from('announcements').insert(row)
+  if (error && isMissingAnnouncementPeriodColumnError(error)) {
+    const legacy = await supabase.from('announcements').insert({
+      id: a.id, store_id: sid, text: a.text, priority: a.priority,
+    })
+    throwIfError(legacy.error, 'Could not save announcement')
+    return
+  }
   throwIfError(error, 'Could not save announcement')
 }
 
 export async function dbUpdateAnnouncement(id: string, patch: Partial<Announcement>) {
-  const { error } = await supabase.from('announcements').update(patch).eq('id', id)
+  const dbPatch: DbAnnouncementPatch = {}
+  if (patch.text !== undefined) dbPatch.text = patch.text
+  if (patch.priority !== undefined) dbPatch.priority = patch.priority
+  if (patch.startAt !== undefined) dbPatch.start_at = patch.startAt || null
+  if (patch.endAt !== undefined) dbPatch.end_at = patch.endAt || null
+  const { error } = await supabase.from('announcements').update(dbPatch).eq('id', id)
+  if (error && isMissingAnnouncementPeriodColumnError(error)) {
+    const legacyPatch = { ...dbPatch }
+    delete legacyPatch.start_at
+    delete legacyPatch.end_at
+    if (Object.keys(legacyPatch).length === 0) return
+    const legacy = await supabase.from('announcements').update(legacyPatch).eq('id', id)
+    throwIfError(legacy.error, 'Could not update announcement')
+    return
+  }
   throwIfError(error, 'Could not update announcement')
 }
 

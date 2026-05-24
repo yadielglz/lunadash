@@ -24,7 +24,7 @@ export function AccessSection() {
   const [editRole, setEditRole] = useState<AccessRole>('employee')
   const [editPin, setEditPin] = useState('')
 
-  const canManageAccess = accessRole === 'admin' || accessRole === 'manager'
+  const canManageAccess = accessRole === 'admin' || accessRole === 'district_manager'
   const visibleCodes = accessRole === 'admin'
     ? codes
     : codes.filter((code) => normalizeStoreId(code.store_id) === normalizeStoreId(storeId))

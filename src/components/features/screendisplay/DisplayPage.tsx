@@ -7,7 +7,7 @@ import { useFullscreen } from '../../../hooks/useFullscreen'
 import { useWeather } from '../../../hooks/useWeather'
 import { useTempDisplay } from '../../../hooks/useTempDisplay'
 import { useScheduleStore } from '../../../store/scheduleStore'
-import { useDisplayStore } from '../../../store/displayStore'
+import { isAnnouncementActive, useDisplayStore } from '../../../store/displayStore'
 import { useUiStore } from '../../../store/uiStore'
 import { getWeatherInfo } from '../../../lib/openMeteo'
 import { formatShiftTime, hexToRgba } from '../../../lib/utils'
@@ -466,6 +466,7 @@ function DistrictOutlookSlide() {
 // ── Slide: Announcements ──────────────────────────────────────────────────────
 function AnnouncementsSlide() {
   const { announcements } = useDisplayStore()
+  const activeAnnouncements = announcements.filter((announcement) => isAnnouncementActive(announcement))
   const PCOLS = { normal: MG, important: '#FF8C00', urgent: '#FF3B3B' }
 
   return (
@@ -479,13 +480,13 @@ function AnnouncementsSlide() {
       </div>
 
       <div className="flex flex-col gap-3 w-full max-w-4xl overflow-y-auto no-scrollbar">
-        {announcements.length === 0 ? (
+        {activeAnnouncements.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-8 text-white/30">
             <span className="text-5xl">📢</span>
             <span className="text-xl">No announcements</span>
           </div>
         ) : (
-          announcements.map((a, i) => (
+          activeAnnouncements.map((a, i) => (
             <motion.div
               key={a.id}
               initial={{ opacity: 0, x: -16 }}

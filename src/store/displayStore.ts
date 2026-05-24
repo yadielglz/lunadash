@@ -11,6 +11,8 @@ export interface Announcement {
   storeId?: string
   text: string
   priority: 'normal' | 'important' | 'urgent'
+  startAt?: string
+  endAt?: string
   createdAt: string
 }
 
@@ -23,7 +25,7 @@ interface DisplayState {
 
   _init: (announcements: Announcement[], settings: { company_name: string; store_number: string; slide_interval: number }) => void
 
-  addAnnouncement: (text: string, priority?: Announcement['priority']) => void
+  addAnnouncement: (text: string, priority?: Announcement['priority'], period?: Pick<Announcement, 'startAt' | 'endAt'>) => void
   updateAnnouncement: (id: string, updates: Partial<Announcement>) => void
   removeAnnouncement: (id: string) => void
   reorderAnnouncements: (announcements: Announcement[]) => void
@@ -49,8 +51,15 @@ export const useDisplayStore = create<DisplayState>()(
         isLoaded: true,
       }),
 
-      addAnnouncement: (text, priority = 'normal') => {
-        const a: Announcement = { id: crypto.randomUUID(), text, priority, createdAt: new Date().toISOString() }
+      addAnnouncement: (text, priority = 'normal', period = {}) => {
+        const a: Announcement = {
+          id: crypto.randomUUID(),
+          text,
+          priority,
+          startAt: period.startAt,
+          endAt: period.endAt,
+          createdAt: new Date().toISOString(),
+        }
         set((s) => ({ announcements: [...s.announcements, a] }))
         dbInsertAnnouncement(a, currentStoreId())
       },
@@ -89,3 +98,11 @@ export const useDisplayStore = create<DisplayState>()(
     }
   )
 )
+
+export function isAnnouncementActive(announcement: Announcement, now = new Date()) {
+  const start = announcement.startAt ? new Date(`${announcement.startAt}T00:00:00`) : null
+  const end = announcement.endAt ? new Date(`${announcement.endAt}T23:59:59.999`) : null
+  if (start && now < start) return false
+  if (end && now > end) return false
+  return true
+}

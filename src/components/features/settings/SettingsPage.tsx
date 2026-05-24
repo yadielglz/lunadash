@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
-import { useDisplayStore } from '../../../store/displayStore'
+import { isAnnouncementActive, useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
@@ -262,13 +262,17 @@ function AnnouncementsSection() {
   const { announcements, addAnnouncement, removeAnnouncement } = useDisplayStore()
   const [draft, setDraft] = useState('')
   const [priority, setPriority] = useState<'normal' | 'important' | 'urgent'>('normal')
+  const [startAt, setStartAt] = useState(new Date().toISOString().split('T')[0])
+  const [endAt, setEndAt] = useState('')
   const PCOLS = { normal: '#0078d4', important: '#f7630c', urgent: '#e74856' }
 
   const add = () => {
     if (!draft.trim()) return
-    addAnnouncement(draft.trim(), priority)
+    addAnnouncement(draft.trim(), priority, { startAt: startAt || undefined, endAt: endAt || undefined })
     setDraft('')
     setPriority('normal')
+    setStartAt(new Date().toISOString().split('T')[0])
+    setEndAt('')
   }
 
   return (
@@ -281,6 +285,10 @@ function AnnouncementsSection() {
           placeholder="New announcement…"
           onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') add() }}
         />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input label="Starts" type="date" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+          <Input label="Ends" type="date" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
+        </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {(['normal', 'important', 'urgent'] as const).map((p) => (
@@ -306,11 +314,14 @@ function AnnouncementsSection() {
           <div key={a.id} className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] group">
             <div className="w-2 h-2 rounded-full mt-1 flex-shrink-0" style={{ background: PCOLS[a.priority] }} />
             <p className="flex-1 text-sm text-[var(--text)]">{a.text}</p>
+            <span className="text-[10px] text-[var(--text-tertiary)]">
+              {a.startAt || 'Now'} - {a.endAt || 'No end'}
+            </span>
             <span
               className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 capitalize"
               style={{ background: `${PCOLS[a.priority]}20`, color: PCOLS[a.priority] }}
             >
-              {a.priority}
+              {isAnnouncementActive(a) ? a.priority : 'scheduled'}
             </span>
             <button
               onClick={() => removeAnnouncement(a.id)}
@@ -726,12 +737,10 @@ function ReportSection() {
   const { goals } = useGoalsStore()
   const { companyName, storeNumber } = useDisplayStore()
   const { storeId } = useUiStore()
-  const currentMonth = new Date().toISOString().slice(0, 7)
   const snapshotGoals = goals.filter((goal) => goal.category === SNAPSHOT_CATEGORY && snapshotKey(goal))
   const months = Array.from(new Set(
     snapshotGoals.flatMap((goal) => Object.keys(goal.dailyLog ?? {}).map((day) => day.slice(0, 7)))
   ))
-    .filter((month) => month < currentMonth)
     .sort()
     .reverse()
   const [selectedMonth, setSelectedMonth] = useState(months[0] ?? '')
@@ -750,6 +759,17 @@ function ReportSection() {
         day.startsWith(selectedMonth) ? sum + (Number(value) || 0) : sum
       ), 0)
       return { ...meta, total }
+    })
+    const metricKeys = Object.keys(REPORT_METRICS)
+    const dailyDates = Array.from(new Set(
+      snapshotGoals.flatMap((goal) => Object.keys(goal.dailyLog ?? {}).filter((day) => day.startsWith(selectedMonth)))
+    )).sort()
+    const dailyRows = dailyDates.map((date) => {
+      const values = Object.fromEntries(metricKeys.map((key) => {
+        const goal = snapshotGoals.find((item) => snapshotKey(item) === key)
+        return [key, goal?.dailyLog?.[date] ?? 0]
+      }))
+      return { date, values }
     })
 
     const generatedAt = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
@@ -820,8 +840,25 @@ function ReportSection() {
                 `).join('')}
               </tbody>
             </table>
+            <h2>Daily Records</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  ${metricKeys.map((key) => `<th>${escapeHtml(REPORT_METRICS[key].label)}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${dailyRows.map((row) => `
+                  <tr>
+                    <td>${escapeHtml(new Date(row.date + 'T12:00:00Z').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }))}</td>
+                    ${metricKeys.map((key) => `<td>${escapeHtml(formatReportValue(Number(row.values[key]) || 0, REPORT_METRICS[key].kind))}</td>`).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
             <footer>
-              Historical MTD is calculated from saved daily snapshots. Current-month MTD resets on the first day of each month and is not included in this historical report selector.
+              MTD totals and daily records are calculated from saved daily snapshots.
             </footer>
           </main>
           <script>
@@ -844,9 +881,9 @@ function ReportSection() {
     <Section icon={<FileText size={14} />} title="Reports">
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
         <div>
-          <p className="text-sm font-semibold text-[var(--text)]">Historical MTD Report</p>
+          <p className="text-sm font-semibold text-[var(--text)]">Performance Snapshot Report</p>
           <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-            Select a completed month and open a print-ready Performance Snapshot report.
+            Select a month and open a print-ready report with MTD totals and daily records.
           </p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -1026,8 +1063,8 @@ const SECTIONS = [
 
 type SectionId = typeof SECTIONS[number]['id']
 const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'scheduling']
-const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['configuredStores']
-const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['access']
+const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['configuredStores', 'access']
+const DISTRICT_HIDDEN_SECTIONS: SectionId[] = []
 
 function isSectionId(value: string): value is SectionId {
   return SECTIONS.some((section) => section.id === value)

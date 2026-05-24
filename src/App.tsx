@@ -6,6 +6,7 @@ import { LockScreen } from './components/LockScreen'
 import { StoreLaunchScreen } from './components/StoreLaunchScreen'
 import { useUiStore } from './store/uiStore'
 import { useLockStore, hashPin } from './store/lockStore'
+import { isAnnouncementActive, useDisplayStore } from './store/displayStore'
 import { useTheme } from './hooks/useTheme'
 import { canAccessTab, defaultTabForRole } from './lib/accessControl'
 
@@ -21,6 +22,58 @@ function PageFallback() {
   return (
     <div className="h-full w-full flex items-center justify-center text-xs text-[var(--text-tertiary)]">
       Loading LunaDash...
+    </div>
+  )
+}
+
+function AnnouncementPopup() {
+  const storeId = useUiStore((s) => s.storeId)
+  const accessId = useUiStore((s) => s.accessId)
+  const accessMode = useUiStore((s) => s.accessMode)
+  const announcements = useDisplayStore((s) => s.announcements)
+  const activeAnnouncements = announcements.filter((announcement) => isAnnouncementActive(announcement))
+  const storageKey = `luna-announcements-seen:${storeId}:${accessId || 'session'}:${activeAnnouncements.map((a) => a.id).join(',')}`
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === 'undefined' || activeAnnouncements.length === 0) return true
+    return sessionStorage.getItem(storageKey) === '1'
+  })
+
+  useEffect(() => {
+    if (activeAnnouncements.length === 0 || accessMode === 'display') {
+      setDismissed(true)
+      return
+    }
+    setDismissed(sessionStorage.getItem(storageKey) === '1')
+  }, [accessMode, activeAnnouncements.length, storageKey])
+
+  if (accessMode === 'display' || dismissed || activeAnnouncements.length === 0) return null
+
+  const close = () => {
+    sessionStorage.setItem(storageKey, '1')
+    setDismissed(true)
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4">
+      <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-[var(--text)]">Store Announcements</h2>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">Active messages for this store.</p>
+          </div>
+          <button className="rounded-md px-2 py-1 text-xs text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)]" onClick={close}>
+            Close
+          </button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {activeAnnouncements.map((announcement) => (
+            <div key={announcement.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+              <div className="text-sm text-[var(--text)]">{announcement.text}</div>
+              <div className="mt-1 text-[10px] uppercase text-[var(--text-tertiary)]">{announcement.priority}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -147,11 +200,12 @@ export default function App() {
   }
 
   return (
-    <DataProvider>
+      <DataProvider>
       <AppShell activeKey={activeTab}>
         <Suspense fallback={<PageFallback />}>
           {pages[activeTab]}
         </Suspense>
+        <AnnouncementPopup />
       </AppShell>
     </DataProvider>
   )
