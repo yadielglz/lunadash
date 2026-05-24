@@ -298,13 +298,22 @@ export function TasksPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
+              className={`relative px-3 py-1.5 rounded-full text-xs font-medium transition-all capitalize ${
                 filter === f
-                  ? 'bg-[var(--accent)] border-[var(--accent)] text-white'
-                  : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)]/50'
+                  ? 'text-[var(--accent)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)]'
               }`}
             >
-              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+              {filter === f && (
+                <motion.div
+                  layoutId="activeTaskFilter"
+                  className="absolute inset-0 rounded-full bg-[var(--accent)]/15 border border-[var(--accent)]/30"
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10">
+                {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+              </span>
             </button>
           ))}
         </div>

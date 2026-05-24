@@ -89,9 +89,27 @@ function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: 
   const log = goal?.dailyLog ?? {}
   const priorMtd = mtdFromDailyLog(log, today, true)
   const savedToday = log[today]
-  const liveToday = Math.max(0, metric.value - priorMtd)
-  const todayValue = savedToday ?? liveToday
-  const snapshotState = savedToday === undefined ? 'Live Today' : 'Saved Today'
+  const liveDelta = Math.max(0, metric.value - priorMtd)
+
+  const yesterdayKey = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+  const savedYesterday = log[yesterdayKey]
+
+  let displayValue = 0
+  let snapshotState = 'Live Today'
+
+  if (savedToday !== undefined) {
+    displayValue = savedToday
+    snapshotState = 'Saved Today'
+  } else if (liveDelta > 0) {
+    displayValue = liveDelta
+    snapshotState = 'Live Today'
+  } else if (savedYesterday !== undefined) {
+    displayValue = savedYesterday
+    snapshotState = 'Yesterday'
+  } else {
+    displayValue = 0
+    snapshotState = 'Live Today'
+  }
 
   return (
     <Card className="flex min-h-[158px] flex-col justify-between !p-4">
@@ -112,8 +130,8 @@ function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: 
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Today</div>
-          <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{formatMetric(todayValue, metric.kind)}</div>
+          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Daily</div>
+          <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{formatMetric(displayValue, metric.kind)}</div>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
           <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">MTD</div>
@@ -143,6 +161,37 @@ export function GoalsPage() {
 
   const metrics = useMemo(() => sourceRow ? metricsFromRow(sourceRow) : [], [sourceRow])
 
+  const pastEoDRows = useMemo(() => {
+    const allDates = new Set<string>()
+    const snapshotGoals = goals.filter((g) => g.category === SNAPSHOT_CATEGORY)
+    snapshotGoals.forEach((g) => {
+      Object.keys(g.dailyLog ?? {}).forEach((date) => {
+        if (date !== today) allDates.add(date)
+      })
+    })
+
+    const sortedDates = Array.from(allDates).sort().reverse()
+
+    return sortedDates.map((date) => {
+      const row: Record<string, any> = { date }
+      metrics.forEach((m) => {
+        const goal = snapshotGoalForMetric(goals, m.key)
+        row[m.key] = goal?.dailyLog?.[date] ?? 0
+      })
+
+      const nrGoalObj = snapshotGoalForMetric(goals, 'netRevenue')
+      const accGoalObj = snapshotGoalForMetric(goals, 'accessoryRevenue')
+      const dortGoalObj = snapshotGoalForMetric(goals, 'totalPp')
+
+      row.nrGoal = nrGoalObj?.dailyTarget
+      row.accGoal = accGoalObj?.dailyTarget
+      row.dortGoal = dortGoalObj?.dailyTarget
+      row.postConversion = row.traffic ? Number(((row.totalPp / row.traffic) * 100).toFixed(1)) : 0
+
+      return row
+    })
+  }, [goals, metrics, today])
+
   useEffect(() => {
     if (!isLoaded || metrics.length === 0) return
     metrics.forEach((metric) => {
@@ -161,24 +210,6 @@ export function GoalsPage() {
       })
     })
   }, [addGoal, goals, isLoaded, metrics])
-
-  useEffect(() => {
-    if (new Date().getHours() < 22) return
-    metrics.forEach((metric) => {
-      const goal = snapshotGoalForMetric(goals, metric.key)
-      if (!goal) return
-      const priorMtd = mtdFromDailyLog(goal.dailyLog ?? {}, today, true)
-      const todayValue = Math.max(0, metric.value - priorMtd)
-      if (Math.round(goal.dailyLog?.[today] ?? -1) === Math.round(todayValue) && Math.round(goal.current) === Math.round(metric.value)) return
-      updateGoal(goal.id, {
-        current: metric.value,
-        dailyLog: {
-          ...(goal.dailyLog ?? {}),
-          [today]: todayValue,
-        },
-      })
-    })
-  }, [goals, metrics, today, updateGoal])
 
   const sourceUpdated = sourceQuery.data?.updatedAt
     ? new Date(sourceQuery.data.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
@@ -246,6 +277,54 @@ export function GoalsPage() {
                 today={today}
               />
             ))}
+          </div>
+        )}
+
+        {pastEoDRows.length > 0 && (
+          <div className="mt-6">
+            <h2 className="mb-3 text-lg font-semibold text-[var(--text)]">
+              Past End of Day
+            </h2>
+            <div className="overflow-hidden overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+              <table className="w-full whitespace-nowrap text-left text-sm">
+                <thead className="border-b border-[var(--border)] bg-[var(--surface-3)] text-[var(--text-secondary)]">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 text-right font-medium">Net Rev</th>
+                    <th className="px-4 py-3 text-right font-medium">NR Goal</th>
+                    <th className="px-4 py-3 text-right font-medium">Acc</th>
+                    <th className="px-4 py-3 text-right font-medium">Acc Goal</th>
+                    <th className="px-4 py-3 text-right font-medium">Total PP</th>
+                    <th className="px-4 py-3 text-right font-medium">Traffic</th>
+                    <th className="px-4 py-3 text-right font-medium">Post Conv</th>
+                    <th className="px-4 py-3 text-right font-medium">DORT Goal</th>
+                    <th className="px-4 py-3 text-right font-medium">VL</th>
+                    <th className="px-4 py-3 text-right font-medium">BTS</th>
+                    <th className="px-4 py-3 text-right font-medium">HSI</th>
+                    <th className="px-4 py-3 text-right font-medium">VISA</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)] text-[var(--text)]">
+                  {pastEoDRows.map((row) => (
+                    <tr key={row.date} className="transition-colors hover:bg-[var(--reveal-bg)]">
+                      <td className="px-4 py-3 font-medium">{new Date(row.date + 'T12:00:00Z').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatMetric(row.netRevenue || 0, 'money')}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-[var(--text-tertiary)]">{row.nrGoal ? formatMetric(row.nrGoal, 'money') : '-'}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatMetric(row.accessoryRevenue || 0, 'money')}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-[var(--text-tertiary)]">{row.accGoal ? formatMetric(row.accGoal, 'money') : '-'}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatMetric(row.totalPp || 0, 'number')}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatMetric(row.traffic || 0, 'number')}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-[var(--text-tertiary)]">{row.postConversion ? `${row.postConversion}%` : '-'}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-[var(--text-tertiary)]">{row.dortGoal ? formatMetric(row.dortGoal, 'number') : '-'}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatMetric(row.vl || 0, 'number')}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatMetric(row.bts || 0, 'number')}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatMetric(row.hsi || 0, 'number')}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{formatMetric(row.visa || 0, 'number')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

@@ -15,6 +15,10 @@ export default {
           light: '#2899f5',
           secondary: '#7c5ff5',
         },
+        tmobile: {
+          DEFAULT: '#E20074',
+          hover: '#B5005D',
+        },
       },
       borderRadius: {
         sm: '4px',
@@ -25,8 +29,8 @@ export default {
         pill: '100px',
       },
       boxShadow: {
-        card: '0 2px 8px rgba(0,0,0,0.08), 0 0 1px rgba(0,0,0,0.06)',
-        float: '0 8px 32px rgba(0,0,0,0.14), 0 0 1px rgba(0,0,0,0.08)',
+        card: '0 4px 12px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.08)',
+        float: '0 12px 40px rgba(0,0,0,0.12), 0 0 2px rgba(0,0,0,0.1)',
         modal: '0 24px 64px rgba(0,0,0,0.22), 0 0 1px rgba(0,0,0,0.1)',
       },
       animation: {

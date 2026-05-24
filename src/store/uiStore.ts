@@ -4,6 +4,7 @@ import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 
 export type Tab = 'home' | 'devices' | 'schedule' | 'goals' | 'weather' | 'display' | 'tasks' | 'settings'
 export type Theme = 'dark' | 'light'
+export type Brand = 'default' | 'tmobile'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
 export type AccessMode = 'manager' | 'display' | 'admin'
@@ -37,6 +38,7 @@ interface UiState {
   setTab: (tab: Tab) => void
   setSettingsSection: (section: string) => void
   setTheme: (theme: Theme) => void
+  setBrand: (brand: Brand) => void
   toggleTheme: () => void
   setTempUnit: (unit: TempUnit) => void
   toggleTempUnit: () => void
@@ -62,6 +64,7 @@ export const useUiStore = create<UiState>()(
     (set, get) => ({
       activeTab: 'home',
       theme: getSystemTheme(),
+      brand: 'default',
       tempUnit: 'F' as TempUnit,
       timeFormat: '12' as TimeFormat,
       storeId: '',
@@ -103,30 +106,53 @@ export const useUiStore = create<UiState>()(
       extendStoreSession: () => set((s) => s.storeId ? { sessionExpiresAt: Date.now() + SESSION_MS } : s),
       setTheme: (theme) => {
         set({ theme })
-        document.documentElement.className = theme
+        document.documentElement.classList.remove('dark', 'light')
+        document.documentElement.classList.add(theme)
+      },
+      setBrand: (brand) => {
+        set({ brand })
+        if (brand === 'tmobile') {
+          document.documentElement.style.setProperty('--accent', '#E20074')
+          document.documentElement.style.setProperty('--accent-hover', '#B5005D')
+        } else {
+          document.documentElement.style.removeProperty('--accent')
+          document.documentElement.style.removeProperty('--accent-hover')
+        }
       },
       toggleTheme: () => {
         const next = get().theme === 'dark' ? 'light' : 'dark'
         set({ theme: next })
-        document.documentElement.className = next
+        document.documentElement.classList.remove('dark', 'light')
+        document.documentElement.classList.add(next)
       },
       setEditingWidgets: (v) => set({ isEditingWidgets: v }),
     }),
     {
       name: 'luna-ui',
       version: 2,
-      partialize: (s) => ({ theme: s.theme, tempUnit: s.tempUnit, timeFormat: s.timeFormat, activeTab: s.activeTab }),
+      partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, activeTab: s.activeTab }),
       migrate: (persisted) => {
         const state = persisted as Partial<UiState> | undefined
         return {
           activeTab: state?.activeTab ?? 'home',
           theme: state?.theme ?? getSystemTheme(),
+          brand: state?.brand ?? 'default',
           tempUnit: state?.tempUnit ?? 'F',
           timeFormat: state?.timeFormat ?? '12',
         }
       },
       onRehydrateStorage: () => (state) => {
-        if (state) document.documentElement.className = state.theme
+        if (state) {
+          document.documentElement.classList.remove('dark', 'light')
+          document.documentElement.classList.add(state.theme)
+          if (state.brand === 'tmobile') {
+            document.documentElement.style.setProperty('--accent', '#E20074')
+            document.documentElement.style.setProperty('--accent-hover', '#B5005D')
+          } else {
+            document.documentElement.style.removeProperty('--accent')
+            document.documentElement.style.removeProperty('--accent-hover')
+          }
+        }
       },
     }
   )
