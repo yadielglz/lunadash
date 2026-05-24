@@ -55,23 +55,25 @@ function LeaderCard({ row, metric, value, rank }: { row: PerformanceRow; metric:
   const rankColor = rank === 1 ? '#f7b731' : rank === 2 ? '#00b7c3' : '#7c5ff5'
 
   return (
-    <Card
-      className="relative flex min-h-[126px] flex-col justify-between overflow-hidden border-[var(--border-strong)] !p-4"
-      style={{ boxShadow: `inset 4px 0 0 ${rankColor}` }}
+    <div
+      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-2"
+      style={{ boxShadow: `inset 3px 0 0 ${rankColor}` }}
     >
-      <div className="absolute right-3 top-3 text-5xl font-black leading-none text-[var(--text)] opacity-[0.04]">#{rank}</div>
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-[var(--text)]">{row.teamName || row.store}</div>
-          <div className="mt-0.5 text-xs text-[var(--text-tertiary)]">{row.storeCode}</div>
+      <div
+        className="flex h-7 w-7 items-center justify-center rounded-md text-xs font-black text-white"
+        style={{ background: rankColor }}
+      >
+        {rank}
+      </div>
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-xs font-semibold text-[var(--text)]">{row.teamName || row.store}</span>
+          <span className="flex-shrink-0 text-[10px] text-[var(--text-tertiary)]">{row.storeCode}</span>
         </div>
-        <Badge color={rankColor}>Rank #{rank}</Badge>
+        <div className="mt-0.5 text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{metric}</div>
       </div>
-      <div className="relative">
-        <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{metric}</div>
-        <div className="mt-1 text-2xl font-semibold text-[var(--text)] tabular-nums">{value}</div>
-      </div>
-    </Card>
+      <div className="text-right text-sm font-semibold tabular-nums text-[var(--text)]">{value}</div>
+    </div>
   )
 }
 
@@ -361,44 +363,44 @@ export function PerformancePage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 xl:grid-cols-3">
               <Card noPadding className="overflow-hidden">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
                   <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-                    <Trophy size={16} className="text-[#f7b731]" />
+                    <Trophy size={15} className="text-[#f7b731]" />
                     Net Revenue Leaders
                   </div>
                   <span className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Top 3</span>
                 </div>
-                <div className="grid gap-3 p-3">
+                <div className="grid gap-1.5 p-2">
                   {leaders.netRevenue.map((row, index) => (
                     <LeaderCard key={row.store} row={row} rank={index + 1} metric="Net Revenue" value={formatMoney(row.netRevenue)} />
                   ))}
                 </div>
               </Card>
               <Card noPadding className="overflow-hidden">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
                   <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-                    <Trophy size={16} className="text-[#00b7c3]" />
+                    <Trophy size={15} className="text-[#00b7c3]" />
                     Accessory Leaders
                   </div>
                   <span className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Top 3</span>
                 </div>
-                <div className="grid gap-3 p-3">
+                <div className="grid gap-1.5 p-2">
                   {leaders.accessories.map((row, index) => (
                     <LeaderCard key={row.store} row={row} rank={index + 1} metric="ACC" value={formatMoney(row.accessoryRevenue)} />
                   ))}
                 </div>
               </Card>
               <Card noPadding className="overflow-hidden">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
                   <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-                    <Trophy size={16} className="text-[#16c60c]" />
+                    <Trophy size={15} className="text-[#16c60c]" />
                     PP Leaders
                   </div>
                   <span className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Top 3</span>
                 </div>
-                <div className="grid gap-3 p-3">
+                <div className="grid gap-1.5 p-2">
                   {leaders.pp.map((row, index) => (
                     <LeaderCard key={row.store} row={row} rank={index + 1} metric="Total PP" value={formatNumber(row.totalPp)} />
                   ))}

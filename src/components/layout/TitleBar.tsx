@@ -68,8 +68,12 @@ function EditableField({
 
 function WeatherStatus() {
   const { data, isLoading, isError } = useWeather(undefined, { useGeolocation: false })
-  const { setTab } = useUiStore()
+  const { setTab, setSettingsSection } = useUiStore()
   const { fmt, unit } = useTempDisplay()
+  const openWeatherSettings = () => {
+    setSettingsSection('weather')
+    setTab('settings')
+  }
 
   if (isLoading) {
     return (
@@ -83,9 +87,9 @@ function WeatherStatus() {
   if (isError || !data) {
     return (
       <button
-        onClick={() => setTab('weather')}
+        onClick={openWeatherSettings}
         className="hidden h-7 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-tertiary)] transition-colors hover:text-[var(--text)] sm:flex"
-        title="Open weather"
+        title="Open weather settings"
       >
         <CloudSun size={13} />
         <span>Set weather</span>
@@ -98,9 +102,9 @@ function WeatherStatus() {
 
   return (
     <button
-      onClick={() => setTab('weather')}
+      onClick={openWeatherSettings}
       className="flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text)]"
-      title={weather.label}
+      title={`${weather.label} - open weather settings`}
     >
       <span className="text-sm leading-none">{weather.icon}</span>
       <span className="tabular-nums text-[var(--text)]">{fmt(cw.temperature)}{unit}</span>

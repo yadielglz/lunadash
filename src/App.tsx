@@ -14,7 +14,6 @@ const SalesHomeDashboard = lazy(() => import('./components/features/performance/
 const DevicesPage = lazy(() => import('./components/features/devices/DevicesPage').then((m) => ({ default: m.DevicesPage })))
 const SchedulePage = lazy(() => import('./components/features/scheduling/SchedulePage').then((m) => ({ default: m.SchedulePage })))
 const GoalsPage = lazy(() => import('./components/features/goals/GoalsPage').then((m) => ({ default: m.GoalsPage })))
-const WeatherPage = lazy(() => import('./components/features/weather/WeatherPage').then((m) => ({ default: m.WeatherPage })))
 const DisplayPage = lazy(() => import('./components/features/screendisplay/DisplayPage').then((m) => ({ default: m.DisplayPage })))
 const SettingsPage = lazy(() => import('./components/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 
@@ -144,7 +143,6 @@ export default function App() {
     devices:  devicesContent,
     schedule: <SchedulePage />,
     goals:    <GoalsPage />,
-    weather:  <WeatherPage />,
     settings: <SettingsPage />,
   }
 

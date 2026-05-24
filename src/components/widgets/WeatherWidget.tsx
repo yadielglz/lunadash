@@ -8,14 +8,18 @@ import { useTempDisplay } from '../../hooks/useTempDisplay'
 
 export function WeatherWidget() {
   const { data, isLoading, isError } = useWeather()
-  const { setTab, toggleTempUnit } = useUiStore()
+  const { setTab, setSettingsSection, toggleTempUnit } = useUiStore()
   const { fmt, unit } = useTempDisplay()
+  const openWeatherSettings = () => {
+    setSettingsSection('weather')
+    setTab('settings')
+  }
 
   return (
     <Card
       className="h-full flex flex-col justify-between cursor-pointer group !p-5"
       interactive
-      onClick={() => setTab('weather')}
+      onClick={openWeatherSettings}
     >
       {isLoading && (
         <div className="h-full flex flex-col gap-3">
@@ -30,7 +34,7 @@ export function WeatherWidget() {
           <span className="text-2xl">📡</span>
           <p className="text-xs text-[var(--text-secondary)]">Allow location for weather</p>
           <button
-            onClick={(e) => { e.stopPropagation(); setTab('weather') }}
+            onClick={(e) => { e.stopPropagation(); openWeatherSettings() }}
             className="text-xs text-[var(--accent)] underline"
           >
             Set location

@@ -3,6 +3,28 @@
 @tailwind utilities;
 
 @font-face {
+  font-family: 'Google Sans';
+  src:
+    local('Google Sans'),
+    local('GoogleSans-Regular'),
+    local('Product Sans');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Google Sans';
+  src:
+    local('Google Sans Medium'),
+    local('GoogleSans-Medium'),
+    local('Product Sans Medium');
+  font-weight: 500 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'GoogleSans';
   src:
     local('Google Sans'),
@@ -28,8 +50,8 @@
    FLAT MODERN DESIGN TOKENS
    ============================================================ */
 :root {
-  --font-display: 'GoogleSans', 'Google Sans', 'Google Sans Text', 'Google Sans Flex', 'Product Sans', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
-  --font-text: 'GoogleSans', 'Google Sans', 'Google Sans Text', 'Google Sans Flex', 'Product Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Google Sans', 'GoogleSans', 'Google Sans Display', 'Google Sans Text', 'Google Sans Flex', 'Product Sans', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --font-text: 'Google Sans', 'GoogleSans', 'Google Sans Text', 'Google Sans Flex', 'Product Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
   --app-wallpaper: url('https://i.ibb.co/39JLm174/Wall.png');
 
   --accent: #0f7ad8;
@@ -127,7 +149,7 @@
 
 html {
   height: 100%;
-  font-family: var(--font-text);
+  font-family: var(--font-text) !important;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -136,7 +158,7 @@ html {
 body {
   margin: 0;
   height: 100%;
-  font-family: var(--font-text);
+  font-family: var(--font-text) !important;
   background: var(--bg-gradient);
   color: var(--text);
   overflow: hidden;
@@ -148,6 +170,7 @@ input,
 textarea,
 select {
   font: inherit;
+  font-family: var(--font-text) !important;
 }
 
 h1,
@@ -156,7 +179,11 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-display);
+  font-family: var(--font-display) !important;
+}
+
+body *:not(svg):not(path) {
+  font-family: var(--font-text) !important;
 }
 
 body::before,

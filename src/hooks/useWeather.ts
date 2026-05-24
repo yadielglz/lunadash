@@ -6,6 +6,7 @@ interface Coords { lat: number; lon: number }
 interface WeatherOptions { useGeolocation?: boolean }
 
 const WEATHER_COORDS_KEY = 'luna-weather-coords'
+const WEATHER_COORDS_EVENT = 'luna-weather-coords-change'
 const DEFAULT_COORDS: Coords = { lat: 33.4484, lon: -112.0740 }
 
 function readCachedCoords(): Coords | null {
@@ -20,17 +21,29 @@ function readCachedCoords(): Coords | null {
   }
 }
 
-function writeCachedCoords(coords: Coords) {
+export function writeCachedWeatherCoords(coords: Coords) {
   try {
     localStorage.setItem(WEATHER_COORDS_KEY, JSON.stringify(coords))
   } catch {
     // Weather should still work if storage is unavailable.
   }
+  window.dispatchEvent(new CustomEvent<Coords>(WEATHER_COORDS_EVENT, { detail: coords }))
 }
 
 function useGeolocation(enabled = true) {
   const [coords, setCoords] = useState<Coords | null>(() => readCachedCoords())
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handleCoordsChange = (event: Event) => {
+      const nextCoords = (event as CustomEvent<Coords>).detail
+      if (typeof nextCoords?.lat !== 'number' || typeof nextCoords?.lon !== 'number') return
+      setCoords(nextCoords)
+    }
+
+    window.addEventListener(WEATHER_COORDS_EVENT, handleCoordsChange)
+    return () => window.removeEventListener(WEATHER_COORDS_EVENT, handleCoordsChange)
+  }, [])
 
   useEffect(() => {
     if (!enabled) return
@@ -42,7 +55,7 @@ function useGeolocation(enabled = true) {
       (pos) => {
         const nextCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude }
         setCoords(nextCoords)
-        writeCachedCoords(nextCoords)
+        writeCachedWeatherCoords(nextCoords)
       },
       () => setError('Location denied'),
       { maximumAge: 30 * 60 * 1000, timeout: 3000 }

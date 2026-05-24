@@ -1,25 +1,35 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Search, Wind, Droplets, Thermometer, MapPin } from 'lucide-react'
-import { useWeather, useGeocode } from '../../../hooks/useWeather'
+import { useQueryClient } from '@tanstack/react-query'
+import { AlertTriangle, Search, Wind, Droplets, Thermometer, MapPin, RefreshCw } from 'lucide-react'
+import { useWeather, useGeocode, writeCachedWeatherCoords } from '../../../hooks/useWeather'
 import { formatWeatherTimezone, getWeatherInfo, getWindDirection, type GeocodingResult } from '../../../lib/openMeteo'
 import { useTempDisplay } from '../../../hooks/useTempDisplay'
 import { format } from 'date-fns'
 import { Input } from '../../ui/Input'
 import { Card } from '../../ui/Card'
+import { Button } from '../../ui/Button'
 
 export function WeatherPage() {
+  const queryClient = useQueryClient()
   const [citySearch, setCitySearch] = useState('')
   const [manualCoords, setManualCoords] = useState<{ lat: number; lon: number } | undefined>()
   const [locationName, setLocationName] = useState<string | null>(null)
   const { data: geoResults } = useGeocode(citySearch)
-  const { data, isLoading, isError } = useWeather(manualCoords)
+  const { data, isLoading, isError, isFetching, refetch } = useWeather(manualCoords)
   const { fmt, unit, toggleTempUnit } = useTempDisplay()
 
   const selectCity = (result: GeocodingResult) => {
-    setManualCoords({ lat: result.latitude, lon: result.longitude })
+    const coords = { lat: result.latitude, lon: result.longitude }
+    setManualCoords(coords)
+    writeCachedWeatherCoords(coords)
     setLocationName(`${result.name}, ${result.country}`)
     setCitySearch('')
+  }
+
+  const refreshWeather = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['weather'] })
+    await refetch()
   }
 
   const cw = data?.current_weather
@@ -33,15 +43,26 @@ export function WeatherPage() {
       <div className="px-4 pt-4 pb-3 border-b border-[var(--border)]">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h1 className="text-xl font-semibold text-[var(--text)]">🌤️ Weather</h1>
-          {/* °F / °C toggle */}
-          <button
-            onClick={toggleTempUnit}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-pill border border-[var(--border)] bg-[var(--surface-2)] text-sm font-semibold text-[var(--accent)] hover:bg-[var(--surface-3)] hover:border-[var(--accent)]/40 transition-colors"
-            title="Toggle temperature unit"
-          >
-            <Thermometer size={13} />
-            {unit}
-          </button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />}
+              onClick={refreshWeather}
+              loading={isFetching}
+            >
+              Refresh
+            </Button>
+            {/* °F / °C toggle */}
+            <button
+              onClick={toggleTempUnit}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-pill border border-[var(--border)] bg-[var(--surface-2)] text-sm font-semibold text-[var(--accent)] hover:bg-[var(--surface-3)] hover:border-[var(--accent)]/40 transition-colors"
+              title="Toggle temperature unit"
+            >
+              <Thermometer size={13} />
+              {unit}
+            </button>
+          </div>
         </div>
         <div className="relative max-w-sm">
           <Input

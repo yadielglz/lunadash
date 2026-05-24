@@ -24,7 +24,9 @@ interface UiState {
   needsOnboarding: boolean
   sessionExpiresAt: number | null
   isEditingWidgets: boolean
+  settingsSection: string
   setTab: (tab: Tab) => void
+  setSettingsSection: (section: string) => void
   setTheme: (theme: Theme) => void
   toggleTheme: () => void
   setTempUnit: (unit: TempUnit) => void
@@ -62,7 +64,9 @@ export const useUiStore = create<UiState>()(
       needsOnboarding: false,
       sessionExpiresAt: null,
       isEditingWidgets: false,
+      settingsSection: 'general',
       setTab: (tab) => set({ activeTab: tab }),
+      setSettingsSection: (section) => set({ settingsSection: section }),
       setTempUnit: (unit) => set({ tempUnit: unit }),
       toggleTempUnit: () => set((s) => ({ tempUnit: s.tempUnit === 'C' ? 'F' : 'C' })),
       setTimeFormat: (fmt) => set({ timeFormat: fmt }),

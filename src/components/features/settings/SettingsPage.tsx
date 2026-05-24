@@ -18,6 +18,7 @@ import { APP_META } from '../../../config/appMeta'
 import { SyncArea, useSyncStore } from '../../../store/syncStore'
 import { AccessRole } from '../../../store/uiStore'
 import { hashPin } from '../../../store/lockStore'
+import { WeatherPage } from '../weather/WeatherPage'
 
 // ── Section wrapper ──────────────────────────────────────────────────────────
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
@@ -704,7 +705,7 @@ function ReportSection() {
           <title>${escapeHtml(monthLabel(selectedMonth))} Performance Snapshot</title>
           <style>
             * { box-sizing: border-box; }
-            body { margin: 0; color: #111827; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f8fb; }
+            body { margin: 0; color: #111827; font-family: "Google Sans", GoogleSans, "Google Sans Text", "Google Sans Flex", "Product Sans", "Segoe UI", system-ui, sans-serif; background: #f7f8fb; }
             main { width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.55in; background: white; }
             header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 18px; }
             h1 { margin: 0; font-size: 26px; letter-spacing: 0; }
@@ -1210,6 +1211,7 @@ function AccessSection() {
 // ── Sidebar nav ───────────────────────────────────────────────────────────────
 const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
+  { id: 'weather',       label: 'Weather',       icon: <Cloud size={14} /> },
   { id: 'store',         label: 'Store Details',  icon: <Store size={14} /> },
   { id: 'configuredStores', label: 'Configured Stores', icon: <Store size={14} /> },
   { id: 'reports',       label: 'Reports',        icon: <FileText size={14} /> },
@@ -1223,12 +1225,23 @@ const SECTIONS = [
 
 type SectionId = typeof SECTIONS[number]['id']
 
+function isSectionId(value: string): value is SectionId {
+  return SECTIONS.some((section) => section.id === value)
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function SettingsPage() {
-  const [active, setActive] = useState<SectionId>('general')
+  const requestedSection = useUiStore((state) => state.settingsSection)
+  const setSettingsSection = useUiStore((state) => state.setSettingsSection)
+  const [active, setActive] = useState<SectionId>(isSectionId(requestedSection) ? requestedSection : 'general')
+
+  useEffect(() => {
+    if (isSectionId(requestedSection)) setActive(requestedSection)
+  }, [requestedSection])
 
   const content: Record<SectionId, React.ReactNode> = {
     general:       <GeneralSection />,
+    weather:       <WeatherPage />,
     store:         <StoreSection />,
     configuredStores: <ConfiguredStoresSection />,
     reports:       <ReportSection />,
@@ -1247,7 +1260,10 @@ export function SettingsPage() {
         {SECTIONS.map((s) => (
           <button
             key={s.id}
-            onClick={() => setActive(s.id)}
+            onClick={() => {
+              setActive(s.id)
+              setSettingsSection(s.id)
+            }}
             className={`flex items-center gap-2.5 sm:mx-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left whitespace-nowrap ${
               active === s.id
                 ? 'bg-[var(--accent)]/12 text-[var(--accent)]'

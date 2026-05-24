@@ -26,8 +26,8 @@ const ROLE_COPY: Record<AccessRole, Step[]> = {
     {
       kicker: 'Start Here',
       title: 'Dashboard first, settings when needed.',
-      body: 'Daily work lives on Dashboard, Schedule, Performance, and Weather. System setup lives quietly in Settings.',
-      bullets: ['Use the dashboard for current store health.', 'Use Settings to manage users, stores, schedule blocks, and sync.'],
+      body: 'Daily work lives on Dashboard, Schedule, and Performance. System setup lives quietly in Settings.',
+      bullets: ['Use the dashboard for current store health.', 'Use Settings to manage users, weather, stores, schedule blocks, and sync.'],
       icon: <LayoutDashboard size={22} />,
     },
     {
@@ -42,7 +42,7 @@ const ROLE_COPY: Record<AccessRole, Step[]> = {
     {
       kicker: 'Welcome to LunaDash',
       title: 'Your store workspace is ready.',
-      body: 'This manager session is built for the daily rhythm of the store: dashboard, schedule, performance, and weather.',
+      body: 'This manager session is built for the daily rhythm of the store: dashboard, schedule, and performance.',
       bullets: ['Open Dashboard for the day’s pulse.', 'Use Schedule to keep the team aligned.'],
       icon: <Sparkles size={22} />,
     },
@@ -73,7 +73,7 @@ const ROLE_COPY: Record<AccessRole, Step[]> = {
       kicker: 'Daily Flow',
       title: 'Use it like a quick station.',
       body: 'Check the dashboard, review the schedule, and stay aware of store performance for the day.',
-      bullets: ['Performance is the first thing to watch.', 'Weather helps with store planning.'],
+      bullets: ['Performance is the first thing to watch.', 'Weather lives in Settings when store planning needs it.'],
       icon: <LayoutDashboard size={22} />,
     },
     {
