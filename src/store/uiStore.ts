@@ -23,6 +23,7 @@ const SESSION_MS = 2 * 60 * 1000
 interface UiState {
   activeTab: Tab
   theme: Theme
+  brand: Brand
   tempUnit: TempUnit
   timeFormat: TimeFormat
   storeId: string          // unique per-store key, shared across all devices in that store

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Power, Tv2, FileText, Printer, Smartphone
+  Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
@@ -16,7 +16,7 @@ import { Button } from '../../ui/Button'
 import { APP_META } from '../../../config/appMeta'
 import { SyncArea, useSyncStore } from '../../../store/syncStore'
 import { WeatherPage } from '../weather/WeatherPage'
-import { normalizeAccessCode, normalizeStoreId } from '../../../lib/storeIds'
+import { normalizeStoreId } from '../../../lib/storeIds'
 import { Section, Row, Segment } from './SettingsLayout'
 import { AccessSection } from './AccessSection'
 
