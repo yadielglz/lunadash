@@ -13,8 +13,11 @@ type SnapshotRow = {
   storeCode: string
   teamName: string
   traffic: number
+  netRevenueGoal: number
   netRevenue: number
+  accessoryGoal: number
   accessoryRevenue: number
+  dortGoal: number
   totalPp: number
   vl: number
   bts: number
@@ -63,14 +66,28 @@ function rowFromCsv(row: CsvRow): SnapshotRow {
     storeCode,
     teamName,
     traffic: parseNumber(cell(row, 2)),
+    netRevenueGoal: parseNumber(cell(row, 4)),
     netRevenue: parseNumber(cell(row, 5)),
+    accessoryGoal: parseNumber(cell(row, 7)),
     accessoryRevenue: parseNumber(cell(row, 8)),
+    dortGoal: parseNumber(cell(row, 10)),
     totalPp: parseNumber(cell(row, 11)),
     vl: parseNumber(cell(row, 13)),
     bts: parseNumber(cell(row, 14)),
     hsi: parseNumber(cell(row, 15)),
     visa: parseNumber(cell(row, 16)),
   }
+}
+
+function goalValueForMetric(row: SnapshotRow | null, metricKey: string | null) {
+  if (!row || !metricKey) return 0
+  if (metricKey === 'netRevenue') return row.netRevenueGoal
+  if (metricKey === 'accessoryRevenue') return row.accessoryGoal
+  if (metricKey === 'totalPp') return row.dortGoal
+  if (metricKey === 'vl') return row.dortGoal * 0.5
+  if (metricKey === 'bts') return row.dortGoal * 0.4
+  if (metricKey === 'hsi') return row.dortGoal * 0.1
+  return 0
 }
 
 async function fetchSnapshotRows() {
@@ -177,6 +194,7 @@ Deno.serve(async (_req: Request) => {
         .from('goals')
         .update({
           current_val: liveValue,
+          daily_target: goalValueForMetric(matchedRow, metricKey),
           daily_log: { ...log, [today]: Math.max(0, liveValue - priorMtd) },
         })
         .eq('id', goal.id)

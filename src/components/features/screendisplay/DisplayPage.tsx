@@ -11,7 +11,7 @@ import { isAnnouncementActive, useDisplayStore } from '../../../store/displaySto
 import { useUiStore } from '../../../store/uiStore'
 import { getWeatherInfo } from '../../../lib/openMeteo'
 import { formatShiftTime, hexToRgba } from '../../../lib/utils'
-import { fetchPerformanceData } from '../../../lib/performanceSheet'
+import { fetchPerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
 
 // T-Mobile magenta palette
 const MG  = '#E20074'       // primary magenta
@@ -464,6 +464,127 @@ function DistrictOutlookSlide() {
 }
 
 // ── Slide: Announcements ──────────────────────────────────────────────────────
+type LeaderboardMetric = {
+  title: string
+  subtitle: string
+  metricLabel: string
+  value: (row: PerformanceRow) => number
+  goalValue?: (row: PerformanceRow) => number
+  progress?: (row: PerformanceRow) => number
+  formatValue: (value: number) => string
+}
+
+function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['display-performance-source'],
+    queryFn: fetchPerformanceData,
+    staleTime: 55_000,
+    refetchInterval: 60_000,
+  })
+  const rows = (data?.rows ?? [])
+    .filter((row) => row.store.toLowerCase() !== 'total')
+    .sort((a, b) => metric.value(b) - metric.value(a))
+    .slice(0, 5)
+
+  return (
+    <div className="flex flex-col items-center h-full pt-[3.5vh] pb-[2vh] px-[4vw] gap-4 select-none">
+      <div className="flex flex-col items-center gap-1 flex-shrink-0">
+        <h2 className="text-[2.8vw] font-black text-white tracking-tight">{metric.title}</h2>
+        <p className="text-[1.2vw]" style={{ color: MG }}>{metric.subtitle}</p>
+      </div>
+
+      <div className="flex-1 w-full max-w-6xl overflow-hidden">
+        {isLoading ? (
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">Loading leaderboard...</div>
+        ) : rows.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">No Source rows available</div>
+        ) : (
+          <div className="grid h-full grid-rows-5 gap-[1vh]">
+            {rows.map((row, index) => {
+              const progress = metric.progress?.(row)
+              const goal = metric.goalValue?.(row)
+
+              return (
+                <div
+                  key={row.store}
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[1.2vw] rounded-2xl px-[1.4vw] py-[1vh]"
+                  style={{
+                    background: index === 0 ? `${MG}18` : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${index === 0 ? `${MG}45` : 'rgba(255,255,255,0.08)'}`,
+                  }}
+                >
+                  <div
+                    className="flex h-[3.4vw] w-[3.4vw] items-center justify-center rounded-xl text-[1.45vw] font-black text-white"
+                    style={{ background: index === 0 ? MG : 'rgba(255,255,255,0.12)' }}
+                  >
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-[1.65vw] font-black text-white">{row.teamName || row.store}</div>
+                    <div className="mt-[0.25vh] flex items-center gap-[0.7vw] text-[0.95vw] text-white/35">
+                      <span>Store {row.storeCode}</span>
+                      <span className="text-white/15">|</span>
+                      <span>Traffic {formatNumber(row.traffic)}</span>
+                    </div>
+                  </div>
+                  <div className="min-w-[18vw] text-right">
+                    <div className="text-[2.2vw] font-black text-white tabular-nums">{metric.formatValue(metric.value(row))}</div>
+                    <div className="mt-[0.3vh] text-[0.85vw]" style={{ color: progress !== undefined && progress >= 100 ? MG : 'rgba(255,255,255,0.35)' }}>
+                      {progress !== undefined
+                        ? progress >= 100 ? 'Goal Met' : `${Math.round(progress)}% to goal`
+                        : metric.metricLabel}
+                    </div>
+                    {goal !== undefined && goal > 0 && (
+                      <div className="mt-[0.55vh] h-[0.55vh] overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${Math.min(progress ?? 0, 100)}%`, background: MG }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PostPaidLeaderboardSlide() {
+  return (
+    <PerformanceLeaderboardSlide
+      metric={{
+        title: 'Post Paid Leaderboard',
+        subtitle: 'Top 5 by Post Paid Activations',
+        metricLabel: 'PP Activations',
+        value: (row) => row.totalPp,
+        goalValue: (row) => row.dortGoal,
+        progress: (row) => row.ppPct,
+        formatValue: formatNumber,
+      }}
+    />
+  )
+}
+
+function AccessoriesLeaderboardSlide() {
+  return (
+    <PerformanceLeaderboardSlide
+      metric={{
+        title: 'Accessories Leaderboard',
+        subtitle: 'Top 5 by Accessory Revenue',
+        metricLabel: "Acc's",
+        value: (row) => row.accessoryRevenue,
+        goalValue: (row) => row.accessoryGoal,
+        progress: (row) => row.accessoryPct,
+        formatValue: formatMoney,
+      }}
+    />
+  )
+}
+
 function AnnouncementsSlide() {
   const { announcements } = useDisplayStore()
   const activeAnnouncements = announcements.filter((announcement) => isAnnouncementActive(announcement))
@@ -520,6 +641,8 @@ const SLIDES = [
   { key: 'sched',    label: 'Schedule',       component: ScheduleSlide },
   { key: 'outlook',  label: 'Outlook',        component: ScheduleOutlookSlide },
   { key: 'district', label: 'District',       component: DistrictOutlookSlide },
+  { key: 'pp',       label: 'PP',             component: PostPaidLeaderboardSlide },
+  { key: 'acc',      label: "Acc's",          component: AccessoriesLeaderboardSlide },
   { key: 'announce', label: 'Announcements',  component: AnnouncementsSlide },
 ]
 

@@ -17,6 +17,7 @@ type SnapshotMetric = {
   key: string
   label: string
   value: number
+  goal: number
   kind: SnapshotKind
   color: string
   icon: React.ReactNode
@@ -74,14 +75,14 @@ function formatMetric(value: number, kind: SnapshotKind) {
 
 function metricsFromRow(row: PerformanceRow): SnapshotMetric[] {
   return [
-    { key: 'netRevenue', label: 'Net Revenue', value: row.netRevenue, kind: 'money', color: '#16c60c', icon: <DollarSign size={16} /> },
-    { key: 'accessoryRevenue', label: 'Accessories', value: row.accessoryRevenue, kind: 'money', color: '#00b7c3', icon: <Package size={16} /> },
-    { key: 'totalPp', label: 'Total PP', value: row.totalPp, kind: 'number', color: '#7c5ff5', icon: <Target size={16} /> },
-    { key: 'traffic', label: 'Traffic', value: row.traffic, kind: 'number', color: '#f7b731', icon: <Users size={16} /> },
-    { key: 'vl', label: 'Voice Lines', value: row.vl, kind: 'number', color: '#0f7ad8', icon: <Smartphone size={16} /> },
-    { key: 'bts', label: 'BTS', value: row.bts, kind: 'number', color: '#f7630c', icon: <Activity size={16} /> },
-    { key: 'hsi', label: 'HSI', value: row.hsi, kind: 'number', color: '#e3008c', icon: <TrendingUp size={16} /> },
-    { key: 'visa', label: 'VISA', value: row.visa, kind: 'number', color: '#e74856', icon: <BarChart3 size={16} /> },
+    { key: 'netRevenue', label: 'Net Revenue', value: row.netRevenue, goal: row.netRevenueGoal, kind: 'money', color: '#16c60c', icon: <DollarSign size={16} /> },
+    { key: 'accessoryRevenue', label: 'Accessories', value: row.accessoryRevenue, goal: row.accessoryGoal, kind: 'money', color: '#00b7c3', icon: <Package size={16} /> },
+    { key: 'totalPp', label: 'Total PP', value: row.totalPp, goal: row.dortGoal, kind: 'number', color: '#7c5ff5', icon: <Target size={16} /> },
+    { key: 'traffic', label: 'Traffic', value: row.traffic, goal: 0, kind: 'number', color: '#f7b731', icon: <Users size={16} /> },
+    { key: 'vl', label: 'Voice Lines', value: row.vl, goal: row.dortGoal * 0.5, kind: 'number', color: '#0f7ad8', icon: <Smartphone size={16} /> },
+    { key: 'bts', label: 'BTS', value: row.bts, goal: row.dortGoal * 0.4, kind: 'number', color: '#f7630c', icon: <Activity size={16} /> },
+    { key: 'hsi', label: 'HSI', value: row.hsi, goal: row.dortGoal * 0.1, kind: 'number', color: '#e3008c', icon: <TrendingUp size={16} /> },
+    { key: 'visa', label: 'VISA', value: row.visa, goal: 0, kind: 'number', color: '#e74856', icon: <BarChart3 size={16} /> },
   ]
 }
 
@@ -90,6 +91,7 @@ function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: 
   const priorMtd = mtdFromDailyLog(log, today, true)
   const savedToday = log[today]
   const liveDelta = Math.max(0, metric.value - priorMtd)
+  const todayGoal = Math.max(0, metric.goal)
 
   const yesterdayKey = new Date(Date.now() - 86400000).toISOString().split('T')[0]
   const savedYesterday = log[yesterdayKey]
@@ -110,9 +112,13 @@ function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: 
     displayValue = 0
     snapshotState = 'Live Today'
   }
+  const goalGap = todayGoal > 0 ? displayValue - todayGoal : null
+  const goalGapLabel = goalGap === null
+    ? '-'
+    : `${goalGap >= 0 ? '+' : '-'}${formatMetric(Math.abs(goalGap), metric.kind)}`
 
   return (
-    <Card className="flex min-h-[158px] flex-col justify-between !p-4">
+    <Card className="flex min-h-[218px] flex-col justify-between !p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -121,21 +127,31 @@ function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: 
             </span>
             <div className="min-w-0">
               <h2 className="truncate text-sm font-semibold text-[var(--text)]">{metric.label}</h2>
-              <p className="text-[10px] font-medium uppercase text-[var(--text-tertiary)]">Store Source</p>
+              <p className="text-[10px] font-medium uppercase text-[var(--text-tertiary)]">Store-gated Source</p>
             </div>
           </div>
         </div>
         <Badge size="sm" color={metric.color} variant="soft">{snapshotState}</Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Daily</div>
+          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">MTD Since 1st</div>
+          <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{formatMetric(metric.value, metric.kind)}</div>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Today Trend</div>
           <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{formatMetric(displayValue, metric.kind)}</div>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">MTD</div>
-          <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{formatMetric(metric.value, metric.kind)}</div>
+          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Today Goal</div>
+          <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{todayGoal > 0 ? formatMetric(todayGoal, metric.kind) : '-'}</div>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Gap</div>
+          <div className={`mt-1 text-2xl font-semibold tabular-nums ${goalGap === null ? 'text-[var(--text-tertiary)]' : goalGap >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {goalGapLabel}
+          </div>
         </div>
       </div>
     </Card>
@@ -143,7 +159,7 @@ function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: 
 }
 
 export function GoalsPage() {
-  const { goals, addGoal, isLoaded } = useGoalsStore()
+  const { goals, addGoal, updateGoal, isLoaded } = useGoalsStore()
   const { storeId, dealerCode } = useUiStore()
   const { storeNumber } = useDisplayStore()
   const today = todayKey()
@@ -195,7 +211,14 @@ export function GoalsPage() {
   useEffect(() => {
     if (!isLoaded || metrics.length === 0) return
     metrics.forEach((metric) => {
-      if (snapshotGoalForMetric(goals, metric.key)) return
+      const existingGoal = snapshotGoalForMetric(goals, metric.key)
+      if (existingGoal) {
+        const updates: Partial<Goal> = {}
+        if (existingGoal.current !== metric.value) updates.current = metric.value
+        if (existingGoal.dailyTarget !== metric.goal) updates.dailyTarget = metric.goal
+        if (Object.keys(updates).length > 0) updateGoal(existingGoal.id, updates)
+        return
+      }
       addGoal({
         title: metric.label,
         description: snapshotDescription(metric.key),
@@ -206,10 +229,10 @@ export function GoalsPage() {
         deadline: new Date().toISOString(),
         color: metric.color,
         milestones: [],
-        dailyTarget: 0,
+        dailyTarget: metric.goal,
       })
     })
-  }, [addGoal, goals, isLoaded, metrics])
+  }, [addGoal, goals, isLoaded, metrics, updateGoal])
 
   const sourceUpdated = sourceQuery.data?.updatedAt
     ? new Date(sourceQuery.data.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
@@ -230,7 +253,7 @@ export function GoalsPage() {
               <h1 className="text-xl font-semibold text-[var(--text)]">Performance Snapshot</h1>
             </div>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">
-              Read-only store snapshot from Source. Today is derived from the current MTD minus prior saved days.
+              Store-gated Source snapshot with current MTD, today's trend, daily goal, and gap.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-tertiary)]">
