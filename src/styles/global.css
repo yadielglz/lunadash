@@ -138,10 +138,6 @@ h6 {
   font-family: var(--font-display) !important;
 }
 
-body *:not(svg):not(path) {
-  font-family: var(--font-text) !important;
-}
-
 body::before,
 body::after {
   content: '';
