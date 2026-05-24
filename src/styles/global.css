@@ -2,50 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-  font-family: 'Google Sans';
-  src:
-    local('Google Sans'),
-    local('GoogleSans-Regular'),
-    local('Product Sans');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Google Sans';
-  src:
-    local('Google Sans Medium'),
-    local('GoogleSans-Medium'),
-    local('Product Sans Medium');
-  font-weight: 500 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'GoogleSans';
-  src:
-    local('Google Sans'),
-    local('GoogleSans-Regular'),
-    local('Product Sans');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'GoogleSans';
-  src:
-    local('Google Sans Medium'),
-    local('GoogleSans-Medium'),
-    local('Product Sans Medium');
-  font-weight: 500 700;
-  font-style: normal;
-  font-display: swap;
-}
-
 /* ============================================================
    FLAT MODERN DESIGN TOKENS
    ============================================================ */
