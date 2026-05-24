@@ -15,7 +15,7 @@ export interface SheetData {
 
 export async function fetchSheetData(): Promise<SheetData> {
   const res = await fetch(SHEET_CSV_URL)
-  if (!res.ok) throw new Error(`Failed to fetch sheet: ${res.statusText}`)
+  if (!res.ok) throw new Error(`Failed to fetch Source: ${res.statusText}`)
   const text = await res.text()
 
   return new Promise((resolve, reject) => {

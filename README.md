@@ -1,14 +1,13 @@
 # LunaDash
 
-LunaDash is a realtime store dashboard built with React, TypeScript, Vite, Zustand, Tailwind CSS, and Supabase. It combines daily operations, team scheduling, goals, announcements, weather, device lookup, and display-mode slides into one shared workspace.
+LunaDash is a realtime store dashboard built with React, TypeScript, Vite, Zustand, Tailwind CSS, and Supabase. It combines daily performance, team scheduling, announcements, weather, device lookup, and display-mode slides into one shared workspace.
 
 ## Features
 
-- Customizable home dashboard with draggable/resizable widgets
-- Daily checklist with categories, completion tracking, editing, and reorder controls
+- Customizable home dashboard with performance widgets
 - Weekly and monthly scheduling with employee management
 - Shift copy and reusable local schedule templates
-- Goal tracking with daily logs, monthly targets, milestones, and progress rings
+- Store-scoped Performance Snapshot with Today and MTD Source metrics
 - Store announcements for dashboard and display mode
 - Weather and time display preferences
 - Store-scoped Supabase data sync with realtime updates
@@ -81,4 +80,4 @@ with `dist` as the publish directory.
 
 - Schedule templates are stored locally in the browser under `luna-schedule-templates`.
 - Widget layouts are stored locally in the browser under `luna-widget-layouts`.
-- Supabase handles shared schedules, goals, tasks, announcements, and display settings.
+- Supabase handles shared schedules, performance snapshots, announcements, and display settings.

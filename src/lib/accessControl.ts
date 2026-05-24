@@ -1,8 +1,8 @@
 import type { AccessMode, AccessRole, Tab } from '../store/uiStore'
 
 const ROLE_TABS: Record<AccessRole, Tab[]> = {
-  admin: ['home', 'schedule', 'goals', 'weather', 'display', 'tasks', 'settings', 'devices'],
-  manager: ['home', 'schedule', 'goals', 'weather', 'tasks', 'settings'],
+  admin: ['home', 'schedule', 'goals', 'weather', 'settings', 'devices', 'display'],
+  manager: ['home', 'schedule', 'goals', 'weather', 'settings', 'display'],
   employee: ['home', 'schedule'],
   display: ['display'],
 }

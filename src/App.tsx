@@ -17,7 +17,6 @@ const GoalsPage = lazy(() => import('./components/features/goals/GoalsPage').the
 const WeatherPage = lazy(() => import('./components/features/weather/WeatherPage').then((m) => ({ default: m.WeatherPage })))
 const DisplayPage = lazy(() => import('./components/features/screendisplay/DisplayPage').then((m) => ({ default: m.DisplayPage })))
 const SettingsPage = lazy(() => import('./components/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
-const TasksPage = lazy(() => import('./components/features/tasks/TasksPage').then((m) => ({ default: m.TasksPage })))
 
 function PageFallback() {
   return (
@@ -146,7 +145,6 @@ export default function App() {
     schedule: <SchedulePage />,
     goals:    <GoalsPage />,
     weather:  <WeatherPage />,
-    tasks:    <TasksPage />,
     settings: <SettingsPage />,
   }
 

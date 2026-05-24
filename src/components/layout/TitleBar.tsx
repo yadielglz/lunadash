@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
-import { Sun, Moon, Store, Pencil, Check, LogOut } from 'lucide-react'
+import { CloudSun, Sun, Moon, Store, Pencil, Check, LogOut } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore'
 import { useTheme } from '../../hooks/useTheme'
 import { useClock } from '../../hooks/useClock'
 import { useDisplayStore } from '../../store/displayStore'
+import { useWeather } from '../../hooks/useWeather'
+import { useTempDisplay } from '../../hooks/useTempDisplay'
+import { getWeatherInfo } from '../../lib/openMeteo'
 
 function EditableField({
   value,
@@ -56,19 +59,63 @@ function EditableField({
   )
 }
 
+function WeatherStatus() {
+  const { data, isLoading, isError } = useWeather(undefined, { useGeolocation: false })
+  const { setTab } = useUiStore()
+  const { fmt, unit } = useTempDisplay()
+
+  if (isLoading) {
+    return (
+      <div className="hidden h-7 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-tertiary)] sm:flex">
+        <CloudSun size={13} />
+        <span>Weather</span>
+      </div>
+    )
+  }
+
+  if (isError || !data) {
+    return (
+      <button
+        onClick={() => setTab('weather')}
+        className="hidden h-7 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-tertiary)] transition-colors hover:text-[var(--text)] sm:flex"
+        title="Open weather"
+      >
+        <CloudSun size={13} />
+        <span>Set weather</span>
+      </button>
+    )
+  }
+
+  const cw = data.current_weather
+  const weather = getWeatherInfo(cw.weathercode, cw.is_day)
+
+  return (
+    <button
+      onClick={() => setTab('weather')}
+      className="flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text)]"
+      title={weather.label}
+    >
+      <span className="text-sm leading-none">{weather.icon}</span>
+      <span className="tabular-nums text-[var(--text)]">{fmt(cw.temperature)}{unit}</span>
+      <span className="hidden max-w-[92px] truncate sm:inline">{weather.label}</span>
+    </button>
+  )
+}
+
 export function TitleBar() {
   const { toggleTheme, isDark } = useTheme()
-  const { activeTab, accessRole, accessLabel, clearStoreSession } = useUiStore()
+  const { activeTab, accessRole, accessLabel, clearStoreSession, setTab } = useUiStore()
   const now = useClock()
   const { companyName, storeNumber, setCompanyName, setStoreNumber } = useDisplayStore()
 
   const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
   const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+  const mobileTabLabel = activeTab === 'goals' ? 'Performance' : activeTab
 
   return (
-    <div className="bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex items-center justify-between px-4 h-12 flex-shrink-0 z-50">
+    <div className="bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex h-14 flex-shrink-0 items-center justify-between px-3 sm:h-12 sm:px-4 z-50">
       {/* Logo + store info */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
         <div className="w-7 h-7 rounded-md bg-[var(--accent)] flex items-center justify-center flex-shrink-0">
           <span className="text-white text-xs font-bold tracking-tight">L</span>
         </div>
@@ -90,15 +137,22 @@ export function TitleBar() {
         </div>
       </div>
 
-      {/* Center: tab title on mobile, date on desktop */}
-      <div className="flex flex-col items-center">
-        <span className="text-sm font-medium text-[var(--text)] sm:hidden capitalize">{activeTab}</span>
-        <span className="hidden sm:block text-xs text-[var(--text-secondary)]">{dateStr}</span>
+      {/* Center: persistent date, clock, and weather */}
+      <div className="mx-2 flex min-w-0 flex-1 items-center justify-center gap-1.5 sm:gap-2">
+        <button
+          onClick={() => setTab('schedule')}
+          className="flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-transparent px-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] sm:px-2"
+          title={dateStr}
+        >
+          <span className="hidden sm:inline">{dateStr}</span>
+          <span className="sm:hidden text-sm font-medium capitalize text-[var(--text)]">{mobileTabLabel}</span>
+          <span className="tabular-nums text-[var(--text)]">{timeStr}</span>
+        </button>
+        <WeatherStatus />
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1">
-        <span className="text-xs text-[var(--text-secondary)] mr-2 hidden sm:inline tabular-nums">{timeStr}</span>
+      <div className="flex flex-shrink-0 items-center gap-1">
         {accessRole && (
           <div className="hidden md:flex flex-col items-end leading-none mr-1">
             <span className="text-[10px] font-semibold uppercase text-[var(--accent)]">{accessRole}</span>

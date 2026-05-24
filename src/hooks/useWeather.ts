@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { fetchWeather, geocodeCity } from '../lib/openMeteo'
 
 interface Coords { lat: number; lon: number }
+interface WeatherOptions { useGeolocation?: boolean }
 
 const WEATHER_COORDS_KEY = 'luna-weather-coords'
 const DEFAULT_COORDS: Coords = { lat: 33.4484, lon: -112.0740 }
@@ -51,8 +52,9 @@ function useGeolocation(enabled = true) {
   return { coords, error }
 }
 
-export function useWeather(manualCoords?: Coords) {
-  const { coords: geoCoords, error: geoError } = useGeolocation(!manualCoords)
+export function useWeather(manualCoords?: Coords, options: WeatherOptions = {}) {
+  const shouldUseGeolocation = options.useGeolocation ?? true
+  const { coords: geoCoords, error: geoError } = useGeolocation(shouldUseGeolocation && !manualCoords)
   const coords = manualCoords ?? geoCoords ?? DEFAULT_COORDS
 
   return useQuery({

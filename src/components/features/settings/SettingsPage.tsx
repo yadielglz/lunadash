@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Target, Megaphone, Calendar,
-  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Power
+  Clock, Store, Megaphone, Calendar,
+  Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Power, Tv2
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
 import { useDisplayStore } from '../../../store/displayStore'
-import { useGoalsStore, Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../../../store/schedulePreferencesStore'
 import { dbCheckSchemaHealth, dbCreateAccessCode, dbGetAccessCodes, dbGetStores, dbResetAccessOnboarding, dbUpdateAccessCode, dbUpdateSettings, StoreAccessCode, StoreSummary } from '../../../lib/supabase'
-import { Input, Select, Textarea } from '../../ui/Input'
+import { Input, Select } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 import { APP_META } from '../../../config/appMeta'
 import { SyncArea, useSyncStore } from '../../../store/syncStore'
@@ -133,7 +132,7 @@ function GeneralSection() {
 // ── Store details ────────────────────────────────────────────────────────────
 function StoreSection() {
   const { companyName, storeNumber, slideInterval, setCompanyName, setStoreNumber, setSlideInterval } = useDisplayStore()
-  const { storeId, setStoreId, accessRole } = useUiStore()
+  const { storeId, setStoreId, accessRole, setTab } = useUiStore()
   const [name, setName]       = useState(companyName)
   const [num, setNum]         = useState(storeNumber)
   const [newStoreId, setNewStoreId] = useState('')
@@ -271,193 +270,12 @@ function StoreSection() {
           <span className="text-xs text-[var(--text-secondary)] w-8 text-right">{slideInterval}s</span>
         </div>
       </Row>
-    </Section>
-  )
-}
 
-// ── Goals section ─────────────────────────────────────────────────────────────
-const GOAL_COLORS = ['#0078d4','#7c5ff5','#16c60c','#f7630c','#e74856','#00b7c3','#e3008c']
-
-function isMoneyGoalLabel(unit: string, category: string, title = '') {
-  const text = `${unit} ${category} ${title}`.toLowerCase()
-  return unit.includes('$') || text.includes('accessor')
-}
-
-function formatGoalAmount(value: number, unit: string, category: string, title = '') {
-  return isMoneyGoalLabel(unit, category, title) ? `$${value.toLocaleString()}` : `${value}${unit}`
-}
-
-function GoalEditor({ editingGoal, onDone }: { editingGoal: Goal | null; onDone: () => void }) {
-  const { addGoal, updateGoal, categories } = useGoalsStore()
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState(categories[0] ?? 'General')
-  const [unit, setUnit] = useState('')
-  const [dailyTarget, setDailyTarget] = useState('1')
-  const [target, setTarget] = useState('100')
-  const [current, setCurrent] = useState('0')
-  const [deadline, setDeadline] = useState(new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0])
-  const [color, setColor] = useState(GOAL_COLORS[0])
-
-  useEffect(() => {
-    if (editingGoal) {
-      setTitle(editingGoal.title)
-      setDescription(editingGoal.description)
-      setCategory(editingGoal.category)
-      setUnit(editingGoal.unit)
-      setDailyTarget(String(editingGoal.dailyTarget ?? 1))
-      setTarget(String(editingGoal.target))
-      setCurrent(String(editingGoal.current))
-      setDeadline(editingGoal.deadline ? editingGoal.deadline.split('T')[0] : new Date().toISOString().split('T')[0])
-      setColor(editingGoal.color)
-      return
-    }
-
-    setTitle('')
-    setDescription('')
-    setCategory(categories[0] ?? 'General')
-    setUnit('')
-    setDailyTarget('1')
-    setTarget('100')
-    setCurrent('0')
-    setDeadline(new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0])
-    setColor(GOAL_COLORS[0])
-  }, [editingGoal, categories])
-
-  useEffect(() => {
-    if (!editingGoal && isMoneyGoalLabel(unit, category, title) && !unit.trim()) {
-      setUnit('$')
-    }
-  }, [category, editingGoal, title, unit])
-
-  const save = () => {
-    if (!title.trim()) return
-    const data = {
-      title: title.trim(),
-      description: description.trim(),
-      category,
-      unit: unit.trim(),
-      dailyTarget: Number(dailyTarget) || 1,
-      target: Number(target) || 0,
-      current: Number(current) || 0,
-      deadline: new Date(deadline).toISOString(),
-      color,
-      milestones: editingGoal?.milestones ?? [],
-    }
-
-    if (editingGoal) updateGoal(editingGoal.id, data)
-    else addGoal(data)
-    onDone()
-  }
-
-  return (
-    <div className="px-4 py-4 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
-      <p className="text-xs font-semibold text-[var(--text)]">{editingGoal ? 'Edit Goal' : 'Create Goal'}</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Input label="Goal Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Voice Lines" />
-        <Select label="Category" value={category} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value)}>
-          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-        </Select>
-      </div>
-      <Textarea label="Description" value={description} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)} placeholder="Optional goal context" />
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Input label="Unit" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="lines" />
-        <Input label="Daily Target" type="number" value={dailyTarget} onChange={(e) => setDailyTarget(e.target.value)} />
-        <Input label="Monthly Target" type="number" value={target} onChange={(e) => setTarget(e.target.value)} />
-        <Input label="Monthly Current" type="number" value={current} onChange={(e) => setCurrent(e.target.value)} />
-        <Input label="Month End" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
-      </div>
-      <div>
-        <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">Color</label>
-        <div className="flex flex-wrap gap-2">
-          {GOAL_COLORS.map((c) => (
-            <button
-              key={c}
-              onClick={() => setColor(c)}
-              className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-white/40' : 'hover:scale-110'}`}
-              style={{ background: c }}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="flex justify-end gap-2">
-        {editingGoal && <Button variant="ghost" size="sm" onClick={onDone}>Cancel</Button>}
-        <Button size="sm" onClick={save} disabled={!title.trim()} icon={<Check size={12} />}>
-          {editingGoal ? 'Update Goal' : 'Save Goal'}
+      <Row label="Display Mode" description="Launch the passive store display from Settings">
+        <Button size="sm" variant="ghost" icon={<Tv2 size={13} />} onClick={() => setTab('display')}>
+          Open Display
         </Button>
-      </div>
-    </div>
-  )
-}
-
-function GoalSettingsRow({ g, onEdit }: { g: Goal; onEdit: (goal: Goal) => void }) {
-  const { removeGoal } = useGoalsStore()
-  const pct = g.target > 0 ? Math.min(Math.round((g.current / g.target) * 100), 100) : 0
-  return (
-    <motion.div layout className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] group">
-      <div className="w-2.5 h-10 rounded-full flex-shrink-0" style={{ background: g.color }} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[var(--text)] truncate">{g.title}</span>
-          <span className="text-[10px] text-[var(--text-tertiary)]">{g.category}</span>
-        </div>
-        <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
-          Daily {formatGoalAmount(g.dailyTarget ?? 1, g.unit, g.category, g.title)} · MTD {formatGoalAmount(g.current, g.unit, g.category, g.title)} / {formatGoalAmount(g.target, g.unit, g.category, g.title)}
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          <div className="flex-1 h-1 rounded-full bg-[var(--border)]">
-            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: g.color }} />
-          </div>
-          <span className="text-[10px] text-[var(--text-secondary)] whitespace-nowrap">{pct}%</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={() => onEdit(g)}
-          className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-all"
-        >
-          <Edit2 size={12} />
-        </button>
-        <button
-          onClick={() => removeGoal(g.id)}
-          className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-red-400 transition-all flex-shrink-0"
-        >
-          <Trash2 size={12} />
-        </button>
-      </div>
-    </motion.div>
-  )
-}
-
-function GoalsSection() {
-  const { goals, categories } = useGoalsStore()
-  const [filter, setFilter] = useState('All')
-  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
-  const shown = filter === 'All' ? goals : goals.filter((g) => g.category === filter)
-
-  return (
-    <Section icon={<Target size={14} />} title="Goals">
-      <GoalEditor editingGoal={editingGoal} onDone={() => setEditingGoal(null)} />
-
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {['All', ...categories].map((c) => (
-          <button
-            key={c}
-            onClick={() => setFilter(c)}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${filter === c ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent)]/50'}`}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-      <div className="space-y-1.5">
-        <AnimatePresence>
-          {shown.map((g) => <GoalSettingsRow key={g.id} g={g} onEdit={setEditingGoal} />)}
-        </AnimatePresence>
-      </div>
-      {shown.length === 0 && (
-        <p className="text-xs text-[var(--text-tertiary)] text-center py-4">No goals in this category</p>
-      )}
+      </Row>
     </Section>
   )
 }
@@ -839,7 +657,7 @@ function AboutSection() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-medium text-[var(--text)]">Store Session</p>
-              <p className="text-[10px] text-[var(--text-tertiary)]">Timer resets with activity. Display and Goals stay open.</p>
+              <p className="text-[10px] text-[var(--text-tertiary)]">Timer resets with activity. Display and Performance stay open.</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm text-[var(--accent)]">{remainingLabel}</span>
@@ -868,8 +686,7 @@ function SyncStatusSection() {
   const rows: { area: SyncArea; label: string }[] = [
     { area: 'settings', label: 'Settings' },
     { area: 'schedule', label: 'Schedule' },
-    { area: 'tasks', label: 'Tasks' },
-    { area: 'goals', label: 'Goals' },
+    { area: 'goals', label: 'Performance Snapshots' },
     { area: 'announcements', label: 'Announcements' },
   ]
 
@@ -1196,7 +1013,6 @@ const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
   { id: 'store',         label: 'Store Details',  icon: <Store size={14} /> },
   { id: 'configuredStores', label: 'Configured Stores', icon: <Store size={14} /> },
-  { id: 'goals',         label: 'Goals',          icon: <Target size={14} /> },
   { id: 'announcements', label: 'Announcements',  icon: <Megaphone size={14} /> },
   { id: 'scheduling',    label: 'Scheduling',     icon: <Calendar size={14} /> },
   { id: 'scheduleBlocks', label: 'Schedule Blocks', icon: <Calendar size={14} /> },
@@ -1215,7 +1031,6 @@ export function SettingsPage() {
     general:       <GeneralSection />,
     store:         <StoreSection />,
     configuredStores: <ConfiguredStoresSection />,
-    goals:         <GoalsSection />,
     announcements: <AnnouncementsSection />,
     scheduling:    <SchedulingSection />,
     scheduleBlocks: <ScheduleBlocksSection />,

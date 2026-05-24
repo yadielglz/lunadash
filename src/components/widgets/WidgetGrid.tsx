@@ -3,12 +3,9 @@ import { ResponsiveGridLayout } from 'react-grid-layout'
 import type { Layout, LayoutItem, ResponsiveLayouts } from 'react-grid-layout'
 import { motion } from 'framer-motion'
 import { Settings2, Check } from 'lucide-react'
-import { ClockWidget } from './ClockWidget'
-import { WeatherWidget } from './WeatherWidget'
 import { ScheduleWidget } from './ScheduleWidget'
 import { GoalsWidget } from './GoalsWidget'
 import { AnnouncementWidget } from './AnnouncementWidget'
-import { TasksWidget } from './TasksWidget'
 import { LunaWirelessLogo } from '../brand/LunaWirelessLogo'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
@@ -17,36 +14,24 @@ const mkLayout = (items: LayoutItem[]): Layout => items as unknown as Layout
 
 const DEFAULT_LAYOUTS: ResponsiveLayouts = {
   lg: mkLayout([
-    { i: 'clock',    x: 0, y: 0, w: 3, h: 4, minW: 2, minH: 3 },
-    { i: 'weather',  x: 3, y: 0, w: 3, h: 4, minW: 2, minH: 3 },
-    { i: 'schedule', x: 6, y: 0, w: 4, h: 7, minW: 3, minH: 4 },
-    { i: 'goals',    x: 0, y: 4, w: 6, h: 6, minW: 3, minH: 4 },
+    { i: 'schedule', x: 0, y: 0, w: 5, h: 7, minW: 3, minH: 4 },
+    { i: 'goals',    x: 5, y: 0, w: 5, h: 6, minW: 3, minH: 4 },
     { i: 'announce', x: 10, y: 0, w: 2, h: 12, minW: 2, minH: 4 },
-    { i: 'tasks',    x: 6, y: 7, w: 4, h: 5, minW: 3, minH: 4 },
   ]),
   md: mkLayout([
-    { i: 'clock',    x: 0, y: 0, w: 3, h: 4 },
-    { i: 'weather',  x: 3, y: 0, w: 3, h: 4 },
-    { i: 'schedule', x: 6, y: 0, w: 6, h: 7 },
-    { i: 'goals',    x: 0, y: 4, w: 6, h: 6 },
-    { i: 'announce', x: 0, y: 10, w: 12, h: 5 },
-    { i: 'tasks',    x: 6, y: 7, w: 6, h: 5 },
+    { i: 'schedule', x: 0, y: 0, w: 6, h: 7 },
+    { i: 'goals',    x: 6, y: 0, w: 6, h: 6 },
+    { i: 'announce', x: 0, y: 7, w: 6, h: 5 },
   ]),
   sm: mkLayout([
-    { i: 'clock',    x: 0, y: 0, w: 3, h: 4 },
-    { i: 'weather',  x: 3, y: 0, w: 3, h: 4 },
-    { i: 'schedule', x: 0, y: 4, w: 6, h: 6 },
-    { i: 'goals',    x: 0, y: 10, w: 6, h: 5 },
-    { i: 'announce', x: 0, y: 15, w: 6, h: 5 },
-    { i: 'tasks',    x: 0, y: 20, w: 6, h: 5 },
+    { i: 'schedule', x: 0, y: 0, w: 6, h: 6 },
+    { i: 'goals',    x: 0, y: 6, w: 6, h: 5 },
+    { i: 'announce', x: 0, y: 11, w: 6, h: 5 },
   ]),
   xs: mkLayout([
-    { i: 'clock',    x: 0, y: 0, w: 2, h: 4 },
-    { i: 'weather',  x: 2, y: 0, w: 2, h: 4 },
-    { i: 'schedule', x: 0, y: 4, w: 4, h: 6 },
-    { i: 'goals',    x: 0, y: 10, w: 4, h: 5 },
-    { i: 'announce', x: 0, y: 15, w: 4, h: 5 },
-    { i: 'tasks',    x: 0, y: 20, w: 4, h: 5 },
+    { i: 'schedule', x: 0, y: 0, w: 4, h: 6 },
+    { i: 'goals',    x: 0, y: 6, w: 4, h: 5 },
+    { i: 'announce', x: 0, y: 11, w: 4, h: 5 },
   ]),
 }
 
@@ -65,12 +50,9 @@ function saveLayouts(layouts: ResponsiveLayouts) {
 }
 
 const WIDGETS: Record<string, React.ReactNode> = {
-  clock:    <ClockWidget />,
-  weather:  <WeatherWidget />,
   schedule: <ScheduleWidget />,
   goals:    <GoalsWidget />,
   announce: <AnnouncementWidget />,
-  tasks:    <TasksWidget />,
 }
 
 function GridContainer({ isEditing, layouts, onLayoutChange }: {

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import {
-  LayoutGrid, Calendar, Target, CloudSun, Tv2, CheckSquare, Settings
+  LayoutGrid, Calendar, Target, CloudSun, Settings
 } from 'lucide-react'
 import { useUiStore, Tab } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
@@ -9,10 +9,8 @@ import { canAccessTab } from '../../lib/accessControl'
 const TABS: { id: Tab; icon: React.ReactNode; label: string; mobile?: boolean }[] = [
   { id: 'home',     icon: <LayoutGrid size={18} />,  label: 'Home'     },
   { id: 'schedule', icon: <Calendar size={18} />,    label: 'Schedule' },
-  { id: 'goals',    icon: <Target size={18} />,      label: 'Goals'    },
+  { id: 'goals',    icon: <Target size={18} />,      label: 'Performance' },
   { id: 'weather',  icon: <CloudSun size={18} />,    label: 'Weather'  },
-  { id: 'display',  icon: <Tv2 size={18} />,         label: 'Display', mobile: false },
-  { id: 'tasks',    icon: <CheckSquare size={18} />, label: 'Tasks'    },
   { id: 'settings', icon: <Settings size={18} />,    label: 'Settings' },
 ]
 

@@ -137,7 +137,6 @@ function parseCsv(text: string): PerformanceData {
       continue
     }
 
-    if (parseNumber(cell(row, 2)) <= 0) continue
     performanceRows.push(rowFromCsv(row))
   }
 
@@ -151,7 +150,7 @@ function parseCsv(text: string): PerformanceData {
 
 export async function fetchPerformanceData(): Promise<PerformanceData> {
   const res = await fetch(PERFORMANCE_SHEET_CSV_URL)
-  if (!res.ok) throw new Error(`Failed to fetch performance sheet: ${res.statusText}`)
+  if (!res.ok) throw new Error(`Failed to fetch performance Source: ${res.statusText}`)
   return parseCsv(await res.text())
 }
 

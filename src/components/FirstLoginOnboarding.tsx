@@ -26,8 +26,8 @@ const ROLE_COPY: Record<AccessRole, Step[]> = {
     {
       kicker: 'Start Here',
       title: 'Dashboard first, settings when needed.',
-      body: 'Daily work lives on Dashboard, Schedule, Goals, Weather, and Tasks. System setup lives quietly in Settings.',
-      bullets: ['Use the dashboard for current store health.', 'Use Settings to manage users, goals, stores, schedule blocks, and sync.'],
+      body: 'Daily work lives on Dashboard, Schedule, Performance, and Weather. System setup lives quietly in Settings.',
+      bullets: ['Use the dashboard for current store health.', 'Use Settings to manage users, stores, schedule blocks, and sync.'],
       icon: <LayoutDashboard size={22} />,
     },
     {
@@ -42,15 +42,15 @@ const ROLE_COPY: Record<AccessRole, Step[]> = {
     {
       kicker: 'Welcome to LunaDash',
       title: 'Your store workspace is ready.',
-      body: 'This manager session is built for the daily rhythm of the store: dashboard, schedule, goals, weather, and tasks.',
-      bullets: ['Open Dashboard for the day’s pulse.', 'Use Schedule and Tasks to keep the team aligned.'],
+      body: 'This manager session is built for the daily rhythm of the store: dashboard, schedule, performance, and weather.',
+      bullets: ['Open Dashboard for the day’s pulse.', 'Use Schedule to keep the team aligned.'],
       icon: <Sparkles size={22} />,
     },
     {
       kicker: 'Store Setup',
       title: 'Tune the store from Settings.',
-      body: 'Managers can maintain local store details, goals, employees, schedule blocks, and store-level access.',
-      bullets: ['Set goals once, then update actuals during the day.', 'Create employee or display access for your store.'],
+      body: 'Managers can maintain local store details, employees, schedule blocks, and store-level access.',
+      bullets: ['Review Source-backed performance during the day.', 'Create employee or display access for your store.'],
       icon: <Settings2 size={22} />,
     },
     {
@@ -72,8 +72,8 @@ const ROLE_COPY: Record<AccessRole, Step[]> = {
     {
       kicker: 'Daily Flow',
       title: 'Use it like a quick station.',
-      body: 'Check the dashboard, review the schedule, and stay aware of goals for the day.',
-      bullets: ['Daily goals are the first thing to watch.', 'Weather and tasks help with store planning.'],
+      body: 'Check the dashboard, review the schedule, and stay aware of store performance for the day.',
+      bullets: ['Performance is the first thing to watch.', 'Weather helps with store planning.'],
       icon: <LayoutDashboard size={22} />,
     },
     {

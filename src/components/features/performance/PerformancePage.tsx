@@ -47,19 +47,29 @@ function SummaryTile({ label, value, helper, tone }: { label: string; value: str
   )
 }
 
+function goalHelper(value: number) {
+  return value >= 100 ? 'Goal Met' : `${formatPercent(value)} to goal`
+}
+
 function LeaderCard({ row, metric, value, rank }: { row: PerformanceRow; metric: string; value: string; rank: number }) {
+  const rankColor = rank === 1 ? '#f7b731' : rank === 2 ? '#00b7c3' : '#7c5ff5'
+
   return (
-    <Card className="flex min-h-[116px] flex-col justify-between">
-      <div className="flex items-start justify-between gap-3">
+    <Card
+      className="relative flex min-h-[126px] flex-col justify-between overflow-hidden border-[var(--border-strong)] !p-4"
+      style={{ boxShadow: `inset 4px 0 0 ${rankColor}` }}
+    >
+      <div className="absolute right-3 top-3 text-5xl font-black leading-none text-[var(--text)] opacity-[0.04]">#{rank}</div>
+      <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-[var(--text)]">{row.teamName || row.store}</div>
           <div className="mt-0.5 text-xs text-[var(--text-tertiary)]">{row.storeCode}</div>
         </div>
-        <Badge color={rank === 1 ? '#f7b731' : '#00b7c3'}>#{rank}</Badge>
+        <Badge color={rankColor}>Rank #{rank}</Badge>
       </div>
-      <div>
-        <div className="text-xs text-[var(--text-tertiary)]">{metric}</div>
-        <div className="text-xl font-semibold text-[var(--text)] tabular-nums">{value}</div>
+      <div className="relative">
+        <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{metric}</div>
+        <div className="mt-1 text-2xl font-semibold text-[var(--text)] tabular-nums">{value}</div>
       </div>
     </Card>
   )
@@ -138,7 +148,7 @@ function StoreDetailModal({ row, updated, onClose }: { row: PerformanceRow | nul
               </div>
               <div className="mt-2 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
                 <Clock size={12} />
-                Sheet refreshed {updated || 'just now'}
+                Source refreshed {updated || 'just now'}
               </div>
             </div>
             <div className="grid grid-cols-4 gap-2 text-center">
@@ -225,7 +235,7 @@ export function PerformancePage() {
     try {
       setData(await fetchPerformanceData())
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load performance sheet')
+      setError(err instanceof Error ? err.message : 'Could not load performance Source')
     } finally {
       setLoading(false)
     }
@@ -290,7 +300,7 @@ export function PerformancePage() {
               Phoenix Performance
             </h1>
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              First Google Sheet tab{updated ? ` · refreshed ${updated}` : ''} · auto-refreshes every 60s
+              Source{updated ? ` · refreshed ${updated}` : ''} · auto-refreshes every 60s
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -321,7 +331,7 @@ export function PerformancePage() {
         {loading && !data ? (
           <div className="flex min-h-[360px] items-center justify-center text-sm text-[var(--text-secondary)]">
             <RefreshCw size={18} className="mr-2 animate-spin text-[var(--accent)]" />
-            Loading performance sheet...
+            Loading performance Source...
           </div>
         ) : (
           <div className="space-y-4">
@@ -329,19 +339,19 @@ export function PerformancePage() {
               <SummaryTile
                 label="Net Revenue"
                 value={total ? formatMoney(total.netRevenue) : '$0'}
-                helper={total ? `${formatPercent(total.netRevenuePct)} to goal` : 'No total row found'}
+                helper={total ? goalHelper(total.netRevenuePct) : 'No total row found'}
                 tone={total ? metricColor(total.netRevenuePct) : undefined}
               />
               <SummaryTile
                 label="Accessories"
                 value={total ? formatMoney(total.accessoryRevenue) : '$0'}
-                helper={total ? `${formatPercent(total.accessoryPct)} to goal` : 'No total row found'}
+                helper={total ? goalHelper(total.accessoryPct) : 'No total row found'}
                 tone={total ? metricColor(total.accessoryPct) : undefined}
               />
               <SummaryTile
                 label="Total PP"
                 value={total ? formatNumber(total.totalPp) : '0'}
-                helper={total ? `${formatPercent(total.ppPct)} to goal` : 'No total row found'}
+                helper={total ? goalHelper(total.ppPct) : 'No total row found'}
                 tone={total ? metricColor(total.ppPct) : undefined}
               />
               <SummaryTile
@@ -353,9 +363,12 @@ export function PerformancePage() {
 
             <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
               <Card noPadding className="overflow-hidden">
-                <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text)]">
-                  <Trophy size={15} className="text-[#f7b731]" />
-                  Net Revenue Leaders
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+                    <Trophy size={16} className="text-[#f7b731]" />
+                    Net Revenue Leaders
+                  </div>
+                  <span className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Top 3</span>
                 </div>
                 <div className="grid gap-3 p-3">
                   {leaders.netRevenue.map((row, index) => (
@@ -364,9 +377,12 @@ export function PerformancePage() {
                 </div>
               </Card>
               <Card noPadding className="overflow-hidden">
-                <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text)]">
-                  <Trophy size={15} className="text-[#00b7c3]" />
-                  Accessory Leaders
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+                    <Trophy size={16} className="text-[#00b7c3]" />
+                    Accessory Leaders
+                  </div>
+                  <span className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Top 3</span>
                 </div>
                 <div className="grid gap-3 p-3">
                   {leaders.accessories.map((row, index) => (
@@ -375,9 +391,12 @@ export function PerformancePage() {
                 </div>
               </Card>
               <Card noPadding className="overflow-hidden">
-                <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text)]">
-                  <Trophy size={15} className="text-[#16c60c]" />
-                  PP Leaders
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+                    <Trophy size={16} className="text-[#16c60c]" />
+                    PP Leaders
+                  </div>
+                  <span className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Top 3</span>
                 </div>
                 <div className="grid gap-3 p-3">
                   {leaders.pp.map((row, index) => (
@@ -407,8 +426,8 @@ export function PerformancePage() {
             <Card noPadding className="overflow-hidden">
               <div className="flex flex-col gap-3 border-b border-[var(--border)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-[var(--text)]">Store Detail</div>
-                  <div className="text-xs text-[var(--text-tertiary)]">{filteredRows.length} stores</div>
+                  <div className="text-sm font-semibold text-[var(--text)]">District Outlook</div>
+                  <div className="text-xs text-[var(--text-tertiary)]">{filteredRows.length} stores ranked by {SORT_OPTIONS.find((option) => option.key === sortKey)?.label}</div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {SORT_OPTIONS.map((option) => (
@@ -424,9 +443,10 @@ export function PerformancePage() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[980px] text-left text-xs">
+                <table className="w-full min-w-[1040px] text-left text-xs">
                   <thead className="bg-[var(--surface-2)] text-[var(--text-tertiary)]">
                     <tr>
+                      <th className="px-4 py-2 font-medium">Rank</th>
                       <th className="px-4 py-2 font-medium">Store</th>
                       <th className="px-3 py-2 font-medium">Traffic</th>
                       <th className="px-3 py-2 font-medium">Post Conv</th>
@@ -442,7 +462,7 @@ export function PerformancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {filteredRows.map((row) => (
+                    {filteredRows.map((row, index) => (
                       <tr
                         key={row.store}
                         className="cursor-pointer hover:bg-[var(--reveal-bg)]"
@@ -455,6 +475,11 @@ export function PerformancePage() {
                           }
                         }}
                       >
+                        <td className="px-4 py-3">
+                          <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs font-bold text-[var(--text)]">
+                            #{index + 1}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">
                           <div className="font-semibold text-[var(--text)]">{row.teamName || row.store}</div>
                           <div className="text-[var(--text-tertiary)]">{row.storeCode}</div>
