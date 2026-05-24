@@ -3,7 +3,7 @@ import type { AccessMode, AccessRole, Tab } from '../store/uiStore'
 const ROLE_TABS: Record<AccessRole, Tab[]> = {
   admin: ['home', 'schedule', 'goals', 'settings', 'devices', 'display'],
   manager: ['home', 'schedule', 'goals', 'settings', 'display'],
-  employee: ['home', 'schedule'],
+  employee: ['home', 'schedule', 'settings', 'display'],
   display: ['display'],
 }
 
@@ -12,11 +12,11 @@ export function allowedTabsForRole(role: AccessRole | null): Tab[] {
 }
 
 export function canAccessTab(role: AccessRole | null, tab: Tab, mode?: AccessMode) {
-  if (tab === 'display' && mode === 'display' && role !== 'employee') return true
+  if (tab === 'display' && mode === 'display') return true
   return allowedTabsForRole(role).includes(tab)
 }
 
 export function defaultTabForRole(role: AccessRole | null, mode?: AccessMode): Tab {
-  if (mode === 'display' && role !== 'employee') return 'display'
+  if (mode === 'display') return 'display'
   return allowedTabsForRole(role)[0] ?? 'home'
 }

@@ -1,17 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, Store, Megaphone, Calendar,
   Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Power, Tv2, FileText, Printer
 } from 'lucide-react'
-import { Theme, useUiStore } from '../../../store/uiStore'
+import { accessRoleLabel, Theme, useUiStore } from '../../../store/uiStore'
 
 import { useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../../../store/schedulePreferencesStore'
-import { dbCheckSchemaHealth, dbCreateAccessCode, dbGetAccessCodes, dbGetStores, dbResetAccessOnboarding, dbUpdateAccessCode, dbUpdateSettings, StoreAccessCode, StoreSummary } from '../../../lib/supabase'
+import { dbCheckSchemaHealth, dbCreateAccessCode, dbDeleteSettings, dbGetAccessCodes, dbGetStores, dbResetAccessOnboarding, dbUpdateAccessCode, dbUpdateSettings, StoreAccessCode, StoreSummary } from '../../../lib/supabase'
 import { Input, Select } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 import { APP_META } from '../../../config/appMeta'
@@ -133,8 +133,8 @@ function GeneralSection() {
 
 // ── Store details ────────────────────────────────────────────────────────────
 function StoreSection() {
-  const { companyName, storeNumber, slideInterval, setCompanyName, setStoreNumber, setSlideInterval } = useDisplayStore()
-  const { storeId, setStoreId, accessRole, setTab } = useUiStore()
+  const { companyName, storeNumber, slideInterval, setCompanyName, setStoreNumber } = useDisplayStore()
+  const { storeId, setStoreId, accessRole } = useUiStore()
   const [name, setName]       = useState(companyName)
   const [num, setNum]         = useState(storeNumber)
   const [newStoreId, setNewStoreId] = useState('')
@@ -262,6 +262,16 @@ function StoreSection() {
         </div>
       </div>
 
+    </Section>
+  )
+}
+
+function DisplaySettingsSection() {
+  const { slideInterval, setSlideInterval } = useDisplayStore()
+  const { setTab } = useUiStore()
+
+  return (
+    <Section icon={<Tv2 size={14} />} title="Display">
       <Row label="Display Slide Interval" description={`Each slide shows for ${slideInterval}s`}>
         <div className="flex items-center gap-2">
           <input
@@ -272,8 +282,7 @@ function StoreSection() {
           <span className="text-xs text-[var(--text-secondary)] w-8 text-right">{slideInterval}s</span>
         </div>
       </Row>
-
-      <Row label="Display Mode" description="Launch the passive store display from Settings">
+      <Row label="Display Mode" description="Launch the passive store display">
         <Button size="sm" variant="ghost" icon={<Tv2 size={13} />} onClick={() => setTab('display')}>
           Open Display
         </Button>
@@ -546,6 +555,10 @@ function ConfiguredStoresSection() {
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [editingStoreId, setEditingStoreId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editNumber, setEditNumber] = useState('')
+  const [editInterval, setEditInterval] = useState(8)
 
   const loadStores = async () => {
     setLoading(true)
@@ -563,6 +576,57 @@ function ConfiguredStoresSection() {
   useEffect(() => {
     loadStores()
   }, [])
+
+  const startEditStore = (store: StoreSummary) => {
+    setEditingStoreId(store.store_id)
+    setEditName(store.company_name || '')
+    setEditNumber(store.store_number || '')
+    setEditInterval(store.slide_interval || 8)
+    setError('')
+  }
+
+  const cancelEditStore = () => {
+    setEditingStoreId(null)
+    setEditName('')
+    setEditNumber('')
+    setEditInterval(8)
+  }
+
+  const saveStore = async (store: StoreSummary) => {
+    setLoading(true)
+    setError('')
+    try {
+      await dbUpdateSettings(store.store_id, {
+        company_name: editName.trim() || 'Luna Store',
+        store_number: editNumber.trim(),
+        slide_interval: editInterval,
+      })
+      cancelEditStore()
+      await loadStores()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update store')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const removeStore = async (store: StoreSummary) => {
+    if (store.store_id === storeId) {
+      setError('Switch to another store before removing the current store.')
+      return
+    }
+    if (!window.confirm(`Remove ${store.company_name || store.store_id} from configured stores?`)) return
+    setLoading(true)
+    setError('')
+    try {
+      await dbDeleteSettings(store.store_id)
+      await loadStores()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not remove store')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <Section icon={<Store size={14} />} title="Configured Stores">
@@ -590,26 +654,51 @@ function ConfiguredStoresSection() {
           </div>
         )}
 
-        {stores.map((store) => (
-          <div key={store.store_id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-[var(--text)] truncate">{store.company_name || 'Luna Store'}</span>
-                {store.store_id === storeId && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">Current</span>
-                )}
-              </div>
-              <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                ID: <span className="font-mono">{store.store_id}</span>
-                {store.store_number ? ` · Store #${store.store_number}` : ''}
-                {` · Slides ${store.slide_interval}s`}
-              </div>
+        {stores.map((store) => {
+          const isEditing = editingStoreId === store.store_id
+          return (
+            <div key={store.store_id} className="px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
+              {isEditing ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_130px_auto]">
+                    <Input label="Store Name" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Luna Store" />
+                    <Input label="Store #" value={editNumber} onChange={(e) => setEditNumber(e.target.value)} placeholder="1234" />
+                    <Input label="Slide Seconds" type="number" min={4} max={30} value={editInterval} onChange={(e) => setEditInterval(Number(e.target.value) || 8)} />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={cancelEditStore}>Cancel</Button>
+                    <Button size="sm" icon={<Check size={12} />} loading={loading} onClick={() => saveStore(store)}>Save Store</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-[var(--text)] truncate">{store.company_name || 'Luna Store'}</span>
+                      {store.store_id === storeId && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">Current</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                      ID: <span className="font-mono">{store.store_id}</span>
+                      {store.store_number ? ` · Store #${store.store_number}` : ''}
+                      {` · Slides ${store.slide_interval}s`}
+                    </div>
+                  </div>
+                  <Button size="sm" variant={store.store_id === storeId ? 'accent' : 'ghost'} onClick={() => setStoreId(store.store_id)}>
+                    {store.store_id === storeId ? 'Selected' : 'Use'}
+                  </Button>
+                  {accessRole === 'admin' && (
+                    <>
+                      <Button size="sm" variant="ghost" icon={<Edit2 size={12} />} onClick={() => startEditStore(store)}>Edit</Button>
+                      <Button size="sm" variant="ghost" icon={<Trash2 size={12} />} onClick={() => removeStore(store)}>Remove</Button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-            <Button size="sm" variant={store.store_id === storeId ? 'accent' : 'ghost'} onClick={() => setStoreId(store.store_id)}>
-              {store.store_id === storeId ? 'Selected' : 'Use'}
-            </Button>
-          </div>
-        ))}
+          )
+        })}
 
         {stores.length === 0 && !loading && (
           <p className="text-xs text-[var(--text-tertiary)] text-center py-4">No configured stores found in Supabase.</p>
@@ -966,6 +1055,7 @@ function AccessSection() {
   const [editLabel, setEditLabel] = useState('')
   const [editStoreId, setEditStoreId] = useState('')
   const [editRole, setEditRole] = useState<AccessRole>('employee')
+  const [editPin, setEditPin] = useState('')
 
   const canManageAccess = accessRole === 'admin' || accessRole === 'manager'
   const visibleCodes = accessRole === 'admin'
@@ -1013,7 +1103,7 @@ function AccessSection() {
         store_id: targetStore,
         pin_hash: await hashPin(cleanPin),
         role,
-        label: label.trim() || `${role} access`,
+        label: label.trim() || `${accessRoleLabel(role)} access`,
       })
       setDealer('')
       setPin('')
@@ -1059,7 +1149,8 @@ function AccessSection() {
     setEditingId(code.id)
     setEditLabel(code.label ?? '')
     setEditStoreId(code.store_id)
-    setEditRole(code.role)
+    setEditRole(code.role === 'display' ? 'employee' : code.role)
+    setEditPin('')
     setError('')
   }
 
@@ -1068,6 +1159,7 @@ function AccessSection() {
     setEditLabel('')
     setEditStoreId('')
     setEditRole('employee')
+    setEditPin('')
   }
 
   const saveEditCode = async (code: StoreAccessCode) => {
@@ -1078,6 +1170,10 @@ function AccessSection() {
     }
     if (!targetStore) {
       setError('Store ID / SAP is required.')
+      return
+    }
+    if (editPin && !/^\d{4}$/.test(editPin.trim())) {
+      setError('New PIN must be 4 digits.')
       return
     }
     if (accessRole !== 'admin' && code.store_id !== storeId) {
@@ -1092,6 +1188,7 @@ function AccessSection() {
         label: editLabel.trim(),
         store_id: targetStore,
         role: accessRole === 'admin' ? editRole : editRole === 'admin' ? 'manager' : editRole,
+        ...(editPin ? { pin_hash: await hashPin(editPin.trim()) } : {}),
       })
       cancelEditCode()
       await loadCodes()
@@ -1118,10 +1215,10 @@ function AccessSection() {
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
           <p className="text-sm font-semibold text-[var(--text)]">Current Session</p>
           <p className="text-xs text-[var(--text-secondary)] mt-1">
-            {accessLabel || 'Access user'} · Dealer {dealerCode || 'n/a'} · Role {accessRole ?? 'none'} · Store {storeId || 'none'}
+            {accessLabel || 'Access user'} · Dealer {dealerCode || 'n/a'} · Role {accessRoleLabel(accessRole)} · Store {storeId || 'none'}
           </p>
           <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
-            Employee: Dashboard and Schedule · Manager: store operations · Admin: all stores and access management · Display: display-only
+            Store Access: Dashboard, Schedule, Weather, and Display · Manager: store operations · Admin: all stores and access management
           </p>
         </div>
 
@@ -1134,8 +1231,7 @@ function AccessSection() {
             <Select label="Role" value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as AccessRole)}>
               {accessRole === 'admin' && <option value="admin">Admin</option>}
               <option value="manager">Manager</option>
-              <option value="employee">Employee</option>
-              <option value="display">Display</option>
+              <option value="employee">Store Access</option>
             </Select>
             <Input label="Label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Manager name" />
           </div>
@@ -1153,15 +1249,15 @@ function AccessSection() {
               <div key={code.id} className="px-4 py-3">
                 {isEditing ? (
                   <div className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <Input label="Name" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} placeholder="User name" />
                       <Input label="Store ID / SAP" value={accessRole === 'admin' ? editStoreId : storeId} onChange={(e) => setEditStoreId(e.target.value)} disabled={accessRole !== 'admin'} placeholder="697D or main" />
                       <Select label="Role" value={editRole} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditRole(e.target.value as AccessRole)}>
                         {accessRole === 'admin' && <option value="admin">Admin</option>}
                         <option value="manager">Manager</option>
-                        <option value="employee">Employee</option>
-                        <option value="display">Display</option>
+                        <option value="employee">Store Access</option>
                       </Select>
+                      <Input label="New PIN" type="password" inputMode="numeric" maxLength={4} value={editPin} onChange={(e) => setEditPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="Keep current" />
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="ghost" onClick={cancelEditCode}>Cancel</Button>
@@ -1173,7 +1269,7 @@ function AccessSection() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-[var(--text)] truncate">{code.label || 'Access code'}</p>
                       <p className="text-xs text-[var(--text-tertiary)]">
-                        Dealer {code.dealer_code} · {code.store_id} · {code.role}
+                        Dealer {code.dealer_code} · {code.store_id} · {accessRoleLabel(code.role)}
                         {code.last_used_at ? ` · Last used ${new Date(code.last_used_at).toLocaleDateString()}` : ''}
                         {code.onboarded_at ? ` · Intro completed ${new Date(code.onboarded_at).toLocaleDateString()}` : ' · Intro pending'}
                       </p>
@@ -1212,6 +1308,7 @@ function AccessSection() {
 const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
   { id: 'weather',       label: 'Weather',       icon: <Cloud size={14} /> },
+  { id: 'display',       label: 'Display',       icon: <Tv2 size={14} /> },
   { id: 'store',         label: 'Store Details',  icon: <Store size={14} /> },
   { id: 'configuredStores', label: 'Configured Stores', icon: <Store size={14} /> },
   { id: 'reports',       label: 'Reports',        icon: <FileText size={14} /> },
@@ -1224,6 +1321,7 @@ const SECTIONS = [
 ] as const
 
 type SectionId = typeof SECTIONS[number]['id']
+const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'display', 'about']
 
 function isSectionId(value: string): value is SectionId {
   return SECTIONS.some((section) => section.id === value)
@@ -1231,17 +1329,35 @@ function isSectionId(value: string): value is SectionId {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function SettingsPage() {
+  const accessRole = useUiStore((state) => state.accessRole)
   const requestedSection = useUiStore((state) => state.settingsSection)
   const setSettingsSection = useUiStore((state) => state.setSettingsSection)
-  const [active, setActive] = useState<SectionId>(isSectionId(requestedSection) ? requestedSection : 'general')
+  const visibleSections = useMemo(() => (
+    accessRole === 'employee'
+      ? SECTIONS.filter((section) => LIMITED_SETTINGS_SECTIONS.includes(section.id))
+      : SECTIONS
+  ), [accessRole])
+  const fallbackSection = visibleSections[0]?.id ?? 'weather'
+  const [active, setActive] = useState<SectionId>(
+    isSectionId(requestedSection) && visibleSections.some((section) => section.id === requestedSection)
+      ? requestedSection
+      : fallbackSection
+  )
 
   useEffect(() => {
-    if (isSectionId(requestedSection)) setActive(requestedSection)
-  }, [requestedSection])
+    if (isSectionId(requestedSection) && visibleSections.some((section) => section.id === requestedSection)) {
+      setActive(requestedSection)
+      return
+    }
+    if (!visibleSections.some((section) => section.id === active)) setActive(fallbackSection)
+  }, [active, fallbackSection, requestedSection, visibleSections])
+
+  const activeSection = visibleSections.some((section) => section.id === active) ? active : fallbackSection
 
   const content: Record<SectionId, React.ReactNode> = {
     general:       <GeneralSection />,
     weather:       <WeatherPage />,
+    display:       <DisplaySettingsSection />,
     store:         <StoreSection />,
     configuredStores: <ConfiguredStoresSection />,
     reports:       <ReportSection />,
@@ -1257,7 +1373,7 @@ export function SettingsPage() {
     <div className="flex flex-col sm:flex-row h-full overflow-hidden">
       {/* Sidebar */}
       <div className="sm:w-48 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-[var(--border)] flex sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto px-3 py-2 sm:px-0 sm:py-3">
-        {SECTIONS.map((s) => (
+        {visibleSections.map((s) => (
           <button
             key={s.id}
             onClick={() => {
@@ -1265,7 +1381,7 @@ export function SettingsPage() {
               setSettingsSection(s.id)
             }}
             className={`flex items-center gap-2.5 sm:mx-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left whitespace-nowrap ${
-              active === s.id
+              activeSection === s.id
                 ? 'bg-[var(--accent)]/12 text-[var(--accent)]'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'
             }`}
@@ -1281,13 +1397,13 @@ export function SettingsPage() {
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
         <AnimatePresence mode="wait">
           <motion.div
-            key={active}
+            key={activeSection}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
           >
-            {content[active]}
+            {content[activeSection]}
           </motion.div>
         </AnimatePresence>
       </div>

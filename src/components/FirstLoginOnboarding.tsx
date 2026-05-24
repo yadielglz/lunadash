@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CalendarDays, CheckCircle2, LayoutDashboard, Settings2, Sparkles, UsersRound } from 'lucide-react'
 import { dbMarkAccessOnboarded } from '../lib/supabase'
-import { useUiStore, type AccessRole } from '../store/uiStore'
+import { accessRoleLabel, useUiStore, type AccessRole } from '../store/uiStore'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
 import { LunaWirelessLogo } from './brand/LunaWirelessLogo'
@@ -20,7 +20,7 @@ const ROLE_COPY: Record<AccessRole, Step[]> = {
       kicker: 'Welcome to LunaDash',
       title: 'Your command center is ready.',
       body: 'This admin session can view the full business, manage stores, and keep access organized from Settings.',
-      bullets: ['Use Main to review all active stores.', 'Create managers, employees, and display sessions from Access.'],
+      bullets: ['Use Main to review all active stores.', 'Create managers and store access sessions from Access.'],
       icon: <Sparkles size={22} />,
     },
     {
@@ -50,7 +50,7 @@ const ROLE_COPY: Record<AccessRole, Step[]> = {
       kicker: 'Store Setup',
       title: 'Tune the store from Settings.',
       body: 'Managers can maintain local store details, employees, schedule blocks, and store-level access.',
-      bullets: ['Review Source-backed performance during the day.', 'Create employee or display access for your store.'],
+      bullets: ['Review Source-backed performance during the day.', 'Create store access for your team or display screens.'],
       icon: <Settings2 size={22} />,
     },
     {
@@ -65,7 +65,7 @@ const ROLE_COPY: Record<AccessRole, Step[]> = {
     {
       kicker: 'Welcome to LunaDash',
       title: 'Your store view is ready.',
-      body: 'This employee session keeps the important work visible without extra admin tools in the way.',
+      body: 'This store access session keeps the important work visible without extra admin tools in the way.',
       bullets: ['Dashboard shows store status at a glance.', 'Schedule keeps upcoming shifts easy to check.'],
       icon: <Sparkles size={22} />,
     },
@@ -127,7 +127,7 @@ export function FirstLoginOnboarding() {
           <h2 className="mt-2 text-2xl font-semibold text-[var(--text)]">{step.title}</h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">{step.body}</p>
           <p className="mt-2 text-xs text-[var(--text-tertiary)]">
-            {accessLabel || 'New user'} · {accessRole}
+            {accessLabel || 'New user'} · {accessRoleLabel(accessRole)}
           </p>
         </div>
 

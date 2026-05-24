@@ -1,22 +1,30 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Maximize, Minimize, X, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { format, addDays } from 'date-fns'
 import { useFullscreen } from '../../../hooks/useFullscreen'
 import { useWeather } from '../../../hooks/useWeather'
 import { useTempDisplay } from '../../../hooks/useTempDisplay'
 import { useScheduleStore } from '../../../store/scheduleStore'
-import { useGoalsStore } from '../../../store/goalsStore'
 import { useDisplayStore } from '../../../store/displayStore'
 import { useUiStore } from '../../../store/uiStore'
 import { getWeatherInfo } from '../../../lib/openMeteo'
-import { ProgressRing } from '../../ui/ProgressRing'
 import { formatShiftTime, hexToRgba } from '../../../lib/utils'
+import { fetchPerformanceData } from '../../../lib/performanceSheet'
 
 // T-Mobile magenta palette
 const MG  = '#E20074'       // primary magenta
 const MG2 = '#FF0084'       // bright magenta for glows
 const MG3 = '#9B004F'       // deep magenta
+
+function formatMoney(value: number) {
+  return Math.round(value).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+}
+
+function formatNumber(value: number) {
+  return Math.round(value).toLocaleString('en-US')
+}
 
 // ── Slide: Clock ─────────────────────────────────────────────────────────────
 function ClockSlide() {
@@ -380,92 +388,76 @@ function ScheduleOutlookSlide() {
   )
 }
 
-// ── Slide: Goals ──────────────────────────────────────────────────────────────
-function GoalsSlide() {
-  const { goals } = useGoalsStore()
-  const key  = new Date().toISOString().split('T')[0]
-  const cols = goals.length <= 3 ? goals.length : goals.length <= 6 ? 3 : 4
-
-  // Daily summary
-  const dailyDone = goals.filter((g) => ((g.dailyLog ?? {})[key] ?? 0) >= (g.dailyTarget ?? 1)).length
+// ── Slide: District Outlook ───────────────────────────────────────────────────
+function DistrictOutlookSlide() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['display-performance-source'],
+    queryFn: fetchPerformanceData,
+    staleTime: 55_000,
+    refetchInterval: 60_000,
+  })
+  const rows = (data?.rows ?? [])
+    .filter((row) => row.store.toLowerCase() !== 'total')
+    .sort((a, b) => b.netRevenue - a.netRevenue)
+    .slice(0, 5)
 
   return (
     <div className="flex flex-col items-center h-full pt-[3.5vh] pb-[2vh] px-[4vw] gap-4 select-none">
-      {/* Header */}
       <div className="flex flex-col items-center gap-1 flex-shrink-0">
-        <h2 className="text-[2.8vw] font-black text-white tracking-tight">Today's Goals</h2>
-        <p className="text-[1.2vw]" style={{ color: MG }}>
-          {dailyDone} of {goals.length} daily targets hit
-          <span className="text-white/30 mx-2">·</span>
-          {format(new Date(), 'EEEE, MMMM d')}
-        </p>
+        <h2 className="text-[2.8vw] font-black text-white tracking-tight">District Outlook</h2>
+        <p className="text-[1.2vw]" style={{ color: MG }}>Top 5 by Net Revenue</p>
       </div>
 
-      {/* Goal cards */}
-      <div
-        className="w-full max-w-6xl overflow-hidden"
-        style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: '1vw' }}
-      >
-        {goals.map((g) => {
-          const dailyTgt    = g.dailyTarget ?? 1
-          const todayVal    = (g.dailyLog ?? {})[key] ?? 0
-          const dailyPct    = Math.min(Math.round((todayVal / dailyTgt) * 100), 100)
-          const monthlyPct  = Math.min(Math.round((g.current / g.target) * 100), 100)
-          const dailyDoneG  = todayVal >= dailyTgt
-
-          return (
-            <div
-              key={g.id}
-              className="flex flex-col items-center gap-2 rounded-2xl"
-              style={{
-                padding: '1.2vw',
-                background: dailyDoneG
-                  ? `linear-gradient(135deg, ${hexToRgba(g.color, 0.18)}, ${hexToRgba(g.color, 0.08)})`
-                  : hexToRgba(g.color, 0.09),
-                border: `1px solid ${hexToRgba(g.color, dailyDoneG ? 0.4 : 0.2)}`,
-              }}
-            >
-              {/* Daily ring */}
-              <ProgressRing value={dailyPct} size={72} strokeWidth={7} color={g.color}>
-                <div className="flex flex-col items-center leading-none">
-                  <span className="text-[1.3vw] font-black text-white">{todayVal}</span>
-                  <span className="text-[0.7vw] text-white/40">/{g.dailyTarget}</span>
+      <div className="flex-1 w-full max-w-6xl overflow-hidden">
+        {isLoading ? (
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">Loading outlook…</div>
+        ) : rows.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">No Source rows available</div>
+        ) : (
+          <div className="grid h-full grid-rows-5 gap-[1vh]">
+            {rows.map((row, index) => (
+              <div
+                key={row.store}
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-[1.2vw] rounded-2xl px-[1.4vw] py-[1vh]"
+                style={{
+                  background: index === 0 ? `${MG}18` : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${index === 0 ? `${MG}45` : 'rgba(255,255,255,0.08)'}`,
+                }}
+              >
+                <div
+                  className="flex h-[3.2vw] w-[3.2vw] items-center justify-center rounded-xl text-[1.4vw] font-black text-white"
+                  style={{ background: index === 0 ? MG : 'rgba(255,255,255,0.12)' }}
+                >
+                  {index + 1}
                 </div>
-              </ProgressRing>
-
-              {/* Title + done badge */}
-              <div className="text-center w-full">
-                <div className="text-[1.2vw] font-bold text-white leading-tight">{g.title}</div>
-                {dailyDoneG ? (
-                  <div
-                    className="text-[0.85vw] font-semibold mt-0.5"
-                    style={{ color: g.color }}
-                  >
-                    ✓ Done!
-                  </div>
-                ) : (
-                  <div className="text-[0.85vw] text-white/35 mt-0.5">
-                    {dailyTgt - todayVal}{g.unit} to go
-                  </div>
-                )}
-              </div>
-
-              {/* Monthly mini bar */}
-              <div className="w-full space-y-0.5">
-                <div className="flex justify-between text-[0.75vw] text-white/25">
-                  <span>Monthly</span>
-                  <span>{monthlyPct}%</span>
+                <div className="min-w-0">
+                  <div className="truncate text-[1.55vw] font-black text-white">{row.teamName || row.store}</div>
+                  <div className="text-[0.95vw] text-white/35">Store {row.storeCode}</div>
                 </div>
-                <div className="h-[3px] rounded-full bg-white/10 overflow-hidden">
-                  <div
-                    className="h-full rounded-full"
-                    style={{ width: `${monthlyPct}%`, background: `${g.color}80` }}
-                  />
+                <div className="text-right">
+                  <div className="text-[1.5vw] font-black text-white tabular-nums">{formatMoney(row.netRevenue)}</div>
+                  <div className="text-[0.85vw]" style={{ color: row.netRevenuePct >= 100 ? MG : 'rgba(255,255,255,0.35)' }}>
+                    {row.netRevenuePct >= 100 ? 'Goal Met' : `${Math.round(row.netRevenuePct)}% to goal`}
+                  </div>
+                </div>
+                <div className="grid min-w-[14vw] grid-cols-3 gap-[0.5vw] text-center">
+                  <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
+                    <div className="text-[0.7vw] uppercase text-white/30">ACC</div>
+                    <div className="text-[0.95vw] font-bold text-white">{formatMoney(row.accessoryRevenue)}</div>
+                  </div>
+                  <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
+                    <div className="text-[0.7vw] uppercase text-white/30">PP</div>
+                    <div className="text-[0.95vw] font-bold text-white">{formatNumber(row.totalPp)}</div>
+                  </div>
+                  <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
+                    <div className="text-[0.7vw] uppercase text-white/30">Traffic</div>
+                    <div className="text-[0.95vw] font-bold text-white">{formatNumber(row.traffic)}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -526,7 +518,7 @@ const SLIDES = [
   { key: 'weather',  label: 'Weather',        component: WeatherSlide },
   { key: 'sched',    label: 'Schedule',       component: ScheduleSlide },
   { key: 'outlook',  label: 'Outlook',        component: ScheduleOutlookSlide },
-  { key: 'goals',    label: 'Goals',          component: GoalsSlide },
+  { key: 'district', label: 'District',       component: DistrictOutlookSlide },
   { key: 'announce', label: 'Announcements',  component: AnnouncementsSlide },
 ]
 

@@ -8,6 +8,13 @@ export type TimeFormat = '12' | '24'
 export type AccessMode = 'manager' | 'display' | 'admin'
 export type AccessRole = 'admin' | 'manager' | 'employee' | 'display'
 
+export function accessRoleLabel(role: AccessRole | null) {
+  if (role === 'employee' || role === 'display') return 'Store Access'
+  if (role === 'manager') return 'Manager'
+  if (role === 'admin') return 'Admin'
+  return 'None'
+}
+
 const SESSION_MS = 2 * 60 * 1000
 
 interface UiState {
@@ -73,7 +80,7 @@ export const useUiStore = create<UiState>()(
       setStoreId: (id) => set({ storeId: id, sessionExpiresAt: id ? Date.now() + SESSION_MS : null }),
       setAccessMode: (mode) => set({ accessMode: mode, activeTab: mode === 'display' ? 'display' : get().activeTab }),
       setAccessSession: ({ id, storeId, role, dealerCode, label, mode, onboardedAt }) => {
-        const accessMode = mode ?? (role === 'admin' ? 'admin' : role === 'display' ? 'display' : 'manager')
+        const accessMode = mode ?? (role === 'admin' ? 'admin' : 'manager')
         set({
           storeId,
           accessRole: role,

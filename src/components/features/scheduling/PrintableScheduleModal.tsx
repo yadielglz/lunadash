@@ -16,7 +16,9 @@ interface PrintableScheduleModalProps {
 function shiftHours(shift: Shift) {
   const start = timeToMinutes(shift.startTime)
   const end = timeToMinutes(shift.endTime)
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null
   const minutes = end >= start ? end - start : (24 * 60 - start) + end
+  if (minutes <= 0 || minutes > 14 * 60) return null
   return minutes / 60
 }
 
@@ -46,7 +48,9 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
     weekShifts.some((shift) => shift.employeeId === employee.id)
   )
   const displayedEmployees = scheduledEmployees.length > 0 ? scheduledEmployees : employees
-  const totalHours = weekShifts.reduce((sum, shift) => sum + shiftHours(shift), 0)
+  const shiftHourValues = weekShifts.map(shiftHours)
+  const canShowHours = shiftHourValues.every((hours) => hours !== null)
+  const totalHours = canShowHours ? shiftHourValues.reduce((sum, hours) => sum + (hours ?? 0), 0) : null
 
   const print = () => {
     const title = `${companyName || 'Luna Store'} Schedule ${format(weekStart, 'MMM d')}-${format(addDays(weekStart, 6), 'MMM d, yyyy')}`
@@ -59,7 +63,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
         </div>
         <div class="summary">
           <strong>${weekShifts.length} shifts</strong>
-          <span>${formatHours(totalHours)} scheduled hours</span>
+          ${canShowHours && totalHours !== null ? `<span>${formatHours(totalHours)} scheduled hours</span>` : ''}
           <small>Printed ${format(new Date(), 'MMM d, yyyy h:mm a')}</small>
         </div>
       </div>
@@ -74,7 +78,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
 
     const rows = displayedEmployees.map((employee) => {
       const employeeShifts = weekShifts.filter((shift) => shift.employeeId === employee.id)
-      const employeeHours = employeeShifts.reduce((sum, shift) => sum + shiftHours(shift), 0)
+      const employeeHours = canShowHours ? employeeShifts.reduce((sum, shift) => sum + (shiftHours(shift) ?? 0), 0) : null
       const cells = days.map((day) => {
         const date = format(day, 'yyyy-MM-dd')
         const dayShifts = employeeShifts.filter((shift) => shift.date === date)
@@ -99,7 +103,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
           <td class="employee">
             <div class="employee-name"><span style="background:${employee.color};"></span>${escapeHtml(employee.name)}</div>
             <div class="employee-role">${escapeHtml(employee.role)}</div>
-            <div class="employee-hours">${formatHours(employeeHours)} hrs</div>
+            ${employeeHours !== null ? `<div class="employee-hours">${formatHours(employeeHours)} hrs</div>` : ''}
           </td>
           ${cells}
         </tr>
@@ -260,7 +264,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
               </div>
               <div className="text-right">
                 <div className="text-sm font-semibold text-slate-950">{weekShifts.length} shifts</div>
-                <div className="text-sm text-slate-500">{formatHours(totalHours)} scheduled hours</div>
+                {canShowHours && totalHours !== null && <div className="text-sm text-slate-500">{formatHours(totalHours)} scheduled hours</div>}
                 <div className="mt-2 text-[11px] text-slate-400">Printed {format(new Date(), 'MMM d, yyyy h:mm a')}</div>
               </div>
             </div>
@@ -276,7 +280,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
 
               {displayedEmployees.map((employee) => {
                 const employeeShifts = weekShifts.filter((shift) => shift.employeeId === employee.id)
-                const employeeHours = employeeShifts.reduce((sum, shift) => sum + shiftHours(shift), 0)
+                const employeeHours = canShowHours ? employeeShifts.reduce((sum, shift) => sum + (shiftHours(shift) ?? 0), 0) : null
 
                 return (
                   <div key={employee.id} className="contents">
@@ -288,9 +292,11 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
                           <div className="text-[11px] leading-snug text-slate-500 break-words">{employee.role}</div>
                         </div>
                       </div>
-                      <div className="mt-2 text-[11px] font-semibold text-slate-500">
-                        {formatHours(employeeHours)} hrs
-                      </div>
+                      {employeeHours !== null && (
+                        <div className="mt-2 text-[11px] font-semibold text-slate-500">
+                          {formatHours(employeeHours)} hrs
+                        </div>
+                      )}
                     </div>
 
                     {days.map((day) => {

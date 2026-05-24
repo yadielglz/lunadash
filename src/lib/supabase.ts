@@ -211,7 +211,7 @@ export async function dbCreateAccessCode(code: {
   throwIfError(error, 'Could not create access code')
 }
 
-export async function dbUpdateAccessCode(id: string, patch: Partial<Pick<StoreAccessCode, 'label' | 'role' | 'store_id' | 'is_active'>>) {
+export async function dbUpdateAccessCode(id: string, patch: Partial<Pick<StoreAccessCode, 'label' | 'role' | 'store_id' | 'is_active'> & { pin_hash: string }>) {
   const { error } = await supabase.from('store_access_codes').update(patch).eq('id', id)
   throwIfError(error, 'Could not update access code')
 }
@@ -511,6 +511,11 @@ export async function dbGetStores(): Promise<StoreSummary[]> {
     .order('store_id')
   throwIfError(error, 'Could not load stores')
   return (data ?? []) as StoreSummary[]
+}
+
+export async function dbDeleteSettings(storeId: string) {
+  const { error } = await supabase.from('app_settings').delete().eq('store_id', storeId)
+  throwIfError(error, 'Could not remove store')
 }
 
 export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSettings, 'store_id'>>) {

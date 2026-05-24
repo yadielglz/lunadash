@@ -45,9 +45,7 @@ export function StoreLaunchScreen() {
         ? 'admin'
         : access.role === 'display'
           ? 'display'
-          : access.role === 'employee'
-            ? 'manager'
-            : mode
+          : mode
 
       setAccessSession({
         id: access.id,

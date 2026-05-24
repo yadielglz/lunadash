@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CloudSun, Sun, Moon, Store, Pencil, Check, LogOut } from 'lucide-react'
-import { useUiStore } from '../../store/uiStore'
+import { accessRoleLabel, useUiStore } from '../../store/uiStore'
 import { useTheme } from '../../hooks/useTheme'
 import { useClock } from '../../hooks/useClock'
 import { useDisplayStore } from '../../store/displayStore'
@@ -225,7 +225,7 @@ export function TitleBar() {
       <div className="flex flex-shrink-0 items-center gap-1">
         {accessRole && (
           <div className="hidden md:flex flex-col items-end leading-none mr-1">
-            <span className="text-[10px] font-semibold uppercase text-[var(--accent)]">{accessRole}</span>
+            <span className="text-[10px] font-semibold uppercase text-[var(--accent)]">{accessRoleLabel(accessRole)}</span>
             <span className="text-[10px] text-[var(--text-tertiary)] max-w-[120px] truncate">{accessLabel || 'Access session'}</span>
           </div>
         )}

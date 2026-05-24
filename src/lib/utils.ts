@@ -25,8 +25,24 @@ export function hexToRgba(hex: string, alpha: number): string {
 }
 
 export function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number)
-  return h * 60 + m
+  const value = time.trim()
+  const match = value.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i)
+  if (!match) return Number.NaN
+
+  let hours = Number(match[1])
+  const minutes = Number(match[2] ?? '0')
+  const period = match[3]?.toUpperCase()
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || minutes < 0 || minutes > 59) return Number.NaN
+  if (period) {
+    if (hours < 1 || hours > 12) return Number.NaN
+    if (period === 'AM') hours = hours === 12 ? 0 : hours
+    if (period === 'PM') hours = hours === 12 ? 12 : hours + 12
+  } else if (hours < 0 || hours > 23) {
+    return Number.NaN
+  }
+
+  return hours * 60 + minutes
 }
 
 export function minutesToTime(mins: number): string {
@@ -37,7 +53,10 @@ export function minutesToTime(mins: number): string {
 
 export function formatShiftTime(start: string, end: string): string {
   const fmt = (t: string) => {
-    const [h, m] = t.split(':').map(Number)
+    const total = timeToMinutes(t)
+    if (!Number.isFinite(total)) return t
+    const h = Math.floor(total / 60) % 24
+    const m = total % 60
     const period = h >= 12 ? 'PM' : 'AM'
     const hour = h % 12 || 12
     return m === 0 ? `${hour}${period}` : `${hour}:${m.toString().padStart(2,'0')}${period}`
