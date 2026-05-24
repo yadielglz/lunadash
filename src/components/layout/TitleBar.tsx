@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { CloudSun, Sun, Moon, Store, Pencil, Check, LogOut } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore'
 import { useTheme } from '../../hooks/useTheme'
@@ -7,6 +8,12 @@ import { useDisplayStore } from '../../store/displayStore'
 import { useWeather } from '../../hooks/useWeather'
 import { useTempDisplay } from '../../hooks/useTempDisplay'
 import { getWeatherInfo } from '../../lib/openMeteo'
+import { dbGetAccessCodes } from '../../lib/supabase'
+import { fetchPerformanceData } from '../../lib/performanceSheet'
+
+function normalizeStoreCode(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '').trim()
+}
 
 function EditableField({
   value,
@@ -102,11 +109,74 @@ function WeatherStatus() {
   )
 }
 
+function StoreSelector() {
+  const { accessRole, storeId, setStoreId } = useUiStore()
+  const { storeNumber } = useDisplayStore()
+  const accessQuery = useQuery({
+    queryKey: ['titlebar-access-stores'],
+    queryFn: dbGetAccessCodes,
+    staleTime: 60_000,
+  })
+  const sourceQuery = useQuery({
+    queryKey: ['titlebar-performance-source'],
+    queryFn: fetchPerformanceData,
+    staleTime: 55_000,
+    refetchInterval: 60_000,
+  })
+
+  const sourceRows = sourceQuery.data?.rows ?? []
+  const sourceByCode = new Map(sourceRows.map((row) => [normalizeStoreCode(row.storeCode), row]))
+  const codedStores = new Map<string, { id: string; label: string }>()
+
+  accessQuery.data
+    ?.filter((code) => code.is_active && code.store_id && code.store_id !== 'main')
+    .forEach((code) => {
+      const row = sourceByCode.get(normalizeStoreCode(code.store_id))
+      if (!row || codedStores.has(code.store_id)) return
+      codedStores.set(code.store_id, {
+        id: code.store_id,
+        label: `${row.teamName || row.store} #${row.storeCode}`,
+      })
+    })
+
+  const options = [
+    ...(accessRole === 'admin' ? [{ id: 'main', label: 'Main Dashboard' }] : []),
+    ...Array.from(codedStores.values()).sort((a, b) => a.label.localeCompare(b.label)),
+  ]
+
+  const currentValue = options.some((option) => option.id === storeId) ? storeId : ''
+  const fallbackLabel = storeNumber ? `Store #${storeNumber}` : storeId || 'Store'
+
+  if (options.length === 0) {
+    return (
+      <span className="max-w-[170px] truncate text-xs text-[var(--text-secondary)]">
+        {fallbackLabel}
+      </span>
+    )
+  }
+
+  return (
+    <select
+      value={currentValue}
+      onChange={(event) => {
+        if (event.target.value) setStoreId(event.target.value)
+      }}
+      className="max-w-[190px] rounded border border-transparent bg-transparent py-0 pr-5 text-xs text-[var(--text-secondary)] outline-none transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] focus:border-[var(--accent)] focus:bg-[var(--surface-2)]"
+      title="Switch store"
+    >
+      {!currentValue && <option value="">{fallbackLabel}</option>}
+      {options.map((option) => (
+        <option key={option.id} value={option.id}>{option.label}</option>
+      ))}
+    </select>
+  )
+}
+
 export function TitleBar() {
   const { toggleTheme, isDark } = useTheme()
   const { activeTab, accessRole, accessLabel, clearStoreSession, setTab } = useUiStore()
   const now = useClock()
-  const { companyName, storeNumber, setCompanyName, setStoreNumber } = useDisplayStore()
+  const { companyName, setCompanyName } = useDisplayStore()
 
   const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
   const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
@@ -128,11 +198,7 @@ export function TitleBar() {
           />
           <div className="flex items-center gap-1">
             <Store size={9} className="text-[var(--text-tertiary)]" />
-            <EditableField
-              value={storeNumber}
-              placeholder="Store #"
-              onChange={setStoreNumber}
-            />
+            <StoreSelector />
           </div>
         </div>
       </div>
