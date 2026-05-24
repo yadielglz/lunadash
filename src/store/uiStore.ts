@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 
 export type Tab = 'home' | 'devices' | 'schedule' | 'goals' | 'weather' | 'display' | 'tasks' | 'settings'
 export type Theme = 'dark' | 'light'
@@ -78,16 +79,19 @@ export const useUiStore = create<UiState>()(
       setTempUnit: (unit) => set({ tempUnit: unit }),
       toggleTempUnit: () => set((s) => ({ tempUnit: s.tempUnit === 'C' ? 'F' : 'C' })),
       setTimeFormat: (fmt) => set({ timeFormat: fmt }),
-      setStoreId: (id) => set({ storeId: id, sessionExpiresAt: id ? Date.now() + SESSION_MS : null }),
+      setStoreId: (id) => {
+        const storeId = normalizeStoreId(id)
+        set({ storeId, sessionExpiresAt: storeId ? Date.now() + SESSION_MS : null })
+      },
       setAccessMode: (mode) => set({ accessMode: mode, activeTab: mode === 'display' ? 'display' : get().activeTab }),
       setAccessSession: ({ id, storeId, role, dealerCode, label, mode, onboardedAt }) => {
         const accessMode = mode ?? (role === 'admin' ? 'admin' : 'manager')
         set({
-          storeId,
+          storeId: normalizeStoreId(storeId),
           accessRole: role,
           accessId: id,
           accessMode,
-          dealerCode,
+          dealerCode: normalizeAccessCode(dealerCode),
           accessLabel: label ?? '',
           needsOnboarding: role !== 'display' && !onboardedAt,
           sessionExpiresAt: Date.now() + SESSION_MS,

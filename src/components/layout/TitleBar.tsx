@@ -10,6 +10,7 @@ import { useTempDisplay } from '../../hooks/useTempDisplay'
 import { getWeatherInfo } from '../../lib/openMeteo'
 import { dbGetAccessCodes } from '../../lib/supabase'
 import { fetchPerformanceData } from '../../lib/performanceSheet'
+import { normalizeStoreId } from '../../lib/storeIds'
 
 function normalizeStoreCode(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '').trim()
@@ -145,12 +146,13 @@ function StoreSelector() {
   const codedStores = new Map<string, { id: string; label: string }>()
 
   accessQuery.data
-    ?.filter((code) => code.is_active && code.store_id && code.store_id !== 'main')
+    ?.filter((code) => code.is_active && code.store_id && normalizeStoreId(code.store_id) !== 'main')
     .forEach((code) => {
-      const row = sourceByCode.get(normalizeStoreCode(code.store_id))
-      if (!row || codedStores.has(code.store_id)) return
-      codedStores.set(code.store_id, {
-        id: code.store_id,
+      const storeId = normalizeStoreId(code.store_id)
+      const row = sourceByCode.get(normalizeStoreCode(storeId))
+      if (!row || codedStores.has(storeId)) return
+      codedStores.set(storeId, {
+        id: storeId,
         label: `${row.teamName || row.store} #${row.storeCode}`,
       })
     })
@@ -173,7 +175,7 @@ function StoreSelector() {
     <select
       value={currentValue}
       onChange={(event) => {
-        if (event.target.value) setStoreId(event.target.value)
+        if (event.target.value) setStoreId(normalizeStoreId(event.target.value))
       }}
       className="max-w-[190px] rounded border border-transparent bg-transparent py-0 pr-5 text-xs text-[var(--text-secondary)] outline-none transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] focus:border-[var(--accent)] focus:bg-[var(--surface-2)]"
       title="Switch store"

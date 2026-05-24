@@ -19,6 +19,7 @@ import { SyncArea, useSyncStore } from '../../../store/syncStore'
 import { AccessRole } from '../../../store/uiStore'
 import { hashPin } from '../../../store/lockStore'
 import { WeatherPage } from '../weather/WeatherPage'
+import { normalizeAccessCode, normalizeStoreId } from '../../../lib/storeIds'
 
 // ── Section wrapper ──────────────────────────────────────────────────────────
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
@@ -149,14 +150,14 @@ function StoreSection() {
     setStoresError('')
     try {
       const rows = await dbGetStores()
-      const hasDefault = rows.some((store) => store.store_id === 'default')
+      const hasDefault = rows.some((store) => normalizeStoreId(store.store_id) === 'DEFAULT')
       setStores(hasDefault ? rows : [
-        { store_id: 'default', company_name: 'Luna Store', store_number: '', slide_interval: 8 },
+        { store_id: 'DEFAULT', company_name: 'Luna Store', store_number: '', slide_interval: 8 },
         ...rows,
       ])
     } catch (err) {
       setStoresError(err instanceof Error ? err.message : 'Could not load stores')
-      setStores([{ store_id: 'default', company_name: 'Luna Store', store_number: '', slide_interval: 8 }])
+      setStores([{ store_id: 'DEFAULT', company_name: 'Luna Store', store_number: '', slide_interval: 8 }])
     } finally {
       setStoresLoading(false)
     }
@@ -178,13 +179,13 @@ function StoreSection() {
   }
 
   const switchStore = (nextStoreId: string) => {
-    setStoreId(nextStoreId || 'default')
+    setStoreId(normalizeStoreId(nextStoreId) || 'DEFAULT')
     setSidSaved(true)
     setTimeout(() => setSidSaved(false), 2000)
   }
 
   const addStore = async () => {
-    const id = newStoreId.trim() || 'default'
+    const id = normalizeStoreId(newStoreId) || 'DEFAULT'
     await dbUpdateSettings(id, {
       company_name: id === storeId ? companyName : 'Luna Store',
       store_number: id === storeId ? storeNumber : '',
@@ -222,7 +223,7 @@ function StoreSection() {
               {store.company_name || 'Luna Store'}{store.store_number ? ` #${store.store_number}` : ''} ({store.store_id})
             </option>
           ))}
-          {storeId !== 'main' && !stores.some((store) => store.store_id === storeId) && (
+          {storeId !== 'main' && !stores.some((store) => normalizeStoreId(store.store_id) === normalizeStoreId(storeId)) && (
             <option value={storeId}>{storeId} (current)</option>
           )}
         </Select>
@@ -236,7 +237,7 @@ function StoreSection() {
         <div className="flex flex-col sm:flex-row gap-2">
           <Input
             value={newStoreId}
-            onChange={(e) => setNewStoreId(e.target.value)}
+            onChange={(e) => setNewStoreId(normalizeStoreId(e.target.value))}
             placeholder="New store ID, e.g. 693D"
             onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') addStore() }}
           />
@@ -246,7 +247,7 @@ function StoreSection() {
         </div>
 
         <p className="text-[10px] text-[var(--text-tertiary)]">
-          Current: <span className="font-mono text-[var(--accent)]">{storeId || 'default'}</span>
+          Current: <span className="font-mono text-[var(--accent)]">{storeId || 'DEFAULT'}</span>
           {sidSaved && <span className="ml-2 text-[var(--accent)]">Applied</span>}
         </p>
         {storesError && <p className="text-xs text-red-400">{storesError}</p>}
@@ -614,7 +615,7 @@ function ConfiguredStoresSection() {
   }
 
   const removeStore = async (store: StoreSummary) => {
-    if (store.store_id === storeId) {
+    if (normalizeStoreId(store.store_id) === normalizeStoreId(storeId)) {
       setError('Switch to another store before removing the current store.')
       return
     }
@@ -678,7 +679,7 @@ function ConfiguredStoresSection() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-[var(--text)] truncate">{store.company_name || 'Luna Store'}</span>
-                      {store.store_id === storeId && (
+                      {normalizeStoreId(store.store_id) === normalizeStoreId(storeId) && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">Current</span>
                       )}
                     </div>
@@ -688,8 +689,8 @@ function ConfiguredStoresSection() {
                       {` · Slides ${store.slide_interval}s`}
                     </div>
                   </div>
-                  <Button size="sm" variant={store.store_id === storeId ? 'accent' : 'ghost'} onClick={() => setStoreId(store.store_id)}>
-                    {store.store_id === storeId ? 'Selected' : 'Use'}
+                  <Button size="sm" variant={normalizeStoreId(store.store_id) === normalizeStoreId(storeId) ? 'accent' : 'ghost'} onClick={() => setStoreId(normalizeStoreId(store.store_id))}>
+                    {normalizeStoreId(store.store_id) === normalizeStoreId(storeId) ? 'Selected' : 'Use'}
                   </Button>
                   {canEditStores && (
                     <>
@@ -828,7 +829,7 @@ function ReportSection() {
               </div>
               <div class="meta subtle">
                 <div>${escapeHtml(storeLabel)}</div>
-                <div>Store ID: ${escapeHtml(storeId || 'default')}</div>
+                <div>Store ID: ${escapeHtml(storeId || 'DEFAULT')}</div>
                 <div>Generated ${escapeHtml(generatedAt)}</div>
               </div>
             </header>
@@ -1063,9 +1064,8 @@ function AccessSection() {
   const canManageAccess = accessRole === 'admin' || accessRole === 'manager'
   const visibleCodes = accessRole === 'admin'
     ? codes
-    : codes.filter((code) => code.store_id === storeId)
+    : codes.filter((code) => normalizeStoreId(code.store_id) === normalizeStoreId(storeId))
 
-  const cleanLoginCode = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20).toUpperCase()
   const isValidLoginCode = (value: string) => /^[A-Z0-9_-]{2,20}$/i.test(value.trim()) || value.trim().toLowerCase() === 'admin'
 
   const loadCodes = async () => {
@@ -1085,9 +1085,9 @@ function AccessSection() {
   }, [canManageAccess])
 
   const createCode = async () => {
-    const cleanDealer = dealer.trim()
+    const cleanDealer = dealer.trim().toLowerCase() === 'admin' ? 'admin' : normalizeAccessCode(dealer)
     const cleanPin = pin.trim()
-    const targetStore = accessRole === 'admin' ? newStoreId.trim() : storeId
+    const targetStore = accessRole === 'admin' ? normalizeStoreId(newStoreId) : normalizeStoreId(storeId)
     if (!isValidLoginCode(cleanDealer)) {
       setError('Login must be a store ID or admin code.')
       return
@@ -1140,7 +1140,7 @@ function AccessSection() {
       setError('Built-in access cannot be deleted here.')
       return
     }
-    if (accessRole !== 'admin' && code.store_id !== storeId) {
+    if (accessRole !== 'admin' && normalizeStoreId(code.store_id) !== normalizeStoreId(storeId)) {
       setError('Managers can only delete access for their current store.')
       return
     }
@@ -1177,7 +1177,7 @@ function AccessSection() {
   const startEditCode = (code: StoreAccessCode) => {
     setEditingId(code.id)
     setEditLabel(code.label ?? '')
-    setEditStoreId(code.store_id)
+    setEditStoreId(normalizeStoreId(code.store_id))
     setEditRole(code.role === 'display' ? 'employee' : code.role)
     setEditPin('')
     setError('')
@@ -1192,7 +1192,7 @@ function AccessSection() {
   }
 
   const saveEditCode = async (code: StoreAccessCode) => {
-    const targetStore = accessRole === 'admin' ? editStoreId.trim() : storeId
+    const targetStore = accessRole === 'admin' ? normalizeStoreId(editStoreId) : normalizeStoreId(storeId)
     if (!editLabel.trim()) {
       setError('Name / label is required.')
       return
@@ -1205,7 +1205,7 @@ function AccessSection() {
       setError('New PIN must be 4 digits.')
       return
     }
-    if (accessRole !== 'admin' && code.store_id !== storeId) {
+    if (accessRole !== 'admin' && normalizeStoreId(code.store_id) !== normalizeStoreId(storeId)) {
       setError('Managers can only edit access for their current store.')
       return
     }
@@ -1254,9 +1254,9 @@ function AccessSection() {
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
           <p className="text-xs font-semibold text-[var(--text)]">Create Access Code</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            <Input label="Login / Store ID" autoCapitalize="characters" maxLength={20} value={dealer} onChange={(e) => setDealer(cleanLoginCode(e.target.value))} placeholder="693D or admin" />
+            <Input label="Login / Store ID" autoCapitalize="characters" maxLength={20} value={dealer} onChange={(e) => setDealer(normalizeAccessCode(e.target.value))} placeholder="693D or admin" />
             <Input label="PIN" type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4 digits" />
-            <Input label="Store ID / SAP" value={accessRole === 'admin' ? newStoreId : storeId} onChange={(e) => setNewStoreId(e.target.value)} disabled={accessRole !== 'admin'} placeholder="697D or main" />
+            <Input label="Store ID / SAP" value={accessRole === 'admin' ? newStoreId : storeId} onChange={(e) => setNewStoreId(normalizeStoreId(e.target.value))} disabled={accessRole !== 'admin'} placeholder="697D or main" />
             <Select label="Role" value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as AccessRole)}>
               {accessRole === 'admin' && <option value="admin">Admin</option>}
               {accessRole === 'admin' && <option value="district_manager">District Manager</option>}
@@ -1281,7 +1281,7 @@ function AccessSection() {
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <Input label="Name" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} placeholder="User name" />
-                      <Input label="Store ID / SAP" value={accessRole === 'admin' ? editStoreId : storeId} onChange={(e) => setEditStoreId(e.target.value)} disabled={accessRole !== 'admin'} placeholder="697D or main" />
+                      <Input label="Store ID / SAP" value={accessRole === 'admin' ? editStoreId : storeId} onChange={(e) => setEditStoreId(normalizeStoreId(e.target.value))} disabled={accessRole !== 'admin'} placeholder="697D or main" />
                       <Select label="Role" value={editRole} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditRole(e.target.value as AccessRole)}>
                         {accessRole === 'admin' && <option value="admin">Admin</option>}
                         {accessRole === 'admin' && <option value="district_manager">District Manager</option>}

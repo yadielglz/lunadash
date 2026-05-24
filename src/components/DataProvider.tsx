@@ -141,7 +141,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       try {
         const storeIds = isMain
           ? (await dbGetStores()).map((store) => store.store_id).filter((id) => id && id !== 'main')
-          : [storeId || 'default']
+          : [storeId || 'DEFAULT']
 
         const [employeeSets, shiftSets, goalSets, announcementSets, settings, taskSets] = await Promise.all([
           Promise.all(storeIds.map(dbGetEmployees)),

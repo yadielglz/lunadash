@@ -5,6 +5,7 @@ import type { Announcement } from '../store/displayStore'
 import type { Task, TaskCategory } from '../store/tasksStore'
 import { useSyncStore } from '../store/syncStore'
 import type { AccessRole } from '../store/uiStore'
+import { normalizeAccessCode, normalizeStoreId } from './storeIds'
 
 export const supabase = createClient(
   'https://vzbuboclkpdthztfprgg.supabase.co',
@@ -161,12 +162,27 @@ function withLegacyOnboarding(row: Omit<StoreAccessCode, 'onboarded_at'>): Store
   return { ...row, onboarded_at: null }
 }
 
+function normalizeAccessRow(row: StoreAccessCode): StoreAccessCode {
+  const dealer_code = row.dealer_code.trim().toLowerCase() === 'admin'
+    ? 'admin'
+    : normalizeAccessCode(row.dealer_code)
+  return {
+    ...row,
+    dealer_code,
+    store_id: normalizeStoreId(row.store_id),
+  }
+}
+
 export async function dbAuthenticateAccess(dealerCode: string, pinHash: string): Promise<StoreAccessCode | null> {
-  const builtInAccess = BUILT_IN_ACCESS[dealerCode] ?? BUILT_IN_ACCESS[dealerCode.toLowerCase()]
+  const normalizedDealerCode = dealerCode.trim().toLowerCase() === 'admin'
+    ? 'admin'
+    : normalizeAccessCode(dealerCode)
+  const builtInAccess = BUILT_IN_ACCESS[normalizedDealerCode] ?? BUILT_IN_ACCESS[normalizedDealerCode.toLowerCase()]
   if (builtInAccess && pinHash === BUILT_IN_ADMIN_PIN_HASH) {
     const now = new Date().toISOString()
     return {
       ...builtInAccess,
+      dealer_code: normalizedDealerCode,
       created_at: now,
       last_used_at: now,
       onboarded_at: now,
@@ -176,7 +192,7 @@ export async function dbAuthenticateAccess(dealerCode: string, pinHash: string):
   let { data, error } = await supabase
     .from('store_access_codes')
     .select(ACCESS_SELECT)
-    .eq('dealer_code', dealerCode)
+    .eq('dealer_code', normalizedDealerCode)
     .eq('pin_hash', pinHash)
     .eq('is_active', true)
     .maybeSingle()
@@ -184,7 +200,7 @@ export async function dbAuthenticateAccess(dealerCode: string, pinHash: string):
     const legacy = await supabase
       .from('store_access_codes')
       .select(ACCESS_SELECT_LEGACY)
-      .eq('dealer_code', dealerCode)
+      .eq('dealer_code', normalizedDealerCode)
       .eq('pin_hash', pinHash)
       .eq('is_active', true)
       .maybeSingle()
@@ -199,7 +215,7 @@ export async function dbAuthenticateAccess(dealerCode: string, pinHash: string):
     .update({ last_used_at: new Date().toISOString() })
     .eq('id', (data as StoreAccessCode).id)
 
-  return data as StoreAccessCode
+  return normalizeAccessRow(data as StoreAccessCode)
 }
 
 export async function dbGetAccessCodes(): Promise<StoreAccessCode[]> {
@@ -216,7 +232,7 @@ export async function dbGetAccessCodes(): Promise<StoreAccessCode[]> {
     error = legacy.error
   }
   throwIfError(error, 'Could not load access codes')
-  return (data ?? []) as StoreAccessCode[]
+  return ((data ?? []) as StoreAccessCode[]).map(normalizeAccessRow)
 }
 
 export async function dbCreateAccessCode(code: {
@@ -228,13 +244,19 @@ export async function dbCreateAccessCode(code: {
 }) {
   const { error } = await supabase.from('store_access_codes').insert({
     ...code,
+    dealer_code: normalizeAccessCode(code.dealer_code),
+    store_id: normalizeStoreId(code.store_id),
     is_active: true,
   } satisfies Partial<DbStoreAccessCode>)
   throwIfError(error, 'Could not create access code')
 }
 
 export async function dbUpdateAccessCode(id: string, patch: Partial<Pick<StoreAccessCode, 'label' | 'role' | 'store_id' | 'is_active'> & { pin_hash: string }>) {
-  const { error } = await supabase.from('store_access_codes').update(patch).eq('id', id)
+  const normalizedPatch = {
+    ...patch,
+    ...(patch.store_id !== undefined ? { store_id: normalizeStoreId(patch.store_id) } : {}),
+  }
+  const { error } = await supabase.from('store_access_codes').update(normalizedPatch).eq('id', id)
   throwIfError(error, 'Could not update access code')
 }
 
@@ -279,10 +301,11 @@ export async function dbCheckSchemaHealth() {
 // ── Employees ─────────────────────────────────────────────────────────────────
 
 export async function dbGetEmployees(storeId: string): Promise<Employee[]> {
+  const sid = normalizeStoreId(storeId)
   const { data, error } = await supabase
     .from('employees')
     .select('*')
-    .eq('store_id', storeId)
+    .eq('store_id', sid)
     .order('created_at')
   throwIfError(error, 'Could not load employees')
   return (data ?? []).map(dbToEmployee).sort(compareEmployees)
@@ -304,18 +327,19 @@ function employeePatchToDb(patch: Partial<Employee>) {
   if (patch.name !== undefined) dbPatch.name = patch.name
   if (patch.role !== undefined) dbPatch.role = patch.role
   if (patch.color !== undefined) dbPatch.color = patch.color
-  if (patch.storeId !== undefined) dbPatch.store_id = patch.storeId
+  if (patch.storeId !== undefined) dbPatch.store_id = normalizeStoreId(patch.storeId)
   if (patch.sortOrder !== undefined) dbPatch.sort_order = patch.sortOrder
   return dbPatch
 }
 
 export async function dbInsertEmployee(e: Employee, storeId: string) {
+  const sid = normalizeStoreId(storeId)
   const { error } = await supabase.from('employees').insert({
-    id: e.id, store_id: storeId, name: e.name, role: e.role, color: e.color, sort_order: e.sortOrder ?? 0,
+    id: e.id, store_id: sid, name: e.name, role: e.role, color: e.color, sort_order: e.sortOrder ?? 0,
   })
   if (error && isMissingEmployeeSortColumnError(error)) {
     const legacy = await supabase.from('employees').insert({
-      id: e.id, store_id: storeId, name: e.name, role: e.role, color: e.color,
+      id: e.id, store_id: sid, name: e.name, role: e.role, color: e.color,
     })
     throwIfError(legacy.error, 'Could not save employee')
     return
@@ -346,8 +370,9 @@ export async function dbDeleteEmployee(id: string) {
 // ── Shifts ────────────────────────────────────────────────────────────────────
 
 export async function dbGetShifts(storeId: string): Promise<Shift[]> {
+  const sid = normalizeStoreId(storeId)
   const { data, error } = await supabase
-    .from('shifts').select('*').eq('store_id', storeId).order('date')
+    .from('shifts').select('*').eq('store_id', sid).order('date')
   throwIfError(error, 'Could not load shifts')
   return ((data ?? []) as DbShift[]).map((r) => ({
     id: r.id, storeId: r.store_id, employeeId: r.employee_id, date: r.date,
@@ -356,8 +381,9 @@ export async function dbGetShifts(storeId: string): Promise<Shift[]> {
 }
 
 export async function dbInsertShift(s: Shift, storeId: string) {
+  const sid = normalizeStoreId(storeId)
   const { error } = await supabase.from('shifts').insert({
-    id: s.id, store_id: storeId, employee_id: s.employeeId, date: s.date,
+    id: s.id, store_id: sid, employee_id: s.employeeId, date: s.date,
     start_time: s.startTime, end_time: s.endTime, type: s.type, note: s.note ?? '',
   })
   throwIfError(error, 'Could not save shift')
@@ -381,11 +407,12 @@ export async function dbDeleteShift(id: string) {
 }
 
 export async function dbSaveScheduleSnapshot(storeId: string, employees: Employee[], shifts: Shift[]) {
+  const sid = normalizeStoreId(storeId)
   useSyncStore.getState().setSync('schedule', 'saving', 'Saving schedule snapshot')
   if (employees.length > 0) {
     const { error } = await supabase.from('employees').upsert(employees.map((e, index) => ({
       id: e.id,
-      store_id: e.storeId ?? storeId,
+      store_id: normalizeStoreId(e.storeId ?? sid),
       name: e.name,
       role: e.role,
       color: e.color,
@@ -394,7 +421,7 @@ export async function dbSaveScheduleSnapshot(storeId: string, employees: Employe
     if (error && isMissingEmployeeSortColumnError(error)) {
       const legacy = await supabase.from('employees').upsert(employees.map((e) => ({
         id: e.id,
-        store_id: e.storeId ?? storeId,
+        store_id: normalizeStoreId(e.storeId ?? sid),
         name: e.name,
         role: e.role,
         color: e.color,
@@ -408,7 +435,7 @@ export async function dbSaveScheduleSnapshot(storeId: string, employees: Employe
   if (shifts.length > 0) {
     const { error } = await supabase.from('shifts').upsert(shifts.map((s) => ({
       id: s.id,
-      store_id: s.storeId ?? storeId,
+      store_id: normalizeStoreId(s.storeId ?? sid),
       employee_id: s.employeeId,
       date: s.date,
       start_time: s.startTime,
@@ -420,14 +447,14 @@ export async function dbSaveScheduleSnapshot(storeId: string, employees: Employe
   }
 
   const [savedEmployees, savedShifts] = await Promise.all([
-    dbGetEmployees(storeId),
-    dbGetShifts(storeId),
+    dbGetEmployees(sid),
+    dbGetShifts(sid),
   ])
 
   const employeeIds = new Set(savedEmployees.map((employee) => employee.id))
   const shiftIds = new Set(savedShifts.map((shift) => shift.id))
-  const missingEmployees = employees.filter((employee) => (employee.storeId ?? storeId) === storeId && !employeeIds.has(employee.id))
-  const missingShifts = shifts.filter((shift) => (shift.storeId ?? storeId) === storeId && !shiftIds.has(shift.id))
+  const missingEmployees = employees.filter((employee) => normalizeStoreId(employee.storeId ?? sid) === sid && !employeeIds.has(employee.id))
+  const missingShifts = shifts.filter((shift) => normalizeStoreId(shift.storeId ?? sid) === sid && !shiftIds.has(shift.id))
 
   if (missingEmployees.length > 0 || missingShifts.length > 0) {
     useSyncStore.getState().setSync('schedule', 'error', 'Schedule validation failed')
@@ -440,7 +467,7 @@ export async function dbSaveScheduleSnapshot(storeId: string, employees: Employe
 
 function goalToDb(g: Goal, storeId: string) {
   return {
-    id: g.id, store_id: storeId, title: g.title, description: g.description,
+    id: g.id, store_id: normalizeStoreId(storeId), title: g.title, description: g.description,
     category: g.category, target: g.target, current_val: g.current,
     unit: g.unit, deadline: g.deadline, color: g.color,
     daily_target: g.dailyTarget ?? 1, daily_log: g.dailyLog ?? {},
@@ -459,8 +486,9 @@ function dbToGoal(r: DbGoal): Goal {
 }
 
 export async function dbGetGoals(storeId: string): Promise<Goal[]> {
+  const sid = normalizeStoreId(storeId)
   const { data, error } = await supabase
-    .from('goals').select('*').eq('store_id', storeId).order('created_at')
+    .from('goals').select('*').eq('store_id', sid).order('created_at')
   throwIfError(error, 'Could not load goals')
   return (data ?? []).map(dbToGoal)
 }
@@ -495,8 +523,9 @@ export async function dbDeleteGoal(id: string) {
 // ── Announcements ─────────────────────────────────────────────────────────────
 
 export async function dbGetAnnouncements(storeId: string): Promise<Announcement[]> {
+  const sid = normalizeStoreId(storeId)
   const { data, error } = await supabase
-    .from('announcements').select('*').eq('store_id', storeId).order('created_at')
+    .from('announcements').select('*').eq('store_id', sid).order('created_at')
   throwIfError(error, 'Could not load announcements')
   return (data ?? []).map(dbToAnnouncement)
 }
@@ -506,8 +535,9 @@ function dbToAnnouncement(r: DbAnnouncement): Announcement {
 }
 
 export async function dbInsertAnnouncement(a: Announcement, storeId: string) {
+  const sid = normalizeStoreId(storeId)
   const { error } = await supabase.from('announcements').insert({
-    id: a.id, store_id: storeId, text: a.text, priority: a.priority,
+    id: a.id, store_id: sid, text: a.text, priority: a.priority,
   })
   throwIfError(error, 'Could not save announcement')
 }
@@ -525,8 +555,9 @@ export async function dbDeleteAnnouncement(id: string) {
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 export async function dbGetSettings(storeId: string): Promise<DbSettings | null> {
+  const sid = normalizeStoreId(storeId)
   const { data, error } = await supabase
-    .from('app_settings').select('*').eq('store_id', storeId).maybeSingle()
+    .from('app_settings').select('*').eq('store_id', sid).maybeSingle()
   throwIfError(error, 'Could not load app settings')
   return data as DbSettings | null
 }
@@ -537,17 +568,18 @@ export async function dbGetStores(): Promise<StoreSummary[]> {
     .select('store_id, company_name, store_number, slide_interval')
     .order('store_id')
   throwIfError(error, 'Could not load stores')
-  return (data ?? []) as StoreSummary[]
+  return (data ?? []).map((store) => ({ ...store, store_id: normalizeStoreId(store.store_id) })) as StoreSummary[]
 }
 
 export async function dbDeleteSettings(storeId: string) {
-  const { error } = await supabase.from('app_settings').delete().eq('store_id', storeId)
+  const { error } = await supabase.from('app_settings').delete().eq('store_id', normalizeStoreId(storeId))
   throwIfError(error, 'Could not remove store')
 }
 
 export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSettings, 'store_id'>>) {
+  const sid = normalizeStoreId(storeId)
   useSyncStore.getState().setSync('settings', 'saving', 'Saving app settings')
-  const { error } = await supabase.from('app_settings').upsert({ store_id: storeId, ...patch })
+  const { error } = await supabase.from('app_settings').upsert({ store_id: sid, ...patch })
   if (error) useSyncStore.getState().setSync('settings', 'error', isSupabaseError(error) ? error.message ?? 'Settings sync failed' : 'Settings sync failed')
   throwIfError(error, 'Could not save app settings')
   useSyncStore.getState().setSync('settings', 'synced', 'Settings confirmed in Supabase')
@@ -562,7 +594,7 @@ type DbTask = {
 
 function taskToDb(t: Task, storeId: string) {
   return {
-    id: t.id, store_id: storeId, title: t.title, category: t.category,
+    id: t.id, store_id: normalizeStoreId(storeId), title: t.title, category: t.category,
     sort_order: t.sortOrder, completed_date: t.completedDate ?? null,
   }
 }
@@ -577,8 +609,9 @@ function dbToTask(r: DbTask): Task {
 }
 
 export async function dbGetTasks(storeId: string): Promise<Task[]> {
+  const sid = normalizeStoreId(storeId)
   const { data, error } = await supabase
-    .from('tasks').select('*').eq('store_id', storeId).order('sort_order').order('created_at')
+    .from('tasks').select('*').eq('store_id', sid).order('sort_order').order('created_at')
   if (logOptionalTasksWarning('task data', error)) return []
   throwIfError(error, 'Could not load tasks')
   return (data ?? []).map(dbToTask)
@@ -605,18 +638,19 @@ export async function dbDeleteTask(id: string) {
 }
 
 export async function dbSaveTasksSnapshot(storeId: string, tasks: Task[]) {
+  const sid = normalizeStoreId(storeId)
   useSyncStore.getState().setSync('tasks', 'saving', 'Saving task snapshot')
   if (tasks.length > 0) {
-    const { error } = await supabase.from('tasks').upsert(tasks.map((t) => taskToDb(t, t.storeId ?? storeId)))
+    const { error } = await supabase.from('tasks').upsert(tasks.map((t) => taskToDb(t, t.storeId ?? sid)))
     if (logOptionalTasksWarning('tasks', error)) {
       throw new Error('Tasks table is not available in this Supabase project')
     }
     throwIfError(error, 'Could not save tasks')
   }
 
-  const savedTasks = await dbGetTasks(storeId)
+  const savedTasks = await dbGetTasks(sid)
   const savedIds = new Set(savedTasks.map((task) => task.id))
-  const missingTasks = tasks.filter((task) => (task.storeId ?? storeId) === storeId && !savedIds.has(task.id))
+  const missingTasks = tasks.filter((task) => normalizeStoreId(task.storeId ?? sid) === sid && !savedIds.has(task.id))
 
   if (missingTasks.length > 0) {
     useSyncStore.getState().setSync('tasks', 'error', 'Task validation failed')

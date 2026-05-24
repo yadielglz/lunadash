@@ -3,6 +3,7 @@ import { KeyRound, Monitor, ShieldCheck, Smartphone, Store } from 'lucide-react'
 import { dbAuthenticateAccess, dbGetStores, type StoreAccessCode, type StoreSummary } from '../lib/supabase'
 import { hashPin } from '../store/lockStore'
 import { AccessMode, accessRoleLabel, useUiStore } from '../store/uiStore'
+import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { APP_META } from '../config/appMeta'
@@ -15,10 +16,6 @@ type PendingAccess = {
   access: StoreAccessCode
   mode: AccessMode
   stores: StoreSummary[]
-}
-
-function normalizeLoginCode(value: string) {
-  return value.trim().toUpperCase()
 }
 
 function isValidLoginCode(value: string) {
@@ -39,7 +36,7 @@ export function StoreLaunchScreen() {
   const completeLogin = (access: StoreAccessCode, accessMode: AccessMode, storeId: string) => {
     setAccessSession({
       id: access.id,
-      storeId,
+      storeId: normalizeStoreId(storeId),
       role: access.role,
       dealerCode: access.dealer_code,
       label: access.label,
@@ -49,7 +46,7 @@ export function StoreLaunchScreen() {
   }
 
   const login = async () => {
-    const code = normalizeLoginCode(dealerCode)
+    const code = normalizeAccessCode(dealerCode)
     const cleanPin = pin.trim()
     if (!isValidLoginCode(code)) {
       setError('Use the store ID or admin login.')
@@ -82,13 +79,14 @@ export function StoreLaunchScreen() {
         } catch {
           stores = []
         }
-        const fallbackStore = { store_id: access.store_id, company_name: access.store_id, store_number: '', slide_interval: 8 }
+        const accessStoreId = normalizeStoreId(access.store_id)
+        const fallbackStore = { store_id: accessStoreId, company_name: accessStoreId, store_number: '', slide_interval: 8 }
         const availableStores = stores.length > 0 ? stores : [fallbackStore]
-        const storesWithAccessStore = access.store_id && access.store_id !== 'main' && !availableStores.some((store) => store.store_id === access.store_id)
+        const storesWithAccessStore = accessStoreId && accessStoreId !== 'main' && !availableStores.some((store) => normalizeStoreId(store.store_id) === accessStoreId)
           ? [fallbackStore, ...availableStores]
           : availableStores
         setPendingAccess({ access, mode: accessMode, stores: storesWithAccessStore })
-        setSelectedStoreId(access.store_id === 'main' ? storesWithAccessStore[0]?.store_id ?? '' : access.store_id)
+        setSelectedStoreId(accessStoreId === 'main' ? storesWithAccessStore[0]?.store_id ?? '' : accessStoreId)
         return
       }
 
@@ -231,7 +229,7 @@ export function StoreLaunchScreen() {
             maxLength={20}
             value={dealerCode}
             onChange={(e) => {
-              setDealerCode(e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20).toUpperCase())
+              setDealerCode(normalizeAccessCode(e.target.value))
               setError('')
             }}
             placeholder={dealerPlaceholder}
