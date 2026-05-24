@@ -143,7 +143,7 @@ function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: 
 }
 
 export function GoalsPage() {
-  const { goals, addGoal, updateGoal, isLoaded } = useGoalsStore()
+  const { goals, addGoal, isLoaded } = useGoalsStore()
   const { storeId, dealerCode } = useUiStore()
   const { storeNumber } = useDisplayStore()
   const today = todayKey()
