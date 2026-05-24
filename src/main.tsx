@@ -8,6 +8,28 @@ import '@fontsource/google-sans/latin-700.css'
 import './styles/global.css'
 import App from './App.tsx'
 
+const CHUNK_RELOAD_KEY = 'luna-chunk-reload-at'
+
+function isChunkLoadError(value: unknown) {
+  const message = value instanceof Error ? value.message : String(value ?? '')
+  return /error loading dynamically imported module|failed to fetch dynamically imported module|importing a module script failed/i.test(message)
+}
+
+function reloadForFreshAssets() {
+  const lastReload = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) ?? 0)
+  if (Date.now() - lastReload < 30_000) return
+  sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()))
+  window.location.reload()
+}
+
+window.addEventListener('unhandledrejection', (event) => {
+  if (isChunkLoadError(event.reason)) reloadForFreshAssets()
+})
+
+window.addEventListener('error', (event) => {
+  if (isChunkLoadError(event.error ?? event.message)) reloadForFreshAssets()
+})
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
