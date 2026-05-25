@@ -146,18 +146,24 @@ function findSourceRow(
   )) ?? null
 }
 
+function dateKey(date: Date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
 Deno.serve(async (_req: Request) => {
   const nyTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
   if (nyTime.getHours() !== 22) {
     return new Response('Not 10:00 PM New York time. Skipping snapshot.', { status: 200 })
   }
 
-  const today = [
-    nyTime.getFullYear(),
-    String(nyTime.getMonth() + 1).padStart(2, '0'),
-    String(nyTime.getDate()).padStart(2, '0'),
-  ].join('-')
-  const month = today.slice(0, 7)
+  const snapshotDate = new Date(nyTime)
+  snapshotDate.setDate(snapshotDate.getDate() - 1)
+  const snapshotDay = dateKey(snapshotDate)
+  const month = snapshotDay.slice(0, 7)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -186,7 +192,7 @@ Deno.serve(async (_req: Request) => {
         : goal.current_val ?? 0
 
       const priorMtd = Object.entries(log).reduce((sum, [day, value]) => {
-        if (!day.startsWith(month) || day === today) return sum
+        if (!day.startsWith(month) || day === snapshotDay) return sum
         return sum + (Number(value) || 0)
       }, 0)
 
@@ -195,7 +201,7 @@ Deno.serve(async (_req: Request) => {
         .update({
           current_val: liveValue,
           daily_target: goalValueForMetric(matchedRow, metricKey),
-          daily_log: { ...log, [today]: Math.max(0, liveValue - priorMtd) },
+          daily_log: { ...log, [snapshotDay]: Math.max(0, liveValue - priorMtd) },
         })
         .eq('id', goal.id)
     })
@@ -205,7 +211,7 @@ Deno.serve(async (_req: Request) => {
     if (updateError) throw updateError
 
     return Response.json({
-      message: `Successfully saved EOD snapshots for ${today}`,
+      message: `Successfully saved EOD snapshots for ${snapshotDay}`,
       updated: results.length,
     })
   } catch (error) {

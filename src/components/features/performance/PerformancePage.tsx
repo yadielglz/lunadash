@@ -13,6 +13,7 @@ import {
   PerformanceData,
   PerformanceRow,
 } from '../../../lib/performanceSheet'
+import { dealerInfoForRow } from '../../../lib/dealers'
 
 type SortKey = 'netRevenue' | 'netRevenuePct' | 'accessoryRevenue' | 'accessoryPct' | 'totalPp' | 'ppPct' | 'traffic'
 
@@ -53,6 +54,7 @@ function goalHelper(value: number) {
 
 function LeaderCard({ row, metric, value, rank }: { row: PerformanceRow; metric: string; value: string; rank: number }) {
   const rankColor = rank === 1 ? '#f7b731' : rank === 2 ? '#00b7c3' : '#7c5ff5'
+  const dealer = dealerInfoForRow(row)
 
   return (
     <div
@@ -67,10 +69,14 @@ function LeaderCard({ row, metric, value, rank }: { row: PerformanceRow; metric:
       </div>
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-xs font-semibold text-[var(--text)]">{row.teamName || row.store}</span>
-          <span className="flex-shrink-0 text-[10px] text-[var(--text-tertiary)]">{row.storeCode}</span>
+          <span className="truncate text-xs font-semibold text-[var(--text)]">{dealer.nickname}</span>
+          <span className="flex-shrink-0 text-[10px] text-[var(--text-tertiary)]">{dealer.code}</span>
         </div>
-        <div className="mt-0.5 text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{metric}</div>
+        <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] text-[var(--text-tertiary)]">
+          <span className="truncate">{dealer.location}</span>
+          <span className="opacity-70">|</span>
+          <span className="shrink-0 font-semibold uppercase">{metric}</span>
+        </div>
       </div>
       <div className="text-right text-sm font-semibold tabular-nums text-[var(--text)]">{value}</div>
     </div>
@@ -137,16 +143,17 @@ function StoreDetailModal({ row, updated, onClose }: { row: PerformanceRow | nul
   const netLeft = row ? row.netRevenueGoal - row.netRevenue : 0
   const accLeft = row ? row.accessoryGoal - row.accessoryRevenue : 0
   const ppLeft = row ? row.dortGoal - row.totalPp : 0
+  const dealer = row ? dealerInfoForRow(row) : null
 
   return (
-    <Modal open={!!row} onClose={onClose} title={row ? `${row.teamName || row.store} Numbers` : undefined} size="full">
+    <Modal open={!!row} onClose={onClose} title={dealer ? `${dealer.nickname} Numbers` : undefined} size="full">
       {row && (
         <div className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge color="#0f7ad8">{row.storeCode}</Badge>
-                <span className="text-sm font-semibold text-[var(--text)]">{row.store}</span>
+                <span className="text-sm font-semibold text-[var(--text)]">{dealer?.location}</span>
               </div>
               <div className="mt-2 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
                 <Clock size={12} />
@@ -262,7 +269,15 @@ export function PerformancePage() {
     const rows = data?.rows ?? []
     const q = query.trim().toLowerCase()
     return [...rows]
-      .filter((row) => !q || row.store.toLowerCase().includes(q) || row.teamName.toLowerCase().includes(q) || row.storeCode.toLowerCase().includes(q))
+      .filter((row) => {
+        const dealer = dealerInfoForRow(row)
+        return !q
+          || row.store.toLowerCase().includes(q)
+          || row.teamName.toLowerCase().includes(q)
+          || row.storeCode.toLowerCase().includes(q)
+          || dealer.nickname.toLowerCase().includes(q)
+          || dealer.location.toLowerCase().includes(q)
+      })
       .sort((a, b) => {
         const result = a[sortKey] - b[sortKey]
         return direction === 'asc' ? result : -result
@@ -464,7 +479,10 @@ export function PerformancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {filteredRows.map((row, index) => (
+                    {filteredRows.map((row, index) => {
+                      const dealer = dealerInfoForRow(row)
+
+                      return (
                       <tr
                         key={row.store}
                         className="cursor-pointer hover:bg-[var(--reveal-bg)]"
@@ -483,8 +501,8 @@ export function PerformancePage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="font-semibold text-[var(--text)]">{row.teamName || row.store}</div>
-                          <div className="text-[var(--text-tertiary)]">{row.storeCode}</div>
+                          <div className="font-semibold text-[var(--text)]">{dealer.nickname}</div>
+                          <div className="text-[var(--text-tertiary)]">{dealer.location} | {dealer.code}</div>
                         </td>
                         <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.traffic)}</td>
                         <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatPercent(row.postConv)}</td>
@@ -507,7 +525,8 @@ export function PerformancePage() {
                         <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.hsi)}</td>
                         <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.visa)}</td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

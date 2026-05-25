@@ -12,6 +12,7 @@ import { useUiStore } from '../../../store/uiStore'
 import { getWeatherInfo } from '../../../lib/openMeteo'
 import { formatShiftTime, hexToRgba } from '../../../lib/utils'
 import { fetchPerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
+import { dealerInfoForRow } from '../../../lib/dealers'
 
 // T-Mobile magenta palette
 const MG  = '#E20074'       // primary magenta
@@ -415,47 +416,51 @@ function DistrictOutlookSlide() {
           <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">No Source rows available</div>
         ) : (
           <div className="grid h-full grid-rows-5 gap-[1vh]">
-            {rows.map((row, index) => (
-              <div
-                key={row.store}
-                className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-[1.2vw] rounded-2xl px-[1.4vw] py-[1vh]"
-                style={{
-                  background: index === 0 ? `${MG}18` : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${index === 0 ? `${MG}45` : 'rgba(255,255,255,0.08)'}`,
-                }}
-              >
+            {rows.map((row, index) => {
+              const dealer = dealerInfoForRow(row)
+
+              return (
                 <div
-                  className="flex h-[3.2vw] w-[3.2vw] items-center justify-center rounded-xl text-[1.4vw] font-black text-white"
-                  style={{ background: index === 0 ? MG : 'rgba(255,255,255,0.12)' }}
+                  key={row.store}
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-[1.2vw] rounded-2xl px-[1.4vw] py-[1vh]"
+                  style={{
+                    background: index === 0 ? `${MG}18` : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${index === 0 ? `${MG}45` : 'rgba(255,255,255,0.08)'}`,
+                  }}
                 >
-                  {index + 1}
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate text-[1.55vw] font-black text-white">{row.teamName || row.store}</div>
-                  <div className="text-[0.95vw] text-white/35">Store {row.storeCode}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[1.5vw] font-black text-white tabular-nums">{formatMoney(row.netRevenue)}</div>
-                  <div className="text-[0.85vw]" style={{ color: row.netRevenuePct >= 100 ? MG : 'rgba(255,255,255,0.35)' }}>
-                    {row.netRevenuePct >= 100 ? 'Goal Met' : `${Math.round(row.netRevenuePct)}% to goal`}
+                  <div
+                    className="flex h-[3.2vw] w-[3.2vw] items-center justify-center rounded-xl text-[1.4vw] font-black text-white"
+                    style={{ background: index === 0 ? MG : 'rgba(255,255,255,0.12)' }}
+                  >
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-[1.55vw] font-black text-white">{dealer.nickname}</div>
+                    <div className="text-[0.95vw] text-white/35">{dealer.location} | {dealer.code}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[1.5vw] font-black text-white tabular-nums">{formatMoney(row.netRevenue)}</div>
+                    <div className="text-[0.85vw]" style={{ color: row.netRevenuePct >= 100 ? MG : 'rgba(255,255,255,0.35)' }}>
+                      {row.netRevenuePct >= 100 ? 'Goal Met' : `${Math.round(row.netRevenuePct)}% to goal`}
+                    </div>
+                  </div>
+                  <div className="grid min-w-[14vw] grid-cols-3 gap-[0.5vw] text-center">
+                    <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
+                      <div className="text-[0.7vw] uppercase text-white/30">ACC</div>
+                      <div className="text-[0.95vw] font-bold text-white">{formatMoney(row.accessoryRevenue)}</div>
+                    </div>
+                    <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
+                      <div className="text-[0.7vw] uppercase text-white/30">PP</div>
+                      <div className="text-[0.95vw] font-bold text-white">{formatNumber(row.totalPp)}</div>
+                    </div>
+                    <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
+                      <div className="text-[0.7vw] uppercase text-white/30">Traffic</div>
+                      <div className="text-[0.95vw] font-bold text-white">{formatNumber(row.traffic)}</div>
+                    </div>
                   </div>
                 </div>
-                <div className="grid min-w-[14vw] grid-cols-3 gap-[0.5vw] text-center">
-                  <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
-                    <div className="text-[0.7vw] uppercase text-white/30">ACC</div>
-                    <div className="text-[0.95vw] font-bold text-white">{formatMoney(row.accessoryRevenue)}</div>
-                  </div>
-                  <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
-                    <div className="text-[0.7vw] uppercase text-white/30">PP</div>
-                    <div className="text-[0.95vw] font-bold text-white">{formatNumber(row.totalPp)}</div>
-                  </div>
-                  <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
-                    <div className="text-[0.7vw] uppercase text-white/30">Traffic</div>
-                    <div className="text-[0.95vw] font-bold text-white">{formatNumber(row.traffic)}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -503,6 +508,7 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
             {rows.map((row, index) => {
               const progress = metric.progress?.(row)
               const goal = metric.goalValue?.(row)
+              const dealer = dealerInfoForRow(row)
 
               return (
                 <div
@@ -520,9 +526,11 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
                     {index + 1}
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-[1.65vw] font-black text-white">{row.teamName || row.store}</div>
+                    <div className="truncate text-[1.65vw] font-black text-white">{dealer.nickname}</div>
                     <div className="mt-[0.25vh] flex items-center gap-[0.7vw] text-[0.95vw] text-white/35">
-                      <span>Store {row.storeCode}</span>
+                      <span>{dealer.location}</span>
+                      <span className="text-white/15">|</span>
+                      <span>{dealer.code}</span>
                       <span className="text-white/15">|</span>
                       <span>Traffic {formatNumber(row.traffic)}</span>
                     </div>

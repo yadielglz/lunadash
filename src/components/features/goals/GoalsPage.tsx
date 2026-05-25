@@ -10,7 +10,17 @@ import { fetchPerformanceData, type PerformanceData, type PerformanceRow } from 
 
 const SNAPSHOT_CATEGORY = 'Performance Snapshot'
 const SNAPSHOT_PREFIX = 'source-snapshot:'
-const todayKey = () => new Date().toISOString().split('T')[0]
+const dateKey = (date = new Date()) => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, '0'),
+  String(date.getDate()).padStart(2, '0'),
+].join('-')
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+const todayKey = () => dateKey()
 
 type SnapshotKind = 'money' | 'number' | 'percent'
 type SnapshotMetric = {
@@ -93,7 +103,7 @@ function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: 
   const liveDelta = Math.max(0, metric.value - priorMtd)
   const todayGoal = Math.max(0, metric.goal)
 
-  const yesterdayKey = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+  const yesterdayKey = dateKey(addDays(new Date(), -1))
   const savedYesterday = log[yesterdayKey]
 
   let displayValue = 0
