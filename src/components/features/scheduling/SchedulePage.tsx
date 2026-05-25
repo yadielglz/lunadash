@@ -124,6 +124,7 @@ export function SchedulePage() {
   const accessRole = useUiStore((s) => s.accessRole)
   const setStoreId = useUiStore((s) => s.setStoreId)
   const canChooseScheduleStore = accessRole === 'admin' || accessRole === 'district_manager'
+  const canEditSchedule = accessRole === 'admin' || accessRole === 'district_manager' || accessRole === 'manager'
   const [storePickerOpen, setStorePickerOpen] = useState(canChooseScheduleStore)
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [storesLoading, setStoresLoading] = useState(false)
@@ -245,20 +246,24 @@ export function SchedulePage() {
               {saveMessage}
             </span>
           )}
-          <Button
-            className="flex-shrink-0"
-            size="sm"
-            variant={saveState === 'saved' ? 'accent' : 'secondary'}
-            icon={<Save size={13} />}
-            loading={saveState === 'saving'}
-            onClick={saveSchedule}
-            disabled={storeId === 'main'}
-          >
-            Save
-          </Button>
-          <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Users size={13} />} onClick={() => setEmpModalOpen(true)}>
-            Employees
-          </Button>
+          {canEditSchedule && (
+            <>
+              <Button
+                className="flex-shrink-0"
+                size="sm"
+                variant={saveState === 'saved' ? 'accent' : 'secondary'}
+                icon={<Save size={13} />}
+                loading={saveState === 'saving'}
+                onClick={saveSchedule}
+                disabled={storeId === 'main'}
+              >
+                Save
+              </Button>
+              <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Users size={13} />} onClick={() => setEmpModalOpen(true)}>
+                Employees
+              </Button>
+            </>
+          )}
           {/* View toggle */}
           <div className="flex rounded-lg border border-[var(--border)] overflow-hidden flex-shrink-0">
             {(['weekly', 'monthly'] as const).map((v) => (
@@ -294,12 +299,12 @@ export function SchedulePage() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.15 }}
           >
-            {view === 'weekly' ? <WeeklyGrid /> : <MonthlyCalendar />}
+            {view === 'weekly' ? <WeeklyGrid canEdit={canEditSchedule} /> : <MonthlyCalendar canEdit={canEditSchedule} />}
           </motion.div>
         )}
       </div>
 
-      <EmployeeManagerModal open={empModalOpen} onClose={() => setEmpModalOpen(false)} />
+      {canEditSchedule && <EmployeeManagerModal open={empModalOpen} onClose={() => setEmpModalOpen(false)} />}
     </div>
   )
 }

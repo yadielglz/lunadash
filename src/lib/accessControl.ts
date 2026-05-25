@@ -4,7 +4,7 @@ const ROLE_TABS: Record<AccessRole, Tab[]> = {
   admin: ['home', 'schedule', 'goals', 'settings', 'devices', 'display'],
   district_manager: ['home', 'schedule', 'goals', 'settings', 'display'],
   manager: ['home', 'schedule', 'goals', 'settings', 'display'],
-  employee: ['home', 'schedule', 'goals', 'settings'],
+  employee: ['home', 'schedule', 'goals', 'settings', 'display'],
   display: ['display'],
 }
 

@@ -206,6 +206,7 @@ function ShiftCard({
   shift,
   accentColor,
   hasConflict,
+  canEdit,
   onClick,
   onDuplicate,
   onDragStart,
@@ -213,6 +214,7 @@ function ShiftCard({
   shift: Shift
   accentColor: string
   hasConflict: boolean
+  canEdit: boolean
   onClick: () => void
   onDuplicate: () => void
   onDragStart: () => void
@@ -220,7 +222,7 @@ function ShiftCard({
   return (
     <motion.button
       layout
-      draggable
+      draggable={canEdit}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
@@ -243,16 +245,18 @@ function ShiftCard({
         </div>
         <div className="flex items-center gap-1">
           {hasConflict && <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />}
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => { e.stopPropagation(); onDuplicate() }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onDuplicate() } }}
-            className="rounded p-0.5 text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--reveal-bg)]"
-            title="Duplicate shift"
-          >
-            <Copy size={10} />
-          </span>
+          {canEdit && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => { e.stopPropagation(); onDuplicate() }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onDuplicate() } }}
+              className="rounded p-0.5 text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--reveal-bg)]"
+              title="Duplicate shift"
+            >
+              <Copy size={10} />
+            </span>
+          )}
         </div>
       </div>
       <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5 truncate">
@@ -262,7 +266,7 @@ function ShiftCard({
   )
 }
 
-export function WeeklyGrid() {
+export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const { employees, shifts, addShift, addShifts, updateShift, removeShifts, reorderEmployees } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
   const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
@@ -288,13 +292,16 @@ export function WeeklyGrid() {
   const blockColors = new Map(blocks.map((block) => [block.name, block.color]))
 
   const openAdd = (date: string, employeeId: string) => {
+    if (!canEdit) return
     setEditShift(undefined); setClickedDate(date); setClickedEmployeeId(employeeId); setModalOpen(true)
   }
   const openEdit = (shift: Shift) => {
+    if (!canEdit) return
     setEditShift(shift); setClickedDate(undefined); setClickedEmployeeId(undefined); setModalOpen(true)
   }
 
   const copyPreviousWeek = () => {
+    if (!canEdit) return
     if (previousWeekShifts.length === 0) return
     const shouldReplace = currentWeekShifts.length === 0 || window.confirm('Replace shifts already scheduled in this week?')
     if (shouldReplace) removeShifts(currentWeekShifts.map((shift) => shift.id))
@@ -302,6 +309,7 @@ export function WeeklyGrid() {
   }
 
   const duplicateShift = (shift: Shift) => {
+    if (!canEdit) return
     addShift({
       employeeId: shift.employeeId,
       date: shift.date,
@@ -313,6 +321,7 @@ export function WeeklyGrid() {
   }
 
   const copyEmployeeWeek = (employeeId: string) => {
+    if (!canEdit) return
     const employeeShifts = currentWeekShifts.filter((shift) => shift.employeeId === employeeId)
     if (employeeShifts.length === 0) return
     addShifts(employeeShifts.map((shift) => ({
@@ -327,12 +336,14 @@ export function WeeklyGrid() {
   }
 
   const dropShift = (date: string, employeeId: string) => {
+    if (!canEdit) return
     if (!dragShiftId) return
     updateShift(dragShiftId, { date, employeeId })
     setDragShiftId(null)
   }
 
   const moveEmployee = (targetEmployeeId: string) => {
+    if (!canEdit) return
     if (!dragEmployeeId || dragEmployeeId === targetEmployeeId) return
     const fromIndex = employees.findIndex((employee) => employee.id === dragEmployeeId)
     const toIndex = employees.findIndex((employee) => employee.id === targetEmployeeId)
@@ -367,23 +378,27 @@ export function WeeklyGrid() {
           </button>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={<Copy size={12} />}
-            onClick={copyPreviousWeek}
-            disabled={previousWeekShifts.length === 0 || employees.length === 0}
-          >
-            Copy Previous
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={<Save size={12} />}
-            onClick={() => setTemplatesOpen(true)}
-          >
-            Templates
-          </Button>
+          {canEdit && (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={<Copy size={12} />}
+                onClick={copyPreviousWeek}
+                disabled={previousWeekShifts.length === 0 || employees.length === 0}
+              >
+                Copy Previous
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={<Save size={12} />}
+                onClick={() => setTemplatesOpen(true)}
+              >
+                Templates
+              </Button>
+            </>
+          )}
           <Button
             size="sm"
             variant="ghost"
@@ -441,13 +456,15 @@ export function WeeklyGrid() {
               >
                 {/* Employee label */}
                 <div
-                  draggable
+                  draggable={canEdit}
                   onDragStart={(e) => {
+                    if (!canEdit) return
                     setDragEmployeeId(emp.id)
                     e.dataTransfer.effectAllowed = 'move'
                     e.dataTransfer.setData('application/luna-employee-id', emp.id)
                   }}
                   onDragOver={(e) => {
+                    if (!canEdit) return
                     if (!dragEmployeeId || dragEmployeeId === emp.id) return
                     e.preventDefault()
                     e.dataTransfer.dropEffect = 'move'
@@ -457,6 +474,7 @@ export function WeeklyGrid() {
                     if (dragOverEmployeeId === emp.id) setDragOverEmployeeId(null)
                   }}
                   onDrop={(e) => {
+                    if (!canEdit) return
                     e.preventDefault()
                     moveEmployee(emp.id)
                   }}
@@ -464,14 +482,14 @@ export function WeeklyGrid() {
                     setDragEmployeeId(null)
                     setDragOverEmployeeId(null)
                   }}
-                  className={`sticky left-0 z-10 flex items-center gap-2.5 px-2.5 sm:px-3 py-2 rounded-lg bg-[var(--surface-2-solid)] border h-full shadow-[4px_0_10px_rgba(0,0,0,0.08)] group/emp cursor-grab active:cursor-grabbing transition-colors ${
+                  className={`sticky left-0 z-10 flex items-center gap-2.5 px-2.5 sm:px-3 py-2 rounded-lg bg-[var(--surface-2-solid)] border h-full shadow-[4px_0_10px_rgba(0,0,0,0.08)] group/emp transition-colors ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${
                     dragOverEmployeeId === emp.id
                       ? 'border-[var(--accent)] bg-[var(--accent)]/10'
                       : 'border-[var(--border)]'
                   }`}
-                  title="Drag to reorder employees"
+                  title={canEdit ? 'Drag to reorder employees' : undefined}
                 >
-                  <GripVertical size={13} className="hidden sm:block flex-shrink-0 text-[var(--text-tertiary)]" />
+                  {canEdit && <GripVertical size={13} className="hidden sm:block flex-shrink-0 text-[var(--text-tertiary)]" />}
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                     style={{ background: emp.color }}
@@ -484,16 +502,18 @@ export function WeeklyGrid() {
                       {isMainDashboard && emp.storeId ? `${emp.storeId} · ` : ''}{emp.role}
                     </div>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      copyEmployeeWeek(emp.id)
-                    }}
-                    className="ml-auto hidden sm:flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--reveal-bg)] opacity-0 group-hover/emp:opacity-100 transition-opacity"
-                    title="Copy employee week to next week"
-                  >
-                    <Copy size={11} />
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        copyEmployeeWeek(emp.id)
+                      }}
+                      className="ml-auto hidden sm:flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--reveal-bg)] opacity-0 group-hover/emp:opacity-100 transition-opacity"
+                      title="Copy employee week to next week"
+                    >
+                      <Copy size={11} />
+                    </button>
+                  )}
                 </div>
 
                 {/* Day cells */}
@@ -509,9 +529,9 @@ export function WeeklyGrid() {
                     <div
                       key={dateStr}
                       onClick={() => openAdd(dateStr, emp.id)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => { e.preventDefault(); dropShift(dateStr, emp.id) }}
-                      className={`group relative flex flex-col gap-1 p-1.5 rounded-lg min-h-[68px] cursor-pointer transition-colors border ${
+                      onDragOver={(e) => { if (canEdit) e.preventDefault() }}
+                      onDrop={(e) => { if (!canEdit) return; e.preventDefault(); dropShift(dateStr, emp.id) }}
+                      className={`group relative flex flex-col gap-1 p-1.5 rounded-lg min-h-[68px] transition-colors border ${canEdit ? 'cursor-pointer' : ''} ${
                         today
                           ? 'bg-[var(--accent)]/5 border-[var(--accent)]/20'
                           : 'bg-[var(--surface-2)] border-[var(--border)] hover:border-[var(--accent)]/30 hover:bg-[var(--reveal-bg)]'
@@ -524,14 +544,15 @@ export function WeeklyGrid() {
                             shift={shift}
                             accentColor={blockColors.get(shift.type) ?? emp.color}
                             hasConflict={conflictIds.has(shift.id)}
+                            canEdit={canEdit}
                             onClick={() => openEdit(shift)}
                             onDuplicate={() => duplicateShift(shift)}
-                            onDragStart={() => setDragShiftId(shift.id)}
+                            onDragStart={() => { if (canEdit) setDragShiftId(shift.id) }}
                           />
                         ))}
                       </AnimatePresence>
 
-                      {dayShifts.length === 0 && (
+                      {canEdit && dayShifts.length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <div className="w-6 h-6 rounded-full bg-[var(--accent)]/15 flex items-center justify-center">
                             <Plus size={12} className="text-[var(--accent)]" />
@@ -555,14 +576,14 @@ export function WeeklyGrid() {
       </div>
 
       <ShiftModal
-        open={modalOpen}
+        open={canEdit && modalOpen}
         onClose={() => setModalOpen(false)}
         initialDate={clickedDate}
         initialEmployeeId={clickedEmployeeId}
         editShift={editShift}
       />
       <ScheduleTemplatesModal
-        open={templatesOpen}
+        open={canEdit && templatesOpen}
         onClose={() => setTemplatesOpen(false)}
         weekStart={weekStart}
       />

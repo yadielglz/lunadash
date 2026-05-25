@@ -1062,7 +1062,7 @@ const SECTIONS = [
 ] as const
 
 type SectionId = typeof SECTIONS[number]['id']
-const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'scheduling']
+const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather']
 const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores', 'access']
 const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores']
 

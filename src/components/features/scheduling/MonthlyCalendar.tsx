@@ -8,7 +8,7 @@ import { hexToRgba, formatShiftTime } from '../../../lib/utils'
 import { Card } from '../../ui/Card'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS } from '../../../store/schedulePreferencesStore'
 
-export function MonthlyCalendar() {
+export function MonthlyCalendar({ canEdit = false }: { canEdit?: boolean }) {
   const { employees, shifts } = useScheduleStore()
   const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
   const [current, setCurrent] = useState(new Date())
@@ -31,11 +31,13 @@ export function MonthlyCalendar() {
     : []
 
   const openAdd = () => {
+    if (!canEdit) return
     setEditShift(undefined)
     setModalOpen(true)
   }
 
   const openEdit = (shift: Shift) => {
+    if (!canEdit) return
     setEditShift(shift)
     setModalOpen(true)
   }
@@ -137,17 +139,21 @@ export function MonthlyCalendar() {
                       {format(new Date(selectedDate + 'T12:00:00'), 'MMMM d, yyyy')}
                     </div>
                   </div>
-                  <button
-                    onClick={openAdd}
-                    className="flex items-center gap-1 text-xs text-[var(--accent)] hover:underline"
-                  >
-                    + Add
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={openAdd}
+                      className="flex items-center gap-1 text-xs text-[var(--accent)] hover:underline"
+                    >
+                      + Add
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-2">
                   {selectedShifts.length === 0 ? (
-                    <p className="text-xs text-[var(--text-tertiary)] text-center py-8">No shifts — click "+ Add" to schedule</p>
+                    <p className="text-xs text-[var(--text-tertiary)] text-center py-8">
+                      {canEdit ? 'No shifts - click "+ Add" to schedule' : 'No shifts scheduled'}
+                    </p>
                   ) : (
                     selectedShifts.map((shift) => {
                       const emp = employees.find((e) => e.id === shift.employeeId)
@@ -155,8 +161,8 @@ export function MonthlyCalendar() {
                       return (
                         <Card
                           key={shift.id}
-                          interactive
-                          className="!p-3 cursor-pointer"
+                          interactive={canEdit}
+                          className={`!p-3 ${canEdit ? 'cursor-pointer' : ''}`}
                           onClick={() => openEdit(shift)}
                           style={{ borderColor: hexToRgba(emp.color, 0.3), background: hexToRgba(emp.color, 0.06) }}
                         >
@@ -180,7 +186,7 @@ export function MonthlyCalendar() {
       </div>
 
       <ShiftModal
-        open={modalOpen}
+        open={canEdit && modalOpen}
         onClose={() => setModalOpen(false)}
         initialDate={selectedDate ?? undefined}
         editShift={editShift}
