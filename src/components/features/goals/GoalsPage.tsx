@@ -214,7 +214,7 @@ export function GoalsPage() {
 
     snapshotGoals.forEach((g) => {
       Object.keys(g.dailyLog ?? {}).forEach((date) => {
-        if (date !== today) allRows.add(`${normalizeStoreId(g.storeId ?? '')}|${date}`)
+        allRows.add(`${normalizeStoreId(g.storeId ?? '')}|${date}`)
       })
     })
 

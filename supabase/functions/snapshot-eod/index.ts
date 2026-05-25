@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import * as Papa from 'npm:papaparse@5.5.3'
+import Papa from 'npm:papaparse@5.5.3'
 
 const PERFORMANCE_SHEET_CSV_URL =
   'https://docs.google.com/spreadsheets/d/1hJuUd6UkzfWBeTywVM6Yi5g0BxJodsNLe0XHgt-9nOQ/export?format=csv&gid=1896995460'
@@ -156,25 +156,13 @@ function dateKey(date: Date) {
   ].join('-')
 }
 
-function snapshotValue(log: Record<string, number>, snapshotDay: string, liveValue: number) {
-  const month = snapshotDay.slice(0, 7)
-  const priorMtd = Object.entries(log).reduce((sum, [day, value]) => {
-    if (!day.startsWith(month) || day === snapshotDay) return sum
-    return sum + (Number(value) || 0)
-  }, 0)
-
-  return Math.max(0, liveValue - priorMtd)
-}
-
 Deno.serve(async (_req: Request) => {
   const nyTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
-  if (nyTime.getHours() !== 22) {
-    return new Response('Not 10:00 PM New York time. Skipping snapshot.', { status: 200 })
+  if (![22, 23].includes(nyTime.getHours())) {
+    return new Response('Not 10:00 PM or 11:00 PM New York time. Skipping snapshot.', { status: 200 })
   }
 
-  const snapshotDate = new Date(nyTime)
-  snapshotDate.setDate(snapshotDate.getDate() - 1)
-  const snapshotDay = dateKey(snapshotDate)
+  const snapshotDay = dateKey(nyTime)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -208,7 +196,7 @@ Deno.serve(async (_req: Request) => {
         ))
         const log = existingGoal?.daily_log ?? {}
         const liveValue = Number(row[metric.key]) || 0
-        const dailyLog = { ...log, [snapshotDay]: snapshotValue(log, snapshotDay, liveValue) }
+        const dailyLog = { ...log, [snapshotDay]: Math.max(0, liveValue) }
         const dailyTarget = goalValueForMetric(row, metric.key)
 
         if (existingGoal) {
