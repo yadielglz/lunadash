@@ -7,6 +7,7 @@ import '@fontsource/google-sans/latin-600.css'
 import '@fontsource/google-sans/latin-700.css'
 import './styles/global.css'
 import App from './App.tsx'
+import { registerServiceWorker } from './registerServiceWorker'
 
 const CHUNK_RELOAD_KEY = 'luna-chunk-reload-at'
 
@@ -46,3 +47,5 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 )
+
+registerServiceWorker()
