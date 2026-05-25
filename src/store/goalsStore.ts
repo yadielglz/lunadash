@@ -59,14 +59,16 @@ export const useGoalsStore = create<GoalsState>()((set) => ({
   _init: (goals) => set({ goals, isLoaded: true }),
 
   addGoal: (goal) => {
+    const storeId = currentStoreId()
     const newGoal: Goal = {
       ...goal,
+      storeId,
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       dailyLog: {},
     }
     set((s) => ({ goals: [...s.goals, newGoal] }))
-    dbInsertGoal(newGoal, currentStoreId())
+    dbInsertGoal(newGoal, storeId)
   },
 
   updateGoal: (id, updates) => {

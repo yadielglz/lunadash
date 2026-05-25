@@ -189,6 +189,18 @@ export function GoalsPage() {
   const metrics = useMemo(() => sourceRow ? metricsFromRow(sourceRow) : [], [sourceRow])
   const isMainDashboard = storeId === 'main'
   const snapshotScopeId = isMainDashboard ? 'main' : storeId
+  const scopedSnapshotGoals = useMemo(() => (
+    goals.filter((goal) => (
+      goal.category === SNAPSHOT_CATEGORY
+      && normalizeStoreId(goal.storeId ?? '') === normalizeStoreId(snapshotScopeId)
+    ))
+  ), [goals, snapshotScopeId])
+  const scopedSnapshotSignature = useMemo(() => (
+    scopedSnapshotGoals
+      .map((goal) => `${goal.id}:${snapshotKey(goal)}:${goal.current}:${goal.dailyTarget}`)
+      .sort()
+      .join('|')
+  ), [scopedSnapshotGoals])
 
   const pastEoDRows = useMemo(() => {
     const allRows = new Set<string>()
@@ -237,7 +249,7 @@ export function GoalsPage() {
   useEffect(() => {
     if (!isLoaded || metrics.length === 0) return
     metrics.forEach((metric) => {
-      const existingGoal = snapshotGoalForMetric(goals, metric.key, snapshotScopeId)
+      const existingGoal = snapshotGoalForMetric(scopedSnapshotGoals, metric.key, snapshotScopeId)
       if (existingGoal) {
         const updates: Partial<Goal> = {}
         if (existingGoal.current !== metric.value) updates.current = metric.value
@@ -258,7 +270,7 @@ export function GoalsPage() {
         dailyTarget: metric.goal,
       })
     })
-  }, [addGoal, goals, isLoaded, metrics, snapshotScopeId, updateGoal])
+  }, [addGoal, isLoaded, metrics, scopedSnapshotGoals, scopedSnapshotSignature, snapshotScopeId, updateGoal])
 
   const sourceUpdated = sourceQuery.data?.updatedAt
     ? new Date(sourceQuery.data.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
