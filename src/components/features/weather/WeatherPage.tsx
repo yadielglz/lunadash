@@ -9,9 +9,13 @@ import { format } from 'date-fns'
 import { Input } from '../../ui/Input'
 import { Card } from '../../ui/Card'
 import { Button } from '../../ui/Button'
+import { getStoreWeatherLocation } from '../../../config/storeWeather'
+import { useUiStore } from '../../../store/uiStore'
 
 export function WeatherPage() {
   const queryClient = useQueryClient()
+  const storeId = useUiStore((state) => state.storeId)
+  const storeWeatherLocation = getStoreWeatherLocation(storeId)
   const [citySearch, setCitySearch] = useState('')
   const [locating, setLocating] = useState(false)
   const { data: geoResults } = useGeocode(citySearch)
@@ -80,57 +84,64 @@ export function WeatherPage() {
             </button>
           </div>
         </div>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
-          <div className="relative max-w-sm w-full">
-            <Input
-              icon={<Search size={14} />}
-              placeholder="Search city..."
-              value={citySearch}
-              onChange={(e) => setCitySearch(e.target.value)}
-            />
-            {geoResults && geoResults.length > 0 && citySearch.length > 2 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] rounded-lg border border-[var(--border)] overflow-hidden z-50 shadow-[var(--shadow-float)]">
-                {geoResults.map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => selectCity(r)}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--reveal-bg)] transition-colors flex items-center gap-2"
-                  >
-                    <MapPin size={12} className="text-[var(--text-tertiary)]" />
-                    <span className="text-[var(--text)]">{r.name}</span>
-                    <span className="text-[var(--text-tertiary)] text-xs">{r.admin1}, {r.country}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+        {storeWeatherLocation ? (
+          <div className="inline-flex max-w-full items-center gap-2 rounded-lg border border-[var(--accent)]/25 bg-[var(--accent)]/10 px-3 py-2 text-sm text-[var(--text)]">
+            <MapPin size={14} className="text-[var(--accent)]" />
+            <span className="truncate">{storeWeatherLocation.name}</span>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {CENTRAL_FLORIDA_WEATHER_POINTS.map((point) => (
+        ) : (
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+            <div className="relative max-w-sm w-full">
+              <Input
+                icon={<Search size={14} />}
+                placeholder="Search city..."
+                value={citySearch}
+                onChange={(e) => setCitySearch(e.target.value)}
+              />
+              {geoResults && geoResults.length > 0 && citySearch.length > 2 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--surface)] rounded-lg border border-[var(--border)] overflow-hidden z-50 shadow-[var(--shadow-float)]">
+                  {geoResults.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => selectCity(r)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--reveal-bg)] transition-colors flex items-center gap-2"
+                    >
+                      <MapPin size={12} className="text-[var(--text-tertiary)]" />
+                      <span className="text-[var(--text)]">{r.name}</span>
+                      <span className="text-[var(--text-tertiary)] text-xs">{r.admin1}, {r.country}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {CENTRAL_FLORIDA_WEATHER_POINTS.map((point) => (
+                <Button
+                  key={point.name}
+                  size="sm"
+                  variant={Math.abs(location.lat - point.lat) < 0.01 && Math.abs(location.lon - point.lon) < 0.01 ? 'accent' : 'secondary'}
+                  icon={<MapPin size={12} />}
+                  onClick={() => selectWeatherPoint(point)}
+                >
+                  {point.name.replace('Store ', '').replace(' - ', ' ')}
+                </Button>
+              ))}
               <Button
-                key={point.name}
                 size="sm"
-                variant={Math.abs(location.lat - point.lat) < 0.01 && Math.abs(location.lon - point.lon) < 0.01 ? 'accent' : 'secondary'}
-                icon={<MapPin size={12} />}
-                onClick={() => selectWeatherPoint(point)}
+                variant="secondary"
+                icon={<LocateFixed size={12} />}
+                loading={locating}
+                onClick={locateDevice}
               >
-                {point.name.replace(', FL', '')}
+                Use device
               </Button>
-            ))}
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<LocateFixed size={12} />}
-              loading={locating}
-              onClick={locateDevice}
-            >
-              Use device
-            </Button>
+            </div>
           </div>
-        </div>
+        )}
         {locationError && (
           <p className="mt-2 text-xs text-red-400">{locationError}</p>
         )}
-        {location.source === 'default' && (
+        {location.source === 'default' && !location.name.startsWith('Store ') && (
           <p className="mt-2 text-xs text-[var(--text-secondary)]">
             Using Haines City until GeoIP finishes or you pick a store weather point.
           </p>

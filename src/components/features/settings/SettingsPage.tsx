@@ -99,7 +99,7 @@ function GeneralSection() {
 function StoreSection() {
   const { companyName, storeNumber, slideInterval, setCompanyName, setStoreNumber } = useDisplayStore()
   const { storeId, setStoreId, accessRole } = useUiStore()
-  const canSwitchStores = accessRole === 'admin' || accessRole === 'district_manager'
+  const canSwitchStores = accessRole === 'admin'
   const [name, setName]       = useState(companyName)
   const [num, setNum]         = useState(storeNumber)
   const [newStoreId, setNewStoreId] = useState('')
@@ -529,7 +529,7 @@ function ScheduleBlocksSection() {
 // ── Configured stores section ────────────────────────────────────────────────
 function ConfiguredStoresSection() {
   const { storeId, setStoreId, accessRole } = useUiStore()
-  const canEditStores = accessRole === 'admin' || accessRole === 'district_manager'
+  const canEditStores = accessRole === 'admin'
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -1063,8 +1063,8 @@ const SECTIONS = [
 
 type SectionId = typeof SECTIONS[number]['id']
 const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'scheduling']
-const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['configuredStores', 'access']
-const DISTRICT_HIDDEN_SECTIONS: SectionId[] = []
+const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores', 'access']
+const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores']
 
 function isSectionId(value: string): value is SectionId {
   return SECTIONS.some((section) => section.id === value)
