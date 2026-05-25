@@ -7,6 +7,8 @@ import { useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useUiStore } from '../../../store/uiStore'
 import { fetchPerformanceData, type PerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
+import { dealerInfoForRow, getDealerInfo } from '../../../lib/dealers'
+import { normalizeStoreId } from '../../../lib/storeIds'
 
 const SNAPSHOT_CATEGORY = 'Performance Snapshot'
 const SNAPSHOT_PREFIX = 'source-snapshot:'
@@ -15,11 +17,6 @@ const dateKey = (date = new Date()) => [
   String(date.getMonth() + 1).padStart(2, '0'),
   String(date.getDate()).padStart(2, '0'),
 ].join('-')
-const addDays = (date: Date, days: number) => {
-  const next = new Date(date)
-  next.setDate(next.getDate() + days)
-  return next
-}
 const todayKey = () => dateKey()
 
 type SnapshotKind = 'money' | 'number' | 'percent'
@@ -55,8 +52,26 @@ function snapshotDescription(key: string) {
   return `${SNAPSHOT_PREFIX}${key}`
 }
 
-function snapshotGoalForMetric(goals: Goal[], key: string) {
-  return goals.find((goal) => goal.category === SNAPSHOT_CATEGORY && goal.description === snapshotDescription(key))
+function snapshotKey(goal: Goal) {
+  return goal.description.startsWith(SNAPSHOT_PREFIX)
+    ? goal.description.slice(SNAPSHOT_PREFIX.length)
+    : ''
+}
+
+function snapshotGoalForMetric(goals: Goal[], key: string, storeId?: string) {
+  const normalizedStoreId = storeId ? normalizeStoreId(storeId) : ''
+  return goals.find((goal) => (
+    goal.category === SNAPSHOT_CATEGORY
+    && snapshotKey(goal) === key
+    && (!normalizedStoreId || normalizeStoreId(goal.storeId ?? '') === normalizedStoreId)
+  ))
+}
+
+function labelForStoreId(storeId: string) {
+  const dealer = getDealerInfo(storeId)
+  if (dealer) return `${dealer.nickname} | ${dealer.location}`
+  if (storeId === 'main') return 'All Stores'
+  return storeId
 }
 
 function mtdFromDailyLog(log: Record<string, number>, key: string, excludeToday = false) {
@@ -98,31 +113,17 @@ function metricsFromRow(row: PerformanceRow): SnapshotMetric[] {
 
 function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: Goal; today: string }) {
   const log = goal?.dailyLog ?? {}
-  const priorMtd = mtdFromDailyLog(log, today, true)
   const savedToday = log[today]
-  const liveDelta = Math.max(0, metric.value - priorMtd)
+  const mtdTotal = mtdFromDailyLog(log, today, false)
+  const todayActual = savedToday ?? metric.value
   const todayGoal = Math.max(0, metric.goal)
 
-  const yesterdayKey = dateKey(addDays(new Date(), -1))
-  const savedYesterday = log[yesterdayKey]
-
-  let displayValue = 0
   let snapshotState = 'Live Today'
-
   if (savedToday !== undefined) {
-    displayValue = savedToday
     snapshotState = 'Saved Today'
-  } else if (liveDelta > 0) {
-    displayValue = liveDelta
-    snapshotState = 'Live Today'
-  } else if (savedYesterday !== undefined) {
-    displayValue = savedYesterday
-    snapshotState = 'Yesterday'
-  } else {
-    displayValue = 0
-    snapshotState = 'Live Today'
   }
-  const goalGap = todayGoal > 0 ? displayValue - todayGoal : null
+
+  const goalGap = todayGoal > 0 ? todayActual - todayGoal : null
   const goalGapLabel = goalGap === null
     ? '-'
     : `${goalGap >= 0 ? '+' : '-'}${formatMetric(Math.abs(goalGap), metric.kind)}`
@@ -146,12 +147,12 @@ function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: 
 
       <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">MTD Since 1st</div>
-          <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{formatMetric(metric.value, metric.kind)}</div>
+          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Today's Actual</div>
+          <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{formatMetric(todayActual, metric.kind)}</div>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Today Trend</div>
-          <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{formatMetric(displayValue, metric.kind)}</div>
+          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">MTD Snapshot</div>
+          <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{formatMetric(mtdTotal, metric.kind)}</div>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
           <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Today Goal</div>
@@ -186,28 +187,43 @@ export function GoalsPage() {
   ), [dealerCode, sourceQuery.data, storeId, storeNumber])
 
   const metrics = useMemo(() => sourceRow ? metricsFromRow(sourceRow) : [], [sourceRow])
+  const isMainDashboard = storeId === 'main'
+  const snapshotScopeId = isMainDashboard ? 'main' : storeId
 
   const pastEoDRows = useMemo(() => {
-    const allDates = new Set<string>()
-    const snapshotGoals = goals.filter((g) => g.category === SNAPSHOT_CATEGORY)
+    const allRows = new Set<string>()
+    const snapshotGoals = goals.filter((g) => (
+      g.category === SNAPSHOT_CATEGORY
+      && snapshotKey(g)
+      && (isMainDashboard
+        ? normalizeStoreId(g.storeId ?? '') !== 'main'
+        : normalizeStoreId(g.storeId ?? '') === normalizeStoreId(snapshotScopeId))
+    ))
+
     snapshotGoals.forEach((g) => {
       Object.keys(g.dailyLog ?? {}).forEach((date) => {
-        if (date !== today) allDates.add(date)
+        if (date !== today) allRows.add(`${normalizeStoreId(g.storeId ?? '')}|${date}`)
       })
     })
 
-    const sortedDates = Array.from(allDates).sort().reverse()
+    const sortedRows = Array.from(allRows).sort((a, b) => {
+      const [storeA, dateA] = a.split('|')
+      const [storeB, dateB] = b.split('|')
+      if (dateA !== dateB) return dateB.localeCompare(dateA)
+      return labelForStoreId(storeA).localeCompare(labelForStoreId(storeB))
+    })
 
-    return sortedDates.map((date) => {
-      const row: Record<string, any> = { date }
+    return sortedRows.map((rowKey) => {
+      const [rowStoreId, date] = rowKey.split('|')
+      const row: Record<string, any> = { date, storeId: rowStoreId, storeLabel: labelForStoreId(rowStoreId) }
       metrics.forEach((m) => {
-        const goal = snapshotGoalForMetric(goals, m.key)
+        const goal = snapshotGoalForMetric(goals, m.key, rowStoreId)
         row[m.key] = goal?.dailyLog?.[date] ?? 0
       })
 
-      const nrGoalObj = snapshotGoalForMetric(goals, 'netRevenue')
-      const accGoalObj = snapshotGoalForMetric(goals, 'accessoryRevenue')
-      const dortGoalObj = snapshotGoalForMetric(goals, 'totalPp')
+      const nrGoalObj = snapshotGoalForMetric(goals, 'netRevenue', rowStoreId)
+      const accGoalObj = snapshotGoalForMetric(goals, 'accessoryRevenue', rowStoreId)
+      const dortGoalObj = snapshotGoalForMetric(goals, 'totalPp', rowStoreId)
 
       row.nrGoal = nrGoalObj?.dailyTarget
       row.accGoal = accGoalObj?.dailyTarget
@@ -216,12 +232,12 @@ export function GoalsPage() {
 
       return row
     })
-  }, [goals, metrics, today])
+  }, [goals, isMainDashboard, metrics, snapshotScopeId, today])
 
   useEffect(() => {
     if (!isLoaded || metrics.length === 0) return
     metrics.forEach((metric) => {
-      const existingGoal = snapshotGoalForMetric(goals, metric.key)
+      const existingGoal = snapshotGoalForMetric(goals, metric.key, snapshotScopeId)
       if (existingGoal) {
         const updates: Partial<Goal> = {}
         if (existingGoal.current !== metric.value) updates.current = metric.value
@@ -242,7 +258,7 @@ export function GoalsPage() {
         dailyTarget: metric.goal,
       })
     })
-  }, [addGoal, goals, isLoaded, metrics, updateGoal])
+  }, [addGoal, goals, isLoaded, metrics, snapshotScopeId, updateGoal])
 
   const sourceUpdated = sourceQuery.data?.updatedAt
     ? new Date(sourceQuery.data.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
@@ -250,7 +266,7 @@ export function GoalsPage() {
   const storeLabel = sourceRow
     ? storeId === 'main'
       ? 'All Stores'
-      : `${sourceRow.teamName || sourceRow.store} #${sourceRow.storeCode}`
+      : `${dealerInfoForRow(sourceRow).nickname} | ${dealerInfoForRow(sourceRow).location}`
     : 'No Source row matched'
 
   return (
@@ -263,7 +279,9 @@ export function GoalsPage() {
               <h1 className="text-xl font-semibold text-[var(--text)]">Performance Snapshot</h1>
             </div>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">
-              Store-gated Source snapshot with current MTD, today's trend, daily goal, and gap.
+              {isMainDashboard
+                ? 'All-store Source snapshot with store-labeled EOD history.'
+                : 'Store-gated Source snapshot with today\'s actual, daily goal, MTD snapshots, and gap.'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-tertiary)]">
@@ -306,7 +324,7 @@ export function GoalsPage() {
               <SnapshotCard
                 key={metric.key}
                 metric={metric}
-                goal={snapshotGoalForMetric(goals, metric.key)}
+                goal={snapshotGoalForMetric(goals, metric.key, snapshotScopeId)}
                 today={today}
               />
             ))}
@@ -323,6 +341,7 @@ export function GoalsPage() {
                 <thead className="border-b border-[var(--border)] bg-[var(--surface-3)] text-[var(--text-secondary)]">
                   <tr>
                     <th className="px-4 py-3 font-medium">Date</th>
+                    {isMainDashboard && <th className="px-4 py-3 font-medium">Store</th>}
                     <th className="px-4 py-3 text-right font-medium">Net Rev</th>
                     <th className="px-4 py-3 text-right font-medium">NR Goal</th>
                     <th className="px-4 py-3 text-right font-medium">Acc</th>
@@ -339,8 +358,9 @@ export function GoalsPage() {
                 </thead>
                 <tbody className="divide-y divide-[var(--border)] text-[var(--text)]">
                   {pastEoDRows.map((row) => (
-                    <tr key={row.date} className="transition-colors hover:bg-[var(--reveal-bg)]">
+                    <tr key={`${row.storeId}-${row.date}`} className="transition-colors hover:bg-[var(--reveal-bg)]">
                       <td className="px-4 py-3 font-medium">{new Date(row.date + 'T12:00:00Z').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                      {isMainDashboard && <td className="px-4 py-3 font-medium text-[var(--text-secondary)]">{row.storeLabel}</td>}
                       <td className="px-4 py-3 text-right tabular-nums">{formatMetric(row.netRevenue || 0, 'money')}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-[var(--text-tertiary)]">{row.nrGoal ? formatMetric(row.nrGoal, 'money') : '-'}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatMetric(row.accessoryRevenue || 0, 'money')}</td>

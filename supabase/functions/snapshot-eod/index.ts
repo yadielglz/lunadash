@@ -28,15 +28,30 @@ type SnapshotRow = {
 type SnapshotGoal = {
   id: string
   store_id: string
+  title: string
   description: string | null
   current_val: number | null
+  daily_target: number | null
   daily_log: Record<string, number> | null
 }
 
-type StoreSetting = {
-  store_id: string
-  store_number: string | null
+type SnapshotMetric = {
+  key: keyof SnapshotRow
+  title: string
+  unit: string
+  color: string
 }
+
+const SNAPSHOT_METRICS: SnapshotMetric[] = [
+  { key: 'netRevenue', title: 'Net Revenue', unit: '$', color: '#16c60c' },
+  { key: 'accessoryRevenue', title: 'Accessories', unit: '$', color: '#00b7c3' },
+  { key: 'totalPp', title: 'Total PP', unit: '', color: '#7c5ff5' },
+  { key: 'traffic', title: 'Traffic', unit: '', color: '#f7b731' },
+  { key: 'vl', title: 'Voice Lines', unit: '', color: '#0f7ad8' },
+  { key: 'bts', title: 'BTS', unit: '', color: '#f7630c' },
+  { key: 'hsi', title: 'HSI', unit: '', color: '#e3008c' },
+  { key: 'visa', title: 'VISA', unit: '', color: '#e74856' },
+]
 
 function cell(row: CsvRow, index: number) {
   return (row[index] ?? '').trim()
@@ -129,21 +144,8 @@ function metricKeyFromGoal(goal: SnapshotGoal) {
     : null
 }
 
-function findSourceRow(
-  goal: SnapshotGoal,
-  settings: StoreSetting[],
-  liveRows: SnapshotRow[],
-  liveTotal: SnapshotRow | null,
-) {
-  if (goal.store_id === 'main') return liveTotal
-
-  const storeSetting = settings.find((setting) => setting.store_id === goal.store_id)
-  const storeNumber = storeSetting?.store_number || goal.store_id
-
-  return liveRows.find((row) => (
-    row.storeCode.includes(storeNumber)
-    || row.store.includes(storeNumber)
-  )) ?? null
+function snapshotDescription(metricKey: string) {
+  return `${SNAPSHOT_PREFIX}${metricKey}`
 }
 
 function dateKey(date: Date) {
@@ -152,6 +154,16 @@ function dateKey(date: Date) {
     String(date.getMonth() + 1).padStart(2, '0'),
     String(date.getDate()).padStart(2, '0'),
   ].join('-')
+}
+
+function snapshotValue(log: Record<string, number>, snapshotDay: string, liveValue: number) {
+  const month = snapshotDay.slice(0, 7)
+  const priorMtd = Object.entries(log).reduce((sum, [day, value]) => {
+    if (!day.startsWith(month) || day === snapshotDay) return sum
+    return sum + (Number(value) || 0)
+  }, 0)
+
+  return Math.max(0, liveValue - priorMtd)
 }
 
 Deno.serve(async (_req: Request) => {
@@ -163,7 +175,6 @@ Deno.serve(async (_req: Request) => {
   const snapshotDate = new Date(nyTime)
   snapshotDate.setDate(snapshotDate.getDate() - 1)
   const snapshotDay = dateKey(snapshotDate)
-  const month = snapshotDay.slice(0, 7)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -175,36 +186,61 @@ Deno.serve(async (_req: Request) => {
 
   try {
     const { liveRows, liveTotal } = await fetchSnapshotRows()
-    const [{ data: goals, error: goalsError }, { data: settings, error: settingsError }] = await Promise.all([
-      supabase.from('goals').select('*').eq('category', SNAPSHOT_CATEGORY),
-      supabase.from('app_settings').select('store_id, store_number'),
-    ])
+    const { data: goals, error: goalsError } = await supabase
+      .from('goals')
+      .select('*')
+      .eq('category', SNAPSHOT_CATEGORY)
 
     if (goalsError) throw goalsError
-    if (settingsError) throw settingsError
 
-    const updates = ((goals ?? []) as SnapshotGoal[]).map((goal) => {
-      const log = goal.daily_log ?? {}
-      const metricKey = metricKeyFromGoal(goal)
-      const matchedRow = findSourceRow(goal, (settings ?? []) as StoreSetting[], liveRows, liveTotal)
-      const liveValue = metricKey && matchedRow && metricKey in matchedRow
-        ? Number(matchedRow[metricKey as keyof SnapshotRow]) || 0
-        : goal.current_val ?? 0
+    const targets = [
+      ...(liveTotal ? [{ storeId: 'main', row: liveTotal }] : []),
+      ...liveRows.map((row) => ({ storeId: row.storeCode, row })),
+    ]
 
-      const priorMtd = Object.entries(log).reduce((sum, [day, value]) => {
-        if (!day.startsWith(month) || day === snapshotDay) return sum
-        return sum + (Number(value) || 0)
-      }, 0)
+    const existingGoals = (goals ?? []) as SnapshotGoal[]
+    const updates = targets.flatMap(({ storeId, row }) => (
+      SNAPSHOT_METRICS.map((metric) => {
+        const description = snapshotDescription(metric.key)
+        const existingGoal = existingGoals.find((goal) => (
+          goal.store_id === storeId
+          && metricKeyFromGoal(goal) === metric.key
+        ))
+        const log = existingGoal?.daily_log ?? {}
+        const liveValue = Number(row[metric.key]) || 0
+        const dailyLog = { ...log, [snapshotDay]: snapshotValue(log, snapshotDay, liveValue) }
+        const dailyTarget = goalValueForMetric(row, metric.key)
 
-      return supabase
-        .from('goals')
-        .update({
-          current_val: liveValue,
-          daily_target: goalValueForMetric(matchedRow, metricKey),
-          daily_log: { ...log, [snapshotDay]: Math.max(0, liveValue - priorMtd) },
-        })
-        .eq('id', goal.id)
-    })
+        if (existingGoal) {
+          return supabase
+            .from('goals')
+            .update({
+              current_val: liveValue,
+              daily_target: dailyTarget,
+              daily_log: dailyLog,
+            })
+            .eq('id', existingGoal.id)
+        }
+
+        return supabase
+          .from('goals')
+          .insert({
+            id: crypto.randomUUID(),
+            store_id: storeId,
+            title: metric.title,
+            description,
+            category: SNAPSHOT_CATEGORY,
+            target: 0,
+            current_val: liveValue,
+            unit: metric.unit,
+            deadline: new Date().toISOString(),
+            color: metric.color,
+            daily_target: dailyTarget,
+            daily_log: dailyLog,
+            milestones: [],
+          })
+      })
+    ))
 
     const results = await Promise.all(updates)
     const updateError = results.find((result) => result.error)?.error

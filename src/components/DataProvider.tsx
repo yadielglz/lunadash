@@ -147,10 +147,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           ? (await dbGetStores()).map((store) => store.store_id).filter((id) => id && id !== 'main')
           : [storeId || 'DEFAULT']
 
+        const goalStoreIds = isMain ? ['main', ...storeIds] : storeIds
+
         const [employeeSets, shiftSets, goalSets, announcementSets, settings, taskSets] = await Promise.all([
           Promise.all(storeIds.map(dbGetEmployees)),
           Promise.all(storeIds.map(dbGetShifts)),
-          Promise.all(storeIds.map(dbGetGoals)),
+          Promise.all(goalStoreIds.map(dbGetGoals)),
           Promise.all(storeIds.map(dbGetAnnouncements)),
           isMain ? Promise.resolve({ company_name: 'Main Dashboard', store_number: 'All Stores', slide_interval: 8 }) : dbGetSettings(storeIds[0]),
           shouldSyncTasks ? Promise.all(storeIds.map(dbGetTasks)) : Promise.resolve([]),
