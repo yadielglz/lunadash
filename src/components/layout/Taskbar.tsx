@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import {
-  LayoutGrid, Calendar, Target, Settings
+  LayoutGrid, Calendar, Target, Settings, Monitor
 } from 'lucide-react'
 import { useUiStore, Tab } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
@@ -10,12 +10,16 @@ const TABS: { id: Tab; icon: React.ReactNode; label: string; mobile?: boolean }[
   { id: 'home',     icon: <LayoutGrid size={18} />,  label: 'Home'     },
   { id: 'schedule', icon: <Calendar size={18} />,    label: 'Schedule' },
   { id: 'goals',    icon: <Target size={18} />,      label: 'Performance' },
+  { id: 'display',  icon: <Monitor size={18} />,     label: 'Display' },
   { id: 'settings', icon: <Settings size={18} />,    label: 'Settings' },
 ]
 
 export function Taskbar() {
   const { activeTab, accessRole, setTab } = useUiStore()
-  const visibleTabs = TABS.filter((tab) => canAccessTab(accessRole, tab.id))
+  const visibleTabs = TABS.filter((tab) => (
+    canAccessTab(accessRole, tab.id)
+    && (tab.id !== 'display' || accessRole === 'employee')
+  ))
 
   return (
     <nav
