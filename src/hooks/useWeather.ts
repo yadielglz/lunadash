@@ -190,7 +190,7 @@ function useWeatherLocation(enableGeoIp = true) {
     writeCachedWeatherLocation(nextLocation)
   }
 
-  const useDeviceLocation = async () => {
+  const locateDevice = async () => {
     try {
       setError(null)
       const nextLocation = await requestDeviceLocation()
@@ -203,14 +203,14 @@ function useWeatherLocation(enableGeoIp = true) {
     }
   }
 
-  return { location, setLocation, useDeviceLocation, error }
+  return { location, setLocation, locateDevice, error }
 }
 
 export function useWeather(manualCoords?: Coords, options: WeatherOptions = {}) {
   const shouldUseGeoIp = options.useGeolocation ?? true
   const storeId = useUiStore((s) => s.storeId)
   const storeLocation = getStoreWeatherLocation(storeId)
-  const { location, setLocation, useDeviceLocation, error: locationError } = useWeatherLocation(shouldUseGeoIp && !manualCoords)
+  const { location, setLocation, locateDevice, error: locationError } = useWeatherLocation(shouldUseGeoIp && !manualCoords)
   const selectedLocation = manualCoords ? { ...manualCoords, name: 'Selected location', source: 'saved' as const } : storeLocation ?? location
 
   const weatherQuery = useQuery({
@@ -221,7 +221,7 @@ export function useWeather(manualCoords?: Coords, options: WeatherOptions = {}) 
     meta: { locationError },
   })
 
-  return { ...weatherQuery, location: selectedLocation, setLocation, useDeviceLocation, locationError }
+  return { ...weatherQuery, location: selectedLocation, setLocation, locateDevice, locationError }
 }
 
 export function useGeocode(city: string) {

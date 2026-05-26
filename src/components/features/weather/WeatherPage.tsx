@@ -19,7 +19,7 @@ export function WeatherPage() {
   const [citySearch, setCitySearch] = useState('')
   const [locating, setLocating] = useState(false)
   const { data: geoResults } = useGeocode(citySearch)
-  const { data, isLoading, isError, isFetching, refetch, location, setLocation, useDeviceLocation, locationError } = useWeather()
+  const { data, isLoading, isError, isFetching, refetch, location, setLocation, locateDevice: requestDeviceLocation, locationError } = useWeather()
   const { fmt, unit, toggleTempUnit } = useTempDisplay()
 
   const selectCity = (result: GeocodingResult) => {
@@ -40,7 +40,7 @@ export function WeatherPage() {
   const locateDevice = async () => {
     setLocating(true)
     try {
-      await useDeviceLocation()
+      await requestDeviceLocation()
     } catch {
       // The hook exposes the permission/support message in the page.
     } finally {

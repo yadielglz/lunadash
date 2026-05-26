@@ -19,6 +19,7 @@ export function AccessSection() {
   const [role, setRole] = useState<AccessRole>('employee')
   const [label, setLabel] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDealer, setEditDealer] = useState('')
   const [editLabel, setEditLabel] = useState('')
   const [editStoreId, setEditStoreId] = useState('')
   const [editRole, setEditRole] = useState<AccessRole>('employee')
@@ -139,6 +140,7 @@ export function AccessSection() {
 
   const startEditCode = (code: StoreAccessCode) => {
     setEditingId(code.id)
+    setEditDealer(code.dealer_code)
     setEditLabel(code.label ?? '')
     setEditStoreId(normalizeStoreId(code.store_id))
     setEditRole(code.role === 'display' ? 'employee' : code.role)
@@ -148,6 +150,7 @@ export function AccessSection() {
 
   const cancelEditCode = () => {
     setEditingId(null)
+    setEditDealer('')
     setEditLabel('')
     setEditStoreId('')
     setEditRole('employee')
@@ -155,7 +158,12 @@ export function AccessSection() {
   }
 
   const saveEditCode = async (code: StoreAccessCode) => {
+    const cleanDealer = editDealer.trim().toLowerCase() === 'admin' ? 'admin' : normalizeAccessCode(editDealer)
     const targetStore = accessRole === 'admin' ? normalizeStoreId(editStoreId) : normalizeStoreId(storeId)
+    if (!isValidLoginCode(cleanDealer)) {
+      setError('Login must be a store ID or admin code.')
+      return
+    }
     if (!editLabel.trim()) {
       setError('Name / label is required.')
       return
@@ -177,6 +185,7 @@ export function AccessSection() {
     setError('')
     try {
       await dbUpdateAccessCode(code.id, {
+        ...(accessRole === 'admin' ? { dealer_code: cleanDealer } : {}),
         label: editLabel.trim(),
         store_id: targetStore,
         role: accessRole === 'admin' ? editRole : (editRole === 'admin' || editRole === 'district_manager') ? 'manager' : editRole,
@@ -242,7 +251,8 @@ export function AccessSection() {
               <div key={code.id} className="px-4 py-3">
                 {isEditing ? (
                   <div className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                      <Input label="Login / Username" autoCapitalize="characters" maxLength={20} value={accessRole === 'admin' ? editDealer : code.dealer_code} onChange={(e) => setEditDealer(normalizeAccessCode(e.target.value))} disabled={accessRole !== 'admin'} placeholder="693D or admin" />
                       <Input label="Name" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} placeholder="User name" />
                       <Input label="Store ID / SAP" value={accessRole === 'admin' ? editStoreId : storeId} onChange={(e) => setEditStoreId(normalizeStoreId(e.target.value))} disabled={accessRole !== 'admin'} placeholder="697D or main" />
                       <Select label="Role" value={editRole} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditRole(e.target.value as AccessRole)}>

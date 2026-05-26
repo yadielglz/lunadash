@@ -285,18 +285,24 @@ export async function dbCreateAccessCode(code: {
   role: AccessRole
   label: string
 }) {
+  const dealerCode = code.dealer_code.trim().toLowerCase() === 'admin'
+    ? 'admin'
+    : normalizeAccessCode(code.dealer_code)
   const { error } = await supabase.from('store_access_codes').insert({
     ...code,
-    dealer_code: normalizeAccessCode(code.dealer_code),
+    dealer_code: dealerCode,
     store_id: normalizeStoreId(code.store_id),
     is_active: true,
   } satisfies Partial<DbStoreAccessCode>)
   throwIfError(error, 'Could not create access code')
 }
 
-export async function dbUpdateAccessCode(id: string, patch: Partial<Pick<StoreAccessCode, 'label' | 'role' | 'store_id' | 'is_active'> & { pin_hash: string }>) {
+export async function dbUpdateAccessCode(id: string, patch: Partial<Pick<StoreAccessCode, 'dealer_code' | 'label' | 'role' | 'store_id' | 'is_active'> & { pin_hash: string }>) {
   const normalizedPatch = {
     ...patch,
+    ...(patch.dealer_code !== undefined ? {
+      dealer_code: patch.dealer_code.trim().toLowerCase() === 'admin' ? 'admin' : normalizeAccessCode(patch.dealer_code),
+    } : {}),
     ...(patch.store_id !== undefined ? { store_id: normalizeStoreId(patch.store_id) } : {}),
   }
   const { error } = await supabase.from('store_access_codes').update(normalizedPatch).eq('id', id)

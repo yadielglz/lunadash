@@ -20,14 +20,24 @@ const dateKey = (date = new Date()) => [
 const todayKey = () => dateKey()
 
 type SnapshotKind = 'money' | 'number' | 'percent'
+type SnapshotMetricKey = 'netRevenue' | 'accessoryRevenue' | 'totalPp' | 'traffic' | 'vl' | 'bts' | 'hsi' | 'visa'
 type SnapshotMetric = {
-  key: string
+  key: SnapshotMetricKey
   label: string
   value: number
   goal: number
   kind: SnapshotKind
   color: string
   icon: React.ReactNode
+}
+type PastEoDRow = Record<SnapshotMetricKey, number> & {
+  date: string
+  storeId: string
+  storeLabel: string
+  nrGoal?: number
+  accGoal?: number
+  dortGoal?: number
+  postConversion: number
 }
 
 function normalizeStoreCode(value: string) {
@@ -225,9 +235,22 @@ export function GoalsPage() {
       return labelForStoreId(storeA).localeCompare(labelForStoreId(storeB))
     })
 
-    return sortedRows.map((rowKey) => {
+    return sortedRows.map((rowKey): PastEoDRow => {
       const [rowStoreId, date] = rowKey.split('|')
-      const row: Record<string, any> = { date, storeId: rowStoreId, storeLabel: labelForStoreId(rowStoreId) }
+      const row: PastEoDRow = {
+        date,
+        storeId: rowStoreId,
+        storeLabel: labelForStoreId(rowStoreId),
+        netRevenue: 0,
+        accessoryRevenue: 0,
+        totalPp: 0,
+        traffic: 0,
+        vl: 0,
+        bts: 0,
+        hsi: 0,
+        visa: 0,
+        postConversion: 0,
+      }
       metrics.forEach((m) => {
         const goal = snapshotGoalForMetric(goals, m.key, rowStoreId)
         row[m.key] = goal?.dailyLog?.[date] ?? 0
@@ -244,7 +267,7 @@ export function GoalsPage() {
 
       return row
     })
-  }, [goals, isMainDashboard, metrics, snapshotScopeId, today])
+  }, [goals, isMainDashboard, metrics, snapshotScopeId])
 
   useEffect(() => {
     if (!isLoaded || metrics.length === 0) return
