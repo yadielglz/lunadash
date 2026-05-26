@@ -6,6 +6,7 @@ import type { Announcement } from '../store/displayStore'
 import type { Task, TaskCategory } from '../store/tasksStore'
 import { useSyncStore } from '../store/syncStore'
 import type { AccessRole } from '../store/uiStore'
+import { fetchPerformanceData, type PerformanceRow } from './performanceSheet'
 import { normalizeAccessCode, normalizeStoreId } from './storeIds'
 
 export const supabase = createClient(
@@ -627,16 +628,94 @@ export async function dbDeleteGoal(id: string) {
   throwIfError(error, 'Could not delete goal')
 }
 
+const SNAPSHOT_CATEGORY = 'Performance Snapshot'
+const SNAPSHOT_PREFIX = 'source-snapshot:'
+const SNAPSHOT_METRICS: Array<{
+  key: keyof Pick<PerformanceRow, 'netRevenue' | 'accessoryRevenue' | 'totalPp' | 'traffic' | 'vl' | 'bts' | 'hsi' | 'visa'>
+  title: string
+  unit: string
+  color: string
+  goal: (row: PerformanceRow) => number
+}> = [
+  { key: 'netRevenue', title: 'Net Revenue', unit: '$', color: '#16c60c', goal: (row) => row.netRevenueGoal },
+  { key: 'accessoryRevenue', title: 'Accessories', unit: '$', color: '#00b7c3', goal: (row) => row.accessoryGoal },
+  { key: 'totalPp', title: 'Total PP', unit: '', color: '#7c5ff5', goal: (row) => row.dortGoal },
+  { key: 'traffic', title: 'Traffic', unit: '', color: '#f7b731', goal: () => 0 },
+  { key: 'vl', title: 'Voice Lines', unit: '', color: '#0f7ad8', goal: (row) => row.dortGoal * 0.5 },
+  { key: 'bts', title: 'BTS', unit: '', color: '#f7630c', goal: (row) => row.dortGoal * 0.4 },
+  { key: 'hsi', title: 'HSI', unit: '', color: '#e3008c', goal: (row) => row.dortGoal * 0.1 },
+  { key: 'visa', title: 'VISA', unit: '', color: '#e74856', goal: () => 0 },
+]
+
+function todayKey() {
+  const now = new Date()
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function snapshotDescription(metricKey: string) {
+  return `${SNAPSHOT_PREFIX}${metricKey}`
+}
+
+function metricKeyFromSnapshotGoal(goal: Pick<Goal, 'description'>) {
+  return goal.description.startsWith(SNAPSHOT_PREFIX)
+    ? goal.description.slice(SNAPSHOT_PREFIX.length)
+    : ''
+}
+
 export async function dbForceEodSnapshot(): Promise<{ message: string; updated: number; forced?: boolean }> {
-  const { data, error } = await supabase.functions.invoke('snapshot-eod', {
-    body: { force: true },
-  })
-  if (error) throw new Error(error.message || 'Could not run EOD snapshot')
-  if (data?.error) throw new Error(data.error)
+  const snapshotDay = todayKey()
+  const source = await fetchPerformanceData()
+  const targets = [
+    ...(source.total ? [{ storeId: 'main', row: source.total }] : []),
+    ...source.rows.map((row) => ({ storeId: normalizeStoreId(row.storeCode), row })),
+  ]
+  const { data: existingRows, error: existingError } = await supabase
+    .from('goals')
+    .select('*')
+    .eq('category', SNAPSHOT_CATEGORY)
+  throwIfError(existingError, 'Could not load existing snapshots')
+
+  const existingGoals = ((existingRows ?? []) as DbGoal[]).map(dbToGoal)
+  const rows = targets.flatMap(({ storeId, row }) => (
+    SNAPSHOT_METRICS.map((metric) => {
+      const existing = existingGoals.find((goal) => (
+        normalizeStoreId(goal.storeId ?? '') === normalizeStoreId(storeId)
+        && metricKeyFromSnapshotGoal(goal) === metric.key
+      ))
+      const liveValue = Number(row[metric.key]) || 0
+      const dailyLog = { ...(existing?.dailyLog ?? {}), [snapshotDay]: Math.max(0, liveValue) }
+
+      return {
+        id: existing?.id ?? crypto.randomUUID(),
+        store_id: normalizeStoreId(storeId),
+        title: metric.title,
+        description: snapshotDescription(metric.key),
+        category: SNAPSHOT_CATEGORY,
+        target: 0,
+        current_val: liveValue,
+        unit: metric.unit,
+        deadline: new Date().toISOString(),
+        color: metric.color,
+        daily_target: metric.goal(row),
+        daily_log: dailyLog,
+        milestones: existing?.milestones ?? [],
+      }
+    })
+  ))
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from('goals').upsert(rows)
+    throwIfError(error, 'Could not save EOD snapshot')
+  }
+
   return {
-    message: data?.message ?? 'EOD snapshot completed',
-    updated: Number(data?.updated) || 0,
-    forced: data?.forced === true,
+    message: `Successfully saved EOD snapshots for ${snapshotDay}`,
+    updated: rows.length,
+    forced: true,
   }
 }
 
