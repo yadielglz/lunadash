@@ -417,3 +417,8 @@ entrypoint = "./functions/snapshot-eod/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/snapshot-eod/*.html" ]
+
+[functions.update-performance-sheet]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/update-performance-sheet/index.ts"
