@@ -10,7 +10,7 @@ import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../../../store/schedulePreferencesStore'
-import { dbCheckSchemaHealth, dbDeleteSettings, dbGetStores, dbUpdateSettings, StoreSummary } from '../../../lib/supabase'
+import { dbCheckSchemaHealth, dbDeleteSettings, dbForceEodSnapshot, dbGetGoals, dbGetStores, dbUpdateSettings, StoreSummary } from '../../../lib/supabase'
 import { Input, Select } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 import { APP_META } from '../../../config/appMeta'
@@ -734,9 +734,12 @@ function escapeHtml(value: string) {
 }
 
 function ReportSection() {
-  const { goals } = useGoalsStore()
+  const { goals, _init: goalsInit } = useGoalsStore()
   const { companyName, storeNumber } = useDisplayStore()
   const { storeId } = useUiStore()
+  const [snapshotRunning, setSnapshotRunning] = useState(false)
+  const [snapshotMessage, setSnapshotMessage] = useState('')
+  const [snapshotError, setSnapshotError] = useState('')
   const snapshotGoals = goals.filter((goal) => goal.category === SNAPSHOT_CATEGORY && snapshotKey(goal))
   const months = Array.from(new Set(
     snapshotGoals.flatMap((goal) => Object.keys(goal.dailyLog ?? {}).map((day) => day.slice(0, 7)))
@@ -877,6 +880,27 @@ function ReportSection() {
     reportWindow.document.close()
   }
 
+  const forceSnapshot = async () => {
+    setSnapshotRunning(true)
+    setSnapshotMessage('')
+    setSnapshotError('')
+    try {
+      const result = await dbForceEodSnapshot()
+      const refreshedGoals = storeId === 'main'
+        ? (await Promise.all([
+            dbGetGoals('main'),
+            ...(await dbGetStores()).map((store) => dbGetGoals(store.store_id)),
+          ])).flat()
+        : await dbGetGoals(storeId || 'DEFAULT')
+      goalsInit(refreshedGoals)
+      setSnapshotMessage(`${result.message}${result.updated ? ` (${result.updated} metrics)` : ''}`)
+    } catch (err) {
+      setSnapshotError(err instanceof Error ? err.message : 'Could not run EOD snapshot')
+    } finally {
+      setSnapshotRunning(false)
+    }
+  }
+
   return (
     <Section icon={<FileText size={14} />} title="Reports">
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
@@ -906,6 +930,22 @@ function ReportSection() {
         <p className="text-[10px] text-[var(--text-tertiary)]">
           Reports open in a print window so the Settings tab stays clean.
         </p>
+      </div>
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-[var(--text)]">End of Day Snapshot</p>
+            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+              Pull current Source numbers now and save them into today&apos;s MTD history.
+            </p>
+          </div>
+          <Button size="sm" icon={<RefreshCw size={13} />} loading={snapshotRunning} onClick={forceSnapshot}>
+            Force Snapshot
+          </Button>
+        </div>
+        {snapshotMessage && <p className="text-xs text-[var(--accent)]">{snapshotMessage}</p>}
+        {snapshotError && <p className="text-xs text-red-400">{snapshotError}</p>}
       </div>
     </Section>
   )

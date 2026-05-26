@@ -5,6 +5,10 @@ const PERFORMANCE_SHEET_CSV_URL =
   'https://docs.google.com/spreadsheets/d/1hJuUd6UkzfWBeTywVM6Yi5g0BxJodsNLe0XHgt-9nOQ/export?format=csv&gid=1896995460'
 const SNAPSHOT_CATEGORY = 'Performance Snapshot'
 const SNAPSHOT_PREFIX = 'source-snapshot:'
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 type CsvRow = string[]
 
@@ -156,10 +160,23 @@ function dateKey(date: Date) {
   ].join('-')
 }
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: CORS_HEADERS })
+  }
+
   const nyTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
-  if (![22, 23].includes(nyTime.getHours())) {
-    return new Response('Not 10:00 PM or 11:00 PM New York time. Skipping snapshot.', { status: 200 })
+  const url = new URL(req.url)
+  let force = url.searchParams.get('force') === 'true'
+  try {
+    const body = await req.json()
+    force = force || body?.force === true
+  } catch {
+    // Scheduled invokes do not send JSON.
+  }
+
+  if (!force && ![22, 23].includes(nyTime.getHours())) {
+    return new Response('Not 10:00 PM or 11:00 PM New York time. Skipping snapshot.', { status: 200, headers: CORS_HEADERS })
   }
 
   const snapshotDay = dateKey(nyTime)
@@ -167,7 +184,7 @@ Deno.serve(async (_req: Request) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!supabaseUrl || !supabaseKey) {
-    return Response.json({ error: 'Missing Supabase service environment variables' }, { status: 500 })
+    return Response.json({ error: 'Missing Supabase service environment variables' }, { status: 500, headers: CORS_HEADERS })
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey)
@@ -237,10 +254,11 @@ Deno.serve(async (_req: Request) => {
     return Response.json({
       message: `Successfully saved EOD snapshots for ${snapshotDay}`,
       updated: results.length,
-    })
+      forced: force,
+    }, { headers: CORS_HEADERS })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error('snapshot-eod failed:', error)
-    return Response.json({ error: message }, { status: 500 })
+    return Response.json({ error: message }, { status: 500, headers: CORS_HEADERS })
   }
 })

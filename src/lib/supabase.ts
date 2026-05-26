@@ -627,6 +627,19 @@ export async function dbDeleteGoal(id: string) {
   throwIfError(error, 'Could not delete goal')
 }
 
+export async function dbForceEodSnapshot(): Promise<{ message: string; updated: number; forced?: boolean }> {
+  const { data, error } = await supabase.functions.invoke('snapshot-eod', {
+    body: { force: true },
+  })
+  if (error) throw new Error(error.message || 'Could not run EOD snapshot')
+  if (data?.error) throw new Error(data.error)
+  return {
+    message: data?.message ?? 'EOD snapshot completed',
+    updated: Number(data?.updated) || 0,
+    forced: data?.forced === true,
+  }
+}
+
 // ── Announcements ─────────────────────────────────────────────────────────────
 
 export async function dbGetAnnouncements(storeId: string): Promise<Announcement[]> {
