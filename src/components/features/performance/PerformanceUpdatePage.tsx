@@ -36,6 +36,17 @@ function metricInputValue(value: string) {
   return value.replace(/[^\d.]/g, '')
 }
 
+function CurrentMetric({ label, value, money = false }: { label: string; value: number; money?: boolean }) {
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+      <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
+      <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--text)]">
+        {money ? formatMoney(value) : formatNumber(value)}
+      </div>
+    </div>
+  )
+}
+
 export function PerformanceUpdatePage() {
   const { accessId, accessRole, storeId } = useUiStore()
   const [rows, setRows] = useState<PerformanceRow[]>([])
@@ -241,12 +252,44 @@ export function PerformanceUpdatePage() {
             </Card>
 
             <Card>
+              <div className="mb-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--text)]">Current Numbers</div>
+                    <div className="mt-0.5 text-xs text-[var(--text-tertiary)]">Numbers as of right now.</div>
+                  </div>
+                  {loading && <RefreshCw size={14} className="animate-spin text-[var(--accent)]" />}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+                  <CurrentMetric label="Traffic" value={selectedRow?.traffic ?? 0} />
+                  <CurrentMetric label="Accessories" value={selectedRow?.accessoryRevenue ?? 0} money />
+                  <CurrentMetric label="VL" value={selectedRow?.vl ?? 0} />
+                  <CurrentMetric label="BTS" value={selectedRow?.bts ?? 0} />
+                  <CurrentMetric label="HSI" value={selectedRow?.hsi ?? 0} />
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                <Input label="Traffic" inputMode="decimal" value={draft.traffic} onChange={(e) => setDraft((d) => ({ ...d, traffic: metricInputValue(e.target.value) }))} />
-                <Input label="Accessories" inputMode="decimal" value={draft.accessoryRevenue} onChange={(e) => setDraft((d) => ({ ...d, accessoryRevenue: metricInputValue(e.target.value) }))} />
-                <Input label="VL" inputMode="decimal" value={draft.vl} onChange={(e) => setDraft((d) => ({ ...d, vl: metricInputValue(e.target.value) }))} />
-                <Input label="BTS" inputMode="decimal" value={draft.bts} onChange={(e) => setDraft((d) => ({ ...d, bts: metricInputValue(e.target.value) }))} />
-                <Input label="HSI" inputMode="decimal" value={draft.hsi} onChange={(e) => setDraft((d) => ({ ...d, hsi: metricInputValue(e.target.value) }))} />
+                <div>
+                  <Input label="Traffic" inputMode="decimal" value={draft.traffic} onChange={(e) => setDraft((d) => ({ ...d, traffic: metricInputValue(e.target.value) }))} />
+                  <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatNumber(selectedRow?.traffic ?? 0)}</p>
+                </div>
+                <div>
+                  <Input label="Accessories" inputMode="decimal" value={draft.accessoryRevenue} onChange={(e) => setDraft((d) => ({ ...d, accessoryRevenue: metricInputValue(e.target.value) }))} />
+                  <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatMoney(selectedRow?.accessoryRevenue ?? 0)}</p>
+                </div>
+                <div>
+                  <Input label="VL" inputMode="decimal" value={draft.vl} onChange={(e) => setDraft((d) => ({ ...d, vl: metricInputValue(e.target.value) }))} />
+                  <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatNumber(selectedRow?.vl ?? 0)}</p>
+                </div>
+                <div>
+                  <Input label="BTS" inputMode="decimal" value={draft.bts} onChange={(e) => setDraft((d) => ({ ...d, bts: metricInputValue(e.target.value) }))} />
+                  <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatNumber(selectedRow?.bts ?? 0)}</p>
+                </div>
+                <div>
+                  <Input label="HSI" inputMode="decimal" value={draft.hsi} onChange={(e) => setDraft((d) => ({ ...d, hsi: metricInputValue(e.target.value) }))} />
+                  <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatNumber(selectedRow?.hsi ?? 0)}</p>
+                </div>
               </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-h-5">

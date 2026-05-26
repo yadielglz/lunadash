@@ -11,6 +11,7 @@ import { getWeatherInfo } from '../../lib/openMeteo'
 import { dbGetAccessCodes } from '../../lib/supabase'
 import { fetchPerformanceData } from '../../lib/performanceSheet'
 import { normalizeStoreId } from '../../lib/storeIds'
+import { LunaWirelessLogo } from '../brand/LunaWirelessLogo'
 
 function normalizeStoreCode(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '').trim()
@@ -202,8 +203,8 @@ export function TitleBar() {
     <div className="bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex h-14 flex-shrink-0 items-center justify-between px-3 sm:h-12 sm:px-4 z-50">
       {/* Logo + store info */}
       <div className="flex min-w-0 items-center gap-2.5">
-        <div className="w-7 h-7 rounded-md bg-[var(--accent)] flex items-center justify-center flex-shrink-0">
-          <span className="text-white text-xs font-bold tracking-tight">L</span>
+        <div className="flex h-7 w-11 flex-shrink-0 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-1.5">
+          <LunaWirelessLogo className="h-4 w-full" />
         </div>
         <div className="hidden sm:flex flex-col leading-none gap-0.5">
           <EditableField
