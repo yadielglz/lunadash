@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
-import { supabase, dbGetEmployees, dbGetShifts, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetStores, dbGetTasks } from '../lib/supabase'
+import { supabase, dbGetEmployees, dbGetShifts, dbGetScheduleBlocks, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetStores, dbGetTasks } from '../lib/supabase'
 import { useScheduleStore } from '../store/scheduleStore'
+import { useScheduleBlocksStore } from '../store/scheduleBlocksStore'
 import { useGoalsStore } from '../store/goalsStore'
 import { useDisplayStore } from '../store/displayStore'
 import { useUiStore } from '../store/uiStore'
 import { useTasksStore } from '../store/tasksStore'
 import type { Employee, Shift } from '../store/scheduleStore'
+import type { ScheduleBlock } from '../store/scheduleBlocksStore'
 import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
 import type { Task } from '../store/tasksStore'
@@ -20,6 +22,14 @@ type ShiftRow = StoreScopedRow & {
   end_time: string
   type: Shift['type']
   note?: string | null
+}
+type ScheduleBlockRow = StoreScopedRow & {
+  name: string
+  start_time: string
+  end_time: string
+  note?: string | null
+  color: string
+  sort_order?: number | null
 }
 type GoalRow = StoreScopedRow & {
   title: string
@@ -84,6 +94,24 @@ const shiftFromRow = (r: ShiftRow): Shift => ({
   note: r.note ?? '',
 })
 
+const scheduleBlockFromRow = (r: ScheduleBlockRow): ScheduleBlock => ({
+  id: r.id,
+  storeId: r.store_id,
+  name: r.name,
+  startTime: r.start_time,
+  endTime: r.end_time,
+  note: r.note ?? '',
+  color: r.color,
+  sortOrder: r.sort_order ?? 0,
+})
+
+function sortScheduleBlocks(blocks: ScheduleBlock[]) {
+  return [...blocks].sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder
+    return a.name.localeCompare(b.name)
+  })
+}
+
 const goalFromRow = (r: GoalRow): Goal => ({
   id: r.id,
   storeId: r.store_id,
@@ -125,6 +153,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const storeId      = useUiStore((s) => s.storeId)
   const activeTab    = useUiStore((s) => s.activeTab)
   const scheduleInit = useScheduleStore((s) => s._init)
+  const scheduleBlocksInit = useScheduleBlocksStore((s) => s._init)
   const goalsInit    = useGoalsStore((s) => s._init)
   const displayInit  = useDisplayStore((s) => s._init)
   const tasksInit    = useTasksStore((s) => s._init)
@@ -149,9 +178,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         const goalStoreIds = isMain ? ['main', ...storeIds] : storeIds
 
-        const [employeeSets, shiftSets, goalSets, announcementSets, settings, taskSets] = await Promise.all([
+        const [employeeSets, shiftSets, blockSets, goalSets, announcementSets, settings, taskSets] = await Promise.all([
           Promise.all(storeIds.map(dbGetEmployees)),
           Promise.all(storeIds.map(dbGetShifts)),
+          Promise.all(storeIds.map(dbGetScheduleBlocks)),
           Promise.all(goalStoreIds.map(dbGetGoals)),
           Promise.all(storeIds.map(dbGetAnnouncements)),
           isMain ? Promise.resolve({ company_name: 'Main Dashboard', store_number: 'All Stores', slide_interval: 8 }) : dbGetSettings(storeIds[0]),
@@ -159,6 +189,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ])
         if (cancelled) return
         scheduleInit(sortEmployees(employeeSets.flat()), shiftSets.flat())
+        scheduleBlocksInit(sortScheduleBlocks(blockSets.flat()))
         goalsInit(goalSets.flat())
         displayInit(
           announcementSets.flat(),
@@ -208,6 +239,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const old = p.old as StoreScopedRow
         if (!isMain && old.store_id !== storeId) return
         useScheduleStore.setState((s) => ({ shifts: s.shifts.filter((sh) => sh.id !== old.id) }))
+      })
+
+      // Schedule blocks
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'schedule_blocks', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+        const block = scheduleBlockFromRow(p.new as ScheduleBlockRow)
+        useScheduleBlocksStore.setState((s) => ({ blocks: sortScheduleBlocks([...s.blocks.filter((item) => item.id !== block.id), block]) }))
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'schedule_blocks', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+        const block = scheduleBlockFromRow(p.new as ScheduleBlockRow)
+        useScheduleBlocksStore.setState((s) => ({ blocks: sortScheduleBlocks(s.blocks.map((item) => item.id === block.id ? block : item)) }))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'schedule_blocks' }, (p) => {
+        const old = p.old as StoreScopedRow
+        if (!isMain && old.store_id !== storeId) return
+        useScheduleBlocksStore.setState((s) => ({ blocks: s.blocks.filter((item) => item.id !== old.id) }))
       })
 
       // Goals
@@ -271,7 +317,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       cancelled = true
       supabase.removeChannel(channel)
     }
-  }, [activeTab, storeId, retryKey, scheduleInit, goalsInit, displayInit, tasksInit])
+  }, [activeTab, storeId, retryKey, scheduleInit, scheduleBlocksInit, goalsInit, displayInit, tasksInit])
 
   if (isLoading) {
     return (

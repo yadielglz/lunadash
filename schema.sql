@@ -6,6 +6,7 @@
 -- Drop and recreate (safe — no real data exists yet)
 drop table if exists announcements cascade;
 drop table if exists goals         cascade;
+drop table if exists schedule_blocks cascade;
 drop table if exists shifts        cascade;
 drop table if exists employees     cascade;
 drop table if exists app_settings  cascade;
@@ -38,6 +39,21 @@ create table shifts (
 );
 create index shifts_store_idx on shifts(store_id);
 create index shifts_date_idx  on shifts(store_id, date);
+
+-- Schedule blocks
+create table schedule_blocks (
+  id          text primary key,
+  store_id    text not null default 'default',
+  name        text not null,
+  start_time  text not null,
+  end_time    text not null,
+  note        text default '',
+  color       text not null default '#0078d4',
+  sort_order  integer default 0,
+  created_at  timestamptz default now()
+);
+create index schedule_blocks_store_idx on schedule_blocks(store_id);
+create index schedule_blocks_store_sort_idx on schedule_blocks(store_id, sort_order);
 
 -- Goals
 create table goals (
@@ -81,12 +97,14 @@ insert into app_settings (store_id) values ('default') on conflict do nothing;
 -- ── Row Level Security ─────────────────────────────────────────
 alter table employees     enable row level security;
 alter table shifts        enable row level security;
+alter table schedule_blocks enable row level security;
 alter table goals         enable row level security;
 alter table announcements enable row level security;
 alter table app_settings  enable row level security;
 
 create policy "public" on employees     for all using (true) with check (true);
 create policy "public" on shifts        for all using (true) with check (true);
+create policy "public" on schedule_blocks for all using (true) with check (true);
 create policy "public" on goals         for all using (true) with check (true);
 create policy "public" on announcements for all using (true) with check (true);
 create policy "public" on app_settings  for all using (true) with check (true);
@@ -94,6 +112,7 @@ create policy "public" on app_settings  for all using (true) with check (true);
 -- ── Realtime ───────────────────────────────────────────────────
 alter publication supabase_realtime add table employees;
 alter publication supabase_realtime add table shifts;
+alter publication supabase_realtime add table schedule_blocks;
 alter publication supabase_realtime add table goals;
 alter publication supabase_realtime add table announcements;
 alter publication supabase_realtime add table app_settings;

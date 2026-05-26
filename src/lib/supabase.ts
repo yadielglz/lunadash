@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Employee, Shift } from '../store/scheduleStore'
+import type { ScheduleBlock } from '../store/scheduleBlocksStore'
 import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
 import type { Task, TaskCategory } from '../store/tasksStore'
@@ -37,6 +38,11 @@ type DbShift = {
   created_at: string
 }
 
+type DbScheduleBlock = {
+  id: string; store_id: string; name: string; start_time: string; end_time: string
+  note: string | null; color: string; sort_order: number | null; created_at: string
+}
+
 type DbAnnouncement = {
   id: string; store_id: string; text: string; priority: Announcement['priority']; start_at?: string | null; end_at?: string | null; created_at: string
 }
@@ -48,6 +54,16 @@ type DbShiftPatch = Partial<{
   end_time: string
   type: Shift['type']
   note: string
+}>
+
+type DbScheduleBlockPatch = Partial<{
+  store_id: string
+  name: string
+  start_time: string
+  end_time: string
+  note: string
+  color: string
+  sort_order: number
 }>
 
 type DbGoalPatch = Partial<{
@@ -148,12 +164,22 @@ function throwIfError(error: unknown, context: string) {
 }
 
 let optionalTasksWarningShown = false
+let optionalScheduleBlocksWarningShown = false
 
 function logOptionalTasksWarning(action: string, error: unknown) {
   if (!isMissingTableError(error)) return false
   if (!optionalTasksWarningShown) {
     optionalTasksWarningShown = true
     console.warn(`Tasks table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
+  }
+  return true
+}
+
+function logOptionalScheduleBlocksWarning(action: string, error: unknown) {
+  if (!isMissingTableError(error)) return false
+  if (!optionalScheduleBlocksWarningShown) {
+    optionalScheduleBlocksWarningShown = true
+    console.warn(`Schedule blocks table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
   }
   return true
 }
@@ -302,7 +328,7 @@ export async function dbResetAccessOnboarding(id: string) {
 }
 
 export async function dbCheckSchemaHealth() {
-  const tables = ['employees', 'shifts', 'goals', 'announcements', 'app_settings', 'tasks', 'store_access_codes']
+  const tables = ['employees', 'shifts', 'schedule_blocks', 'goals', 'announcements', 'app_settings', 'tasks', 'store_access_codes']
   const results = await Promise.all(tables.map(async (table) => {
     const { error } = await supabase.from(table).select('*', { head: true, count: 'exact' })
     return {
@@ -420,6 +446,71 @@ export async function dbUpdateShift(id: string, s: Partial<Shift>) {
 export async function dbDeleteShift(id: string) {
   const { error } = await supabase.from('shifts').delete().eq('id', id)
   throwIfError(error, 'Could not delete shift')
+}
+
+// ── Schedule blocks ──────────────────────────────────────────────────────────
+
+function dbToScheduleBlock(r: DbScheduleBlock): ScheduleBlock {
+  return {
+    id: r.id,
+    storeId: r.store_id,
+    name: r.name,
+    startTime: r.start_time,
+    endTime: r.end_time,
+    note: r.note ?? '',
+    color: r.color,
+    sortOrder: r.sort_order ?? 0,
+  }
+}
+
+function scheduleBlockToDb(block: ScheduleBlock, storeId: string) {
+  return {
+    id: block.id,
+    store_id: normalizeStoreId(block.storeId ?? storeId),
+    name: block.name,
+    start_time: block.startTime,
+    end_time: block.endTime,
+    note: block.note ?? '',
+    color: block.color,
+    sort_order: block.sortOrder,
+  }
+}
+
+export async function dbGetScheduleBlocks(storeId: string): Promise<ScheduleBlock[]> {
+  const sid = normalizeStoreId(storeId)
+  const { data, error } = await supabase
+    .from('schedule_blocks')
+    .select('*')
+    .eq('store_id', sid)
+    .order('sort_order')
+    .order('name')
+  if (logOptionalScheduleBlocksWarning('schedule block data', error)) return []
+  throwIfError(error, 'Could not load schedule blocks')
+  return ((data ?? []) as DbScheduleBlock[]).map(dbToScheduleBlock)
+}
+
+export async function dbInsertScheduleBlock(block: ScheduleBlock, storeId: string) {
+  const { error } = await supabase.from('schedule_blocks').insert(scheduleBlockToDb(block, storeId))
+  if (!logOptionalScheduleBlocksWarning('new schedule blocks', error)) throwIfError(error, 'Could not save schedule block')
+}
+
+export async function dbUpdateScheduleBlock(id: string, patch: Partial<Omit<ScheduleBlock, 'id'>>) {
+  const dbPatch: DbScheduleBlockPatch = {}
+  if (patch.storeId !== undefined) dbPatch.store_id = normalizeStoreId(patch.storeId)
+  if (patch.name !== undefined) dbPatch.name = patch.name
+  if (patch.startTime !== undefined) dbPatch.start_time = patch.startTime
+  if (patch.endTime !== undefined) dbPatch.end_time = patch.endTime
+  if (patch.note !== undefined) dbPatch.note = patch.note
+  if (patch.color !== undefined) dbPatch.color = patch.color
+  if (patch.sortOrder !== undefined) dbPatch.sort_order = patch.sortOrder
+  if (Object.keys(dbPatch).length === 0) return
+  const { error } = await supabase.from('schedule_blocks').update(dbPatch).eq('id', id)
+  if (!logOptionalScheduleBlocksWarning('schedule block updates', error)) throwIfError(error, 'Could not update schedule block')
+}
+
+export async function dbDeleteScheduleBlock(id: string) {
+  const { error } = await supabase.from('schedule_blocks').delete().eq('id', id)
+  if (!logOptionalScheduleBlocksWarning('schedule block deletion', error)) throwIfError(error, 'Could not delete schedule block')
 }
 
 export async function dbSaveScheduleSnapshot(storeId: string, employees: Employee[], shifts: Shift[]) {

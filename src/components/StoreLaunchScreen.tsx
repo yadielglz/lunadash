@@ -14,7 +14,6 @@ const LOGIN_BACKDROP_URL = 'https://i.ibb.co/39JLm174/Wall.png'
 
 type PendingAccess = {
   access: StoreAccessCode
-  mode: AccessMode
   stores: StoreSummary[]
 }
 
@@ -66,12 +65,6 @@ export function StoreLaunchScreen() {
         return
       }
 
-      const accessMode: AccessMode = access.role === 'admin'
-        ? 'admin'
-        : access.role === 'display'
-          ? 'display'
-          : mode
-
       if (access.role === 'admin' || access.role === 'district_manager') {
         let stores: StoreSummary[] = []
         try {
@@ -85,12 +78,23 @@ export function StoreLaunchScreen() {
         const storesWithAccessStore = accessStoreId && accessStoreId !== 'main' && !availableStores.some((store) => normalizeStoreId(store.store_id) === accessStoreId)
           ? [fallbackStore, ...availableStores]
           : availableStores
-        setPendingAccess({ access, mode: accessMode, stores: storesWithAccessStore })
+        setPendingAccess({ access, stores: storesWithAccessStore })
         setSelectedStoreId(accessStoreId === 'main' ? storesWithAccessStore[0]?.store_id ?? '' : accessStoreId)
         return
       }
 
-      completeLogin(access, accessMode, access.store_id)
+      if (access.role === 'display') {
+        completeLogin(access, 'display', access.store_id)
+        return
+      }
+
+      const accessStoreId = normalizeStoreId(access.store_id)
+      setPendingAccess({
+        access,
+        stores: [{ store_id: accessStoreId, company_name: access.label || accessStoreId, store_number: '', slide_interval: 8 }],
+      })
+      setSelectedStoreId(accessStoreId)
+      setMode('manager')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not validate access.')
     } finally {
@@ -175,6 +179,28 @@ export function StoreLaunchScreen() {
                 ))}
               </div>
 
+              {pendingAccess.access.role !== 'admin' && pendingAccess.access.role !== 'display' && selectedStoreId !== 'main' && (
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { id: 'manager', label: 'Manage', icon: <Smartphone size={14} /> },
+                    { id: 'display', label: 'Display', icon: <Monitor size={14} /> },
+                  ] as const).map((choice) => (
+                    <button
+                      key={choice.id}
+                      onClick={() => setMode(choice.id)}
+                      className={`rounded-lg border px-3 py-2 text-sm font-medium flex items-center justify-center gap-2 ${
+                        mode === choice.id
+                          ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                          : 'border-[var(--border)] text-[var(--text-secondary)] bg-[var(--surface-2)]'
+                      }`}
+                    >
+                      {choice.icon}
+                      {choice.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {error && <p className="text-xs text-red-400">{error}</p>}
 
               <div className="flex gap-2">
@@ -195,7 +221,14 @@ export function StoreLaunchScreen() {
                   variant="primary"
                   icon={<ShieldCheck size={14} />}
                   disabled={!selectedStoreId}
-                  onClick={() => completeLogin(pendingAccess.access, pendingAccess.mode, selectedStoreId)}
+                  onClick={() => {
+                    const accessMode: AccessMode = pendingAccess.access.role === 'admin'
+                      ? 'admin'
+                      : pendingAccess.access.role === 'display'
+                        ? 'display'
+                        : mode
+                    completeLogin(pendingAccess.access, accessMode, selectedStoreId)
+                  }}
                 >
                   Open Store
                 </Button>
@@ -203,26 +236,6 @@ export function StoreLaunchScreen() {
             </>
           ) : (
             <>
-          <div className="grid grid-cols-2 gap-2 sm:hidden">
-            {([
-              { id: 'manager', label: 'Manage', icon: <Smartphone size={14} /> },
-              { id: 'display', label: 'Display', icon: <Monitor size={14} /> },
-            ] as const).map((choice) => (
-              <button
-                key={choice.id}
-                onClick={() => setMode(choice.id)}
-                className={`rounded-lg border px-3 py-2 text-sm font-medium flex items-center justify-center gap-2 ${
-                  mode === choice.id
-                    ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
-                    : 'border-[var(--border)] text-[var(--text-secondary)] bg-[var(--surface-2)]'
-                }`}
-              >
-                {choice.icon}
-                {choice.label}
-              </button>
-            ))}
-          </div>
-
           <Input
             label="Store ID / Login"
             autoCapitalize="characters"
