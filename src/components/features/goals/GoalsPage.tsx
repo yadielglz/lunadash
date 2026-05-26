@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, BarChart3, CalendarDays, DollarSign, Package, Smartphone, Target, TrendingUp, Users } from 'lucide-react'
 import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
+import { Select } from '../../ui/Input'
 import { useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useUiStore } from '../../../store/uiStore'
@@ -181,9 +182,11 @@ function SnapshotCard({ metric, goal, today }: { metric: SnapshotMetric; goal?: 
 
 export function GoalsPage() {
   const { goals, addGoal, updateGoal, isLoaded } = useGoalsStore()
-  const { storeId, dealerCode } = useUiStore()
+  const { storeId, dealerCode, accessRole } = useUiStore()
   const { storeNumber } = useDisplayStore()
+  const [selectedStoreId, setSelectedStoreId] = useState(() => normalizeStoreId(storeId))
   const today = todayKey()
+  const canChooseStore = accessRole === 'admin' || accessRole === 'district_manager'
 
   const sourceQuery = useQuery({
     queryKey: ['performance-snapshot-source'],
@@ -192,13 +195,44 @@ export function GoalsPage() {
     refetchInterval: 60_000,
   })
 
+  useEffect(() => {
+    if (!canChooseStore) setSelectedStoreId(normalizeStoreId(storeId))
+  }, [canChooseStore, storeId])
+
+  const storeOptions = useMemo(() => {
+    const rows = sourceQuery.data?.rows ?? []
+    return rows
+      .map((row) => ({
+        id: normalizeStoreId(row.storeCode),
+        label: `${row.teamName || row.store} (${row.storeCode})`,
+      }))
+      .filter((option) => option.id)
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [sourceQuery.data?.rows])
+
+  const snapshotScopeId = canChooseStore
+    ? normalizeStoreId(selectedStoreId || storeId)
+    : normalizeStoreId(storeId)
+  const isMainDashboard = snapshotScopeId === 'main'
+
+  useEffect(() => {
+    if (!canChooseStore) return
+    const current = normalizeStoreId(selectedStoreId)
+    if (current === 'main' && accessRole === 'admin') return
+    if (storeOptions.some((option) => option.id === current)) return
+
+    if (normalizeStoreId(storeId) === 'main') {
+      setSelectedStoreId(accessRole === 'admin' ? 'main' : storeOptions[0]?.id ?? '')
+      return
+    }
+    setSelectedStoreId(normalizeStoreId(storeId))
+  }, [accessRole, canChooseStore, selectedStoreId, storeId, storeOptions])
+
   const sourceRow = useMemo(() => (
-    sourceRowForSelectedStore(sourceQuery.data, [dealerCode, storeNumber, storeId], storeId === 'main')
-  ), [dealerCode, sourceQuery.data, storeId, storeNumber])
+    sourceRowForSelectedStore(sourceQuery.data, [dealerCode, storeNumber, snapshotScopeId], isMainDashboard)
+  ), [dealerCode, isMainDashboard, snapshotScopeId, sourceQuery.data, storeNumber])
 
   const metrics = useMemo(() => sourceRow ? metricsFromRow(sourceRow) : [], [sourceRow])
-  const isMainDashboard = storeId === 'main'
-  const snapshotScopeId = isMainDashboard ? 'main' : storeId
   const scopedSnapshotGoals = useMemo(() => (
     goals.filter((goal) => (
       goal.category === SNAPSHOT_CATEGORY
@@ -299,7 +333,7 @@ export function GoalsPage() {
     ? new Date(sourceQuery.data.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : ''
   const storeLabel = sourceRow
-    ? storeId === 'main'
+    ? isMainDashboard
       ? 'All Stores'
       : `${dealerInfoForRow(sourceRow).nickname} | ${dealerInfoForRow(sourceRow).location}`
     : 'No Source row matched'
@@ -319,17 +353,32 @@ export function GoalsPage() {
                 : 'Store-gated Source snapshot with today\'s actual, daily goal, MTD snapshots, and gap.'}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-tertiary)]">
-            <CalendarDays size={14} />
-            <span>{new Date().toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</span>
-            <span>·</span>
-            <span>{storeLabel}</span>
-            {sourceUpdated && (
-              <>
-                <span>·</span>
-                <span>Source {sourceUpdated}</span>
-              </>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            {canChooseStore && (
+              <Select
+                label="Store"
+                value={snapshotScopeId}
+                onChange={(event) => setSelectedStoreId(normalizeStoreId(event.target.value))}
+                className="w-full sm:w-64"
+              >
+                {accessRole === 'admin' && <option value="main">All Stores</option>}
+                {storeOptions.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </Select>
             )}
+            <div className="flex min-h-9 flex-wrap items-center gap-2 text-xs text-[var(--text-tertiary)]">
+              <CalendarDays size={14} />
+              <span>{new Date().toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+              <span>·</span>
+              <span>{storeLabel}</span>
+              {sourceUpdated && (
+                <>
+                  <span>·</span>
+                  <span>Source {sourceUpdated}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
