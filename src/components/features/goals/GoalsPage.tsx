@@ -315,6 +315,7 @@ export function GoalsPage() {
         return
       }
       addGoal({
+        storeId: snapshotScopeId,
         title: metric.label,
         description: snapshotDescription(metric.key),
         category: SNAPSHOT_CATEGORY,

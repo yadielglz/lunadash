@@ -656,6 +656,33 @@ export async function dbGetGoals(storeId: string): Promise<Goal[]> {
 
 export async function dbInsertGoal(g: Goal, storeId: string) {
   const { error } = await supabase.from('goals').insert(goalToDb(g, storeId))
+  if (
+    error?.code === '23505'
+    && g.category === SNAPSHOT_CATEGORY
+    && g.description.startsWith(SNAPSHOT_PREFIX)
+  ) {
+    const { data: existing, error: existingError } = await supabase
+      .from('goals')
+      .select('id')
+      .eq('store_id', normalizeStoreId(storeId))
+      .eq('category', SNAPSHOT_CATEGORY)
+      .eq('description', g.description)
+      .maybeSingle()
+    throwIfError(existingError, 'Could not load existing snapshot goal')
+    if (existing?.id) {
+      await dbUpdateGoal(String(existing.id), {
+        title: g.title,
+        target: g.target,
+        current: g.current,
+        unit: g.unit,
+        deadline: g.deadline,
+        color: g.color,
+        dailyTarget: g.dailyTarget,
+        milestones: g.milestones,
+      })
+      return
+    }
+  }
   throwIfError(error, 'Could not save goal')
 }
 

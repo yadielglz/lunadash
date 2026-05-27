@@ -59,7 +59,7 @@ export const useGoalsStore = create<GoalsState>()((set) => ({
   _init: (goals) => set({ goals, isLoaded: true }),
 
   addGoal: (goal) => {
-    const storeId = currentStoreId()
+    const storeId = goal.storeId ?? currentStoreId()
     const newGoal: Goal = {
       ...goal,
       storeId,
