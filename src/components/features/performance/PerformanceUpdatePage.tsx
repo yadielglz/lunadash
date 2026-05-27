@@ -158,6 +158,7 @@ export function PerformanceUpdatePage() {
   const [message, setMessage] = useState('')
   const [planCounts, setPlanCounts] = useState<PlanCounts>(EMPTY_PLAN_COUNTS)
   const [sales, setSales] = useState<SaleEntry[]>([])
+  const [calculatorOpen, setCalculatorOpen] = useState(false)
   const [saleRowsOpen, setSaleRowsOpen] = useState(false)
 
   const canChooseStore = accessRole === 'admin' || accessRole === 'district_manager'
@@ -237,16 +238,51 @@ export function PerformanceUpdatePage() {
     setSales((entries) => entries.filter((entry) => entry.id !== id))
   }
 
-  const applyCalculatorTotals = () => {
-    setDraft((current) => ({
-      ...current,
-      netRevenue: String(Math.round(calculatorTotals.netRevenue)),
-      accessoryRevenue: String(Math.round(calculatorTotals.accessoryRevenue)),
-      vl: String(calculatorTotals.vl),
-      bts: String(calculatorTotals.bts),
-      hsi: String(calculatorTotals.hsi),
-    }))
-    setMessage('Calculator totals applied. Review and save when ready.')
+  const applyCalculatorTotals = async () => {
+    if (!canUpdate) {
+      setError('Performance updates are available to manager sessions and up.')
+      return
+    }
+    if (!selectedRow) {
+      setError('Select a store before applying calculator totals.')
+      return
+    }
+    if (
+      calculatorTotals.netRevenue === 0
+      && calculatorTotals.accessoryRevenue === 0
+      && calculatorTotals.vl === 0
+      && calculatorTotals.bts === 0
+      && calculatorTotals.hsi === 0
+    ) {
+      setError('Enter calculator values before applying totals.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const result = await updatePerformanceSheet({
+        accessId,
+        accessRole: accessRole ?? '',
+        storeCode: selectedRow.storeCode,
+        traffic: selectedRow.traffic,
+        netRevenue: selectedRow.netRevenue + Math.round(calculatorTotals.netRevenue),
+        accessoryRevenue: selectedRow.accessoryRevenue + Math.round(calculatorTotals.accessoryRevenue),
+        vl: selectedRow.vl + calculatorTotals.vl,
+        bts: selectedRow.bts + calculatorTotals.bts,
+        hsi: selectedRow.hsi + calculatorTotals.hsi,
+      })
+      setMessage(result.message || `Added calculator totals to ${selectedRow.storeCode}`)
+      setPlanCounts(EMPTY_PLAN_COUNTS)
+      setSales([])
+      setSaleRowsOpen(false)
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update the Google Sheet')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const save = async () => {
@@ -390,106 +426,124 @@ export function PerformanceUpdatePage() {
             </Card>
 
             <Card>
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <button
+                type="button"
+                onClick={() => setCalculatorOpen((open) => !open)}
+                className="flex w-full items-center justify-between gap-3 text-left"
+              >
                 <div>
                   <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
                     <Calculator size={15} className="text-[var(--accent)]" />
-                    Store Sales Calculator
+                    Net Revenue Calculator
                   </div>
                   <div className="mt-0.5 text-xs text-[var(--text-tertiary)]">
-                    Net Revenue Calculator.
+                    Adds calculator totals directly to the selected store in Google Sheets.
                   </div>
                 </div>
-                <Button size="sm" variant="accent" icon={<CheckCircle2 size={13} />} onClick={applyCalculatorTotals}>
-                  Apply Totals
-                </Button>
-              </div>
+                <ChevronDown size={15} className={`text-[var(--text-tertiary)] transition-transform ${calculatorOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <CurrentMetric label="Plan Revenue" value={calculatorTotals.planRevenue} money />
-                <CurrentMetric label="Sales Revenue" value={calculatorTotals.salesRevenue} money />
-                <CurrentMetric label="Net Revenue" value={calculatorTotals.netRevenue} money />
-                <CurrentMetric label="Accessories" value={calculatorTotals.accessoryRevenue} money />
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {PLAN_GROUPS.map((group) => (
-                  <div key={group.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                    <div className="mb-2 text-xs font-semibold text-[var(--text)]">{group.label}</div>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      {group.prices.map((plan) => (
-                        <Input
-                          key={plan.key}
-                          label={`${plan.label} (${formatMoney(plan.value)})`}
-                          inputMode="decimal"
-                          value={planCounts[plan.key]}
-                          onChange={(event) => setPlanCounts((counts) => ({ ...counts, [plan.key]: metricInputValue(event.target.value) }))}
-                        />
-                      ))}
+              {calculatorOpen && (
+                <div className="mt-4">
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:flex-1">
+                      <CurrentMetric label="Plan Revenue" value={calculatorTotals.planRevenue} money />
+                      <CurrentMetric label="Sales Revenue" value={calculatorTotals.salesRevenue} money />
+                      <CurrentMetric label="Net Revenue Add" value={calculatorTotals.netRevenue} money />
+                      <CurrentMetric label="Accessories Add" value={calculatorTotals.accessoryRevenue} money />
                     </div>
+                    <Button
+                      size="sm"
+                      variant="accent"
+                      icon={<CheckCircle2 size={13} />}
+                      loading={saving}
+                      disabled={!selectedRow}
+                      onClick={applyCalculatorTotals}
+                    >
+                      Add to Google Sheet
+                    </Button>
                   </div>
-                ))}
-              </div>
 
-              <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]">
-                <button
-                  type="button"
-                  onClick={() => setSaleRowsOpen((open) => !open)}
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
-                >
-                  <div>
-                    <div className="text-xs font-semibold text-[var(--text)]">Sale Record</div>
-                    <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
-                      {sales.length ? `${sales.length} sale ${sales.length === 1 ? 'row' : 'rows'} included in totals` : 'Use only when you want rep-level detail.'}
-                    </div>
-                  </div>
-                  <ChevronDown size={15} className={`text-[var(--text-tertiary)] transition-transform ${saleRowsOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {saleRowsOpen && (
-                  <div className="space-y-2 border-t border-[var(--border)] p-3">
-                    <div className="flex items-center justify-end">
-                      <Button size="sm" variant="ghost" icon={<Plus size={12} />} onClick={() => setSales((entries) => [...entries, newSaleEntry()])}>
-                        Add Sale
-                      </Button>
-                    </div>
-                    {sales.length === 0 && (
-                      <div className="rounded-md border border-dashed border-[var(--border)] px-3 py-4 text-center text-xs text-[var(--text-tertiary)]">
-                        No sale rows added.
-                      </div>
-                    )}
-                    {sales.map((entry, index) => (
-                      <div key={entry.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                          <span className="text-xs font-medium text-[var(--text-secondary)]">Sale {index + 1}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeSale(entry.id)}
-                            className="rounded-md p-1 text-[var(--text-tertiary)] transition-colors hover:bg-red-500/10 hover:text-red-400"
-                            title="Remove sale"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                          <Input label="Rep" value={entry.rep} onChange={(event) => updateSale(entry.id, { rep: event.target.value })} />
-                          <Input label="Sale Revenue" inputMode="decimal" value={entry.revenue} onChange={(event) => updateSale(entry.id, { revenue: metricInputValue(event.target.value) })} />
-                          <Select label="Type" value={entry.type} onChange={(event) => updateSale(entry.id, { type: event.target.value as SaleType })}>
-                            <option value="voice">Voice / AAL</option>
-                            <option value="bts">BTS</option>
-                            <option value="hsi">HSI</option>
-                            <option value="other">Other</option>
-                          </Select>
-                          <Input label="Feature $" inputMode="decimal" value={entry.feature} onChange={(event) => updateSale(entry.id, { feature: metricInputValue(event.target.value) })} />
-                          <Input label="ACC $" inputMode="decimal" value={entry.accessory} onChange={(event) => updateSale(entry.id, { accessory: metricInputValue(event.target.value) })} />
-                          <Input label="# Phones" inputMode="decimal" value={entry.phones} onChange={(event) => updateSale(entry.id, { phones: metricInputValue(event.target.value) })} />
-                          <Input label="# P360" inputMode="decimal" value={entry.p360} onChange={(event) => updateSale(entry.id, { p360: metricInputValue(event.target.value) })} />
+                  <div className="space-y-3">
+                    {PLAN_GROUPS.map((group) => (
+                      <div key={group.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                        <div className="mb-2 text-xs font-semibold text-[var(--text)]">{group.label}</div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                          {group.prices.map((plan) => (
+                            <Input
+                              key={plan.key}
+                              label={`${plan.label} (${formatMoney(plan.value)})`}
+                              inputMode="decimal"
+                              value={planCounts[plan.key]}
+                              onChange={(event) => setPlanCounts((counts) => ({ ...counts, [plan.key]: metricInputValue(event.target.value) }))}
+                            />
+                          ))}
                         </div>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+
+                  <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]">
+                    <button
+                      type="button"
+                      onClick={() => setSaleRowsOpen((open) => !open)}
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+                    >
+                      <div>
+                        <div className="text-xs font-semibold text-[var(--text)]">Sale Record</div>
+                        <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
+                          {sales.length ? `${sales.length} sale ${sales.length === 1 ? 'row' : 'rows'} included in totals` : 'Use only when you want rep-level detail.'}
+                        </div>
+                      </div>
+                      <ChevronDown size={15} className={`text-[var(--text-tertiary)] transition-transform ${saleRowsOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {saleRowsOpen && (
+                      <div className="space-y-2 border-t border-[var(--border)] p-3">
+                        <div className="flex items-center justify-end">
+                          <Button size="sm" variant="ghost" icon={<Plus size={12} />} onClick={() => setSales((entries) => [...entries, newSaleEntry()])}>
+                            Add Sale
+                          </Button>
+                        </div>
+                        {sales.length === 0 && (
+                          <div className="rounded-md border border-dashed border-[var(--border)] px-3 py-4 text-center text-xs text-[var(--text-tertiary)]">
+                            No sale rows added.
+                          </div>
+                        )}
+                        {sales.map((entry, index) => (
+                          <div key={entry.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <span className="text-xs font-medium text-[var(--text-secondary)]">Sale {index + 1}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeSale(entry.id)}
+                                className="rounded-md p-1 text-[var(--text-tertiary)] transition-colors hover:bg-red-500/10 hover:text-red-400"
+                                title="Remove sale"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                              <Input label="Rep" value={entry.rep} onChange={(event) => updateSale(entry.id, { rep: event.target.value })} />
+                              <Input label="Sale Revenue" inputMode="decimal" value={entry.revenue} onChange={(event) => updateSale(entry.id, { revenue: metricInputValue(event.target.value) })} />
+                              <Select label="Type" value={entry.type} onChange={(event) => updateSale(entry.id, { type: event.target.value as SaleType })}>
+                                <option value="voice">Voice / AAL</option>
+                                <option value="bts">BTS</option>
+                                <option value="hsi">HSI</option>
+                                <option value="other">Other</option>
+                              </Select>
+                              <Input label="Feature $" inputMode="decimal" value={entry.feature} onChange={(event) => updateSale(entry.id, { feature: metricInputValue(event.target.value) })} />
+                              <Input label="ACC $" inputMode="decimal" value={entry.accessory} onChange={(event) => updateSale(entry.id, { accessory: metricInputValue(event.target.value) })} />
+                              <Input label="# Phones" inputMode="decimal" value={entry.phones} onChange={(event) => updateSale(entry.id, { phones: metricInputValue(event.target.value) })} />
+                              <Input label="# P360" inputMode="decimal" value={entry.p360} onChange={(event) => updateSale(entry.id, { p360: metricInputValue(event.target.value) })} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </Card>
 
             <Card>
