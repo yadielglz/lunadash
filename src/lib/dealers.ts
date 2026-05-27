@@ -20,8 +20,40 @@ export const DEALERS_BY_CODE: Record<string, DealerInfo> = {
   '693D': { code: '693D', nickname: 'GateWay', location: 'Champions Gate' },
 }
 
+let dealerOverrides: Record<string, Partial<Pick<DealerInfo, 'nickname' | 'location'>>> = {}
+
+export function setDealerOverrides(stores: { store_id: string; dealer_nickname?: string | null; dealer_location?: string | null }[]) {
+  dealerOverrides = stores.reduce((acc, store) => {
+    const code = store.store_id.trim().toUpperCase()
+    if (!code || code === 'MAIN') return acc
+    const nickname = store.dealer_nickname?.trim()
+    const location = store.dealer_location?.trim()
+    if (nickname || location) acc[code] = { nickname, location }
+    return acc
+  }, {} as typeof dealerOverrides)
+}
+
+export function setDealerOverride(store: { store_id: string; dealer_nickname?: string | null; dealer_location?: string | null }) {
+  const code = store.store_id.trim().toUpperCase()
+  if (!code || code === 'MAIN') return
+  const nickname = store.dealer_nickname?.trim()
+  const location = store.dealer_location?.trim()
+  dealerOverrides = {
+    ...dealerOverrides,
+    [code]: { nickname, location },
+  }
+}
+
 export function getDealerInfo(code: string): DealerInfo | null {
-  return DEALERS_BY_CODE[code.trim().toUpperCase()] ?? null
+  const normalized = code.trim().toUpperCase()
+  const base = DEALERS_BY_CODE[normalized]
+  const override = dealerOverrides[normalized]
+  if (!base && !override) return null
+  return {
+    code: normalized,
+    nickname: override?.nickname || base?.nickname || normalized,
+    location: override?.location || base?.location || normalized,
+  }
 }
 
 export function dealerInfoForRow(row: PerformanceRow): DealerInfo {

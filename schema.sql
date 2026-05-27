@@ -89,8 +89,12 @@ create table app_settings (
   store_id       text primary key,
   company_name   text default 'Luna Store',
   store_number   text default '',
-  slide_interval integer default 8
+  slide_interval integer default 8,
+  dealer_nickname text default '',
+  dealer_location text default ''
 );
+alter table app_settings add column if not exists dealer_nickname text default '';
+alter table app_settings add column if not exists dealer_location text default '';
 
 insert into app_settings (store_id) values ('default') on conflict do nothing;
 

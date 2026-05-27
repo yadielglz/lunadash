@@ -7,6 +7,7 @@ import type { Task, TaskCategory } from '../store/tasksStore'
 import { useSyncStore } from '../store/syncStore'
 import type { AccessRole } from '../store/uiStore'
 import { fetchPerformanceData, type PerformanceRow } from './performanceSheet'
+import { setDealerOverride, setDealerOverrides } from './dealers'
 import { normalizeAccessCode, normalizeStoreId } from './storeIds'
 
 export const supabase = createClient(
@@ -25,6 +26,7 @@ type DbGoal = {
 
 type DbSettings = {
   store_id: string; company_name: string; store_number: string; slide_interval: number
+  dealer_nickname?: string | null; dealer_location?: string | null
 }
 
 export type StoreSummary = DbSettings
@@ -787,16 +789,19 @@ export async function dbGetSettings(storeId: string): Promise<DbSettings | null>
   const { data, error } = await supabase
     .from('app_settings').select('*').eq('store_id', sid).maybeSingle()
   throwIfError(error, 'Could not load app settings')
+  if (data) setDealerOverride(data as DbSettings)
   return data as DbSettings | null
 }
 
 export async function dbGetStores(): Promise<StoreSummary[]> {
   const { data, error } = await supabase
     .from('app_settings')
-    .select('store_id, company_name, store_number, slide_interval')
+    .select('*')
     .order('store_id')
   throwIfError(error, 'Could not load stores')
-  return (data ?? []).map((store) => ({ ...store, store_id: normalizeStoreId(store.store_id) })) as StoreSummary[]
+  const stores = (data ?? []).map((store) => ({ ...store, store_id: normalizeStoreId(store.store_id) })) as StoreSummary[]
+  setDealerOverrides(stores)
+  return stores
 }
 
 export async function dbDeleteSettings(storeId: string) {
@@ -808,8 +813,19 @@ export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSe
   const sid = normalizeStoreId(storeId)
   useSyncStore.getState().setSync('settings', 'saving', 'Saving app settings')
   const { error } = await supabase.from('app_settings').upsert({ store_id: sid, ...patch })
+  if (error && isSupabaseError(error) && /dealer_(nickname|location)|schema cache/i.test(error.message ?? '')) {
+    const legacyPatch = { ...patch }
+    delete legacyPatch.dealer_nickname
+    delete legacyPatch.dealer_location
+    const legacy = await supabase.from('app_settings').upsert({ store_id: sid, ...legacyPatch })
+    if (!legacy.error) {
+      useSyncStore.getState().setSync('settings', 'error', 'Store nickname/location columns are missing in Supabase')
+      throw new Error('Supabase is missing dealer_nickname and dealer_location columns. Run the app_settings store label migration.')
+    }
+  }
   if (error) useSyncStore.getState().setSync('settings', 'error', isSupabaseError(error) ? error.message ?? 'Settings sync failed' : 'Settings sync failed')
   throwIfError(error, 'Could not save app settings')
+  setDealerOverride({ store_id: sid, dealer_nickname: patch.dealer_nickname, dealer_location: patch.dealer_location })
   useSyncStore.getState().setSync('settings', 'synced', 'Settings confirmed in Supabase')
 }
 

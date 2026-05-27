@@ -16,6 +16,7 @@ import { Button } from '../../ui/Button'
 import { APP_META } from '../../../config/appMeta'
 import { SyncArea, useSyncStore } from '../../../store/syncStore'
 import { WeatherPage } from '../weather/WeatherPage'
+import { getDealerInfo } from '../../../lib/dealers'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import { Section, Row, Segment } from './SettingsLayout'
 import { AccessSection } from './AccessSection'
@@ -530,7 +531,8 @@ function ScheduleBlocksSection() {
 // ── Configured stores section ────────────────────────────────────────────────
 function ConfiguredStoresSection() {
   const { storeId, setStoreId, accessRole } = useUiStore()
-  const canEditStores = accessRole === 'admin'
+  const canEditStoreLabels = accessRole === 'admin' || accessRole === 'district_manager'
+  const canRemoveStores = accessRole === 'admin'
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -538,6 +540,8 @@ function ConfiguredStoresSection() {
   const [editName, setEditName] = useState('')
   const [editNumber, setEditNumber] = useState('')
   const [editInterval, setEditInterval] = useState(8)
+  const [editNickname, setEditNickname] = useState('')
+  const [editLocation, setEditLocation] = useState('')
 
   const loadStores = async () => {
     setLoading(true)
@@ -557,10 +561,13 @@ function ConfiguredStoresSection() {
   }, [])
 
   const startEditStore = (store: StoreSummary) => {
+    const dealer = getDealerInfo(store.store_id)
     setEditingStoreId(store.store_id)
     setEditName(store.company_name || '')
     setEditNumber(store.store_number || '')
     setEditInterval(store.slide_interval || 8)
+    setEditNickname(store.dealer_nickname || dealer?.nickname || '')
+    setEditLocation(store.dealer_location || dealer?.location || '')
     setError('')
   }
 
@@ -569,6 +576,8 @@ function ConfiguredStoresSection() {
     setEditName('')
     setEditNumber('')
     setEditInterval(8)
+    setEditNickname('')
+    setEditLocation('')
   }
 
   const saveStore = async (store: StoreSummary) => {
@@ -579,6 +588,8 @@ function ConfiguredStoresSection() {
         company_name: editName.trim() || 'Luna Store',
         store_number: editNumber.trim(),
         slide_interval: editInterval,
+        dealer_nickname: editNickname.trim(),
+        dealer_location: editLocation.trim(),
       })
       cancelEditStore()
       await loadStores()
@@ -635,13 +646,18 @@ function ConfiguredStoresSection() {
 
         {stores.map((store) => {
           const isEditing = editingStoreId === store.store_id
+          const dealer = getDealerInfo(store.store_id)
+          const nickname = store.dealer_nickname || dealer?.nickname || ''
+          const location = store.dealer_location || dealer?.location || ''
           return (
             <div key={store.store_id} className="px-3 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
               {isEditing ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_130px_auto]">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Input label="Store Name" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Luna Store" />
                     <Input label="Store #" value={editNumber} onChange={(e) => setEditNumber(e.target.value)} placeholder="1234" />
+                    <Input label="Nickname" value={editNickname} onChange={(e) => setEditNickname(e.target.value)} placeholder="Top Guns" />
+                    <Input label="Location" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} placeholder="Clermont S" />
                     <Input label="Slide Seconds" type="number" min={4} max={30} value={editInterval} onChange={(e) => setEditInterval(Number(e.target.value) || 8)} />
                   </div>
                   <div className="flex justify-end gap-2">
@@ -663,13 +679,22 @@ function ConfiguredStoresSection() {
                       {store.store_number ? ` · Store #${store.store_number}` : ''}
                       {` · Slides ${store.slide_interval}s`}
                     </div>
+                    {(nickname || location) && (
+                      <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+                        {nickname || 'No nickname'}{location ? ` | ${location}` : ''}
+                      </div>
+                    )}
                   </div>
                   <Button size="sm" variant={normalizeStoreId(store.store_id) === normalizeStoreId(storeId) ? 'accent' : 'ghost'} onClick={() => setStoreId(normalizeStoreId(store.store_id))}>
                     {normalizeStoreId(store.store_id) === normalizeStoreId(storeId) ? 'Selected' : 'Use'}
                   </Button>
-                  {canEditStores && (
+                  {canEditStoreLabels && (
                     <>
                       <Button size="sm" variant="ghost" icon={<Edit2 size={12} />} onClick={() => startEditStore(store)}>Edit</Button>
+                    </>
+                  )}
+                  {canRemoveStores && (
+                    <>
                       <Button size="sm" variant="ghost" icon={<Trash2 size={12} />} onClick={() => removeStore(store)}>Remove</Button>
                     </>
                   )}
@@ -1150,7 +1175,7 @@ const SECTIONS = [
 type SectionId = typeof SECTIONS[number]['id']
 const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather']
 const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores', 'access']
-const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores']
+const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store']
 
 function isSectionId(value: string): value is SectionId {
   return SECTIONS.some((section) => section.id === value)
