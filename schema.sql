@@ -73,6 +73,10 @@ create table goals (
   created_at   timestamptz default now()
 );
 create index goals_store_idx on goals(store_id);
+create unique index if not exists goals_performance_snapshot_unique_idx
+on goals(store_id, description)
+where category = 'Performance Snapshot'
+  and description like 'source-snapshot:%';
 
 -- Announcements
 create table announcements (
