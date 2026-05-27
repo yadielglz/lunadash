@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { supabase, dbGetEmployees, dbGetShifts, dbGetScheduleBlocks, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetStores, dbGetTasks, GLOBAL_ANNOUNCEMENT_STORE_ID } from '../lib/supabase'
 import { useScheduleStore } from '../store/scheduleStore'
 import { useScheduleBlocksStore } from '../store/scheduleBlocksStore'
@@ -7,6 +7,7 @@ import { useGoalsStore } from '../store/goalsStore'
 import { useDisplayStore } from '../store/displayStore'
 import { useUiStore } from '../store/uiStore'
 import { useTasksStore } from '../store/tasksStore'
+import { DashboardLoader } from './ui/DashboardLoader'
 import type { Employee, Shift } from '../store/scheduleStore'
 import type { ScheduleBlock } from '../store/scheduleBlocksStore'
 import type { Goal } from '../store/goalsStore'
@@ -326,14 +327,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [activeTab, storeId, retryKey, scheduleInit, scheduleBlocksInit, goalsInit, displayInit, tasksInit])
 
   if (isLoading) {
-    return (
-      <div className="h-full w-full flex items-center justify-center bg-[var(--surface)] text-[var(--text-secondary)]">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw size={20} className="animate-spin text-[var(--accent)]" />
-          <p className="text-sm">Loading dashboard data...</p>
-        </div>
-      </div>
-    )
+    return <DashboardLoader label="Syncing store data" />
   }
 
   if (error) {

@@ -4,6 +4,7 @@ import { DataProvider } from './components/DataProvider'
 import { FirstLoginOnboarding } from './components/FirstLoginOnboarding'
 import { LockScreen } from './components/LockScreen'
 import { StoreLaunchScreen } from './components/StoreLaunchScreen'
+import { DashboardLoader } from './components/ui/DashboardLoader'
 import { useUiStore } from './store/uiStore'
 import { useLockStore, hashPin } from './store/lockStore'
 import { isAnnouncementActive, useDisplayStore } from './store/displayStore'
@@ -20,11 +21,7 @@ const DisplayPage = lazy(() => import('./components/features/screendisplay/Displ
 const SettingsPage = lazy(() => import('./components/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 
 function PageFallback() {
-  return (
-    <div className="h-full w-full flex items-center justify-center text-xs text-[var(--text-tertiary)]">
-      Loading LunaDash...
-    </div>
-  )
+  return <DashboardLoader label="Opening dashboard" />
 }
 
 function AnnouncementPopup() {
