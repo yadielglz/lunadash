@@ -129,7 +129,7 @@ export function StoreLaunchScreen() {
     >
       <div className="absolute inset-0 bg-black/55" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,122,216,0.18),transparent_45%)]" />
-      <div className="relative w-full max-w-md rounded-xl border border-white/12 bg-[var(--surface)]/95 shadow-[0_24px_80px_rgba(0,0,0,0.55)] overflow-hidden backdrop-blur-md">
+      <div className="relative flex max-h-[calc(100vh-48px)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-white/12 bg-[var(--surface)]/95 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-md">
         <div className="relative px-6 pt-7 pb-5 border-b border-[var(--border)] bg-[var(--surface-2)]/92">
           <div className="absolute inset-x-0 top-0 h-1 bg-[var(--accent)]" />
           <div className="flex flex-col items-center text-center">
@@ -146,53 +146,56 @@ export function StoreLaunchScreen() {
           </div>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="min-h-0 overflow-y-auto p-6 space-y-4">
           {pendingAccess ? (
             <>
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] px-4 py-3 shadow-sm">
                 <p className="text-sm font-semibold text-[var(--text)]">Choose store</p>
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">
                   {pendingAccess.access.label || 'Access session'} · {accessRoleLabel(pendingAccess.access.role)}
                 </p>
               </div>
 
-              <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
                 {pendingAccess.access.role === 'admin' && (
                   <button
                     onClick={() => setSelectedStoreId('main')}
                     className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
                       selectedStoreId === 'main'
-                        ? 'border-[var(--accent)] bg-[var(--accent)]/10'
-                        : 'border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--reveal-bg)]'
+                        ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_10px_26px_rgba(15,122,216,0.26)]'
+                        : 'border-[var(--border-strong)] bg-[var(--surface-solid)] text-[var(--text)] shadow-sm hover:border-[var(--accent)]/45 hover:bg-[var(--surface-3)]'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <Store size={14} className="text-[var(--accent)]" />
-                      <span className="text-sm font-semibold text-[var(--text)]">Main Dashboard</span>
+                      <Store size={14} className={selectedStoreId === 'main' ? 'text-white' : 'text-[var(--accent)]'} />
+                      <span className="text-sm font-semibold">Main Dashboard</span>
                     </div>
-                    <p className="mt-1 text-xs text-[var(--text-tertiary)]">All configured stores</p>
+                    <p className={`mt-1 text-xs ${selectedStoreId === 'main' ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>All configured stores</p>
                   </button>
                 )}
 
-                {pendingAccess.stores.map((store) => (
-                  <button
-                    key={store.store_id}
-                    onClick={() => setSelectedStoreId(store.store_id)}
-                    className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
-                      selectedStoreId === store.store_id
-                        ? 'border-[var(--accent)] bg-[var(--accent)]/10'
-                        : 'border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--reveal-bg)]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-semibold text-[var(--text)] truncate">{store.company_name || store.store_id}</span>
-                      <span className="font-mono text-xs text-[var(--text-tertiary)]">{store.store_id}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-                      {store.store_number ? `Store #${store.store_number}` : 'Configured store'}
-                    </p>
-                  </button>
-                ))}
+                {pendingAccess.stores.map((store) => {
+                  const selected = selectedStoreId === store.store_id
+                  return (
+                    <button
+                      key={store.store_id}
+                      onClick={() => setSelectedStoreId(store.store_id)}
+                      className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
+                        selected
+                          ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_10px_26px_rgba(15,122,216,0.26)]'
+                          : 'border-[var(--border-strong)] bg-[var(--surface-solid)] text-[var(--text)] shadow-sm hover:border-[var(--accent)]/45 hover:bg-[var(--surface-3)]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="truncate text-sm font-semibold">{store.company_name || store.store_id}</span>
+                        <span className={`font-mono text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>{store.store_id}</span>
+                      </div>
+                      <p className={`mt-1 text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>
+                        {store.store_number ? `Store #${store.store_number}` : 'Configured store'}
+                      </p>
+                    </button>
+                  )
+                })}
               </div>
 
               {pendingAccess.access.role !== 'admin' && pendingAccess.access.role !== 'display' && selectedStoreId !== 'main' && (

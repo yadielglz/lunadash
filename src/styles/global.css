@@ -329,7 +329,27 @@ body::after {
   -webkit-backdrop-filter: blur(22px) saturate(145%);
 }
 .vista .chrome-bar {
-  box-shadow: inset 0 1px rgba(255,255,255,0.44);
+  box-shadow:
+    inset 0 1px rgba(255,255,255,0.56),
+    inset 0 -1px rgba(13, 43, 78, 0.34);
+}
+.vista .taskbar-tab {
+  color: #183553;
+  text-shadow: 0 1px rgba(255,255,255,0.52);
+}
+.vista .taskbar-tab-idle:hover {
+  color: #071a2e;
+  background: rgba(255,255,255,0.42);
+}
+.vista .taskbar-tab-active {
+  color: #ffffff !important;
+  background:
+    linear-gradient(180deg, rgba(37, 145, 226, 0.98), rgba(5, 96, 168, 0.96)) !important;
+  border: 1px solid rgba(255,255,255,0.68);
+  box-shadow:
+    inset 0 1px rgba(255,255,255,0.62),
+    0 4px 12px rgba(6, 64, 118, 0.28);
+  text-shadow: 0 -1px rgba(0,0,0,0.35);
 }
 .text-gradient {
   background: linear-gradient(135deg, var(--accent), var(--accent-secondary));

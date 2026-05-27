@@ -24,6 +24,16 @@ function json(body: unknown, status = 200) {
   return Response.json(body, { status, headers: CORS_HEADERS })
 }
 
+function googleErrorMessage(result: { error?: { message?: string } }, fallback: string) {
+  return result.error?.message ?? fallback
+}
+
+function isProtectedCellError(message: string) {
+  return message.toLowerCase().includes('protected cell')
+    || message.toLowerCase().includes('protected range')
+    || message.toLowerCase().includes('protected sheet')
+}
+
 function normalizeStoreId(value: string) {
   const cleaned = value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20)
   if (!cleaned) return ''
@@ -161,7 +171,7 @@ Deno.serve(async (req: Request) => {
 
     const values = {
       traffic: assertNumber(payload.traffic, 'Traffic'),
-      netRevenue: assertNumber(payload.netRevenue, 'Net Revenue'),
+      netRevenue: payload.netRevenue === undefined ? null : assertNumber(payload.netRevenue, 'Net Revenue'),
       accessoryRevenue: assertNumber(payload.accessoryRevenue, 'Accessories'),
       vl: assertNumber(payload.vl, 'VL'),
       bts: assertNumber(payload.bts, 'BTS'),
@@ -178,7 +188,7 @@ Deno.serve(async (req: Request) => {
 
     const rowNumber = rowIndex + 1
     const escapedTitle = sheetTitle.replace(/'/g, "''")
-    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
+    const editableRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -188,19 +198,47 @@ Deno.serve(async (req: Request) => {
         valueInputOption: 'USER_ENTERED',
         data: [
           { range: `'${escapedTitle}'!C${rowNumber}`, values: [[values.traffic]] },
-          { range: `'${escapedTitle}'!F${rowNumber}`, values: [[values.netRevenue]] },
           { range: `'${escapedTitle}'!I${rowNumber}`, values: [[values.accessoryRevenue]] },
           { range: `'${escapedTitle}'!N${rowNumber}:P${rowNumber}`, values: [[values.vl, values.bts, values.hsi]] },
         ],
       }),
     })
-    const result = await res.json()
-    if (!res.ok) throw new Error(result.error?.message ?? 'Google Sheets update failed.')
+    const editableResult = await editableRes.json()
+    if (!editableRes.ok) throw new Error(googleErrorMessage(editableResult, 'Google Sheets update failed.'))
+
+    let netRevenueWarning = ''
+    let netRevenueRange = ''
+    if (values.netRevenue !== null) {
+      const netRevenueRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          valueInputOption: 'USER_ENTERED',
+          data: [
+            { range: `'${escapedTitle}'!F${rowNumber}`, values: [[values.netRevenue]] },
+          ],
+        }),
+      })
+      const netRevenueResult = await netRevenueRes.json()
+      if (netRevenueRes.ok) {
+        netRevenueRange = netRevenueResult.responses?.map((item: { updatedRange?: string }) => item.updatedRange).filter(Boolean).join(', ') ?? ''
+      } else {
+        const message = googleErrorMessage(netRevenueResult, 'Net Revenue update failed.')
+        if (!isProtectedCellError(message)) throw new Error(message)
+        netRevenueWarning = ' Net Revenue was skipped because that sheet cell is protected.'
+      }
+    }
+
+    const editableRanges = editableResult.responses?.map((item: { updatedRange?: string }) => item.updatedRange).filter(Boolean) ?? []
+    const updatedRange = [...editableRanges, netRevenueRange].filter(Boolean).join(', ')
 
     return json({
-      message: `Updated ${storeCode} in Google Sheets.`,
+      message: `Updated ${storeCode} in Google Sheets.${netRevenueWarning}`,
       storeCode,
-      updatedRange: result.responses?.map((item: { updatedRange?: string }) => item.updatedRange).filter(Boolean).join(', '),
+      updatedRange,
     })
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : 'Could not update Google Sheets.' }, 400)

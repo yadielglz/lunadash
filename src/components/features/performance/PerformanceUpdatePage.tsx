@@ -297,7 +297,6 @@ export function PerformanceUpdatePage() {
 
     const values = {
       traffic: parseDraftNumber(draft.traffic),
-      netRevenue: parseDraftNumber(draft.netRevenue),
       accessoryRevenue: parseDraftNumber(draft.accessoryRevenue),
       vl: parseDraftNumber(draft.vl),
       bts: parseDraftNumber(draft.bts),
@@ -565,14 +564,10 @@ export function PerformanceUpdatePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <div>
                   <Input label="Traffic" inputMode="decimal" value={draft.traffic} onChange={(e) => setDraft((d) => ({ ...d, traffic: metricInputValue(e.target.value) }))} />
                   <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatNumber(selectedRow?.traffic ?? 0)}</p>
-                </div>
-                <div>
-                  <Input label="Net Revenue" inputMode="decimal" value={draft.netRevenue} onChange={(e) => setDraft((d) => ({ ...d, netRevenue: metricInputValue(e.target.value) }))} />
-                  <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatMoney(selectedRow?.netRevenue ?? 0)}</p>
                 </div>
                 <div>
                   <Input label="Accessories" inputMode="decimal" value={draft.accessoryRevenue} onChange={(e) => setDraft((d) => ({ ...d, accessoryRevenue: metricInputValue(e.target.value) }))} />

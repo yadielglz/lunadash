@@ -36,10 +36,10 @@ export function Taskbar() {
               key={id}
               onClick={() => setTab(id)}
               className={cn(
-                'relative flex flex-col items-center gap-0.5 px-4 py-2 rounded-md transition-colors duration-150 min-w-[64px]',
+                'taskbar-tab relative flex flex-col items-center gap-0.5 px-4 py-2 rounded-md transition-colors duration-150 min-w-[64px]',
                 active
-                  ? 'text-[var(--accent)] bg-[var(--accent)]/10'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--reveal-bg)]'
+                  ? 'taskbar-tab-active text-[var(--accent)] bg-[var(--accent)]/10'
+                  : 'taskbar-tab-idle text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--reveal-bg)]'
               )}
               whileTap={{ scale: 0.92 }}
             >
@@ -65,10 +65,10 @@ export function Taskbar() {
               key={id}
               onClick={() => setTab(id)}
               className={cn(
-                'flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors duration-150 relative',
+                'taskbar-tab flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors duration-150 relative',
                 active
-                  ? 'text-[var(--accent)]'
-                  : 'text-[var(--text-tertiary)]'
+                  ? 'taskbar-tab-active text-[var(--accent)]'
+                  : 'taskbar-tab-idle text-[var(--text-tertiary)]'
               )}
             >
               {active && (
