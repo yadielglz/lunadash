@@ -90,11 +90,26 @@ export function StoreLaunchScreen() {
       }
 
       const accessStoreId = normalizeStoreId(access.store_id)
+      const assignedStoreIds = Array.from(new Set((access.assigned_store_ids?.length ? access.assigned_store_ids : [accessStoreId]).map(normalizeStoreId).filter(Boolean)))
+      let configuredStores: StoreSummary[] = []
+      if (assignedStoreIds.length > 1) {
+        try {
+          configuredStores = await dbGetStores()
+        } catch {
+          configuredStores = []
+        }
+      }
+      const storesById = new Map(configuredStores.map((store) => [normalizeStoreId(store.store_id), store]))
+      const assignedStores = assignedStoreIds.map((id) => (
+        storesById.get(id) ?? { store_id: id, company_name: id, store_number: '', slide_interval: 8 }
+      ))
       setPendingAccess({
         access,
-        stores: [{ store_id: accessStoreId, company_name: access.label || accessStoreId, store_number: '', slide_interval: 8 }],
+        stores: assignedStores.length > 0
+          ? assignedStores
+          : [{ store_id: accessStoreId, company_name: access.label || accessStoreId, store_number: '', slide_interval: 8 }],
       })
-      setSelectedStoreId(accessStoreId)
+      setSelectedStoreId(assignedStores[0]?.store_id ?? accessStoreId)
       setMode('manager')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not validate access.')

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { KeyRound, Plus, Check, Edit2, Power, Trash2, ChevronDown } from 'lucide-react'
 import { accessRoleLabel, useUiStore, AccessRole } from '../../../store/uiStore'
-import { dbGetAccessCodes, dbCreateAccessCode, dbUpdateAccessCode, dbDeleteAccessCode, dbResetAccessOnboarding, StoreAccessCode } from '../../../lib/supabase'
+import { dbGetAccessCodes, dbCreateAccessCode, dbUpdateAccessCode, dbDeleteAccessCode, dbResetAccessOnboarding, dbSetAccessAssignments, dbGetStores, StoreAccessCode, StoreSummary } from '../../../lib/supabase'
 import { Input, Select } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 import { hashPin } from '../../../store/lockStore'
@@ -11,17 +11,20 @@ import { Section } from './SettingsLayout'
 export function AccessSection() {
   const { accessRole, storeId, dealerCode, accessLabel } = useUiStore()
   const [codes, setCodes] = useState<StoreAccessCode[]>([])
+  const [stores, setStores] = useState<StoreSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [dealer, setDealer] = useState('')
   const [pin, setPin] = useState('')
   const [newStoreId, setNewStoreId] = useState(storeId === 'main' ? '' : storeId)
+  const [assignedStoreIds, setAssignedStoreIds] = useState<string[]>(storeId && storeId !== 'main' ? [storeId] : [])
   const [role, setRole] = useState<AccessRole>('employee')
   const [label, setLabel] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDealer, setEditDealer] = useState('')
   const [editLabel, setEditLabel] = useState('')
   const [editStoreId, setEditStoreId] = useState('')
+  const [editAssignedStoreIds, setEditAssignedStoreIds] = useState<string[]>([])
   const [editRole, setEditRole] = useState<AccessRole>('employee')
   const [editPin, setEditPin] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
@@ -32,7 +35,7 @@ export function AccessSection() {
   const visibleCodes = accessRole === 'admin'
     ? codes
     : codes.filter((code) => (
-      normalizeStoreId(code.store_id) === normalizeStoreId(storeId)
+      (code.assigned_store_ids?.map(normalizeStoreId).includes(normalizeStoreId(storeId)) || normalizeStoreId(code.store_id) === normalizeStoreId(storeId))
       && (accessRole !== 'manager' || code.role === 'manager' || code.role === 'employee' || code.role === 'display')
     ))
 
@@ -50,14 +53,32 @@ export function AccessSection() {
     }
   }
 
+  const loadStores = async () => {
+    try {
+      setStores((await dbGetStores()).filter((store) => normalizeStoreId(store.store_id) !== 'main'))
+    } catch {
+      setStores([])
+    }
+  }
+
   useEffect(() => {
-    if (canManageAccess) loadCodes()
+    if (canManageAccess) {
+      loadCodes()
+      if (canCreateAccess) loadStores()
+    }
   }, [canManageAccess])
+
+  const toggleAssignedStore = (id: string, editing = false) => {
+    const normalized = normalizeStoreId(id)
+    const setter = editing ? setEditAssignedStoreIds : setAssignedStoreIds
+    setter((current) => current.includes(normalized) ? current.filter((store) => store !== normalized) : [...current, normalized])
+  }
 
   const createCode = async () => {
     const cleanDealer = dealer.trim().toLowerCase() === 'admin' ? 'admin' : normalizeAccessCode(dealer)
     const cleanPin = pin.trim()
-    const targetStore = accessRole === 'admin' ? normalizeStoreId(newStoreId) : normalizeStoreId(storeId)
+    const cleanAssignments = Array.from(new Set((canCreateAccess ? assignedStoreIds : [storeId]).map(normalizeStoreId).filter(Boolean)))
+    const targetStore = accessRole === 'admin' ? normalizeStoreId(newStoreId || cleanAssignments[0] || '') : normalizeStoreId(storeId)
     if (!isValidLoginCode(cleanDealer)) {
       setError('Login must be a store ID or admin code.')
       return
@@ -70,6 +91,10 @@ export function AccessSection() {
       setError('Store ID / SAP is required.')
       return
     }
+    if (cleanAssignments.length === 0) {
+      setError('Assign at least one store.')
+      return
+    }
 
     setLoading(true)
     setError('')
@@ -80,10 +105,12 @@ export function AccessSection() {
         pin_hash: await hashPin(cleanPin),
         role,
         label: label.trim() || `${accessRoleLabel(role)} access`,
+        assigned_store_ids: cleanAssignments,
       })
       setDealer('')
       setPin('')
       setLabel('')
+      setAssignedStoreIds(storeId && storeId !== 'main' ? [storeId] : [])
       await loadCodes()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create access code')
@@ -149,6 +176,7 @@ export function AccessSection() {
     setEditDealer(code.dealer_code)
     setEditLabel(code.label ?? '')
     setEditStoreId(normalizeStoreId(code.store_id))
+    setEditAssignedStoreIds(code.assigned_store_ids?.length ? code.assigned_store_ids.map(normalizeStoreId) : [normalizeStoreId(code.store_id)])
     setEditRole(code.role)
     setEditPin('')
     setError('')
@@ -159,13 +187,15 @@ export function AccessSection() {
     setEditDealer('')
     setEditLabel('')
     setEditStoreId('')
+    setEditAssignedStoreIds([])
     setEditRole('employee')
     setEditPin('')
   }
 
   const saveEditCode = async (code: StoreAccessCode) => {
     const cleanDealer = editDealer.trim().toLowerCase() === 'admin' ? 'admin' : normalizeAccessCode(editDealer)
-    const targetStore = accessRole === 'admin' ? normalizeStoreId(editStoreId) : normalizeStoreId(storeId)
+    const cleanAssignments = Array.from(new Set(editAssignedStoreIds.map(normalizeStoreId).filter(Boolean)))
+    const targetStore = accessRole === 'admin' ? normalizeStoreId(editStoreId || cleanAssignments[0] || '') : normalizeStoreId(storeId)
     if (!isValidLoginCode(cleanDealer)) {
       setError('Login must be a store ID or admin code.')
       return
@@ -176,6 +206,10 @@ export function AccessSection() {
     }
     if (!targetStore) {
       setError('Store ID / SAP is required.')
+      return
+    }
+    if (canAdministerAccess && cleanAssignments.length === 0) {
+      setError('Assign at least one store.')
       return
     }
     if (editPin && !/^\d{4}$/.test(editPin.trim())) {
@@ -201,6 +235,7 @@ export function AccessSection() {
             : code.role,
         ...(editPin ? { pin_hash: await hashPin(editPin.trim()) } : {}),
       })
+      if (canAdministerAccess) await dbSetAccessAssignments(code.id, cleanAssignments)
       cancelEditCode()
       await loadCodes()
     } catch (err) {
@@ -258,6 +293,29 @@ export function AccessSection() {
                   </Select>
                   <Input label="Label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Manager name" />
                 </div>
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-3">
+                  <p className="text-xs font-medium text-[var(--text)]">Assigned Stores</p>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {stores.map((store) => {
+                      const id = normalizeStoreId(store.store_id)
+                      const checked = assignedStoreIds.includes(id)
+                      return (
+                        <label key={id} className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-2 text-xs text-[var(--text-secondary)]">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--accent)]"
+                            checked={checked}
+                            onChange={() => toggleAssignedStore(id)}
+                          />
+                          <span className="min-w-0 truncate">{store.company_name || id} ({id})</span>
+                        </label>
+                      )
+                    })}
+                    {stores.length === 0 && (
+                      <p className="text-xs text-[var(--text-tertiary)]">No configured stores loaded.</p>
+                    )}
+                  </div>
+                </div>
                 <div className="flex justify-end">
                   <Button size="sm" icon={<Plus size={12} />} loading={loading} onClick={createCode}>
                     Add Access
@@ -288,6 +346,31 @@ export function AccessSection() {
                       </Select>
                       <Input label="New PIN" type="password" inputMode="numeric" maxLength={4} value={editPin} onChange={(e) => setEditPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="Keep current" />
                     </div>
+                    {canAdministerAccess && (
+                      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-3">
+                        <p className="text-xs font-medium text-[var(--text)]">Assigned Stores</p>
+                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {stores.map((store) => {
+                            const id = normalizeStoreId(store.store_id)
+                            const checked = editAssignedStoreIds.includes(id)
+                            return (
+                              <label key={id} className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-2 text-xs text-[var(--text-secondary)]">
+                                <input
+                                  type="checkbox"
+                                  className="accent-[var(--accent)]"
+                                  checked={checked}
+                                  onChange={() => toggleAssignedStore(id, true)}
+                                />
+                                <span className="min-w-0 truncate">{store.company_name || id} ({id})</span>
+                              </label>
+                            )
+                          })}
+                          {stores.length === 0 && (
+                            <p className="text-xs text-[var(--text-tertiary)]">No configured stores loaded.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="ghost" onClick={cancelEditCode}>Cancel</Button>
                       <Button size="sm" icon={<Check size={12} />} loading={loading} onClick={() => saveEditCode(code)}>Save User</Button>

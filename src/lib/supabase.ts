@@ -101,6 +101,7 @@ export type StoreAccessCode = {
   id: string
   dealer_code: string
   store_id: string
+  assigned_store_ids?: string[]
   role: AccessRole
   label: string | null
   is_active: boolean
@@ -197,6 +198,7 @@ const BUILT_IN_ACCESS: Record<string, Omit<StoreAccessCode, 'created_at' | 'last
     id: 'built-in-admin',
     dealer_code: 'admin',
     store_id: 'main',
+    assigned_store_ids: ['main'],
     role: 'admin',
     label: 'Admin',
     is_active: true,
@@ -215,7 +217,32 @@ function normalizeAccessRow(row: StoreAccessCode): StoreAccessCode {
     ...row,
     dealer_code,
     store_id: normalizeStoreId(row.store_id),
+    assigned_store_ids: (row.assigned_store_ids?.length ? row.assigned_store_ids : [row.store_id]).map(normalizeStoreId),
   }
+}
+
+async function dbGetAccessAssignments(accessIds: string[]) {
+  if (accessIds.length === 0) return new Map<string, string[]>()
+  const { data, error } = await supabase
+    .from('store_access_assignments')
+    .select('access_id, store_id')
+    .in('access_id', accessIds)
+  if (isMissingTableError(error)) return new Map<string, string[]>()
+  throwIfError(error, 'Could not load access store assignments')
+  const map = new Map<string, string[]>()
+  ;(data ?? []).forEach((row) => {
+    const accessId = String(row.access_id)
+    map.set(accessId, [...(map.get(accessId) ?? []), normalizeStoreId(String(row.store_id))])
+  })
+  return map
+}
+
+async function withAccessAssignments(rows: StoreAccessCode[]) {
+  const assignmentMap = await dbGetAccessAssignments(rows.map((row) => row.id).filter((id) => id !== 'built-in-admin'))
+  return rows.map((row) => normalizeAccessRow({
+    ...row,
+    assigned_store_ids: assignmentMap.get(row.id) ?? row.assigned_store_ids ?? [row.store_id],
+  }))
 }
 
 export async function dbAuthenticateAccess(dealerCode: string, pinHash: string): Promise<StoreAccessCode | null> {
@@ -260,7 +287,7 @@ export async function dbAuthenticateAccess(dealerCode: string, pinHash: string):
     .update({ last_used_at: new Date().toISOString() })
     .eq('id', (data as StoreAccessCode).id)
 
-  return normalizeAccessRow(data as StoreAccessCode)
+  return (await withAccessAssignments([data as StoreAccessCode]))[0]
 }
 
 export async function dbGetAccessCodes(): Promise<StoreAccessCode[]> {
@@ -277,7 +304,7 @@ export async function dbGetAccessCodes(): Promise<StoreAccessCode[]> {
     error = legacy.error
   }
   throwIfError(error, 'Could not load access codes')
-  return ((data ?? []) as StoreAccessCode[]).map(normalizeAccessRow)
+  return withAccessAssignments((data ?? []) as StoreAccessCode[])
 }
 
 export async function dbCreateAccessCode(code: {
@@ -286,17 +313,20 @@ export async function dbCreateAccessCode(code: {
   pin_hash: string
   role: AccessRole
   label: string
+  assigned_store_ids?: string[]
 }) {
   const dealerCode = code.dealer_code.trim().toLowerCase() === 'admin'
     ? 'admin'
     : normalizeAccessCode(code.dealer_code)
-  const { error } = await supabase.from('store_access_codes').insert({
+  const { data, error } = await supabase.from('store_access_codes').insert({
     ...code,
     dealer_code: dealerCode,
     store_id: normalizeStoreId(code.store_id),
     is_active: true,
-  } satisfies Partial<DbStoreAccessCode>)
+  } satisfies Partial<DbStoreAccessCode>).select('id').single()
   throwIfError(error, 'Could not create access code')
+
+  if (data?.id) await dbSetAccessAssignments(String(data.id), code.assigned_store_ids?.length ? code.assigned_store_ids : [code.store_id])
 }
 
 export async function dbUpdateAccessCode(id: string, patch: Partial<Pick<StoreAccessCode, 'dealer_code' | 'label' | 'role' | 'store_id' | 'is_active'> & { pin_hash: string }>) {
@@ -309,6 +339,19 @@ export async function dbUpdateAccessCode(id: string, patch: Partial<Pick<StoreAc
   }
   const { error } = await supabase.from('store_access_codes').update(normalizedPatch).eq('id', id)
   throwIfError(error, 'Could not update access code')
+}
+
+export async function dbSetAccessAssignments(accessId: string, storeIds: string[]) {
+  if (accessId === 'built-in-admin') return
+  const normalized = Array.from(new Set(storeIds.map(normalizeStoreId).filter(Boolean)))
+  const del = await supabase.from('store_access_assignments').delete().eq('access_id', accessId)
+  if (isMissingTableError(del.error)) return
+  throwIfError(del.error, 'Could not clear access store assignments')
+  if (normalized.length === 0) return
+  const { error } = await supabase.from('store_access_assignments').insert(
+    normalized.map((storeId) => ({ access_id: accessId, store_id: storeId }))
+  )
+  throwIfError(error, 'Could not save access store assignments')
 }
 
 export async function dbDeleteAccessCode(id: string) {
