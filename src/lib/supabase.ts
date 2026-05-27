@@ -655,16 +655,39 @@ export async function dbGetGoals(storeId: string): Promise<Goal[]> {
 }
 
 export async function dbInsertGoal(g: Goal, storeId: string) {
-  const { error } = await supabase.from('goals').insert(goalToDb(g, storeId))
-  if (
-    error?.code === '23505'
-    && g.category === SNAPSHOT_CATEGORY
-    && g.description.startsWith(SNAPSHOT_PREFIX)
-  ) {
+  const sid = normalizeStoreId(storeId)
+  const isSnapshotGoal = g.category === SNAPSHOT_CATEGORY && g.description.startsWith(SNAPSHOT_PREFIX)
+
+  if (isSnapshotGoal) {
     const { data: existing, error: existingError } = await supabase
       .from('goals')
       .select('id')
-      .eq('store_id', normalizeStoreId(storeId))
+      .eq('store_id', sid)
+      .eq('category', SNAPSHOT_CATEGORY)
+      .eq('description', g.description)
+      .maybeSingle()
+    throwIfError(existingError, 'Could not load existing snapshot goal')
+    if (existing?.id) {
+      await dbUpdateGoal(String(existing.id), {
+        title: g.title,
+        target: g.target,
+        current: g.current,
+        unit: g.unit,
+        deadline: g.deadline,
+        color: g.color,
+        dailyTarget: g.dailyTarget,
+        milestones: g.milestones,
+      })
+      return
+    }
+  }
+
+  const { error } = await supabase.from('goals').insert(goalToDb(g, sid))
+  if (error?.code === '23505' && isSnapshotGoal) {
+    const { data: existing, error: existingError } = await supabase
+      .from('goals')
+      .select('id')
+      .eq('store_id', sid)
       .eq('category', SNAPSHOT_CATEGORY)
       .eq('description', g.description)
       .maybeSingle()
