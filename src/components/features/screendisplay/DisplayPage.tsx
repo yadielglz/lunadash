@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Maximize, Minimize, X, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
+import { Maximize, Minimize, X, ChevronLeft, ChevronRight, Pause, Play, LogOut } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { format, addDays } from 'date-fns'
 import { useFullscreen } from '../../../hooks/useFullscreen'
@@ -656,7 +656,7 @@ const SLIDES = [
 
 // ── Display shell ─────────────────────────────────────────────────────────────
 export function DisplayPage() {
-  const { setTab } = useUiStore()
+  const { accessMode, clearStoreSession, setTab } = useUiStore()
   const { isFullscreen, enter: enterFs, exit: exitFs } = useFullscreen()
   const { slideInterval, companyName, storeNumber } = useDisplayStore()
   const [slideIdx, setSlideIdx] = useState(0)
@@ -666,6 +666,18 @@ export function DisplayPage() {
 
   const prev = () => setSlideIdx((i) => (i - 1 + SLIDES.length) % SLIDES.length)
   const next = useCallback(() => setSlideIdx((i) => (i + 1) % SLIDES.length), [])
+  const restartDisplay = useCallback(() => {
+    exitFs()
+    if (accessMode === 'display') {
+      window.location.reload()
+      return
+    }
+    setTab('home')
+  }, [accessMode, exitFs, setTab])
+  const logoutDisplay = useCallback(() => {
+    exitFs()
+    clearStoreSession()
+  }, [clearStoreSession, exitFs])
 
   useEffect(() => {
     if (paused) return
@@ -693,12 +705,12 @@ export function DisplayPage() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight') next()
       if (e.key === 'ArrowLeft')  prev()
-      if (e.key === 'Escape')     { exitFs(); setTab('home') }
+      if (e.key === 'Escape')     restartDisplay()
       if (e.key === ' ')          setPaused((p) => !p)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [next, exitFs, setTab])
+  }, [next, restartDisplay])
 
   const Slide = SLIDES[slideIdx].component
 
@@ -789,12 +801,24 @@ export function DisplayPage() {
                   {isFullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
                 </button>
                 <button
-                  onClick={() => { exitFs(); setTab('home') }}
+                  onClick={restartDisplay}
                   className="p-2 rounded-lg text-white/70 hover:text-white transition-colors cursor-auto"
                   style={{ background: 'rgba(255,255,255,0.08)' }}
+                  title={accessMode === 'display' ? 'Reload display' : 'Exit display'}
                 >
                   <X size={13} />
                 </button>
+                {accessMode === 'display' && (
+                  <button
+                    onClick={logoutDisplay}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white/70 text-xs transition-colors hover:text-white cursor-auto"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                    title="Log out"
+                  >
+                    <LogOut size={11} />
+                    Logout
+                  </button>
+                )}
               </div>
             </div>
 

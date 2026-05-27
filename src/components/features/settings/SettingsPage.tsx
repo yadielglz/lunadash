@@ -1174,7 +1174,7 @@ const SECTIONS = [
 
 type SectionId = typeof SECTIONS[number]['id']
 const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather']
-const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores', 'access']
+const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores']
 const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store']
 
 function isSectionId(value: string): value is SectionId {

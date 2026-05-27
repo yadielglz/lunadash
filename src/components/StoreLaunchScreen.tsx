@@ -24,6 +24,7 @@ function isValidLoginCode(value: string) {
 export function StoreLaunchScreen() {
   const setAccessSession = useUiStore((s) => s.setAccessSession)
   const [dealerPlaceholder] = useState(() => DEALER_PLACEHOLDERS[Math.floor(Math.random() * DEALER_PLACEHOLDERS.length)])
+  const [showLogin, setShowLogin] = useState(false)
   const [dealerCode, setDealerCode] = useState('')
   const [pin, setPin] = useState('')
   const [mode, setMode] = useState<'manager' | 'display'>('manager')
@@ -124,7 +125,7 @@ export function StoreLaunchScreen() {
               </span>
               <div className="text-left">
                 <h1 className="text-lg font-semibold text-[var(--text)]">LunaDash Access</h1>
-                <p className="text-xs text-[var(--text-secondary)]">Enter your store login and 4-digit PIN.</p>
+                <p className="text-xs text-[var(--text-secondary)]">{showLogin || pendingAccess ? 'Enter your store login and 4-digit PIN.' : 'Store workspace and display access.'}</p>
               </div>
             </div>
           </div>
@@ -234,6 +235,17 @@ export function StoreLaunchScreen() {
                 </Button>
               </div>
             </>
+          ) : !showLogin ? (
+            <>
+              <Button
+                className="w-full"
+                variant="primary"
+                icon={<KeyRound size={14} />}
+                onClick={() => setShowLogin(true)}
+              >
+                Login
+              </Button>
+            </>
           ) : (
             <>
           <Input
@@ -272,6 +284,18 @@ export function StoreLaunchScreen() {
             disabled={!isValidLoginCode(dealerCode) || pin.length !== 4}
           >
             Continue
+          </Button>
+          <Button
+            className="w-full"
+            variant="ghost"
+            onClick={() => {
+              setShowLogin(false)
+              setDealerCode('')
+              setPin('')
+              setError('')
+            }}
+          >
+            Cancel
           </Button>
             </>
           )}

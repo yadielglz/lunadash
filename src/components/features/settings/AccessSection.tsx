@@ -25,10 +25,15 @@ export function AccessSection() {
   const [editRole, setEditRole] = useState<AccessRole>('employee')
   const [editPin, setEditPin] = useState('')
 
-  const canManageAccess = accessRole === 'admin' || accessRole === 'district_manager'
+  const canManageAccess = accessRole === 'admin' || accessRole === 'district_manager' || accessRole === 'manager'
+  const canCreateAccess = accessRole === 'admin' || accessRole === 'district_manager'
+  const canAdministerAccess = accessRole === 'admin' || accessRole === 'district_manager'
   const visibleCodes = accessRole === 'admin'
     ? codes
-    : codes.filter((code) => normalizeStoreId(code.store_id) === normalizeStoreId(storeId))
+    : codes.filter((code) => (
+      normalizeStoreId(code.store_id) === normalizeStoreId(storeId)
+      && (accessRole !== 'manager' || code.role === 'manager' || code.role === 'employee' || code.role === 'display')
+    ))
 
   const isValidLoginCode = (value: string) => /^[A-Z0-9_-]{2,20}$/i.test(value.trim()) || value.trim().toLowerCase() === 'admin'
 
@@ -143,7 +148,7 @@ export function AccessSection() {
     setEditDealer(code.dealer_code)
     setEditLabel(code.label ?? '')
     setEditStoreId(normalizeStoreId(code.store_id))
-    setEditRole(code.role === 'display' ? 'employee' : code.role)
+    setEditRole(code.role)
     setEditPin('')
     setError('')
   }
@@ -188,7 +193,11 @@ export function AccessSection() {
         ...(accessRole === 'admin' ? { dealer_code: cleanDealer } : {}),
         label: editLabel.trim(),
         store_id: targetStore,
-        role: accessRole === 'admin' ? editRole : (editRole === 'admin' || editRole === 'district_manager') ? 'manager' : editRole,
+        role: accessRole === 'admin'
+          ? editRole
+          : accessRole === 'district_manager'
+            ? (editRole === 'admin' || editRole === 'district_manager') ? 'manager' : editRole
+            : code.role,
         ...(editPin ? { pin_hash: await hashPin(editPin.trim()) } : {}),
       })
       cancelEditCode()
@@ -204,7 +213,7 @@ export function AccessSection() {
     return (
       <Section icon={<KeyRound size={14} />} title="Access">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-5 text-sm text-[var(--text-secondary)]">
-          Access management is available to admin and manager sessions.
+            Access management is available to manager sessions and up.
         </div>
       </Section>
     )
@@ -223,26 +232,29 @@ export function AccessSection() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
-          <p className="text-xs font-semibold text-[var(--text)]">Create Access Code</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            <Input label="Login / Store ID" autoCapitalize="characters" maxLength={20} value={dealer} onChange={(e) => setDealer(normalizeAccessCode(e.target.value))} placeholder="693D or admin" />
-            <Input label="PIN" type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4 digits" />
-            <Input label="Store ID / SAP" value={accessRole === 'admin' ? newStoreId : storeId} onChange={(e) => setNewStoreId(normalizeStoreId(e.target.value))} disabled={accessRole !== 'admin'} placeholder="697D or main" />
-            <Select label="Role" value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as AccessRole)}>
-              {accessRole === 'admin' && <option value="admin">Admin</option>}
-              {accessRole === 'admin' && <option value="district_manager">District Manager</option>}
-              <option value="manager">Manager</option>
-              <option value="employee">Store Access</option>
-            </Select>
-            <Input label="Label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Manager name" />
+        {canCreateAccess && (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
+            <p className="text-xs font-semibold text-[var(--text)]">Create Access Code</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <Input label="Login / Store ID" autoCapitalize="characters" maxLength={20} value={dealer} onChange={(e) => setDealer(normalizeAccessCode(e.target.value))} placeholder="693D or admin" />
+              <Input label="PIN" type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4 digits" />
+              <Input label="Store ID / SAP" value={accessRole === 'admin' ? newStoreId : storeId} onChange={(e) => setNewStoreId(normalizeStoreId(e.target.value))} disabled={accessRole !== 'admin'} placeholder="697D or main" />
+              <Select label="Role" value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as AccessRole)}>
+                {accessRole === 'admin' && <option value="admin">Admin</option>}
+                {accessRole === 'admin' && <option value="district_manager">District Manager</option>}
+                <option value="manager">Manager</option>
+                <option value="employee">Store Access</option>
+                <option value="display">Display</option>
+              </Select>
+              <Input label="Label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Manager name" />
+            </div>
+            <div className="flex justify-end">
+              <Button size="sm" icon={<Plus size={12} />} loading={loading} onClick={createCode}>
+                Add Access
+              </Button>
+            </div>
           </div>
-          <div className="flex justify-end">
-            <Button size="sm" icon={<Plus size={12} />} loading={loading} onClick={createCode}>
-              Add Access
-            </Button>
-          </div>
-        </div>
+        )}
 
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] divide-y divide-[var(--border)] overflow-hidden">
           {visibleCodes.map((code) => {
@@ -255,11 +267,12 @@ export function AccessSection() {
                       <Input label="Login / Username" autoCapitalize="characters" maxLength={20} value={accessRole === 'admin' ? editDealer : code.dealer_code} onChange={(e) => setEditDealer(normalizeAccessCode(e.target.value))} disabled={accessRole !== 'admin'} placeholder="693D or admin" />
                       <Input label="Name" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} placeholder="User name" />
                       <Input label="Store ID / SAP" value={accessRole === 'admin' ? editStoreId : storeId} onChange={(e) => setEditStoreId(normalizeStoreId(e.target.value))} disabled={accessRole !== 'admin'} placeholder="697D or main" />
-                      <Select label="Role" value={editRole} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditRole(e.target.value as AccessRole)}>
+                      <Select label="Role" value={editRole} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditRole(e.target.value as AccessRole)} disabled={!canAdministerAccess}>
                         {accessRole === 'admin' && <option value="admin">Admin</option>}
                         {accessRole === 'admin' && <option value="district_manager">District Manager</option>}
                         <option value="manager">Manager</option>
                         <option value="employee">Store Access</option>
+                        <option value="display">Display</option>
                       </Select>
                       <Input label="New PIN" type="password" inputMode="numeric" maxLength={4} value={editPin} onChange={(e) => setEditPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="Keep current" />
                     </div>
@@ -279,7 +292,7 @@ export function AccessSection() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {code.onboarded_at && (
+                      {canAdministerAccess && code.onboarded_at && (
                         <Button size="sm" variant="ghost" onClick={() => resetOnboarding(code)}>
                           Reset Intro
                         </Button>
@@ -287,12 +300,16 @@ export function AccessSection() {
                       <Button size="sm" variant="ghost" icon={<Edit2 size={12} />} onClick={() => startEditCode(code)}>
                         Edit
                       </Button>
-                      <Button size="sm" variant={code.is_active ? 'ghost' : 'accent'} icon={<Power size={12} />} onClick={() => toggleCode(code)}>
-                        {code.is_active ? 'Disable' : 'Enable'}
-                      </Button>
-                      <Button size="sm" variant="danger" icon={<Trash2 size={12} />} onClick={() => deleteCode(code)}>
-                        Delete
-                      </Button>
+                      {canAdministerAccess && (
+                        <>
+                          <Button size="sm" variant={code.is_active ? 'ghost' : 'accent'} icon={<Power size={12} />} onClick={() => toggleCode(code)}>
+                            {code.is_active ? 'Disable' : 'Enable'}
+                          </Button>
+                          <Button size="sm" variant="danger" icon={<Trash2 size={12} />} onClick={() => deleteCode(code)}>
+                            Delete
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
