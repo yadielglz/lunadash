@@ -3,8 +3,8 @@ import { persist } from 'zustand/middleware'
 import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 
 export type Tab = 'home' | 'devices' | 'schedule' | 'goals' | 'updates' | 'weather' | 'display' | 'tasks' | 'settings'
-export type Theme = 'dark' | 'light' | 'vista'
-export type Brand = 'default' | 'tmobile'
+export type Theme = 'dark' | 'light' | 'vista' | 'mac'
+export type Brand = 'default' | 'tmobile' | 'green' | 'black' | 'yellow'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
 export type AccessMode = 'manager' | 'display' | 'admin'
@@ -19,6 +19,38 @@ export function accessRoleLabel(role: AccessRole | null) {
 }
 
 const SESSION_MS = 2 * 60 * 1000
+const THEME_CLASSES: Theme[] = ['dark', 'light', 'vista', 'mac']
+const BRAND_ACCENTS: Record<Exclude<Brand, 'default'>, {
+  accent: string
+  hover: string
+  light: string
+  glow: string
+}> = {
+  tmobile: { accent: '#E20074', hover: '#B5005D', light: '#ffe0f0', glow: 'rgba(226, 0, 116, 0.18)' },
+  green:   { accent: '#16a34a', hover: '#15803d', light: '#dcfce7', glow: 'rgba(22, 163, 74, 0.18)' },
+  black:   { accent: '#111827', hover: '#030712', light: '#e5e7eb', glow: 'rgba(17, 24, 39, 0.22)' },
+  yellow:  { accent: '#a16207', hover: '#854d0e', light: '#fef3c7', glow: 'rgba(161, 98, 7, 0.22)' },
+}
+
+function applyThemeClass(theme: Theme) {
+  document.documentElement.classList.remove(...THEME_CLASSES)
+  document.documentElement.classList.add(theme)
+}
+
+function applyBrandAccent(brand: Brand) {
+  const accent = brand === 'default' ? null : BRAND_ACCENTS[brand]
+  if (!accent) {
+    document.documentElement.style.removeProperty('--accent')
+    document.documentElement.style.removeProperty('--accent-hover')
+    document.documentElement.style.removeProperty('--accent-light')
+    document.documentElement.style.removeProperty('--accent-glow')
+    return
+  }
+  document.documentElement.style.setProperty('--accent', accent.accent)
+  document.documentElement.style.setProperty('--accent-hover', accent.hover)
+  document.documentElement.style.setProperty('--accent-light', accent.light)
+  document.documentElement.style.setProperty('--accent-glow', accent.glow)
+}
 
 interface UiState {
   activeTab: Tab
@@ -107,24 +139,16 @@ export const useUiStore = create<UiState>()(
       extendStoreSession: () => set((s) => s.storeId ? { sessionExpiresAt: Date.now() + SESSION_MS } : s),
       setTheme: (theme) => {
         set({ theme })
-        document.documentElement.classList.remove('dark', 'light', 'vista')
-        document.documentElement.classList.add(theme)
+        applyThemeClass(theme)
       },
       setBrand: (brand) => {
         set({ brand })
-        if (brand === 'tmobile') {
-          document.documentElement.style.setProperty('--accent', '#E20074')
-          document.documentElement.style.setProperty('--accent-hover', '#B5005D')
-        } else {
-          document.documentElement.style.removeProperty('--accent')
-          document.documentElement.style.removeProperty('--accent-hover')
-        }
+        applyBrandAccent(brand)
       },
       toggleTheme: () => {
         const next = get().theme === 'dark' ? 'light' : 'dark'
         set({ theme: next })
-        document.documentElement.classList.remove('dark', 'light', 'vista')
-        document.documentElement.classList.add(next)
+        applyThemeClass(next)
       },
       setEditingWidgets: (v) => set({ isEditingWidgets: v }),
     }),
@@ -136,23 +160,16 @@ export const useUiStore = create<UiState>()(
         const state = persisted as Partial<UiState> | undefined
         return {
           activeTab: state?.activeTab ?? 'home',
-          theme: state?.theme ?? getSystemTheme(),
-          brand: state?.brand ?? 'default',
+          theme: state?.theme && THEME_CLASSES.includes(state.theme) ? state.theme : getSystemTheme(),
+          brand: state?.brand && (state.brand === 'default' || state.brand in BRAND_ACCENTS) ? state.brand : 'default',
           tempUnit: state?.tempUnit ?? 'F',
           timeFormat: state?.timeFormat ?? '12',
         }
       },
       onRehydrateStorage: () => (state) => {
         if (state) {
-          document.documentElement.classList.remove('dark', 'light', 'vista')
-          document.documentElement.classList.add(state.theme)
-          if (state.brand === 'tmobile') {
-            document.documentElement.style.setProperty('--accent', '#E20074')
-            document.documentElement.style.setProperty('--accent-hover', '#B5005D')
-          } else {
-            document.documentElement.style.removeProperty('--accent')
-            document.documentElement.style.removeProperty('--accent-hover')
-          }
+          applyThemeClass(state.theme)
+          applyBrandAccent(state.brand)
         }
       },
     }

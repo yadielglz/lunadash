@@ -26,10 +26,11 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
     { value: 'dark', label: 'Dark', icon: <Moon size={14} />, preview: 'bg-[#111318]' },
     { value: 'light', label: 'Light', icon: <Sun size={14} />, preview: 'bg-[#f4f6f8]' },
     { value: 'vista', label: 'Vista', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#162b4d,#5c7fb5_55%,#d8ecff)]' },
+    { value: 'mac', label: 'Mac', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#f8fafc,#dbeafe_45%,#f5d0fe)]' },
   ]
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full sm:w-[28rem] max-w-full">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-[36rem] max-w-full">
       {choices.map((choice) => {
         const selected = value === choice.value
         return (
@@ -74,7 +75,13 @@ function GeneralSection() {
       </Row>
       <Row label="Accent Color" description="Match the dashboard to your brand">
         <Segment
-          options={[{ value: 'default', label: 'Luna Blue' }, { value: 'tmobile', label: 'T-Mobile' }]}
+          options={[
+            { value: 'default', label: 'Luna Blue' },
+            { value: 'tmobile', label: 'T-Mobile' },
+            { value: 'green', label: 'Green' },
+            { value: 'black', label: 'Black' },
+            { value: 'yellow', label: 'Yellow' },
+          ]}
           value={brand}
           onChange={setBrand}
         />

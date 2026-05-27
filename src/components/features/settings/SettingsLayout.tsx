@@ -26,7 +26,7 @@ export function Row({ label, description, children }: { label: string; descripti
 
 export function Segment<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
   return (
-    <div className="flex rounded-lg border border-[var(--border)] overflow-hidden p-0.5 bg-[var(--surface-2)]">
+    <div className="flex flex-wrap gap-0.5 rounded-lg border border-[var(--border)] overflow-hidden p-0.5 bg-[var(--surface-2)]">
       {options.map((o) => (
         <button
           key={o.value}

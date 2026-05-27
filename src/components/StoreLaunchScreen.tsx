@@ -129,8 +129,8 @@ export function StoreLaunchScreen() {
     >
       <div className="absolute inset-0 bg-black/55" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,122,216,0.18),transparent_45%)]" />
-      <div className="relative flex max-h-[calc(100vh-48px)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-white/12 bg-[var(--surface)]/95 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-md">
-        <div className="relative px-6 pt-7 pb-5 border-b border-[var(--border)] bg-[var(--surface-2)]/92">
+      <div className="relative flex max-h-[calc(100vh-48px)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-white/35 bg-[rgba(238,247,255,0.88)] shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-md">
+        <div className="relative px-6 pt-7 pb-5 border-b border-slate-900/12 bg-[rgba(255,255,255,0.42)]">
           <div className="absolute inset-x-0 top-0 h-1 bg-[var(--accent)]" />
           <div className="flex flex-col items-center text-center">
             <LunaWirelessLogo className="h-20 w-52" />
@@ -139,8 +139,8 @@ export function StoreLaunchScreen() {
                 <KeyRound size={16} />
               </span>
               <div className="text-left">
-                <h1 className="text-lg font-semibold text-[var(--text)]">LunaDash Access</h1>
-                <p className="text-xs text-[var(--text-secondary)]">{showLogin || pendingAccess ? 'Enter your store login and 4-digit PIN.' : 'Store workspace and display access.'}</p>
+                <h1 className="text-lg font-semibold text-slate-950">LunaDash Access</h1>
+                <p className="text-xs text-slate-600">{showLogin || pendingAccess ? 'Enter your store login and 4-digit PIN.' : 'Store workspace and display access.'}</p>
               </div>
             </div>
           </div>
@@ -149,9 +149,9 @@ export function StoreLaunchScreen() {
         <div className="min-h-0 overflow-y-auto p-6 space-y-4">
           {pendingAccess ? (
             <>
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] px-4 py-3 shadow-sm">
-                <p className="text-sm font-semibold text-[var(--text)]">Choose store</p>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">
+              <div className="rounded-lg border border-slate-900/15 bg-white px-4 py-3 shadow-sm">
+                <p className="text-sm font-semibold text-slate-950">Choose store</p>
+                <p className="mt-1 text-xs text-slate-600">
                   {pendingAccess.access.label || 'Access session'} · {accessRoleLabel(pendingAccess.access.role)}
                 </p>
               </div>
@@ -163,14 +163,14 @@ export function StoreLaunchScreen() {
                     className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
                       selectedStoreId === 'main'
                         ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_10px_26px_rgba(15,122,216,0.26)]'
-                        : 'border-[var(--border-strong)] bg-[var(--surface-solid)] text-[var(--text)] shadow-sm hover:border-[var(--accent)]/45 hover:bg-[var(--surface-3)]'
+                        : 'border-slate-900/15 bg-white text-slate-950 shadow-sm hover:border-[var(--accent)]/45 hover:bg-blue-50'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <Store size={14} className={selectedStoreId === 'main' ? 'text-white' : 'text-[var(--accent)]'} />
                       <span className="text-sm font-semibold">Main Dashboard</span>
                     </div>
-                    <p className={`mt-1 text-xs ${selectedStoreId === 'main' ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>All configured stores</p>
+                    <p className={`mt-1 text-xs ${selectedStoreId === 'main' ? 'text-white/82' : 'text-slate-600'}`}>All configured stores</p>
                   </button>
                 )}
 
@@ -183,14 +183,14 @@ export function StoreLaunchScreen() {
                       className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
                         selected
                           ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_10px_26px_rgba(15,122,216,0.26)]'
-                          : 'border-[var(--border-strong)] bg-[var(--surface-solid)] text-[var(--text)] shadow-sm hover:border-[var(--accent)]/45 hover:bg-[var(--surface-3)]'
+                          : 'border-slate-900/15 bg-white text-slate-950 shadow-sm hover:border-[var(--accent)]/45 hover:bg-blue-50'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className="truncate text-sm font-semibold">{store.company_name || store.store_id}</span>
-                        <span className={`font-mono text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>{store.store_id}</span>
+                        <span className={`font-mono text-xs ${selected ? 'text-white/82' : 'text-slate-500'}`}>{store.store_id}</span>
                       </div>
-                      <p className={`mt-1 text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>
+                      <p className={`mt-1 text-xs ${selected ? 'text-white/82' : 'text-slate-600'}`}>
                         {store.store_number ? `Store #${store.store_number}` : 'Configured store'}
                       </p>
                     </button>
@@ -210,7 +210,7 @@ export function StoreLaunchScreen() {
                       className={`rounded-lg border px-3 py-2 text-sm font-medium flex items-center justify-center gap-2 ${
                         mode === choice.id
                           ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
-                          : 'border-[var(--border)] text-[var(--text-secondary)] bg-[var(--surface-2)]'
+                          : 'border-slate-900/15 text-slate-600 bg-white'
                       }`}
                     >
                       {choice.icon}
@@ -318,11 +318,11 @@ export function StoreLaunchScreen() {
             </>
           )}
 
-          <div className="border-t border-[var(--border)] pt-3 text-center">
-            <p className="text-[10px] text-[var(--text-tertiary)]">
+          <div className="border-t border-slate-900/12 pt-3 text-center">
+            <p className="text-[10px] text-slate-500">
               {APP_META.name} ver {APP_META.version} · Build {APP_META.build}
             </p>
-            <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">{APP_META.copyright}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">{APP_META.copyright}</p>
           </div>
         </div>
       </div>
