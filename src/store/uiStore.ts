@@ -7,6 +7,7 @@ export type Theme = 'dark' | 'light' | 'vista' | 'mac'
 export type Brand = 'default' | 'tmobile' | 'green' | 'black' | 'yellow'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
+export type UiScale = '100' | '120'
 export type AccessMode = 'manager' | 'display' | 'admin'
 export type AccessRole = 'admin' | 'district_manager' | 'manager' | 'employee' | 'display'
 
@@ -58,6 +59,7 @@ interface UiState {
   brand: Brand
   tempUnit: TempUnit
   timeFormat: TimeFormat
+  uiScale: UiScale
   storeId: string          // unique per-store key, shared across all devices in that store
   accessMode: AccessMode
   accessRole: AccessRole | null
@@ -76,6 +78,7 @@ interface UiState {
   setTempUnit: (unit: TempUnit) => void
   toggleTempUnit: () => void
   setTimeFormat: (fmt: TimeFormat) => void
+  setUiScale: (scale: UiScale) => void
   setStoreId: (id: string) => void
   setAccessMode: (mode: AccessMode) => void
   setAccessSession: (access: { id: string; storeId: string; role: AccessRole; dealerCode: string; label?: string | null; mode?: AccessMode; onboardedAt?: string | null }) => void
@@ -100,6 +103,7 @@ export const useUiStore = create<UiState>()(
       brand: 'default',
       tempUnit: 'F' as TempUnit,
       timeFormat: '12' as TimeFormat,
+      uiScale: '100' as UiScale,
       storeId: '',
       accessMode: 'manager',
       accessRole: null,
@@ -115,6 +119,7 @@ export const useUiStore = create<UiState>()(
       setTempUnit: (unit) => set({ tempUnit: unit }),
       toggleTempUnit: () => set((s) => ({ tempUnit: s.tempUnit === 'C' ? 'F' : 'C' })),
       setTimeFormat: (fmt) => set({ timeFormat: fmt }),
+      setUiScale: (scale) => set({ uiScale: scale }),
       setStoreId: (id) => {
         const storeId = normalizeStoreId(id)
         set({ storeId, sessionExpiresAt: storeId ? Date.now() + SESSION_MS : null })
@@ -155,7 +160,7 @@ export const useUiStore = create<UiState>()(
     {
       name: 'luna-ui',
       version: 2,
-      partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, activeTab: s.activeTab }),
+      partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, uiScale: s.uiScale, activeTab: s.activeTab }),
       migrate: (persisted) => {
         const state = persisted as Partial<UiState> | undefined
         return {
@@ -164,6 +169,7 @@ export const useUiStore = create<UiState>()(
           brand: state?.brand && (state.brand === 'default' || state.brand in BRAND_ACCENTS) ? state.brand : 'default',
           tempUnit: state?.tempUnit ?? 'F',
           timeFormat: state?.timeFormat ?? '12',
+          uiScale: state?.uiScale === '120' ? '120' : '100',
         }
       },
       onRehydrateStorage: () => (state) => {

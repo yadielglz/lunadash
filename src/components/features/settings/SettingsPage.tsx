@@ -67,7 +67,7 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
 
 // ── General section ──────────────────────────────────────────────────────────
 function GeneralSection() {
-  const { theme, setTheme, brand, setBrand, timeFormat, setTimeFormat, tempUnit, toggleTempUnit } = useUiStore()
+  const { theme, setTheme, brand, setBrand, timeFormat, setTimeFormat, tempUnit, toggleTempUnit, uiScale, setUiScale } = useUiStore()
   return (
     <Section icon={<Clock size={14} />} title="General">
       <Row label="Theme" description="Choose the dashboard appearance">
@@ -84,6 +84,13 @@ function GeneralSection() {
           ]}
           value={brand}
           onChange={setBrand}
+        />
+      </Row>
+      <Row label="App Zoom" description="Increase dashboard size on larger displays">
+        <Segment
+          options={[{ value: '100', label: '100%' }, { value: '120', label: '120%' }]}
+          value={uiScale}
+          onChange={setUiScale}
         />
       </Row>
       <Row label="Time Format" description="How time is displayed across the app">

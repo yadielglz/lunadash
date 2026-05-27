@@ -16,7 +16,8 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, activeKey }: AppShellProps) {
-  const { activeTab } = useUiStore()
+  const { activeTab, uiScale } = useUiStore()
+  const zoom = uiScale === '120' ? 1.2 : 1
 
   // Hide shell when in display mode
   if (activeTab === 'display') {
@@ -24,24 +25,34 @@ export function AppShell({ children, activeKey }: AppShellProps) {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <TitleBar />
-      <main className="flex-1 overflow-hidden relative">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={activeKey}
-            className="absolute inset-0 overflow-y-auto overflow-x-hidden"
-            variants={pageVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
-      </main>
-      <Taskbar />
+    <div className="h-full w-full overflow-auto bg-[var(--bg)]">
+      <div
+        className="flex h-full flex-col overflow-hidden"
+        style={{
+          width: `${100 / zoom}%`,
+          height: `${100 / zoom}%`,
+          transform: `scale(${zoom})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        <TitleBar />
+        <main className="flex-1 overflow-hidden relative">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={activeKey}
+              className="absolute inset-0 overflow-y-auto overflow-x-hidden"
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+        <Taskbar />
+      </div>
     </div>
   )
 }
