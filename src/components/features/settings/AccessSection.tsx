@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { KeyRound, Plus, Check, Edit2, Power, Trash2 } from 'lucide-react'
+import { KeyRound, Plus, Check, Edit2, Power, Trash2, ChevronDown } from 'lucide-react'
 import { accessRoleLabel, useUiStore, AccessRole } from '../../../store/uiStore'
 import { dbGetAccessCodes, dbCreateAccessCode, dbUpdateAccessCode, dbDeleteAccessCode, dbResetAccessOnboarding, StoreAccessCode } from '../../../lib/supabase'
 import { Input, Select } from '../../ui/Input'
@@ -24,6 +24,7 @@ export function AccessSection() {
   const [editStoreId, setEditStoreId] = useState('')
   const [editRole, setEditRole] = useState<AccessRole>('employee')
   const [editPin, setEditPin] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
 
   const canManageAccess = accessRole === 'admin' || accessRole === 'district_manager' || accessRole === 'manager'
   const canCreateAccess = accessRole === 'admin' || accessRole === 'district_manager'
@@ -234,25 +235,36 @@ export function AccessSection() {
 
         {canCreateAccess && (
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
-            <p className="text-xs font-semibold text-[var(--text)]">Create Access Code</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              <Input label="Login / Store ID" autoCapitalize="characters" maxLength={20} value={dealer} onChange={(e) => setDealer(normalizeAccessCode(e.target.value))} placeholder="693D or admin" />
-              <Input label="PIN" type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4 digits" />
-              <Input label="Store ID / SAP" value={accessRole === 'admin' ? newStoreId : storeId} onChange={(e) => setNewStoreId(normalizeStoreId(e.target.value))} disabled={accessRole !== 'admin'} placeholder="697D or main" />
-              <Select label="Role" value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as AccessRole)}>
-                {accessRole === 'admin' && <option value="admin">Admin</option>}
-                {accessRole === 'admin' && <option value="district_manager">District Manager</option>}
-                <option value="manager">Manager</option>
-                <option value="employee">Store Access</option>
-                <option value="display">Display</option>
-              </Select>
-              <Input label="Label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Manager name" />
-            </div>
-            <div className="flex justify-end">
-              <Button size="sm" icon={<Plus size={12} />} loading={loading} onClick={createCode}>
-                Add Access
-              </Button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setCreateOpen((open) => !open)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <p className="text-xs font-semibold text-[var(--text)]">Create Access Code</p>
+              <ChevronDown size={15} className={`text-[var(--text-tertiary)] transition-transform ${createOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {createOpen && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  <Input label="Login / Store ID" autoCapitalize="characters" maxLength={20} value={dealer} onChange={(e) => setDealer(normalizeAccessCode(e.target.value))} placeholder="693D or admin" />
+                  <Input label="PIN" type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="4 digits" />
+                  <Input label="Store ID / SAP" value={accessRole === 'admin' ? newStoreId : storeId} onChange={(e) => setNewStoreId(normalizeStoreId(e.target.value))} disabled={accessRole !== 'admin'} placeholder="697D or main" />
+                  <Select label="Role" value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as AccessRole)}>
+                    {accessRole === 'admin' && <option value="admin">Admin</option>}
+                    {accessRole === 'admin' && <option value="district_manager">District Manager</option>}
+                    <option value="manager">Manager</option>
+                    <option value="employee">Store Access</option>
+                    <option value="display">Display</option>
+                  </Select>
+                  <Input label="Label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Manager name" />
+                </div>
+                <div className="flex justify-end">
+                  <Button size="sm" icon={<Plus size={12} />} loading={loading} onClick={createCode}>
+                    Add Access
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
