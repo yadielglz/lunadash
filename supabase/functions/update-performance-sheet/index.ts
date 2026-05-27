@@ -13,6 +13,7 @@ type UpdatePayload = {
   accessRole?: string
   storeCode?: string
   traffic?: number
+  netRevenue?: number
   accessoryRevenue?: number
   vl?: number
   bts?: number
@@ -160,6 +161,7 @@ Deno.serve(async (req: Request) => {
 
     const values = {
       traffic: assertNumber(payload.traffic, 'Traffic'),
+      netRevenue: assertNumber(payload.netRevenue, 'Net Revenue'),
       accessoryRevenue: assertNumber(payload.accessoryRevenue, 'Accessories'),
       vl: assertNumber(payload.vl, 'VL'),
       bts: assertNumber(payload.bts, 'BTS'),
@@ -186,6 +188,7 @@ Deno.serve(async (req: Request) => {
         valueInputOption: 'USER_ENTERED',
         data: [
           { range: `'${escapedTitle}'!C${rowNumber}`, values: [[values.traffic]] },
+          { range: `'${escapedTitle}'!F${rowNumber}`, values: [[values.netRevenue]] },
           { range: `'${escapedTitle}'!I${rowNumber}`, values: [[values.accessoryRevenue]] },
           { range: `'${escapedTitle}'!N${rowNumber}:P${rowNumber}`, values: [[values.vl, values.bts, values.hsi]] },
         ],

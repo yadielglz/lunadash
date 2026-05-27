@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, CheckCircle2, RefreshCw, Search, UploadCloud } from 'lucide-react'
+import { AlertCircle, Calculator, CheckCircle2, ChevronDown, Plus, RefreshCw, Search, Trash2, UploadCloud } from 'lucide-react'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Select } from '../../ui/Input'
@@ -11,15 +11,91 @@ import { dealerInfoForRow } from '../../../lib/dealers'
 
 type Draft = {
   traffic: string
+  netRevenue: string
   accessoryRevenue: string
   vl: string
   bts: string
   hsi: string
 }
 
+type SaleType = 'voice' | 'bts' | 'hsi' | 'other'
+
+type SaleEntry = {
+  id: string
+  rep: string
+  revenue: string
+  type: SaleType
+  feature: string
+  accessory: string
+  phones: string
+  p360: string
+}
+
+type PlanKey =
+  | 'experienceBeyond'
+  | 'experienceMore'
+  | 'betterValue'
+  | 'experienceBeyond55'
+  | 'experienceMore55'
+  | 'fourFor100'
+  | 'voiceAal'
+  | 'btsLine'
+  | 'hsiLine'
+
+type PlanOption = {
+  key: PlanKey
+  label: string
+  value: number
+}
+
+type PlanCounts = Record<PlanKey, string>
+
+const PLAN_GROUPS: { label: string; prices: PlanOption[] }[] = [
+  {
+    label: 'Premium Plans',
+    prices: [
+      { key: 'experienceBeyond', label: 'Experience Beyond', value: 180 },
+      { key: 'experienceMore', label: 'Experience More', value: 150 },
+      { key: 'betterValue', label: 'Better Value', value: 155 },
+    ],
+  },
+  {
+    label: 'Value/55+ Plans',
+    prices: [
+      { key: 'experienceBeyond55', label: 'Experience Beyond 55+', value: 130 },
+      { key: 'experienceMore55', label: 'Experience More 55+', value: 100 },
+      { key: 'fourFor100', label: '4 x $100', value: 120 },
+    ],
+  },
+  {
+    label: 'Add-a-line / Other',
+    prices: [
+      { key: 'voiceAal', label: 'Voice/AAL', value: 65 },
+      { key: 'btsLine', label: 'BTS', value: 20 },
+      { key: 'hsiLine', label: 'HSI', value: 15 },
+    ],
+  },
+]
+
+const EMPTY_PLAN_COUNTS = PLAN_GROUPS
+  .flatMap((group) => group.prices)
+  .reduce((acc, plan) => ({ ...acc, [plan.key]: '' }), {} as PlanCounts)
+
+const newSaleEntry = (): SaleEntry => ({
+  id: crypto.randomUUID(),
+  rep: '',
+  revenue: '',
+  type: 'voice',
+  feature: '',
+  accessory: '',
+  phones: '',
+  p360: '',
+})
+
 function toDraft(row: PerformanceRow | null): Draft {
   return {
     traffic: row ? String(row.traffic) : '',
+    netRevenue: row ? String(row.netRevenue) : '',
     accessoryRevenue: row ? String(row.accessoryRevenue) : '',
     vl: row ? String(row.vl) : '',
     bts: row ? String(row.bts) : '',
@@ -30,6 +106,11 @@ function toDraft(row: PerformanceRow | null): Draft {
 function parseDraftNumber(value: string) {
   const parsed = Number(value.replace(/[$,\s]/g, ''))
   return Number.isFinite(parsed) ? Math.max(0, parsed) : NaN
+}
+
+function safeDraftNumber(value: string) {
+  const parsed = parseDraftNumber(value)
+  return Number.isNaN(parsed) ? 0 : parsed
 }
 
 function metricInputValue(value: string) {
@@ -47,6 +128,24 @@ function CurrentMetric({ label, value, money = false }: { label: string; value: 
   )
 }
 
+function sumPlanRevenue(counts: PlanCounts) {
+  return PLAN_GROUPS.flatMap((group) => group.prices).reduce((sum, plan) => (
+    sum + safeDraftNumber(counts[plan.key]) * plan.value
+  ), 0)
+}
+
+function sumSalesRevenue(entries: SaleEntry[]) {
+  return entries.reduce((sum, entry) => sum + safeDraftNumber(entry.revenue) + safeDraftNumber(entry.feature), 0)
+}
+
+function sumAccessories(entries: SaleEntry[]) {
+  return entries.reduce((sum, entry) => sum + safeDraftNumber(entry.accessory), 0)
+}
+
+function countType(entries: SaleEntry[], type: SaleType) {
+  return entries.filter((entry) => entry.type === type).length
+}
+
 export function PerformanceUpdatePage() {
   const { accessId, accessRole, storeId } = useUiStore()
   const [rows, setRows] = useState<PerformanceRow[]>([])
@@ -57,6 +156,9 @@ export function PerformanceUpdatePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [planCounts, setPlanCounts] = useState<PlanCounts>(EMPTY_PLAN_COUNTS)
+  const [sales, setSales] = useState<SaleEntry[]>([])
+  const [saleRowsOpen, setSaleRowsOpen] = useState(false)
 
   const canChooseStore = accessRole === 'admin' || accessRole === 'district_manager'
   const canUpdate = accessRole === 'admin' || accessRole === 'district_manager' || accessRole === 'manager'
@@ -80,6 +182,21 @@ export function PerformanceUpdatePage() {
         || dealer.location.toLowerCase().includes(q)
     })
   }, [canChooseStore, query, rows, storeId])
+
+  const calculatorTotals = useMemo(() => {
+    const planRevenue = sumPlanRevenue(planCounts)
+    const salesRevenue = sumSalesRevenue(sales)
+    const accessoryRevenue = sumAccessories(sales)
+    return {
+      planRevenue,
+      salesRevenue,
+      netRevenue: planRevenue + salesRevenue,
+      accessoryRevenue,
+      vl: countType(sales, 'voice'),
+      bts: countType(sales, 'bts'),
+      hsi: countType(sales, 'hsi'),
+    }
+  }, [planCounts, sales])
 
   const loadData = async () => {
     setLoading(true)
@@ -112,6 +229,26 @@ export function PerformanceUpdatePage() {
     setMessage('')
   }, [selectedRow])
 
+  const updateSale = (id: string, patch: Partial<SaleEntry>) => {
+    setSales((entries) => entries.map((entry) => entry.id === id ? { ...entry, ...patch } : entry))
+  }
+
+  const removeSale = (id: string) => {
+    setSales((entries) => entries.filter((entry) => entry.id !== id))
+  }
+
+  const applyCalculatorTotals = () => {
+    setDraft((current) => ({
+      ...current,
+      netRevenue: String(Math.round(calculatorTotals.netRevenue)),
+      accessoryRevenue: String(Math.round(calculatorTotals.accessoryRevenue)),
+      vl: String(calculatorTotals.vl),
+      bts: String(calculatorTotals.bts),
+      hsi: String(calculatorTotals.hsi),
+    }))
+    setMessage('Calculator totals applied. Review and save when ready.')
+  }
+
   const save = async () => {
     if (!canUpdate) {
       setError('Performance updates are available to manager sessions and up.')
@@ -124,6 +261,7 @@ export function PerformanceUpdatePage() {
 
     const values = {
       traffic: parseDraftNumber(draft.traffic),
+      netRevenue: parseDraftNumber(draft.netRevenue),
       accessoryRevenue: parseDraftNumber(draft.accessoryRevenue),
       vl: parseDraftNumber(draft.vl),
       bts: parseDraftNumber(draft.bts),
@@ -173,7 +311,7 @@ export function PerformanceUpdatePage() {
               Performance Update
             </h1>
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              Update Traffic, Accessories, VL, BTS, and HSI for the selected store.
+              Update Traffic, Net Revenue, Accessories, VL, BTS, and HSI for the selected store.
             </p>
           </div>
           <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={loadData} loading={loading}>
@@ -252,6 +390,109 @@ export function PerformanceUpdatePage() {
             </Card>
 
             <Card>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+                    <Calculator size={15} className="text-[var(--accent)]" />
+                    Store Sales Calculator
+                  </div>
+                  <div className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+                    Net Revenue Calculator.
+                  </div>
+                </div>
+                <Button size="sm" variant="accent" icon={<CheckCircle2 size={13} />} onClick={applyCalculatorTotals}>
+                  Apply Totals
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <CurrentMetric label="Plan Revenue" value={calculatorTotals.planRevenue} money />
+                <CurrentMetric label="Sales Revenue" value={calculatorTotals.salesRevenue} money />
+                <CurrentMetric label="Net Revenue" value={calculatorTotals.netRevenue} money />
+                <CurrentMetric label="Accessories" value={calculatorTotals.accessoryRevenue} money />
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {PLAN_GROUPS.map((group) => (
+                  <div key={group.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                    <div className="mb-2 text-xs font-semibold text-[var(--text)]">{group.label}</div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      {group.prices.map((plan) => (
+                        <Input
+                          key={plan.key}
+                          label={`${plan.label} (${formatMoney(plan.value)})`}
+                          inputMode="decimal"
+                          value={planCounts[plan.key]}
+                          onChange={(event) => setPlanCounts((counts) => ({ ...counts, [plan.key]: metricInputValue(event.target.value) }))}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]">
+                <button
+                  type="button"
+                  onClick={() => setSaleRowsOpen((open) => !open)}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+                >
+                  <div>
+                    <div className="text-xs font-semibold text-[var(--text)]">Sale Record</div>
+                    <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
+                      {sales.length ? `${sales.length} sale ${sales.length === 1 ? 'row' : 'rows'} included in totals` : 'Use only when you want rep-level detail.'}
+                    </div>
+                  </div>
+                  <ChevronDown size={15} className={`text-[var(--text-tertiary)] transition-transform ${saleRowsOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {saleRowsOpen && (
+                  <div className="space-y-2 border-t border-[var(--border)] p-3">
+                    <div className="flex items-center justify-end">
+                      <Button size="sm" variant="ghost" icon={<Plus size={12} />} onClick={() => setSales((entries) => [...entries, newSaleEntry()])}>
+                        Add Sale
+                      </Button>
+                    </div>
+                    {sales.length === 0 && (
+                      <div className="rounded-md border border-dashed border-[var(--border)] px-3 py-4 text-center text-xs text-[var(--text-tertiary)]">
+                        No sale rows added.
+                      </div>
+                    )}
+                    {sales.map((entry, index) => (
+                      <div key={entry.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <span className="text-xs font-medium text-[var(--text-secondary)]">Sale {index + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeSale(entry.id)}
+                            className="rounded-md p-1 text-[var(--text-tertiary)] transition-colors hover:bg-red-500/10 hover:text-red-400"
+                            title="Remove sale"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                          <Input label="Rep" value={entry.rep} onChange={(event) => updateSale(entry.id, { rep: event.target.value })} />
+                          <Input label="Sale Revenue" inputMode="decimal" value={entry.revenue} onChange={(event) => updateSale(entry.id, { revenue: metricInputValue(event.target.value) })} />
+                          <Select label="Type" value={entry.type} onChange={(event) => updateSale(entry.id, { type: event.target.value as SaleType })}>
+                            <option value="voice">Voice / AAL</option>
+                            <option value="bts">BTS</option>
+                            <option value="hsi">HSI</option>
+                            <option value="other">Other</option>
+                          </Select>
+                          <Input label="Feature $" inputMode="decimal" value={entry.feature} onChange={(event) => updateSale(entry.id, { feature: metricInputValue(event.target.value) })} />
+                          <Input label="ACC $" inputMode="decimal" value={entry.accessory} onChange={(event) => updateSale(entry.id, { accessory: metricInputValue(event.target.value) })} />
+                          <Input label="# Phones" inputMode="decimal" value={entry.phones} onChange={(event) => updateSale(entry.id, { phones: metricInputValue(event.target.value) })} />
+                          <Input label="# P360" inputMode="decimal" value={entry.p360} onChange={(event) => updateSale(entry.id, { p360: metricInputValue(event.target.value) })} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            <Card>
               <div className="mb-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -260,8 +501,9 @@ export function PerformanceUpdatePage() {
                   </div>
                   {loading && <RefreshCw size={14} className="animate-spin text-[var(--accent)]" />}
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
                   <CurrentMetric label="Traffic" value={selectedRow?.traffic ?? 0} />
+                  <CurrentMetric label="Net Revenue" value={selectedRow?.netRevenue ?? 0} money />
                   <CurrentMetric label="Accessories" value={selectedRow?.accessoryRevenue ?? 0} money />
                   <CurrentMetric label="VL" value={selectedRow?.vl ?? 0} />
                   <CurrentMetric label="BTS" value={selectedRow?.bts ?? 0} />
@@ -269,10 +511,14 @@ export function PerformanceUpdatePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
                 <div>
                   <Input label="Traffic" inputMode="decimal" value={draft.traffic} onChange={(e) => setDraft((d) => ({ ...d, traffic: metricInputValue(e.target.value) }))} />
                   <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatNumber(selectedRow?.traffic ?? 0)}</p>
+                </div>
+                <div>
+                  <Input label="Net Revenue" inputMode="decimal" value={draft.netRevenue} onChange={(e) => setDraft((d) => ({ ...d, netRevenue: metricInputValue(e.target.value) }))} />
+                  <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatMoney(selectedRow?.netRevenue ?? 0)}</p>
                 </div>
                 <div>
                   <Input label="Accessories" inputMode="decimal" value={draft.accessoryRevenue} onChange={(e) => setDraft((d) => ({ ...d, accessoryRevenue: metricInputValue(e.target.value) }))} />

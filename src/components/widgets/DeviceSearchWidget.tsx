@@ -7,7 +7,9 @@ import { useUiStore } from '../../store/uiStore'
 export function DeviceSearchWidget() {
   const [q, setQ] = useState('')
   const { headers, rows, totalRows, isLoading, setSearch } = useDevices()
-  const { setTab } = useUiStore()
+  const { accessRole, setTab } = useUiStore()
+
+  if (accessRole !== 'admin') return null
 
   const handleSearch = (v: string) => {
     setQ(v)

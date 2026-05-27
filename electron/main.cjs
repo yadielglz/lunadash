@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, shell } = require('electron')
 const path = require('node:path')
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL)
@@ -34,6 +34,16 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  ipcMain.handle('lunadash:force-update-restart', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    await event.sender.session.clearCache()
+    await event.sender.session.clearStorageData({
+      storages: ['cookies', 'serviceworkers', 'cachestorage'],
+    })
+    win?.webContents.reloadIgnoringCache()
+    return { ok: true }
+  })
+
   createWindow()
 
   app.on('activate', () => {

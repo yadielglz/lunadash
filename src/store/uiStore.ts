@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 
 export type Tab = 'home' | 'devices' | 'schedule' | 'goals' | 'updates' | 'weather' | 'display' | 'tasks' | 'settings'
-export type Theme = 'dark' | 'light'
+export type Theme = 'dark' | 'light' | 'vista'
 export type Brand = 'default' | 'tmobile'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
@@ -107,7 +107,7 @@ export const useUiStore = create<UiState>()(
       extendStoreSession: () => set((s) => s.storeId ? { sessionExpiresAt: Date.now() + SESSION_MS } : s),
       setTheme: (theme) => {
         set({ theme })
-        document.documentElement.classList.remove('dark', 'light')
+        document.documentElement.classList.remove('dark', 'light', 'vista')
         document.documentElement.classList.add(theme)
       },
       setBrand: (brand) => {
@@ -123,7 +123,7 @@ export const useUiStore = create<UiState>()(
       toggleTheme: () => {
         const next = get().theme === 'dark' ? 'light' : 'dark'
         set({ theme: next })
-        document.documentElement.classList.remove('dark', 'light')
+        document.documentElement.classList.remove('dark', 'light', 'vista')
         document.documentElement.classList.add(next)
       },
       setEditingWidgets: (v) => set({ isEditingWidgets: v }),
@@ -144,7 +144,7 @@ export const useUiStore = create<UiState>()(
       },
       onRehydrateStorage: () => (state) => {
         if (state) {
-          document.documentElement.classList.remove('dark', 'light')
+          document.documentElement.classList.remove('dark', 'light', 'vista')
           document.documentElement.classList.add(state.theme)
           if (state.brand === 'tmobile') {
             document.documentElement.style.setProperty('--accent', '#E20074')

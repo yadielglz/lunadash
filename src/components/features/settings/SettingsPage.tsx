@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer
+  Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
@@ -24,10 +24,11 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
   const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string }[] = [
     { value: 'dark', label: 'Dark', icon: <Moon size={14} />, preview: 'bg-[#111318]' },
     { value: 'light', label: 'Light', icon: <Sun size={14} />, preview: 'bg-[#f4f6f8]' },
+    { value: 'vista', label: 'Vista', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#162b4d,#5c7fb5_55%,#d8ecff)]' },
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-2 w-full sm:w-72 max-w-full">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full sm:w-[28rem] max-w-full">
       {choices.map((choice) => {
         const selected = value === choice.value
         return (
@@ -953,8 +954,10 @@ function ReportSection() {
 
 // ── About section ─────────────────────────────────────────────────────────────
 function AboutSection() {
-  const { setTab, sessionExpiresAt, extendStoreSession } = useUiStore()
+  const { setTab, sessionExpiresAt, extendStoreSession, accessRole } = useUiStore()
   const [now, setNow] = useState(Date.now())
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState('')
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000)
@@ -963,6 +966,35 @@ function AboutSection() {
 
   const remaining = Math.max(0, Math.ceil(((sessionExpiresAt ?? now) - now) / 1000))
   const remainingLabel = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`
+
+  const forceUpdateRestart = async () => {
+    setRefreshing(true)
+    setRefreshError('')
+    try {
+      if (window.lunadashDesktop?.forceUpdateRestart) {
+        await window.lunadashDesktop.forceUpdateRestart()
+        return
+      }
+
+      if ('caches' in window) {
+        const keys = await caches.keys()
+        await Promise.all(keys.map((key) => caches.delete(key)))
+      }
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(registrations.map((registration) => registration.unregister()))
+      }
+      document.cookie.split(';').forEach((cookie) => {
+        const name = cookie.split('=')[0]?.trim()
+        if (!name) return
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+      })
+      window.location.reload()
+    } catch (err) {
+      setRefreshError(err instanceof Error ? err.message : 'Could not clear cache and restart')
+      setRefreshing(false)
+    }
+  }
 
   return (
     <Section icon={<Info size={14} />} title="About">
@@ -987,6 +1019,18 @@ function AboutSection() {
           </ul>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-medium text-[var(--text)]">Force Update & Restart</p>
+              <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">Clears app cache and cookies, then reloads LunaDash fresh.</p>
+            </div>
+            <Button size="sm" variant="accent" icon={<RefreshCw size={13} />} loading={refreshing} onClick={forceUpdateRestart}>
+              Update & Restart
+            </Button>
+          </div>
+          {refreshError && <p className="mt-2 text-xs text-red-400">{refreshError}</p>}
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-medium text-[var(--text)]">Store Session</p>
@@ -998,14 +1042,16 @@ function AboutSection() {
             </div>
           </div>
         </div>
-        <div className="pt-2 border-t border-[var(--border)]">
-          <button
-            onClick={() => setTab('devices')}
-            className="text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
-          >
-            Internal reference
-          </button>
-        </div>
+        {accessRole === 'admin' && (
+          <div className="pt-2 border-t border-[var(--border)]">
+            <button
+              onClick={() => setTab('devices')}
+              className="text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+            >
+              Internal reference
+            </button>
+          </div>
+        )}
       </div>
     </Section>
   )

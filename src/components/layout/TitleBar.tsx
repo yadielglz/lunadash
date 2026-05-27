@@ -200,7 +200,7 @@ export function TitleBar() {
   const mobileTabLabel = activeTab === 'goals' ? 'Performance' : activeTab
 
   return (
-    <div className="bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex h-14 flex-shrink-0 items-center justify-between px-3 sm:h-12 sm:px-4 z-50">
+    <div className="chrome-bar bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex h-14 flex-shrink-0 items-center justify-between px-3 sm:h-12 sm:px-4 z-50">
       {/* Logo + store info */}
       <div className="flex min-w-0 items-center gap-2.5">
         <div className="flex h-7 w-11 flex-shrink-0 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-1.5">

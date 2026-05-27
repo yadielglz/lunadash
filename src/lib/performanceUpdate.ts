@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 export type PerformanceSheetUpdate = {
   storeCode: string
   traffic: number
+  netRevenue: number
   accessoryRevenue: number
   vl: number
   bts: number

@@ -24,7 +24,7 @@ export function Taskbar() {
 
   return (
     <nav
-      className="bg-[var(--taskbar-bg)] border-t border-[var(--border)] flex-shrink-0 z-50"
+      className="chrome-bar bg-[var(--taskbar-bg)] border-t border-[var(--border)] flex-shrink-0 z-50"
       style={{ borderTop: '1px solid var(--border)' }}
     >
       {/* Desktop: centered icon bar */}

@@ -97,6 +97,40 @@
 }
 
 /* ============================================================
+   VISTA TRANSLUCENT THEME
+   ============================================================ */
+.vista {
+  --bg: #d8e8f7;
+  --bg-gradient: linear-gradient(180deg, #e9f6ff 0%, #c2d8f0 46%, #7f9fbd 100%);
+  --surface: rgba(244, 250, 255, 0.72);
+  --surface-2: rgba(255, 255, 255, 0.58);
+  --surface-3: rgba(222, 241, 255, 0.72);
+  --surface-solid: #f4faff;
+  --surface-2-solid: #edf7ff;
+  --border: rgba(38, 82, 130, 0.28);
+  --border-strong: rgba(28, 74, 128, 0.42);
+  --text: #132235;
+  --text-secondary: #38516e;
+  --text-tertiary: #6a7e95;
+  --acrylic: rgba(240, 249, 255, 0.66);
+  --mica: rgba(211, 234, 252, 0.62);
+  --taskbar-bg: rgba(18, 58, 102, 0.42);
+  --titlebar-bg: rgba(235, 247, 255, 0.56);
+  --reveal-bg: rgba(255,255,255,0.34);
+  --reveal-border: rgba(255,255,255,0.46);
+  --input-bg: rgba(255, 255, 255, 0.72);
+  --scrollbar-track: rgba(35, 78, 124, 0.08);
+  --scrollbar-thumb: rgba(35, 78, 124, 0.28);
+  --scrollbar-thumb-hover: rgba(35, 78, 124, 0.4);
+  --accent: #0a64ad;
+  --accent-hover: #074f89;
+  --accent-light: #d7edff;
+  --accent-glow: rgba(10, 100, 173, 0.22);
+  --wallpaper-opacity: 0.5;
+  --wallpaper-overlay: rgba(225, 239, 250, 0.38);
+}
+
+/* ============================================================
    BASE RESETS & GLOBAL STYLES
    ============================================================ */
 *, *::before, *::after {
@@ -286,6 +320,16 @@ body::after {
   background: var(--mica);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+.vista .glass,
+.vista .glass-strong,
+.vista .mica,
+.vista .chrome-bar {
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+}
+.vista .chrome-bar {
+  box-shadow: inset 0 1px rgba(255,255,255,0.44);
 }
 .text-gradient {
   background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
