@@ -25,7 +25,7 @@ interface DisplayState {
 
   _init: (announcements: Announcement[], settings: { company_name: string; store_number: string; slide_interval: number }) => void
 
-  addAnnouncement: (text: string, priority?: Announcement['priority'], period?: Pick<Announcement, 'startAt' | 'endAt'>) => void
+  addAnnouncement: (text: string, priority?: Announcement['priority'], period?: Pick<Announcement, 'startAt' | 'endAt'>, storeId?: string) => void
   updateAnnouncement: (id: string, updates: Partial<Announcement>) => void
   removeAnnouncement: (id: string) => void
   reorderAnnouncements: (announcements: Announcement[]) => void
@@ -51,9 +51,10 @@ export const useDisplayStore = create<DisplayState>()(
         isLoaded: true,
       }),
 
-      addAnnouncement: (text, priority = 'normal', period = {}) => {
+      addAnnouncement: (text, priority = 'normal', period = {}, storeId = currentStoreId()) => {
         const a: Announcement = {
           id: crypto.randomUUID(),
+          storeId,
           text,
           priority,
           startAt: period.startAt,
@@ -61,7 +62,7 @@ export const useDisplayStore = create<DisplayState>()(
           createdAt: new Date().toISOString(),
         }
         set((s) => ({ announcements: [...s.announcements, a] }))
-        dbInsertAnnouncement(a, currentStoreId())
+        dbInsertAnnouncement(a, storeId)
       },
 
       updateAnnouncement: (id, updates) => {

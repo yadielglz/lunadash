@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
-import { supabase, dbGetEmployees, dbGetShifts, dbGetScheduleBlocks, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetStores, dbGetTasks } from '../lib/supabase'
+import { supabase, dbGetEmployees, dbGetShifts, dbGetScheduleBlocks, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetStores, dbGetTasks, GLOBAL_ANNOUNCEMENT_STORE_ID } from '../lib/supabase'
 import { useScheduleStore } from '../store/scheduleStore'
 import { useScheduleBlocksStore } from '../store/scheduleBlocksStore'
 import { useGoalsStore } from '../store/goalsStore'
@@ -112,6 +112,10 @@ function sortScheduleBlocks(blocks: ScheduleBlock[]) {
   })
 }
 
+function uniqueAnnouncements(announcements: Announcement[]) {
+  return Array.from(new Map(announcements.map((announcement) => [announcement.id, announcement])).values())
+}
+
 const goalFromRow = (r: GoalRow): Goal => ({
   id: r.id,
   storeId: r.store_id,
@@ -192,7 +196,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         scheduleBlocksInit(sortScheduleBlocks(blockSets.flat()))
         goalsInit(goalSets.flat())
         displayInit(
-          announcementSets.flat(),
+          uniqueAnnouncements(announcementSets.flat()),
           settings ?? { company_name: 'Luna Store', store_number: '', slide_interval: 8 }
         )
         if (shouldSyncTasks) tasksInit(taskSets.flat())
@@ -272,17 +276,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       })
 
       // Announcements
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, (p) => {
         const a = announcementFromRow(p.new as AnnouncementRow)
+        if (!isMain && a.storeId !== storeId && a.storeId !== GLOBAL_ANNOUNCEMENT_STORE_ID) return
         useDisplayStore.setState((s) => ({ announcements: [...s.announcements.filter((x) => x.id !== a.id), a] }))
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'announcements', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'announcements' }, (p) => {
         const a = announcementFromRow(p.new as AnnouncementRow)
+        if (!isMain && a.storeId !== storeId && a.storeId !== GLOBAL_ANNOUNCEMENT_STORE_ID) return
         useDisplayStore.setState((s) => ({ announcements: s.announcements.map((x) => x.id === a.id ? a : x) }))
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'announcements' }, (p) => {
         const old = p.old as StoreScopedRow
-        if (!isMain && old.store_id !== storeId) return
+        if (!isMain && old.store_id !== storeId && old.store_id !== GLOBAL_ANNOUNCEMENT_STORE_ID) return
         useDisplayStore.setState((s) => ({ announcements: s.announcements.filter((x) => x.id !== old.id) }))
       })
 

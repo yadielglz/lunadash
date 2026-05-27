@@ -10,7 +10,7 @@ import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, WeekStartDay } from '../../../store/schedulePreferencesStore'
-import { dbCheckSchemaHealth, dbDeleteSettings, dbForceEodSnapshot, dbGetGoals, dbGetStores, dbUpdateSettings, StoreSummary } from '../../../lib/supabase'
+import { dbCheckSchemaHealth, dbDeleteSettings, dbForceEodSnapshot, dbGetGoals, dbGetStores, dbUpdateSettings, GLOBAL_ANNOUNCEMENT_STORE_ID, StoreSummary } from '../../../lib/supabase'
 import { Input, Select } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 import { APP_META } from '../../../config/appMeta'
@@ -262,15 +262,27 @@ function DisplaySettingsSection() {
 // ── Announcements section ────────────────────────────────────────────────────
 function AnnouncementsSection() {
   const { announcements, addAnnouncement, removeAnnouncement } = useDisplayStore()
+  const { accessRole, storeId } = useUiStore()
   const [draft, setDraft] = useState('')
   const [priority, setPriority] = useState<'normal' | 'important' | 'urgent'>('normal')
   const [startAt, setStartAt] = useState(new Date().toISOString().split('T')[0])
   const [endAt, setEndAt] = useState('')
+  const [targetStoreId, setTargetStoreId] = useState(GLOBAL_ANNOUNCEMENT_STORE_ID)
+  const [stores, setStores] = useState<StoreSummary[]>([])
   const PCOLS = { normal: '#0078d4', important: '#f7630c', urgent: '#e74856' }
+  const canChooseTarget = accessRole === 'admin' || accessRole === 'district_manager'
+
+  useEffect(() => {
+    if (!canChooseTarget) return
+    dbGetStores()
+      .then((rows) => setStores(rows.filter((store) => normalizeStoreId(store.store_id) !== 'main')))
+      .catch(() => setStores([]))
+  }, [canChooseTarget])
 
   const add = () => {
     if (!draft.trim()) return
-    addAnnouncement(draft.trim(), priority, { startAt: startAt || undefined, endAt: endAt || undefined })
+    const target = canChooseTarget ? targetStoreId : normalizeStoreId(storeId)
+    addAnnouncement(draft.trim(), priority, { startAt: startAt || undefined, endAt: endAt || undefined }, target)
     setDraft('')
     setPriority('normal')
     setStartAt(new Date().toISOString().split('T')[0])
@@ -291,6 +303,20 @@ function AnnouncementsSection() {
           <Input label="Starts" type="date" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
           <Input label="Ends" type="date" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
         </div>
+        {canChooseTarget && (
+          <Select
+            label="Send To"
+            value={targetStoreId}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTargetStoreId(e.target.value)}
+          >
+            <option value={GLOBAL_ANNOUNCEMENT_STORE_ID}>All Stores</option>
+            {stores.map((store) => (
+              <option key={store.store_id} value={normalizeStoreId(store.store_id)}>
+                {store.company_name || 'Luna Store'}{store.store_number ? ` #${store.store_number}` : ''} ({store.store_id})
+              </option>
+            ))}
+          </Select>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {(['normal', 'important', 'urgent'] as const).map((p) => (
@@ -317,7 +343,7 @@ function AnnouncementsSection() {
             <div className="w-2 h-2 rounded-full mt-1 flex-shrink-0" style={{ background: PCOLS[a.priority] }} />
             <p className="flex-1 text-sm text-[var(--text)]">{a.text}</p>
             <span className="text-[10px] text-[var(--text-tertiary)]">
-              {a.startAt || 'Now'} - {a.endAt || 'No end'}
+              {a.storeId === GLOBAL_ANNOUNCEMENT_STORE_ID ? 'All Stores' : a.storeId || storeId} · {a.startAt || 'Now'} - {a.endAt || 'No end'}
             </span>
             <span
               className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 capitalize"

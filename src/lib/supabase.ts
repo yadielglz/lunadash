@@ -15,6 +15,8 @@ export const supabase = createClient(
   'sb_publishable_NzT-BI3Yy3ahV_WNx4X-_A_bhVz4l1X'
 )
 
+export const GLOBAL_ANNOUNCEMENT_STORE_ID = 'ALL'
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type DbGoal = {
@@ -775,7 +777,7 @@ export async function dbForceEodSnapshot(): Promise<{ message: string; updated: 
 export async function dbGetAnnouncements(storeId: string): Promise<Announcement[]> {
   const sid = normalizeStoreId(storeId)
   const { data, error } = await supabase
-    .from('announcements').select('*').eq('store_id', sid).order('created_at')
+    .from('announcements').select('*').in('store_id', [sid, GLOBAL_ANNOUNCEMENT_STORE_ID]).order('created_at')
   throwIfError(error, 'Could not load announcements')
   return (data ?? []).map(dbToAnnouncement)
 }
@@ -785,7 +787,7 @@ function dbToAnnouncement(r: DbAnnouncement): Announcement {
 }
 
 export async function dbInsertAnnouncement(a: Announcement, storeId: string) {
-  const sid = normalizeStoreId(storeId)
+  const sid = storeId === GLOBAL_ANNOUNCEMENT_STORE_ID ? GLOBAL_ANNOUNCEMENT_STORE_ID : normalizeStoreId(storeId)
   const row = {
     id: a.id, store_id: sid, text: a.text, priority: a.priority,
     start_at: a.startAt ?? null, end_at: a.endAt ?? null,
