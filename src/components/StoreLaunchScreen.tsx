@@ -23,6 +23,7 @@ function isValidLoginCode(value: string) {
 
 export function StoreLaunchScreen() {
   const setAccessSession = useUiStore((s) => s.setAccessSession)
+  const theme = useUiStore((s) => s.theme)
   const [dealerPlaceholder] = useState(() => DEALER_PLACEHOLDERS[Math.floor(Math.random() * DEALER_PLACEHOLDERS.length)])
   const [showLogin, setShowLogin] = useState(false)
   const [dealerCode, setDealerCode] = useState('')
@@ -32,6 +33,7 @@ export function StoreLaunchScreen() {
   const [selectedStoreId, setSelectedStoreId] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const darkLogin = theme === 'dark' || theme === 'vista'
 
   const completeLogin = (access: StoreAccessCode, accessMode: AccessMode, storeId: string) => {
     setAccessSession({
@@ -129,18 +131,18 @@ export function StoreLaunchScreen() {
     >
       <div className="absolute inset-0 bg-black/55" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,122,216,0.18),transparent_45%)]" />
-      <div className="relative flex max-h-[calc(100vh-48px)] w-full max-w-md flex-col overflow-hidden rounded-xl border border-white/35 bg-[rgba(238,247,255,0.88)] shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-md">
-        <div className="relative px-6 pt-7 pb-5 border-b border-slate-900/12 bg-[rgba(255,255,255,0.42)]">
+      <div className={`login-card ${darkLogin ? 'login-card-dark' : 'login-card-light'} relative flex max-h-[calc(100vh-48px)] w-full max-w-md flex-col overflow-hidden rounded-xl shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-md`}>
+        <div className="login-card-header relative px-6 pt-7 pb-5 border-b">
           <div className="absolute inset-x-0 top-0 h-1 bg-[var(--accent)]" />
           <div className="flex flex-col items-center text-center">
-            <LunaWirelessLogo className="h-20 w-52" />
+            <LunaWirelessLogo className="h-20 w-52" tone={darkLogin ? 'dark-surface' : 'light-surface'} />
             <div className="mt-4 flex items-center justify-center gap-2">
               <span className="h-8 w-8 rounded-lg bg-[var(--accent)]/12 text-[var(--accent)] flex items-center justify-center">
                 <KeyRound size={16} />
               </span>
               <div className="text-left">
-                <h1 className="text-lg font-semibold text-slate-950">LunaDash Access</h1>
-                <p className="text-xs text-slate-600">{showLogin || pendingAccess ? 'Enter your store login and 4-digit PIN.' : 'Store workspace and display access.'}</p>
+                <h1 className="text-lg font-semibold text-[var(--text)]">LunaDash Access</h1>
+                <p className="text-xs text-[var(--text-secondary)]">{showLogin || pendingAccess ? 'Enter your store login and 4-digit PIN.' : 'Store workspace and display access.'}</p>
               </div>
             </div>
           </div>
@@ -149,9 +151,9 @@ export function StoreLaunchScreen() {
         <div className="min-h-0 overflow-y-auto p-6 space-y-4">
           {pendingAccess ? (
             <>
-              <div className="rounded-lg border border-slate-900/15 bg-white px-4 py-3 shadow-sm">
-                <p className="text-sm font-semibold text-slate-950">Choose store</p>
-                <p className="mt-1 text-xs text-slate-600">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] px-4 py-3 shadow-sm">
+                <p className="text-sm font-semibold text-[var(--text)]">Choose store</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">
                   {pendingAccess.access.label || 'Access session'} · {accessRoleLabel(pendingAccess.access.role)}
                 </p>
               </div>
@@ -163,14 +165,14 @@ export function StoreLaunchScreen() {
                     className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
                       selectedStoreId === 'main'
                         ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_10px_26px_rgba(15,122,216,0.26)]'
-                        : 'border-slate-900/15 bg-white text-slate-950 shadow-sm hover:border-[var(--accent)]/45 hover:bg-blue-50'
+                        : 'border-[var(--border)] bg-[var(--surface-solid)] text-[var(--text)] shadow-sm hover:border-[var(--accent)]/45 hover:bg-[var(--surface-3)]'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <Store size={14} className={selectedStoreId === 'main' ? 'text-white' : 'text-[var(--accent)]'} />
                       <span className="text-sm font-semibold">Main Dashboard</span>
                     </div>
-                    <p className={`mt-1 text-xs ${selectedStoreId === 'main' ? 'text-white/82' : 'text-slate-600'}`}>All configured stores</p>
+                    <p className={`mt-1 text-xs ${selectedStoreId === 'main' ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>All configured stores</p>
                   </button>
                 )}
 
@@ -183,14 +185,14 @@ export function StoreLaunchScreen() {
                       className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
                         selected
                           ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_10px_26px_rgba(15,122,216,0.26)]'
-                          : 'border-slate-900/15 bg-white text-slate-950 shadow-sm hover:border-[var(--accent)]/45 hover:bg-blue-50'
+                          : 'border-[var(--border)] bg-[var(--surface-solid)] text-[var(--text)] shadow-sm hover:border-[var(--accent)]/45 hover:bg-[var(--surface-3)]'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className="truncate text-sm font-semibold">{store.company_name || store.store_id}</span>
-                        <span className={`font-mono text-xs ${selected ? 'text-white/82' : 'text-slate-500'}`}>{store.store_id}</span>
+                        <span className={`font-mono text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>{store.store_id}</span>
                       </div>
-                      <p className={`mt-1 text-xs ${selected ? 'text-white/82' : 'text-slate-600'}`}>
+                      <p className={`mt-1 text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>
                         {store.store_number ? `Store #${store.store_number}` : 'Configured store'}
                       </p>
                     </button>
@@ -210,7 +212,7 @@ export function StoreLaunchScreen() {
                       className={`rounded-lg border px-3 py-2 text-sm font-medium flex items-center justify-center gap-2 ${
                         mode === choice.id
                           ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
-                          : 'border-slate-900/15 text-slate-600 bg-white'
+                          : 'border-[var(--border)] text-[var(--text-secondary)] bg-[var(--surface-solid)]'
                       }`}
                     >
                       {choice.icon}
@@ -266,63 +268,63 @@ export function StoreLaunchScreen() {
             </>
           ) : (
             <>
-          <Input
-            label="Store ID / Login"
-            autoCapitalize="characters"
-            maxLength={20}
-            value={dealerCode}
-            onChange={(e) => {
-              setDealerCode(normalizeAccessCode(e.target.value))
-              setError('')
-            }}
-            placeholder={dealerPlaceholder}
-          />
-          <Input
-            label="PIN"
-            type="password"
-            inputMode="numeric"
-            maxLength={4}
-            value={pin}
-            onChange={(e) => {
-              setPin(e.target.value.replace(/\D/g, '').slice(0, 4))
-              setError('')
-            }}
-            onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') login() }}
-            placeholder="4-digit PIN"
-          />
+              <Input
+                label="Store ID / Login"
+                autoCapitalize="characters"
+                maxLength={20}
+                value={dealerCode}
+                onChange={(e) => {
+                  setDealerCode(normalizeAccessCode(e.target.value))
+                  setError('')
+                }}
+                placeholder={dealerPlaceholder}
+              />
+              <Input
+                label="PIN"
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={pin}
+                onChange={(e) => {
+                  setPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                  setError('')
+                }}
+                onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') login() }}
+                placeholder="4-digit PIN"
+              />
 
-          {error && <p className="text-xs text-red-400">{error}</p>}
+              {error && <p className="text-xs text-red-400">{error}</p>}
 
-          <Button
-            className="w-full"
-            variant="primary"
-            icon={<ShieldCheck size={14} />}
-            loading={isLoading}
-            onClick={login}
-            disabled={!isValidLoginCode(dealerCode) || pin.length !== 4}
-          >
-            Continue
-          </Button>
-          <Button
-            className="w-full"
-            variant="ghost"
-            onClick={() => {
-              setShowLogin(false)
-              setDealerCode('')
-              setPin('')
-              setError('')
-            }}
-          >
-            Cancel
-          </Button>
+              <Button
+                className="w-full"
+                variant="primary"
+                icon={<ShieldCheck size={14} />}
+                loading={isLoading}
+                onClick={login}
+                disabled={!isValidLoginCode(dealerCode) || pin.length !== 4}
+              >
+                Continue
+              </Button>
+              <Button
+                className="w-full"
+                variant="ghost"
+                onClick={() => {
+                  setShowLogin(false)
+                  setDealerCode('')
+                  setPin('')
+                  setError('')
+                }}
+              >
+                Cancel
+              </Button>
             </>
           )}
 
-          <div className="border-t border-slate-900/12 pt-3 text-center">
-            <p className="text-[10px] text-slate-500">
+          <div className="border-t border-[var(--border)] pt-3 text-center">
+            <p className="text-[10px] text-[var(--text-tertiary)]">
               {APP_META.name} ver {APP_META.version} · Build {APP_META.build}
             </p>
-            <p className="text-[10px] text-slate-500 mt-0.5">{APP_META.copyright}</p>
+            <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">{APP_META.copyright}</p>
           </div>
         </div>
       </div>

@@ -1,11 +1,19 @@
 import { useUiStore } from '../../store/uiStore'
 
-const LIGHT_LOGO_URL = 'https://i.ibb.co/0VV31yHP/lunawirelesslight.png'
-const DARK_LOGO_URL = 'https://i.ibb.co/3yM10KZS/lwirelessdark.png'
+const COLORED_LOGO_URL = 'https://i.ibb.co/0VV31yHP/lunawirelesslight.png'
+const WHITE_LOGO_URL = 'https://i.ibb.co/3yM10KZS/lwirelessdark.png'
 
-export function LunaWirelessLogo({ className = '' }: { className?: string }) {
+type LogoTone = 'auto' | 'light-surface' | 'dark-surface'
+
+export function LunaWirelessLogo({ className = '', tone = 'auto' }: { className?: string; tone?: LogoTone }) {
   const theme = useUiStore((s) => s.theme)
-  const logoUrl = theme === 'dark' ? DARK_LOGO_URL : LIGHT_LOGO_URL
+  const logoUrl = tone === 'light-surface'
+    ? COLORED_LOGO_URL
+    : tone === 'dark-surface'
+      ? WHITE_LOGO_URL
+      : theme === 'dark' || theme === 'vista'
+        ? WHITE_LOGO_URL
+        : COLORED_LOGO_URL
 
   return (
     <img

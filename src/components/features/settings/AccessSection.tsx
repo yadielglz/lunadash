@@ -66,7 +66,7 @@ export function AccessSection() {
       loadCodes()
       if (canCreateAccess) loadStores()
     }
-  }, [canManageAccess])
+  }, [canManageAccess, canCreateAccess])
 
   const toggleAssignedStore = (id: string, editing = false) => {
     const normalized = normalizeStoreId(id)

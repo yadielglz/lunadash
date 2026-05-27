@@ -377,6 +377,41 @@ body::after {
     inset 0 1px rgba(255,255,255,0.82),
     0 1px 12px rgba(15, 23, 42, 0.06);
 }
+.login-card {
+  border: 1px solid rgba(255,255,255,0.35);
+}
+.login-card-light {
+  --surface: rgba(238,247,255,0.9);
+  --surface-2: rgba(255,255,255,0.45);
+  --surface-3: #eff6ff;
+  --surface-solid: #ffffff;
+  --border: rgba(15,23,42,0.14);
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --input-bg: rgba(255,255,255,0.92);
+  background: var(--surface);
+}
+.login-card-dark {
+  --surface: rgba(13, 37, 64, 0.82);
+  --surface-2: rgba(255,255,255,0.08);
+  --surface-3: rgba(255,255,255,0.14);
+  --surface-solid: rgba(255,255,255,0.94);
+  --border: rgba(255,255,255,0.18);
+  --text: rgba(255,255,255,0.95);
+  --text-secondary: rgba(255,255,255,0.74);
+  --text-tertiary: rgba(255,255,255,0.58);
+  --input-bg: rgba(6, 14, 26, 0.88);
+  background: var(--surface);
+}
+.login-card-dark .login-card-header {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.14);
+}
+.login-card-light .login-card-header {
+  background: rgba(255,255,255,0.42);
+  border-color: rgba(15,23,42,0.12);
+}
 .vista .chrome-bar {
   box-shadow:
     inset 0 1px rgba(255,255,255,0.56),
