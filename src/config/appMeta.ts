@@ -1,6 +1,6 @@
 export const APP_META = {
   name: 'LunaDash',
-  version: '5.2.4',
+  version: '5.2.5',
   build: '26526.2051',
   copyright: '© 2026 Glz Technical Services | Glz Tech',
   supportEmail: 'service@glztech.com',
@@ -9,6 +9,6 @@ export const APP_META = {
     'Updated Store Icons with Luna Wireless',
     'Automated End of Day Performance Snapshots via Supabase Edge Functions.',
     'Normalized store IDs and access codes to uppercase across login and sync.',
-    'Cleaned store access routing so assigned stores load their saved data.',
+    'Scheduling Roles, Blocks, Timing adjustments.',
   ],
 } as const

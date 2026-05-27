@@ -32,6 +32,11 @@ export function ShiftModal({ open, onClose, initialDate, initialEmployeeId, edit
   const [employeeId, setEmployeeId] = useState(employees[0]?.id ?? '')
   const [date, setDate]             = useState(initialDate ?? new Date().toISOString().split('T')[0])
   const [blockId, setBlockId]       = useState(blocks[0]?.id ?? '')
+  const [manualTime, setManualTime] = useState(false)
+  const [manualName, setManualName] = useState('')
+  const [manualStartTime, setManualStartTime] = useState('09:00')
+  const [manualEndTime, setManualEndTime] = useState('17:00')
+  const [manualNote, setManualNote] = useState('')
   const sortedBlocks = useMemo(
     () => [...blocks].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
     [blocks]
@@ -49,23 +54,47 @@ export function ShiftModal({ open, onClose, initialDate, initialEmployeeId, edit
       setEmployeeId(editShift.employeeId)
       setDate(editShift.date)
       setBlockId(matchingBlock?.id ?? '')
+      setManualTime(!matchingBlock)
+      setManualName(editShift.type)
+      setManualStartTime(editShift.startTime)
+      setManualEndTime(editShift.endTime)
+      setManualNote(editShift.note ?? '')
     } else {
       setEmployeeId(initialEmployeeId || employees[0]?.id || '')
       setDate(initialDate ?? new Date().toISOString().split('T')[0])
       setBlockId(sortedBlocks[0]?.id ?? '')
+      setManualTime(false)
+      setManualName(sortedBlocks[0]?.name ?? 'Custom')
+      setManualStartTime(sortedBlocks[0]?.startTime ?? '09:00')
+      setManualEndTime(sortedBlocks[0]?.endTime ?? '17:00')
+      setManualNote(sortedBlocks[0]?.note ?? '')
     }
   }, [editShift, initialDate, initialEmployeeId, employees, open, sortedBlocks])
 
+  useEffect(() => {
+    if (!selectedBlock || manualTime) return
+    setManualName(selectedBlock.name)
+    setManualStartTime(selectedBlock.startTime)
+    setManualEndTime(selectedBlock.endTime)
+    setManualNote(selectedBlock.note)
+  }, [selectedBlock, manualTime])
+
   const handleSave = () => {
     const block = selectedBlock ?? (editShift ? legacyBlockForShift(editShift) : undefined)
-    if (!employeeId || !date || !block) return
+    if (!employeeId || !date) return
+    if (!manualTime && !block) return
+    const shiftName = manualTime ? manualName.trim() : block?.name
+    const startTime = manualTime ? manualStartTime : block?.startTime
+    const endTime = manualTime ? manualEndTime : block?.endTime
+    const note = manualTime ? manualNote.trim() : block?.note
+    if (!shiftName || !startTime || !endTime) return
     const data = {
       employeeId,
       date,
-      startTime: block.startTime,
-      endTime: block.endTime,
-      type: block.name,
-      note: block.note || undefined,
+      startTime,
+      endTime,
+      type: shiftName,
+      note: note || undefined,
     }
     if (editShift) updateShift(editShift.id, data)
     else addShift(data)
@@ -98,7 +127,26 @@ export function ShiftModal({ open, onClose, initialDate, initialEmployeeId, edit
           ))}
         </Select>
 
-        {displayBlock ? (
+        <label className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+          <input
+            type="checkbox"
+            checked={manualTime}
+            onChange={(e) => setManualTime(e.target.checked)}
+            className="accent-[var(--accent)]"
+          />
+          Manually edit this shift's time
+        </label>
+
+        {manualTime ? (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-3 space-y-3">
+            <Input label="Shift Name" value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="e.g. Mid" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Start Time" type="time" value={manualStartTime} onChange={(e) => setManualStartTime(e.target.value)} />
+              <Input label="End Time" type="time" value={manualEndTime} onChange={(e) => setManualEndTime(e.target.value)} />
+            </div>
+            <Input label="Note" value={manualNote} onChange={(e) => setManualNote(e.target.value)} placeholder="Optional note" />
+          </div>
+        ) : displayBlock ? (
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: displayBlock.color }} />
@@ -122,7 +170,7 @@ export function ShiftModal({ open, onClose, initialDate, initialEmployeeId, edit
           )}
           <div className="flex gap-2">
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button variant="primary" onClick={handleSave} disabled={!selectedBlock && !editShift}>
+            <Button variant="primary" onClick={handleSave} disabled={manualTime ? !manualName.trim() || !manualStartTime || !manualEndTime : (!selectedBlock && !editShift)}>
               {editShift ? 'Update' : 'Add Shift'}
             </Button>
           </div>
