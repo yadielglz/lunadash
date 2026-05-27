@@ -34,6 +34,7 @@ export function StoreLaunchScreen() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const darkLogin = theme === 'dark' || theme === 'vista'
+  const compactLogin = Boolean(pendingAccess)
 
   const completeLogin = (access: StoreAccessCode, accessMode: AccessMode, storeId: string) => {
     setAccessSession({
@@ -132,12 +133,12 @@ export function StoreLaunchScreen() {
       <div className="absolute inset-0 bg-black/55" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,122,216,0.18),transparent_45%)]" />
       <div className={`login-card ${darkLogin ? 'login-card-dark' : 'login-card-light'} relative flex max-h-[calc(100vh-48px)] w-full max-w-md flex-col overflow-hidden rounded-xl shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-md`}>
-        <div className="login-card-header relative px-6 pt-7 pb-5 border-b">
+        <div className={`login-card-header relative border-b px-6 ${compactLogin ? 'pt-5 pb-4' : 'pt-7 pb-5'}`}>
           <div className="absolute inset-x-0 top-0 h-1 bg-[var(--accent)]" />
           <div className="flex flex-col items-center text-center">
-            <LunaWirelessLogo className="h-20 w-52" tone={darkLogin ? 'dark-surface' : 'light-surface'} />
-            <div className="mt-4 flex items-center justify-center gap-2">
-              <span className="h-8 w-8 rounded-lg bg-[var(--accent)]/12 text-[var(--accent)] flex items-center justify-center">
+            <LunaWirelessLogo className={compactLogin ? 'h-16 w-44' : 'h-20 w-52'} tone={darkLogin ? 'dark-surface' : 'light-surface'} />
+            <div className={`${compactLogin ? 'mt-3' : 'mt-4'} flex items-center justify-center gap-2`}>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)]/12 text-[var(--accent)]">
                 <KeyRound size={16} />
               </span>
               <div className="text-left">
@@ -148,21 +149,21 @@ export function StoreLaunchScreen() {
           </div>
         </div>
 
-        <div className="min-h-0 overflow-y-auto p-6 space-y-4">
+        <div className={`${compactLogin ? 'space-y-3 p-5' : 'space-y-4 p-6'} min-h-0 overflow-y-auto`}>
           {pendingAccess ? (
             <>
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] px-4 py-3 shadow-sm">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] px-3.5 py-2.5 shadow-sm">
                 <p className="text-sm font-semibold text-[var(--text)]">Choose store</p>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                   {pendingAccess.access.label || 'Access session'} · {accessRoleLabel(pendingAccess.access.role)}
                 </p>
               </div>
 
-              <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+              <div className="max-h-[300px] space-y-2 overflow-y-auto pr-1">
                 {pendingAccess.access.role === 'admin' && (
                   <button
                     onClick={() => setSelectedStoreId('main')}
-                    className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
+                    className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
                       selectedStoreId === 'main'
                         ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_10px_26px_rgba(15,122,216,0.26)]'
                         : 'border-[var(--border)] bg-[var(--surface-solid)] text-[var(--text)] shadow-sm hover:border-[var(--accent)]/45 hover:bg-[var(--surface-3)]'
@@ -172,7 +173,7 @@ export function StoreLaunchScreen() {
                       <Store size={14} className={selectedStoreId === 'main' ? 'text-white' : 'text-[var(--accent)]'} />
                       <span className="text-sm font-semibold">Main Dashboard</span>
                     </div>
-                    <p className={`mt-1 text-xs ${selectedStoreId === 'main' ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>All configured stores</p>
+                    <p className={`mt-0.5 text-xs ${selectedStoreId === 'main' ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>All configured stores</p>
                   </button>
                 )}
 
@@ -182,7 +183,7 @@ export function StoreLaunchScreen() {
                     <button
                       key={store.store_id}
                       onClick={() => setSelectedStoreId(store.store_id)}
-                      className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
+                      className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
                         selected
                           ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_10px_26px_rgba(15,122,216,0.26)]'
                           : 'border-[var(--border)] bg-[var(--surface-solid)] text-[var(--text)] shadow-sm hover:border-[var(--accent)]/45 hover:bg-[var(--surface-3)]'
@@ -192,7 +193,7 @@ export function StoreLaunchScreen() {
                         <span className="truncate text-sm font-semibold">{store.company_name || store.store_id}</span>
                         <span className={`font-mono text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>{store.store_id}</span>
                       </div>
-                      <p className={`mt-1 text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>
+                      <p className={`mt-0.5 text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>
                         {store.store_number ? `Store #${store.store_number}` : 'Configured store'}
                       </p>
                     </button>
@@ -224,7 +225,7 @@ export function StoreLaunchScreen() {
 
               {error && <p className="text-xs text-red-400">{error}</p>}
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-1">
                 <Button
                   className="flex-1"
                   variant="ghost"

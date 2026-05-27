@@ -395,8 +395,8 @@ body::after {
 .login-card-dark {
   --surface: rgba(13, 37, 64, 0.82);
   --surface-2: rgba(255,255,255,0.08);
-  --surface-3: rgba(255,255,255,0.14);
-  --surface-solid: rgba(255,255,255,0.94);
+  --surface-3: rgba(255,255,255,0.16);
+  --surface-solid: rgba(255,255,255,0.10);
   --border: rgba(255,255,255,0.18);
   --text: rgba(255,255,255,0.95);
   --text-secondary: rgba(255,255,255,0.74);
