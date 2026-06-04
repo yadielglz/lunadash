@@ -9,6 +9,7 @@ import { useUiStore } from './store/uiStore'
 import { useLockStore, hashPin } from './store/lockStore'
 import { isAnnouncementActive, useDisplayStore } from './store/displayStore'
 import { useTheme } from './hooks/useTheme'
+import { useEodSnapshotScheduler } from './hooks/useEodSnapshotScheduler'
 import { canAccessTab, defaultTabForRole } from './lib/accessControl'
 
 const DEFAULT_PIN = '6974'
@@ -88,6 +89,7 @@ export default function App() {
   const { pinHash } = useLockStore()
   const [devicesUnlocked, setDevicesUnlocked] = useState(false)
   useTheme()
+  useEodSnapshotScheduler(Boolean(storeId))
 
   const { theme } = useUiStore()
   useEffect(() => {

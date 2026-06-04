@@ -5,6 +5,8 @@ import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input } from '../../ui/Input'
 import { Modal } from '../../ui/Modal'
+import { useUiStore } from '../../../store/uiStore'
+import { normalizeStoreId } from '../../../lib/storeIds'
 import {
   fetchPerformanceData,
   formatMoney,
@@ -28,6 +30,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 ]
 
 const SHEET_REFRESH_MS = 60_000
+const MAIN_STORE_ID = 'main'
 
 function metricColor(value: number, warning = 80) {
   if (value >= 100) return '#16c60c'
@@ -230,6 +233,7 @@ function StoreDetailModal({ row, updated, onClose }: { row: PerformanceRow | nul
 }
 
 export function PerformancePage() {
+  const storeId = useUiStore((s) => s.storeId)
   const [data, setData] = useState<PerformanceData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -265,6 +269,18 @@ export function PerformancePage() {
     if (freshRow) setSelectedStore(freshRow)
   }, [data?.rows, selectedStore])
 
+  const currentStoreId = normalizeStoreId(storeId || MAIN_STORE_ID)
+  const isMainDashboard = currentStoreId === MAIN_STORE_ID
+  const storeRow = useMemo(() => (
+    data?.rows.find((row) => normalizeStoreId(row.storeCode) === currentStoreId) ?? null
+  ), [currentStoreId, data?.rows])
+  const storeRank = useMemo(() => {
+    if (!storeRow || !data?.rows.length) return null
+    const sorted = [...data.rows].sort((a, b) => b.netRevenue - a.netRevenue)
+    const index = sorted.findIndex((row) => normalizeStoreId(row.storeCode) === currentStoreId)
+    return index >= 0 ? index + 1 : null
+  }, [currentStoreId, data?.rows, storeRow])
+
   const filteredRows = useMemo(() => {
     const rows = data?.rows ?? []
     const q = query.trim().toLowerCase()
@@ -294,6 +310,8 @@ export function PerformancePage() {
   }, [data?.rows])
 
   const total = data?.total
+  const focusedTotal = isMainDashboard ? total : storeRow
+  const focusedDealer = storeRow ? dealerInfoForRow(storeRow) : null
   const updated = data?.updatedAt
     ? new Date(data.updatedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
     : ''
@@ -314,22 +332,24 @@ export function PerformancePage() {
           <div className="min-w-0">
             <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
               <BarChart3 size={18} className="text-[var(--accent)]" />
-              Phoenix Performance
+              {isMainDashboard ? 'Phoenix Performance' : `${focusedDealer?.nickname ?? currentStoreId} Performance`}
             </h1>
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              Source{updated ? ` · refreshed ${updated}` : ''} · auto-refreshes every 60s
+              Source metrics{updated ? ` · refreshed ${updated}` : ''} · auto-refreshes every 60s
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative min-w-0 sm:w-64">
-              <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
-              <Input
-                className="pl-8"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search stores"
-              />
-            </div>
+            {isMainDashboard && (
+              <div className="relative min-w-0 sm:w-64">
+                <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+                <Input
+                  className="pl-8"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search stores"
+                />
+              </div>
+            )}
             <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={() => loadData()} loading={loading}>
               Refresh
             </Button>
@@ -355,29 +375,74 @@ export function PerformancePage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <SummaryTile
                 label="Net Revenue"
-                value={total ? formatMoney(total.netRevenue) : '$0'}
-                helper={total ? goalHelper(total.netRevenuePct) : 'No total row found'}
-                tone={total ? metricColor(total.netRevenuePct) : undefined}
+                value={focusedTotal ? formatMoney(focusedTotal.netRevenue) : '$0'}
+                helper={focusedTotal ? goalHelper(focusedTotal.netRevenuePct) : 'No Source row found'}
+                tone={focusedTotal ? metricColor(focusedTotal.netRevenuePct) : undefined}
               />
               <SummaryTile
                 label="Accessories"
-                value={total ? formatMoney(total.accessoryRevenue) : '$0'}
-                helper={total ? goalHelper(total.accessoryPct) : 'No total row found'}
-                tone={total ? metricColor(total.accessoryPct) : undefined}
+                value={focusedTotal ? formatMoney(focusedTotal.accessoryRevenue) : '$0'}
+                helper={focusedTotal ? goalHelper(focusedTotal.accessoryPct) : 'No Source row found'}
+                tone={focusedTotal ? metricColor(focusedTotal.accessoryPct) : undefined}
               />
               <SummaryTile
                 label="Total PP"
-                value={total ? formatNumber(total.totalPp) : '0'}
-                helper={total ? goalHelper(total.ppPct) : 'No total row found'}
-                tone={total ? metricColor(total.ppPct) : undefined}
+                value={focusedTotal ? formatNumber(focusedTotal.totalPp) : '0'}
+                helper={focusedTotal ? goalHelper(focusedTotal.ppPct) : 'No Source row found'}
+                tone={focusedTotal ? metricColor(focusedTotal.ppPct) : undefined}
               />
               <SummaryTile
-                label="Traffic"
-                value={total ? formatNumber(total.traffic) : '0'}
-                helper={total ? `${formatPercent(total.postConv)} post conversion` : 'No total row found'}
+                label={isMainDashboard ? 'Traffic' : 'Store Rank'}
+                value={isMainDashboard ? (focusedTotal ? formatNumber(focusedTotal.traffic) : '0') : (storeRank ? `#${storeRank}` : '-')}
+                helper={focusedTotal ? `${formatPercent(focusedTotal.postConv)} post conversion` : 'No Source row found'}
               />
             </div>
 
+            {!isMainDashboard && storeRow && (
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <Card noPadding className="overflow-hidden">
+                  <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+                    <div>
+                      <div className="text-sm font-semibold text-[var(--text)]">{focusedDealer?.location ?? storeRow.store}</div>
+                      <div className="text-xs text-[var(--text-tertiary)]">{storeRow.storeCode} · Same Source metrics, read-only in LunaDash</div>
+                    </div>
+                    <Badge color={metricColor(storeRow.netRevenuePct)}>{formatPercent(storeRow.netRevenuePct)}</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-3">
+                    <MetricPanel label="Net Rev Goal" value={formatMoney(storeRow.netRevenueGoal)} helper={`${formatMoney(Math.max(storeRow.netRevenueGoal - storeRow.netRevenue, 0))} left`} percent={storeRow.netRevenuePct} />
+                    <MetricPanel label="ACC Goal" value={formatMoney(storeRow.accessoryGoal)} helper={`${formatMoney(Math.max(storeRow.accessoryGoal - storeRow.accessoryRevenue, 0))} left`} percent={storeRow.accessoryPct} />
+                    <MetricPanel label="DORT Goal" value={formatNumber(storeRow.dortGoal)} helper={`${formatNumber(Math.max(storeRow.dortGoal - storeRow.totalPp, 0))} left`} percent={storeRow.ppPct} />
+                  </div>
+                </Card>
+                <Card noPadding className="overflow-hidden">
+                  <div className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text)]">Product Mix</div>
+                  <div className="grid grid-cols-2 gap-2 p-3">
+                    {[
+                      ['VL', storeRow.vl],
+                      ['BTS', storeRow.bts],
+                      ['HSI', storeRow.hsi],
+                      ['VISA', storeRow.visa],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+                        <div className="text-[10px] font-medium text-[var(--text-tertiary)]">{label}</div>
+                        <div className="mt-1 text-xl font-semibold tabular-nums text-[var(--text)]">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {!isMainDashboard && !storeRow && (
+              <Card>
+                <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                  <AlertCircle size={15} className="text-[#f7b731]" />
+                  No Source row was found for store ID {currentStoreId}.
+                </div>
+              </Card>
+            )}
+
+            {isMainDashboard && (
             <div className="grid grid-cols-1 gap-2 xl:grid-cols-3">
               <Card noPadding className="overflow-hidden">
                 <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
@@ -422,8 +487,9 @@ export function PerformancePage() {
                 </div>
               </Card>
             </div>
+            )}
 
-            {data?.summary && (
+            {isMainDashboard && data?.summary && (
               <Card className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <div className="text-xs text-[var(--text-tertiary)]">Net Rev Left</div>
@@ -440,6 +506,7 @@ export function PerformancePage() {
               </Card>
             )}
 
+            {isMainDashboard && (
             <Card noPadding className="overflow-hidden">
               <div className="flex flex-col gap-3 border-b border-[var(--border)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -531,6 +598,7 @@ export function PerformancePage() {
                 </table>
               </div>
             </Card>
+            )}
           </div>
         )}
       </div>
