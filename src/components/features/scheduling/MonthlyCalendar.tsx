@@ -12,6 +12,8 @@ export function MonthlyCalendar({ canEdit = false }: { canEdit?: boolean }) {
   const { employees, shifts } = useScheduleStore()
   const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
   const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
+  const showShiftNotes = useSchedulePreferencesStore((s) => s.showShiftNotes)
+  const compactSchedule = useSchedulePreferencesStore((s) => s.compactSchedule)
   const [current, setCurrent] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -84,7 +86,7 @@ export function MonthlyCalendar({ canEdit = false }: { canEdit?: boolean }) {
                 <div
                   key={dateStr}
                   onClick={() => setSelectedDate(isSelected ? null : dateStr)}
-                  className={`border-b border-r border-[var(--border)] p-1.5 min-h-[72px] cursor-pointer transition-colors ${
+                  className={`border-b border-r border-[var(--border)] p-1.5 ${compactSchedule ? 'min-h-[58px]' : 'min-h-[72px]'} cursor-pointer transition-colors ${
                     isSelected ? 'bg-[var(--accent)]/10' :
                     isToday ? 'bg-[var(--accent)]/5' :
                     !isCurrentMonth ? 'opacity-30' : 'hover:bg-[var(--reveal-bg)]'
@@ -174,7 +176,7 @@ export function MonthlyCalendar({ canEdit = false }: { canEdit?: boolean }) {
                           <div className="text-[10px] text-[var(--text-secondary)] mt-1">
                             {showShiftNames ? `${shift.type} · ` : ''}{formatShiftTime(shift.startTime, shift.endTime)}
                           </div>
-                          {shift.note && <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5 italic">{shift.note}</div>}
+                          {showShiftNotes && shift.note && <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5 italic">{shift.note}</div>}
                         </Card>
                       )
                     })

@@ -15,6 +15,7 @@ import { canAccessTab, defaultTabForRole } from './lib/accessControl'
 const DEFAULT_PIN = '6974'
 const SalesHomeDashboard = lazy(() => import('./components/features/performance/SalesHomeDashboard').then((m) => ({ default: m.SalesHomeDashboard })))
 const DevicesPage = lazy(() => import('./components/features/devices/DevicesPage').then((m) => ({ default: m.DevicesPage })))
+const EmployeesPage = lazy(() => import('./components/features/employees/EmployeesPage').then((m) => ({ default: m.EmployeesPage })))
 const SchedulePage = lazy(() => import('./components/features/scheduling/SchedulePage').then((m) => ({ default: m.SchedulePage })))
 const GoalsPage = lazy(() => import('./components/features/goals/GoalsPage').then((m) => ({ default: m.GoalsPage })))
 const PerformanceUpdatePage = lazy(() => import('./components/features/performance/PerformanceUpdatePage').then((m) => ({ default: m.PerformanceUpdatePage })))
@@ -194,6 +195,7 @@ export default function App() {
   const pages: Record<string, React.ReactNode> = {
     home:     <SalesHomeDashboard />,
     devices:  devicesContent,
+    employees: <EmployeesPage />,
     schedule: <SchedulePage />,
     goals:    <GoalsPage />,
     updates:  <PerformanceUpdatePage />,

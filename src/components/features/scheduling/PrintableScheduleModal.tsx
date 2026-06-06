@@ -41,6 +41,9 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
   const { employees, shifts } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
   const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
+  const showShiftNotes = useSchedulePreferencesStore((s) => s.showShiftNotes)
+  const showEmployeeRoles = useSchedulePreferencesStore((s) => s.showEmployeeRoles)
+  const compactSchedule = useSchedulePreferencesStore((s) => s.compactSchedule)
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const dates = days.map((day) => format(day, 'yyyy-MM-dd'))
@@ -92,7 +95,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
             <div class="shift" style="background:${hexToRgba(color, 0.1)};border-color:${hexToRgba(color, 0.28)};">
               ${showShiftNames ? `<div class="shift-name" style="color:${color};">${escapeHtml(shift.type)}</div>` : ''}
               <div class="shift-time">${formatShiftTime(shift.startTime, shift.endTime)}</div>
-              ${shift.note ? `<div class="shift-note">${escapeHtml(shift.note)}</div>` : ''}
+              ${showShiftNotes && shift.note ? `<div class="shift-note">${escapeHtml(shift.note)}</div>` : ''}
             </div>
           `
         }).join('')
@@ -104,7 +107,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
         <tr>
           <td class="employee">
             <div class="employee-name"><span style="background:${employee.color};"></span>${escapeHtml(employee.name)}</div>
-            <div class="employee-role">${escapeHtml(employee.role)}</div>
+            ${showEmployeeRoles ? `<div class="employee-role">${escapeHtml(employee.role)}</div>` : ''}
             ${employeeHours !== null ? `<div class="employee-hours">${formatHours(employeeHours)} hrs</div>` : ''}
           </td>
           ${cells}
@@ -170,11 +173,11 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
             th span { display: block; color: #475569; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
             th strong { display: block; color: #0f172a; font-size: 18px; line-height: 1.1; }
             td {
-              min-height: 78px;
+              min-height: ${compactSchedule ? '58px' : '78px'};
               vertical-align: top;
               border-top: 1px solid #e2e8f0;
               border-left: 1px solid #e2e8f0;
-              padding: 7px;
+              padding: ${compactSchedule ? '5px' : '7px'};
             }
             td:first-child { border-left: 0; }
             .employee { width: 190px; }
@@ -194,7 +197,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
             .shift {
               border: 1px solid;
               border-radius: 6px;
-              padding: 6px 7px;
+              padding: ${compactSchedule ? '4px 6px' : '6px 7px'};
               margin-bottom: 5px;
               break-inside: avoid;
             }
@@ -289,9 +292,9 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
                     <div className="border-t border-slate-200 px-3 py-3">
                       <div className="flex items-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full" style={{ background: employee.color }} />
-                        <div className="min-w-0">
+                      <div className="min-w-0">
                           <div className="text-sm font-bold leading-snug text-slate-950 break-words">{employee.name}</div>
-                          <div className="text-[11px] leading-snug text-slate-500 break-words">{employee.role}</div>
+                          {showEmployeeRoles && <div className="text-[11px] leading-snug text-slate-500 break-words">{employee.role}</div>}
                         </div>
                       </div>
                       {employeeHours !== null && (
@@ -306,7 +309,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
                       const dayShifts = employeeShifts.filter((shift) => shift.date === date)
 
                       return (
-                        <div key={`${employee.id}-${date}`} className="min-h-[86px] border-l border-t border-slate-200 p-2">
+                        <div key={`${employee.id}-${date}`} className={`${compactSchedule ? 'min-h-[64px] p-1.5' : 'min-h-[86px] p-2'} border-l border-t border-slate-200`}>
                           {dayShifts.length === 0 ? (
                             <div className="flex h-full items-center justify-center text-xs font-medium text-slate-300">Off</div>
                           ) : (
@@ -321,7 +324,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
                                   >
                                     {showShiftNames && <div className="text-xs font-bold" style={{ color }}>{shift.type}</div>}
                                     <div className="text-[11px] font-semibold text-slate-700">{formatShiftTime(shift.startTime, shift.endTime)}</div>
-                                    {shift.note && <div className="mt-0.5 text-[10px] text-slate-500">{shift.note}</div>}
+                                    {showShiftNotes && shift.note && <div className="mt-0.5 text-[10px] text-slate-500">{shift.note}</div>}
                                   </div>
                                 )
                               })}

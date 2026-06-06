@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { format, addDays, startOfWeek, isToday } from 'date-fns'
 import { AlertTriangle, ChevronLeft, ChevronRight, Copy, GripVertical, Plus, Printer, Save, Upload } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useScheduleStore, Shift, ShiftType } from '../../../store/scheduleStore'
+import { useScheduleStore, Shift } from '../../../store/scheduleStore'
 import { ShiftModal } from './ShiftModal'
 import { formatShiftTime, hexToRgba } from '../../../lib/utils'
 import { Modal } from '../../ui/Modal'
@@ -10,57 +10,14 @@ import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
 import { useScheduleBlocksStore } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore } from '../../../store/schedulePreferencesStore'
+import { shiftsToTemplateShifts, useScheduleTemplatesStore, type TemplateShift } from '../../../store/scheduleTemplatesStore'
 import { useUiStore } from '../../../store/uiStore'
 import { PrintableScheduleModal } from './PrintableScheduleModal'
 
-const TEMPLATE_KEY = 'luna-schedule-templates'
 const SCHEDULE_GRID_COLUMNS = '220px repeat(7, minmax(118px, 1fr))'
-
-type TemplateShift = {
-  employeeId: string
-  dayOffset: number
-  startTime: string
-  endTime: string
-  type: ShiftType
-  note?: string
-}
-
-type ScheduleTemplate = {
-  id: string
-  name: string
-  shifts: TemplateShift[]
-  createdAt: string
-}
-
-function loadTemplates(): ScheduleTemplate[] {
-  try {
-    const raw = localStorage.getItem(TEMPLATE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
-}
-
-function saveTemplates(templates: ScheduleTemplate[]) {
-  localStorage.setItem(TEMPLATE_KEY, JSON.stringify(templates))
-}
 
 function weekDates(weekStart: Date) {
   return Array.from({ length: 7 }, (_, i) => format(addDays(weekStart, i), 'yyyy-MM-dd'))
-}
-
-function shiftsToTemplateShifts(shifts: Shift[], weekStart: Date): TemplateShift[] {
-  const dates = weekDates(weekStart)
-  return shifts
-    .map((shift) => ({
-      employeeId: shift.employeeId,
-      dayOffset: dates.indexOf(shift.date),
-      startTime: shift.startTime,
-      endTime: shift.endTime,
-      type: shift.type,
-      note: shift.note,
-    }))
-    .filter((shift) => shift.dayOffset >= 0)
 }
 
 function templateShiftsToShifts(templateShifts: TemplateShift[], weekStart: Date): Omit<Shift, 'id'>[] {
@@ -84,37 +41,43 @@ function ScheduleTemplatesModal({
   weekStart: Date
 }) {
   const { employees, shifts, addShifts, removeShifts } = useScheduleStore()
-  const [templates, setTemplates] = useState<ScheduleTemplate[]>(loadTemplates)
+  const templates = useScheduleTemplatesStore((s) => s.templates)
+  const templatesLoaded = useScheduleTemplatesStore((s) => s.isLoaded)
+  const loadTemplates = useScheduleTemplatesStore((s) => s.loadTemplates)
+  const addTemplate = useScheduleTemplatesStore((s) => s.addTemplate)
+  const removeTemplate = useScheduleTemplatesStore((s) => s.removeTemplate)
   const [name, setName] = useState('')
   const [selectedId, setSelectedId] = useState('')
   const [replaceExisting, setReplaceExisting] = useState(true)
+  const [busy, setBusy] = useState(false)
 
   const dates = weekDates(weekStart)
   const weekShifts = shifts.filter((shift) => dates.includes(shift.date))
   const selectedTemplate = templates.find((template) => template.id === selectedId)
 
-  const persist = (next: ScheduleTemplate[]) => {
-    setTemplates(next)
-    saveTemplates(next)
-    if (next.length > 0 && !next.some((template) => template.id === selectedId)) {
-      setSelectedId(next[0].id)
-    }
-  }
+  useEffect(() => {
+    if (open) loadTemplates()
+  }, [loadTemplates, open])
 
-  const saveCurrentWeek = () => {
+  useEffect(() => {
+    if (templates.length > 0 && (!selectedId || !templates.some((template) => template.id === selectedId))) {
+      setSelectedId(templates[0].id)
+    }
+  }, [selectedId, templates])
+
+  const saveCurrentWeek = async () => {
     if (!name.trim() || weekShifts.length === 0) return
-    const next = [
-      {
-        id: crypto.randomUUID(),
+    setBusy(true)
+    try {
+      const template = await addTemplate({
         name: name.trim(),
-        shifts: shiftsToTemplateShifts(weekShifts, weekStart),
-        createdAt: new Date().toISOString(),
-      },
-      ...templates,
-    ]
-    persist(next)
-    setSelectedId(next[0].id)
-    setName('')
+        shifts: shiftsToTemplateShifts(weekShifts, dates),
+      })
+      setSelectedId(template.id)
+      setName('')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const applyTemplate = () => {
@@ -124,10 +87,15 @@ function ScheduleTemplatesModal({
     onClose()
   }
 
-  const deleteTemplate = () => {
+  const deleteTemplate = async () => {
     if (!selectedTemplate) return
-    persist(templates.filter((template) => template.id !== selectedTemplate.id))
-    setSelectedId('')
+    setBusy(true)
+    try {
+      await removeTemplate(selectedTemplate.id)
+      setSelectedId('')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -147,7 +115,7 @@ function ScheduleTemplatesModal({
               placeholder="Template name"
               onKeyDown={(e) => { if (e.key === 'Enter') saveCurrentWeek() }}
             />
-            <Button size="sm" icon={<Save size={12} />} onClick={saveCurrentWeek} disabled={!name.trim() || weekShifts.length === 0}>
+            <Button size="sm" icon={<Save size={12} />} onClick={saveCurrentWeek} disabled={!name.trim() || weekShifts.length === 0 || busy} loading={busy}>
               Save
             </Button>
           </div>
@@ -161,7 +129,9 @@ function ScheduleTemplatesModal({
             </p>
           </div>
 
-          {templates.length === 0 ? (
+          {!templatesLoaded ? (
+            <p className="text-xs text-[var(--text-tertiary)] py-2">Loading templates...</p>
+          ) : templates.length === 0 ? (
             <p className="text-xs text-[var(--text-tertiary)] py-2">No templates saved yet.</p>
           ) : (
             <>
@@ -183,7 +153,7 @@ function ScheduleTemplatesModal({
                 Replace shifts already scheduled in this week
               </label>
               <div className="flex items-center justify-between gap-2">
-                <Button variant="danger" size="sm" onClick={deleteTemplate} disabled={!selectedTemplate}>
+                <Button variant="danger" size="sm" onClick={deleteTemplate} disabled={!selectedTemplate || busy}>
                   Delete Template
                 </Button>
                 <Button variant="primary" size="sm" icon={<Upload size={12} />} onClick={applyTemplate} disabled={!selectedTemplate || employees.length === 0}>
@@ -208,6 +178,8 @@ function ShiftCard({
   hasConflict,
   canEdit,
   showShiftName,
+  showShiftNote,
+  compact,
   onClick,
   onDuplicate,
   onDragStart,
@@ -217,6 +189,8 @@ function ShiftCard({
   hasConflict: boolean
   canEdit: boolean
   showShiftName: boolean
+  showShiftNote: boolean
+  compact: boolean
   onClick: () => void
   onDuplicate: () => void
   onDragStart: () => void
@@ -232,7 +206,7 @@ function ShiftCard({
       whileTap={{ scale: 0.97 }}
       onClick={(e) => { e.stopPropagation(); onClick() }}
       onDragStart={(e) => { e.stopPropagation(); onDragStart() }}
-      className="w-full text-left rounded-xl px-2.5 py-2 transition-all"
+      className={`w-full text-left rounded-xl px-2.5 transition-all ${compact ? 'py-1.5' : 'py-2'}`}
       style={{
         background: hexToRgba(accentColor, 0.12),
         border: `1px solid ${hasConflict ? '#ef4444' : hexToRgba(accentColor, 0.25)}`,
@@ -272,6 +246,11 @@ function ShiftCard({
           {formatShiftTime(shift.startTime, shift.endTime)}
         </div>
       )}
+      {showShiftNote && shift.note && (
+        <div className="text-[10px] text-[var(--text-secondary)] mt-0.5 truncate">
+          {shift.note}
+        </div>
+      )}
     </motion.button>
   )
 }
@@ -281,6 +260,9 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const blocks = useScheduleBlocksStore((s) => s.blocks)
   const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
   const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
+  const showShiftNotes = useSchedulePreferencesStore((s) => s.showShiftNotes)
+  const showEmployeeRoles = useSchedulePreferencesStore((s) => s.showEmployeeRoles)
+  const compactSchedule = useSchedulePreferencesStore((s) => s.compactSchedule)
   const isMainDashboard = useUiStore((s) => s.storeId === 'main')
   const [weekOffset, setWeekOffset] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
@@ -316,7 +298,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
     if (previousWeekShifts.length === 0) return
     const shouldReplace = currentWeekShifts.length === 0 || window.confirm('Replace shifts already scheduled in this week?')
     if (shouldReplace) removeShifts(currentWeekShifts.map((shift) => shift.id))
-    addShifts(templateShiftsToShifts(shiftsToTemplateShifts(previousWeekShifts, previousWeekStart), weekStart))
+    addShifts(templateShiftsToShifts(shiftsToTemplateShifts(previousWeekShifts, previousWeekDates), weekStart))
   }
 
   const duplicateShift = (shift: Shift) => {
@@ -509,9 +491,11 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold leading-snug text-[var(--text)] break-words">{emp.name}</div>
-                    <div className="text-[10px] leading-snug text-[var(--text-tertiary)] break-words">
-                      {isMainDashboard && emp.storeId ? `${emp.storeId} · ` : ''}{emp.role}
-                    </div>
+                    {showEmployeeRoles && (
+                      <div className="text-[10px] leading-snug text-[var(--text-tertiary)] break-words">
+                        {isMainDashboard && emp.storeId ? `${emp.storeId} · ` : ''}{emp.role}
+                      </div>
+                    )}
                   </div>
                   {canEdit && (
                     <button
@@ -542,7 +526,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                       onClick={() => openAdd(dateStr, emp.id)}
                       onDragOver={(e) => { if (canEdit) e.preventDefault() }}
                       onDrop={(e) => { if (!canEdit) return; e.preventDefault(); dropShift(dateStr, emp.id) }}
-                      className={`group relative flex flex-col gap-1 p-1.5 rounded-lg min-h-[68px] transition-colors border ${canEdit ? 'cursor-pointer' : ''} ${
+                      className={`group relative flex flex-col gap-1 p-1.5 rounded-lg ${compactSchedule ? 'min-h-[50px]' : 'min-h-[68px]'} transition-colors border ${canEdit ? 'cursor-pointer' : ''} ${
                         today
                           ? 'bg-[var(--accent)]/5 border-[var(--accent)]/20'
                           : 'bg-[var(--surface-2)] border-[var(--border)] hover:border-[var(--accent)]/30 hover:bg-[var(--reveal-bg)]'
@@ -557,6 +541,8 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                             hasConflict={conflictIds.has(shift.id)}
                             canEdit={canEdit}
                             showShiftName={showShiftNames}
+                            showShiftNote={showShiftNotes}
+                            compact={compactSchedule}
                             onClick={() => openEdit(shift)}
                             onDuplicate={() => duplicateShift(shift)}
                             onDragStart={() => { if (canEdit) setDragShiftId(shift.id) }}

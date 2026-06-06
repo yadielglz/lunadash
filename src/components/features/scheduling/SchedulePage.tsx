@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowDown, ArrowUp, Calendar, GripVertical, LayoutGrid, Users, Trash2, Edit2, Save, Store, RefreshCw } from 'lucide-react'
+import { ArrowDown, ArrowUp, Calendar, GripVertical, LayoutGrid, Users, Trash2, Edit2, Save, Store, RefreshCw, SlidersHorizontal } from 'lucide-react'
 import { WeeklyGrid } from './WeeklyGrid'
 import { MonthlyCalendar } from './MonthlyCalendar'
 import { Modal } from '../../ui/Modal'
@@ -123,7 +123,13 @@ export function SchedulePage() {
   const [empModalOpen, setEmpModalOpen] = useState(false)
   const { employees, shifts } = useScheduleStore()
   const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
+  const showShiftNotes = useSchedulePreferencesStore((s) => s.showShiftNotes)
+  const showEmployeeRoles = useSchedulePreferencesStore((s) => s.showEmployeeRoles)
+  const compactSchedule = useSchedulePreferencesStore((s) => s.compactSchedule)
   const setShowShiftNames = useSchedulePreferencesStore((s) => s.setShowShiftNames)
+  const setShowShiftNotes = useSchedulePreferencesStore((s) => s.setShowShiftNotes)
+  const setShowEmployeeRoles = useSchedulePreferencesStore((s) => s.setShowEmployeeRoles)
+  const setCompactSchedule = useSchedulePreferencesStore((s) => s.setCompactSchedule)
   const storeId = useUiStore((s) => s.storeId)
   const accessRole = useUiStore((s) => s.accessRole)
   const setStoreId = useUiStore((s) => s.setStoreId)
@@ -136,6 +142,7 @@ export function SchedulePage() {
   const [selectedStoreId, setSelectedStoreId] = useState(storeId === 'main' ? '' : storeId)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [saveMessage, setSaveMessage] = useState('')
+  const [viewOptionsOpen, setViewOptionsOpen] = useState(false)
 
   const loadStores = async () => {
     setStoresLoading(true)
@@ -239,14 +246,27 @@ export function SchedulePage() {
             {storeId === 'main' ? 'Choose a store to edit schedules' : `${employees.length} employees · ${shifts.length} shifts total`}
           </p>
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-          <div className="flex-shrink-0">
-            <Toggle
-              checked={showShiftNames}
-              onChange={setShowShiftNames}
-              label="Shift names"
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="relative flex-shrink-0">
+            <Button
+              className="flex-shrink-0"
               size="sm"
-            />
+              variant="ghost"
+              icon={<SlidersHorizontal size={13} />}
+              onClick={() => setViewOptionsOpen((open) => !open)}
+            >
+              View
+            </Button>
+            {viewOptionsOpen && (
+              <div className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-56 rounded-xl border border-[var(--border)] bg-[var(--surface-solid)] p-3 shadow-xl">
+                <div className="space-y-3">
+                  <Toggle checked={showShiftNames} onChange={setShowShiftNames} label="Shift names" size="sm" />
+                  <Toggle checked={showShiftNotes} onChange={setShowShiftNotes} label="Shift notes" size="sm" />
+                  <Toggle checked={showEmployeeRoles} onChange={setShowEmployeeRoles} label="Employee roles" size="sm" />
+                  <Toggle checked={compactSchedule} onChange={setCompactSchedule} label="Compact mode" size="sm" />
+                </div>
+              </div>
+            )}
           </div>
           {canChooseScheduleStore && (
             <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Store size={13} />} onClick={() => setStorePickerOpen(true)}>

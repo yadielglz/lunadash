@@ -6,6 +6,9 @@
 -- Drop and recreate (safe — no real data exists yet)
 drop table if exists announcements cascade;
 drop table if exists goals         cascade;
+drop table if exists employee_sales cascade;
+drop table if exists employee_schedule_preferences cascade;
+drop table if exists schedule_templates cascade;
 drop table if exists schedule_blocks cascade;
 drop table if exists shifts        cascade;
 drop table if exists employees     cascade;
@@ -24,6 +27,36 @@ create table employees (
 alter table employees add column if not exists sort_order integer default 0;
 create index employees_store_idx on employees(store_id);
 create index if not exists employees_store_sort_idx on employees(store_id, sort_order);
+
+-- Employee schedule preferences
+create table employee_schedule_preferences (
+  employee_id        text primary key references employees(id) on delete cascade,
+  store_id           text not null default 'default',
+  preferred_days     jsonb not null default '[]',
+  unavailable_days   jsonb not null default '[]',
+  preferred_blocks   jsonb not null default '[]',
+  max_hours_per_week numeric,
+  notes              text default '',
+  updated_at         timestamptz default now()
+);
+create index employee_schedule_preferences_store_idx on employee_schedule_preferences(store_id);
+
+-- Employee sales and NR estimates
+create table employee_sales (
+  id                    text primary key,
+  store_id              text not null default 'default',
+  employee_id           text references employees(id) on delete set null,
+  sale_date             text not null,
+  category              text not null default 'voice',
+  gross_revenue         numeric default 0,
+  accessory_revenue     numeric default 0,
+  protection_count      integer default 0,
+  estimated_net_revenue numeric default 0,
+  note                  text default '',
+  created_at            timestamptz default now()
+);
+create index employee_sales_store_idx on employee_sales(store_id);
+create index employee_sales_employee_idx on employee_sales(employee_id, sale_date);
 
 -- Shifts
 create table shifts (
@@ -54,6 +87,17 @@ create table schedule_blocks (
 );
 create index schedule_blocks_store_idx on schedule_blocks(store_id);
 create index schedule_blocks_store_sort_idx on schedule_blocks(store_id, sort_order);
+
+-- Schedule templates
+create table schedule_templates (
+  id          text primary key,
+  store_id    text not null default 'default',
+  name        text not null,
+  shifts      jsonb not null default '[]',
+  created_at  timestamptz default now()
+);
+create index schedule_templates_store_idx on schedule_templates(store_id);
+create index schedule_templates_created_idx on schedule_templates(store_id, created_at desc);
 
 -- Goals
 create table goals (
@@ -104,23 +148,32 @@ insert into app_settings (store_id) values ('default') on conflict do nothing;
 
 -- ── Row Level Security ─────────────────────────────────────────
 alter table employees     enable row level security;
+alter table employee_schedule_preferences enable row level security;
+alter table employee_sales enable row level security;
 alter table shifts        enable row level security;
 alter table schedule_blocks enable row level security;
+alter table schedule_templates enable row level security;
 alter table goals         enable row level security;
 alter table announcements enable row level security;
 alter table app_settings  enable row level security;
 
 create policy "public" on employees     for all using (true) with check (true);
+create policy "public" on employee_schedule_preferences for all using (true) with check (true);
+create policy "public" on employee_sales for all using (true) with check (true);
 create policy "public" on shifts        for all using (true) with check (true);
 create policy "public" on schedule_blocks for all using (true) with check (true);
+create policy "public" on schedule_templates for all using (true) with check (true);
 create policy "public" on goals         for all using (true) with check (true);
 create policy "public" on announcements for all using (true) with check (true);
 create policy "public" on app_settings  for all using (true) with check (true);
 
 -- ── Realtime ───────────────────────────────────────────────────
 alter publication supabase_realtime add table employees;
+alter publication supabase_realtime add table employee_schedule_preferences;
+alter publication supabase_realtime add table employee_sales;
 alter publication supabase_realtime add table shifts;
 alter publication supabase_realtime add table schedule_blocks;
+alter publication supabase_realtime add table schedule_templates;
 alter publication supabase_realtime add table goals;
 alter publication supabase_realtime add table announcements;
 alter publication supabase_realtime add table app_settings;

@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Employee, Shift } from '../store/scheduleStore'
 import type { ScheduleBlock } from '../store/scheduleBlocksStore'
+import type { ScheduleTemplate, TemplateShift } from '../store/scheduleTemplatesStore'
+import type { EmployeeSale, EmployeeSchedulePreference } from '../store/employeeInsightsStore'
 import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
 import type { Task, TaskCategory } from '../store/tasksStore'
@@ -46,6 +48,23 @@ type DbShift = {
 type DbScheduleBlock = {
   id: string; store_id: string; name: string; start_time: string; end_time: string
   note: string | null; color: string; sort_order: number | null; created_at: string
+}
+
+type DbScheduleTemplate = {
+  id: string; store_id: string; name: string; shifts: TemplateShift[]; created_at: string
+}
+
+type DbEmployeeSchedulePreference = {
+  employee_id: string; store_id: string; preferred_days: number[] | null
+  unavailable_days: number[] | null; preferred_blocks: string[] | null
+  max_hours_per_week: number | null; notes: string | null; updated_at: string
+}
+
+type DbEmployeeSale = {
+  id: string; store_id: string; employee_id: string | null; sale_date: string
+  category: EmployeeSale['category']; gross_revenue: number | null
+  accessory_revenue: number | null; protection_count: number | null
+  estimated_net_revenue: number | null; note: string | null; created_at: string
 }
 
 type DbAnnouncement = {
@@ -171,6 +190,8 @@ function throwIfError(error: unknown, context: string) {
 
 let optionalTasksWarningShown = false
 let optionalScheduleBlocksWarningShown = false
+let optionalScheduleTemplatesWarningShown = false
+let optionalEmployeeInsightsWarningShown = false
 
 function logOptionalTasksWarning(action: string, error: unknown) {
   if (!isMissingTableError(error)) return false
@@ -186,6 +207,24 @@ function logOptionalScheduleBlocksWarning(action: string, error: unknown) {
   if (!optionalScheduleBlocksWarningShown) {
     optionalScheduleBlocksWarningShown = true
     console.warn(`Schedule blocks table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
+  }
+  return true
+}
+
+function logOptionalScheduleTemplatesWarning(action: string, error: unknown) {
+  if (!isMissingTableError(error)) return false
+  if (!optionalScheduleTemplatesWarningShown) {
+    optionalScheduleTemplatesWarningShown = true
+    console.warn(`Schedule templates table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
+  }
+  return true
+}
+
+function logOptionalEmployeeInsightsWarning(action: string, error: unknown) {
+  if (!isMissingTableError(error)) return false
+  if (!optionalEmployeeInsightsWarningShown) {
+    optionalEmployeeInsightsWarningShown = true
+    console.warn(`Employee insights tables are not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
   }
   return true
 }
@@ -382,7 +421,7 @@ export async function dbResetAccessOnboarding(id: string) {
 }
 
 export async function dbCheckSchemaHealth() {
-  const tables = ['employees', 'shifts', 'schedule_blocks', 'goals', 'announcements', 'app_settings', 'tasks', 'store_access_codes']
+  const tables = ['employees', 'employee_schedule_preferences', 'employee_sales', 'shifts', 'schedule_blocks', 'schedule_templates', 'goals', 'announcements', 'app_settings', 'tasks', 'store_access_codes']
   const results = await Promise.all(tables.map(async (table) => {
     const { error } = await supabase.from(table).select('*', { head: true, count: 'exact' })
     return {
@@ -565,6 +604,161 @@ export async function dbUpdateScheduleBlock(id: string, patch: Partial<Omit<Sche
 export async function dbDeleteScheduleBlock(id: string) {
   const { error } = await supabase.from('schedule_blocks').delete().eq('id', id)
   if (!logOptionalScheduleBlocksWarning('schedule block deletion', error)) throwIfError(error, 'Could not delete schedule block')
+}
+
+// ── Schedule templates ───────────────────────────────────────────────────────
+
+function dbToScheduleTemplate(r: DbScheduleTemplate): ScheduleTemplate {
+  return {
+    id: r.id,
+    storeId: r.store_id,
+    name: r.name,
+    shifts: Array.isArray(r.shifts) ? r.shifts : [],
+    createdAt: r.created_at,
+  }
+}
+
+function scheduleTemplateToDb(template: ScheduleTemplate, storeId: string) {
+  return {
+    id: template.id,
+    store_id: normalizeStoreId(template.storeId ?? storeId),
+    name: template.name,
+    shifts: template.shifts,
+    created_at: template.createdAt,
+  }
+}
+
+export async function dbGetScheduleTemplates(storeId: string): Promise<ScheduleTemplate[]> {
+  const sid = normalizeStoreId(storeId)
+  const { data, error } = await supabase
+    .from('schedule_templates')
+    .select('*')
+    .eq('store_id', sid)
+    .order('created_at', { ascending: false })
+  if (logOptionalScheduleTemplatesWarning('schedule templates', error)) return []
+  throwIfError(error, 'Could not load schedule templates')
+  return ((data ?? []) as DbScheduleTemplate[]).map(dbToScheduleTemplate)
+}
+
+export async function dbInsertScheduleTemplate(template: ScheduleTemplate, storeId: string): Promise<boolean> {
+  const { error } = await supabase.from('schedule_templates').upsert(scheduleTemplateToDb(template, storeId))
+  if (logOptionalScheduleTemplatesWarning('new schedule templates', error)) return false
+  throwIfError(error, 'Could not save schedule template')
+  return true
+}
+
+export async function dbDeleteScheduleTemplate(id: string): Promise<boolean> {
+  const { error } = await supabase.from('schedule_templates').delete().eq('id', id)
+  if (logOptionalScheduleTemplatesWarning('schedule template deletion', error)) return false
+  throwIfError(error, 'Could not delete schedule template')
+  return true
+}
+
+// ── Employee insights ────────────────────────────────────────────────────────
+
+function dbToEmployeeSchedulePreference(r: DbEmployeeSchedulePreference): EmployeeSchedulePreference {
+  return {
+    employeeId: r.employee_id ?? '',
+    storeId: r.store_id,
+    preferredDays: r.preferred_days ?? [],
+    unavailableDays: r.unavailable_days ?? [],
+    preferredBlocks: r.preferred_blocks ?? [],
+    maxHoursPerWeek: r.max_hours_per_week,
+    notes: r.notes ?? '',
+    updatedAt: r.updated_at,
+  }
+}
+
+function employeeSchedulePreferenceToDb(preference: EmployeeSchedulePreference, storeId: string) {
+  return {
+    employee_id: preference.employeeId,
+    store_id: normalizeStoreId(preference.storeId ?? storeId),
+    preferred_days: preference.preferredDays,
+    unavailable_days: preference.unavailableDays,
+    preferred_blocks: preference.preferredBlocks,
+    max_hours_per_week: preference.maxHoursPerWeek,
+    notes: preference.notes,
+    updated_at: preference.updatedAt,
+  }
+}
+
+function dbToEmployeeSale(r: DbEmployeeSale): EmployeeSale {
+  return {
+    id: r.id,
+    storeId: r.store_id,
+    employeeId: r.employee_id ?? '',
+    saleDate: r.sale_date,
+    category: r.category,
+    grossRevenue: r.gross_revenue ?? 0,
+    accessoryRevenue: r.accessory_revenue ?? 0,
+    protectionCount: r.protection_count ?? 0,
+    estimatedNetRevenue: r.estimated_net_revenue ?? 0,
+    note: r.note ?? '',
+    createdAt: r.created_at,
+  }
+}
+
+function employeeSaleToDb(sale: EmployeeSale, storeId: string) {
+  return {
+    id: sale.id,
+    store_id: normalizeStoreId(sale.storeId ?? storeId),
+    employee_id: sale.employeeId,
+    sale_date: sale.saleDate,
+    category: sale.category,
+    gross_revenue: sale.grossRevenue,
+    accessory_revenue: sale.accessoryRevenue,
+    protection_count: sale.protectionCount,
+    estimated_net_revenue: sale.estimatedNetRevenue,
+    note: sale.note,
+    created_at: sale.createdAt,
+  }
+}
+
+export async function dbGetEmployeeSchedulePreferences(storeId: string): Promise<EmployeeSchedulePreference[]> {
+  const sid = normalizeStoreId(storeId)
+  const { data, error } = await supabase
+    .from('employee_schedule_preferences')
+    .select('*')
+    .eq('store_id', sid)
+  if (logOptionalEmployeeInsightsWarning('employee schedule preferences', error)) return []
+  throwIfError(error, 'Could not load employee schedule preferences')
+  return ((data ?? []) as DbEmployeeSchedulePreference[]).map(dbToEmployeeSchedulePreference)
+}
+
+export async function dbUpsertEmployeeSchedulePreference(preference: EmployeeSchedulePreference, storeId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('employee_schedule_preferences')
+    .upsert(employeeSchedulePreferenceToDb(preference, storeId))
+  if (logOptionalEmployeeInsightsWarning('employee schedule preference updates', error)) return false
+  throwIfError(error, 'Could not save employee schedule preference')
+  return true
+}
+
+export async function dbGetEmployeeSales(storeId: string): Promise<EmployeeSale[]> {
+  const sid = normalizeStoreId(storeId)
+  const { data, error } = await supabase
+    .from('employee_sales')
+    .select('*')
+    .eq('store_id', sid)
+    .order('sale_date', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (logOptionalEmployeeInsightsWarning('employee sales', error)) return []
+  throwIfError(error, 'Could not load employee sales')
+  return ((data ?? []) as DbEmployeeSale[]).map(dbToEmployeeSale)
+}
+
+export async function dbInsertEmployeeSale(sale: EmployeeSale, storeId: string): Promise<boolean> {
+  const { error } = await supabase.from('employee_sales').insert(employeeSaleToDb(sale, storeId))
+  if (logOptionalEmployeeInsightsWarning('employee sale entries', error)) return false
+  throwIfError(error, 'Could not save employee sale')
+  return true
+}
+
+export async function dbDeleteEmployeeSale(id: string): Promise<boolean> {
+  const { error } = await supabase.from('employee_sales').delete().eq('id', id)
+  if (logOptionalEmployeeInsightsWarning('employee sale deletion', error)) return false
+  throwIfError(error, 'Could not delete employee sale')
+  return true
 }
 
 export async function dbSaveScheduleSnapshot(storeId: string, employees: Employee[], shifts: Shift[]) {
