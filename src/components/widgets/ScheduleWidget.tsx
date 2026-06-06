@@ -2,12 +2,14 @@ import { format } from 'date-fns'
 import { Card } from '../ui/Card'
 import { Badge } from '../ui/Badge'
 import { useScheduleStore } from '../../store/scheduleStore'
+import { useSchedulePreferencesStore } from '../../store/schedulePreferencesStore'
 import { useUiStore } from '../../store/uiStore'
 import { formatShiftTime } from '../../lib/utils'
 
 export function ScheduleWidget() {
   const { setTab } = useUiStore()
   const { employees, getShiftsForDate } = useScheduleStore()
+  const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
   const today = format(new Date(), 'yyyy-MM-dd')
   const shifts = getShiftsForDate(today)
 
@@ -51,13 +53,15 @@ export function ScheduleWidget() {
                   {formatShiftTime(shift.startTime, shift.endTime)}
                 </div>
               </div>
-              <Badge
-                size="sm"
-                color={employee!.color}
-                variant="soft"
-              >
-                {shift.type}
-              </Badge>
+              {showShiftNames && (
+                <Badge
+                  size="sm"
+                  color={employee!.color}
+                  variant="soft"
+                >
+                  {shift.type}
+                </Badge>
+              )}
             </div>
           ))}
           {shifts.length > 4 && (

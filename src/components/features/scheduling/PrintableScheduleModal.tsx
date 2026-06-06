@@ -5,6 +5,7 @@ import { Button } from '../../ui/Button'
 import { useDisplayStore } from '../../../store/displayStore'
 import { useScheduleStore, Shift } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore } from '../../../store/scheduleBlocksStore'
+import { useSchedulePreferencesStore } from '../../../store/schedulePreferencesStore'
 import { formatShiftTime, hexToRgba, timeToMinutes } from '../../../lib/utils'
 
 interface PrintableScheduleModalProps {
@@ -39,6 +40,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
   const { companyName, storeNumber } = useDisplayStore()
   const { employees, shifts } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
+  const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const dates = days.map((day) => format(day, 'yyyy-MM-dd'))
@@ -88,7 +90,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
           const color = blockColors.get(shift.type) ?? employee.color
           return `
             <div class="shift" style="background:${hexToRgba(color, 0.1)};border-color:${hexToRgba(color, 0.28)};">
-              <div class="shift-name" style="color:${color};">${escapeHtml(shift.type)}</div>
+              ${showShiftNames ? `<div class="shift-name" style="color:${color};">${escapeHtml(shift.type)}</div>` : ''}
               <div class="shift-time">${formatShiftTime(shift.startTime, shift.endTime)}</div>
               ${shift.note ? `<div class="shift-note">${escapeHtml(shift.note)}</div>` : ''}
             </div>
@@ -317,7 +319,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
                                     className="rounded-md border px-2 py-1.5"
                                     style={{ background: hexToRgba(color, 0.1), borderColor: hexToRgba(color, 0.28) }}
                                   >
-                                    <div className="text-xs font-bold" style={{ color }}>{shift.type}</div>
+                                    {showShiftNames && <div className="text-xs font-bold" style={{ color }}>{shift.type}</div>}
                                     <div className="text-[11px] font-semibold text-slate-700">{formatShiftTime(shift.startTime, shift.endTime)}</div>
                                     {shift.note && <div className="mt-0.5 text-[10px] text-slate-500">{shift.note}</div>}
                                   </div>

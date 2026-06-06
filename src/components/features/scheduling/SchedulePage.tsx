@@ -6,7 +6,9 @@ import { MonthlyCalendar } from './MonthlyCalendar'
 import { Modal } from '../../ui/Modal'
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
+import { Toggle } from '../../ui/Toggle'
 import { useScheduleStore } from '../../../store/scheduleStore'
+import { useSchedulePreferencesStore } from '../../../store/schedulePreferencesStore'
 import { dbGetStores, dbSaveScheduleSnapshot, type StoreSummary } from '../../../lib/supabase'
 import { currentStoreId } from '../../../store/currentStoreId'
 import { useUiStore } from '../../../store/uiStore'
@@ -120,6 +122,8 @@ export function SchedulePage() {
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly')
   const [empModalOpen, setEmpModalOpen] = useState(false)
   const { employees, shifts } = useScheduleStore()
+  const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
+  const setShowShiftNames = useSchedulePreferencesStore((s) => s.setShowShiftNames)
   const storeId = useUiStore((s) => s.storeId)
   const accessRole = useUiStore((s) => s.accessRole)
   const setStoreId = useUiStore((s) => s.setStoreId)
@@ -236,6 +240,14 @@ export function SchedulePage() {
           </p>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex-shrink-0">
+            <Toggle
+              checked={showShiftNames}
+              onChange={setShowShiftNames}
+              label="Shift names"
+              size="sm"
+            />
+          </div>
           {canChooseScheduleStore && (
             <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Store size={13} />} onClick={() => setStorePickerOpen(true)}>
               Store

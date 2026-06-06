@@ -207,6 +207,7 @@ function ShiftCard({
   accentColor,
   hasConflict,
   canEdit,
+  showShiftName,
   onClick,
   onDuplicate,
   onDragStart,
@@ -215,6 +216,7 @@ function ShiftCard({
   accentColor: string
   hasConflict: boolean
   canEdit: boolean
+  showShiftName: boolean
   onClick: () => void
   onDuplicate: () => void
   onDragStart: () => void
@@ -237,12 +239,18 @@ function ShiftCard({
       }}
     >
       <div className="flex items-center justify-between gap-1">
-        <div
-          className="text-[11px] font-semibold leading-tight truncate"
-          style={{ color: accentColor }}
-        >
-          {shift.type}
-        </div>
+        {showShiftName ? (
+          <div
+            className="text-[11px] font-semibold leading-tight truncate"
+            style={{ color: accentColor }}
+          >
+            {shift.type}
+          </div>
+        ) : (
+          <div className="min-w-0 flex-1 text-[11px] font-semibold leading-tight text-[var(--text)] truncate">
+            {formatShiftTime(shift.startTime, shift.endTime)}
+          </div>
+        )}
         <div className="flex items-center gap-1">
           {hasConflict && <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />}
           {canEdit && (
@@ -259,9 +267,11 @@ function ShiftCard({
           )}
         </div>
       </div>
-      <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5 truncate">
-        {formatShiftTime(shift.startTime, shift.endTime)}
-      </div>
+      {showShiftName && (
+        <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5 truncate">
+          {formatShiftTime(shift.startTime, shift.endTime)}
+        </div>
+      )}
     </motion.button>
   )
 }
@@ -270,6 +280,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const { employees, shifts, addShift, addShifts, updateShift, removeShifts, reorderEmployees } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
   const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
+  const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
   const isMainDashboard = useUiStore((s) => s.storeId === 'main')
   const [weekOffset, setWeekOffset] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
@@ -545,6 +556,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                             accentColor={blockColors.get(shift.type) ?? emp.color}
                             hasConflict={conflictIds.has(shift.id)}
                             canEdit={canEdit}
+                            showShiftName={showShiftNames}
                             onClick={() => openEdit(shift)}
                             onDuplicate={() => duplicateShift(shift)}
                             onDragStart={() => { if (canEdit) setDragShiftId(shift.id) }}

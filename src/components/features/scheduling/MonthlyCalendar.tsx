@@ -11,6 +11,7 @@ import { useSchedulePreferencesStore, WEEKDAY_OPTIONS } from '../../../store/sch
 export function MonthlyCalendar({ canEdit = false }: { canEdit?: boolean }) {
   const { employees, shifts } = useScheduleStore()
   const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
+  const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
   const [current, setCurrent] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -171,7 +172,7 @@ export function MonthlyCalendar({ canEdit = false }: { canEdit?: boolean }) {
                             <span className="text-xs font-medium text-[var(--text)]">{emp.name}</span>
                           </div>
                           <div className="text-[10px] text-[var(--text-secondary)] mt-1">
-                            {shift.type} · {formatShiftTime(shift.startTime, shift.endTime)}
+                            {showShiftNames ? `${shift.type} · ` : ''}{formatShiftTime(shift.startTime, shift.endTime)}
                           </div>
                           {shift.note && <div className="text-[10px] text-[var(--text-tertiary)] mt-0.5 italic">{shift.note}</div>}
                         </Card>
