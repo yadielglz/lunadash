@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, ArrowDown, ArrowUp, BarChart3, Clock, Package, RefreshCw, Search, Trophy } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertCircle, ArrowDown, ArrowUp, BarChart3, ChevronRight, Clock, Columns3, LocateFixed, Package, RefreshCw, Search, X } from 'lucide-react'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input } from '../../ui/Input'
-import { Modal } from '../../ui/Modal'
 import { useUiStore } from '../../../store/uiStore'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import {
@@ -17,9 +16,18 @@ import {
 } from '../../../lib/performanceSheet'
 import { dealerInfoForRow } from '../../../lib/dealers'
 
-type SortKey = 'netRevenue' | 'netRevenuePct' | 'accessoryRevenue' | 'accessoryPct' | 'totalPp' | 'ppPct' | 'traffic'
+type SortKey = 'overallScore' | 'netRevenue' | 'netRevenuePct' | 'accessoryRevenue' | 'accessoryPct' | 'totalPp' | 'ppPct' | 'traffic'
+type OptionalColumn = 'traffic' | 'postConv' | 'goals' | 'products'
+type RankedRow = PerformanceRow & {
+  overallScore: number
+  overallRank: number
+  netRevenueRank: number
+  accessoryRank: number
+  ppRank: number
+}
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'overallScore', label: 'Overall' },
   { key: 'netRevenue', label: 'Net Rev' },
   { key: 'netRevenuePct', label: 'NR %' },
   { key: 'accessoryRevenue', label: 'ACC' },
@@ -31,6 +39,38 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 
 const SHEET_REFRESH_MS = 60_000
 const MAIN_STORE_ID = 'main'
+const SORT_STORAGE_KEY = 'lunadash-performance-sort'
+const COLUMN_STORAGE_KEY = 'lunadash-performance-columns'
+const DEFAULT_COLUMNS: Record<OptionalColumn, boolean> = {
+  traffic: true,
+  postConv: true,
+  goals: true,
+  products: true,
+}
+
+function readStoredSort() {
+  if (typeof window === 'undefined') return null
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SORT_STORAGE_KEY) || 'null')
+    if (!parsed || !SORT_OPTIONS.some((option) => option.key === parsed.sortKey)) return null
+    return {
+      sortKey: parsed.sortKey as SortKey,
+      direction: parsed.direction === 'asc' ? 'asc' as const : 'desc' as const,
+    }
+  } catch {
+    return null
+  }
+}
+
+function readStoredColumns() {
+  if (typeof window === 'undefined') return DEFAULT_COLUMNS
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(COLUMN_STORAGE_KEY) || 'null')
+    return { ...DEFAULT_COLUMNS, ...(parsed ?? {}) }
+  } catch {
+    return DEFAULT_COLUMNS
+  }
+}
 
 function metricColor(value: number, warning = 80) {
   if (value >= 100) return '#16c60c'
@@ -38,11 +78,60 @@ function metricColor(value: number, warning = 80) {
   return '#e74856'
 }
 
+function rankRows(rows: PerformanceRow[]): RankedRow[] {
+  const rankBy = (valueFor: (row: PerformanceRow) => number) => {
+    const ranks = new Map<string, number>()
+    const sorted = [...rows].sort((a, b) => valueFor(b) - valueFor(a))
+    sorted.forEach((row, index) => ranks.set(row.store, index + 1))
+    return ranks
+  }
+
+  const overallScore = (row: PerformanceRow) => (row.netRevenuePct + row.accessoryPct + row.ppPct) / 3
+  const overallRanks = rankBy(overallScore)
+  const netRevenueRanks = rankBy((row) => row.netRevenue)
+  const accessoryRanks = rankBy((row) => row.accessoryRevenue)
+  const ppRanks = rankBy((row) => row.totalPp)
+
+  return rows.map((row) => ({
+    ...row,
+    overallScore: overallScore(row),
+    overallRank: overallRanks.get(row.store) ?? 0,
+    netRevenueRank: netRevenueRanks.get(row.store) ?? 0,
+    accessoryRank: accessoryRanks.get(row.store) ?? 0,
+    ppRank: ppRanks.get(row.store) ?? 0,
+  }))
+}
+
+function RankPill({ rank, tone = '#7c5ff5' }: { rank: number; tone?: string }) {
+  return (
+    <span
+      className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border px-2 text-xs font-bold tabular-nums"
+      style={{ borderColor: `${tone}55`, background: `${tone}18`, color: tone }}
+    >
+      #{rank || '-'}
+    </span>
+  )
+}
+
+function GoalChip({ value }: { value: number }) {
+  const color = metricColor(value)
+  const label = value >= 100 ? 'Met' : value >= 80 ? 'Close' : 'Behind'
+
+  return (
+    <span
+      className="inline-flex h-6 items-center rounded-md border px-2 text-[10px] font-semibold uppercase tabular-nums"
+      style={{ borderColor: `${color}45`, background: `${color}18`, color }}
+    >
+      {label} {formatPercent(value)}
+    </span>
+  )
+}
+
 function SummaryTile({ label, value, helper, tone }: { label: string; value: string; helper: string; tone?: string }) {
   return (
-    <Card className="min-h-[108px]">
+    <Card className="min-h-[92px] p-3">
       <div className="text-xs font-medium uppercase text-[var(--text-tertiary)]">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-[var(--text)] tabular-nums">{value}</div>
+      <div className="mt-1.5 text-2xl font-semibold text-[var(--text)] tabular-nums">{value}</div>
       <div className="mt-1 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
         {tone && <span className="h-2 w-2 rounded-full" style={{ background: tone }} />}
         <span>{helper}</span>
@@ -53,51 +142,6 @@ function SummaryTile({ label, value, helper, tone }: { label: string; value: str
 
 function goalHelper(value: number) {
   return value >= 100 ? 'Goal Met' : `${formatPercent(value)} to goal`
-}
-
-function LeaderCard({ row, metric, value, rank }: { row: PerformanceRow; metric: string; value: string; rank: number }) {
-  const rankColor = rank === 1 ? '#f7b731' : rank === 2 ? '#00b7c3' : '#7c5ff5'
-  const dealer = dealerInfoForRow(row)
-
-  return (
-    <div
-      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-2"
-      style={{ boxShadow: `inset 3px 0 0 ${rankColor}` }}
-    >
-      <div
-        className="flex h-7 w-7 items-center justify-center rounded-md text-xs font-black text-white"
-        style={{ background: rankColor }}
-      >
-        {rank}
-      </div>
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-xs font-semibold text-[var(--text)]">{dealer.nickname}</span>
-          <span className="flex-shrink-0 text-[10px] text-[var(--text-tertiary)]">{dealer.code}</span>
-        </div>
-        <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] text-[var(--text-tertiary)]">
-          <span className="truncate">{dealer.location}</span>
-          <span className="opacity-70">|</span>
-          <span className="shrink-0 font-semibold uppercase">{metric}</span>
-        </div>
-      </div>
-      <div className="text-right text-sm font-semibold tabular-nums text-[var(--text)]">{value}</div>
-    </div>
-  )
-}
-
-function ScoreBar({ value }: { value: number }) {
-  const width = Math.min(Math.max(value, 0), 160)
-  const color = metricColor(value)
-
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[var(--surface-3)]">
-        <div className="h-full rounded-full" style={{ width: `${Math.min(width, 100)}%`, background: color }} />
-      </div>
-      <span className="w-12 text-right tabular-nums" style={{ color }}>{formatPercent(value)}</span>
-    </div>
-  )
 }
 
 function SortButton({ option, active, direction, onClick }: {
@@ -142,25 +186,42 @@ function MetricPanel({ label, value, helper, percent }: { label: string; value: 
   )
 }
 
-function StoreDetailModal({ row, updated, onClose }: { row: PerformanceRow | null; updated: string; onClose: () => void }) {
+function StoreDetailDrawer({ row, updated, onClose }: { row: PerformanceRow | null; updated: string; onClose: () => void }) {
   const netLeft = row ? row.netRevenueGoal - row.netRevenue : 0
   const accLeft = row ? row.accessoryGoal - row.accessoryRevenue : 0
   const ppLeft = row ? row.dortGoal - row.totalPp : 0
   const dealer = row ? dealerInfoForRow(row) : null
 
   return (
-    <Modal open={!!row} onClose={onClose} title={dealer ? `${dealer.nickname} Numbers` : undefined} size="full">
-      {row && (
-        <div className="space-y-4">
+    <div className={`fixed inset-0 z-[200] ${row ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+      <button
+        aria-label="Close store details"
+        className={`absolute inset-0 bg-black/35 transition-opacity ${row ? 'opacity-100' : 'opacity-0'}`}
+        onClick={onClose}
+      />
+      <aside
+        className={`absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-modal)] transition-transform duration-200 ${row ? 'translate-x-0' : 'translate-x-full'}`}
+      >
+        {row && (
+          <>
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
+              <div className="min-w-0">
+                <div className="truncate text-base font-semibold text-[var(--text)]">{dealer ? `${dealer.nickname} Numbers` : 'Store Numbers'}</div>
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+                  <Clock size={12} />
+                  Source refreshed {updated || 'just now'}
+                </div>
+              </div>
+              <Button size="icon" variant="ghost" onClick={onClose} aria-label="Close store details">
+                <X size={16} />
+              </Button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge color="#0f7ad8">{row.storeCode}</Badge>
                 <span className="text-sm font-semibold text-[var(--text)]">{dealer?.location}</span>
-              </div>
-              <div className="mt-2 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
-                <Clock size={12} />
-                Source refreshed {updated || 'just now'}
               </div>
             </div>
             <div className="grid grid-cols-4 gap-2 text-center">
@@ -226,9 +287,11 @@ function StoreDetailModal({ row, updated, onClose }: { row: PerformanceRow | nul
               </div>
             </Card>
           </div>
-        </div>
-      )}
-    </Modal>
+            </div>
+          </>
+        )}
+      </aside>
+    </div>
   )
 }
 
@@ -238,9 +301,12 @@ export function PerformancePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
-  const [sortKey, setSortKey] = useState<SortKey>('netRevenue')
-  const [direction, setDirection] = useState<'asc' | 'desc'>('desc')
+  const storedSort = useMemo(() => readStoredSort(), [])
+  const [sortKey, setSortKey] = useState<SortKey>(storedSort?.sortKey ?? 'overallScore')
+  const [direction, setDirection] = useState<'asc' | 'desc'>(storedSort?.direction ?? 'desc')
+  const [columns, setColumns] = useState<Record<OptionalColumn, boolean>>(() => readStoredColumns())
   const [selectedStore, setSelectedStore] = useState<PerformanceRow | null>(null)
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
 
   const loadData = async (background = false) => {
     if (!background) setLoading(true)
@@ -264,6 +330,14 @@ export function PerformancePage() {
   }, [])
 
   useEffect(() => {
+    window.localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify({ sortKey, direction }))
+  }, [direction, sortKey])
+
+  useEffect(() => {
+    window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columns))
+  }, [columns])
+
+  useEffect(() => {
     if (!selectedStore) return
     const freshRow = data?.rows.find((row) => row.store === selectedStore.store)
     if (freshRow) setSelectedStore(freshRow)
@@ -274,17 +348,14 @@ export function PerformancePage() {
   const storeRow = useMemo(() => (
     data?.rows.find((row) => normalizeStoreId(row.storeCode) === currentStoreId) ?? null
   ), [currentStoreId, data?.rows])
-  const storeRank = useMemo(() => {
-    if (!storeRow || !data?.rows.length) return null
-    const sorted = [...data.rows].sort((a, b) => b.netRevenue - a.netRevenue)
-    const index = sorted.findIndex((row) => normalizeStoreId(row.storeCode) === currentStoreId)
-    return index >= 0 ? index + 1 : null
-  }, [currentStoreId, data?.rows, storeRow])
+  const rankedRows = useMemo(() => rankRows(data?.rows ?? []), [data?.rows])
+  const storeRank = useMemo(() => (
+    rankedRows.find((row) => normalizeStoreId(row.storeCode) === currentStoreId)?.overallRank ?? null
+  ), [currentStoreId, rankedRows])
 
   const filteredRows = useMemo(() => {
-    const rows = data?.rows ?? []
     const q = query.trim().toLowerCase()
-    return [...rows]
+    return [...rankedRows]
       .filter((row) => {
         const dealer = dealerInfoForRow(row)
         return !q
@@ -298,16 +369,7 @@ export function PerformancePage() {
         const result = a[sortKey] - b[sortKey]
         return direction === 'asc' ? result : -result
       })
-  }, [data?.rows, direction, query, sortKey])
-
-  const leaders = useMemo(() => {
-    const rows = data?.rows ?? []
-    return {
-      netRevenue: [...rows].sort((a, b) => b.netRevenue - a.netRevenue).slice(0, 3),
-      accessories: [...rows].sort((a, b) => b.accessoryRevenue - a.accessoryRevenue).slice(0, 3),
-      pp: [...rows].sort((a, b) => b.totalPp - a.totalPp).slice(0, 3),
-    }
-  }, [data?.rows])
+  }, [direction, query, rankedRows, sortKey])
 
   const total = data?.total
   const focusedTotal = isMainDashboard ? total : storeRow
@@ -325,6 +387,15 @@ export function PerformancePage() {
     setDirection('desc')
   }
 
+  const toggleColumn = (key: OptionalColumn) => {
+    setColumns((current) => ({ ...current, [key]: !current[key] }))
+  }
+
+  const jumpToMyStore = () => {
+    const row = rowRefs.current[currentStoreId]
+    row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="border-b border-[var(--border)] px-4 py-4">
@@ -339,17 +410,15 @@ export function PerformancePage() {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            {isMainDashboard && (
-              <div className="relative min-w-0 sm:w-64">
-                <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
-                <Input
-                  className="pl-8"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search stores"
-                />
-              </div>
-            )}
+            <div className="relative min-w-0 sm:w-64">
+              <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+              <Input
+                className="pl-8"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search stores"
+              />
+            </div>
             <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={() => loadData()} loading={loading}>
               Refresh
             </Button>
@@ -442,53 +511,6 @@ export function PerformancePage() {
               </Card>
             )}
 
-            {isMainDashboard && (
-            <div className="grid grid-cols-1 gap-2 xl:grid-cols-3">
-              <Card noPadding className="overflow-hidden">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-                    <Trophy size={15} className="text-[#f7b731]" />
-                    Net Revenue Leaders
-                  </div>
-                  <span className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Top 3</span>
-                </div>
-                <div className="grid gap-1.5 p-2">
-                  {leaders.netRevenue.map((row, index) => (
-                    <LeaderCard key={row.store} row={row} rank={index + 1} metric="Net Revenue" value={formatMoney(row.netRevenue)} />
-                  ))}
-                </div>
-              </Card>
-              <Card noPadding className="overflow-hidden">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-                    <Trophy size={15} className="text-[#00b7c3]" />
-                    Accessory Leaders
-                  </div>
-                  <span className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Top 3</span>
-                </div>
-                <div className="grid gap-1.5 p-2">
-                  {leaders.accessories.map((row, index) => (
-                    <LeaderCard key={row.store} row={row} rank={index + 1} metric="ACC" value={formatMoney(row.accessoryRevenue)} />
-                  ))}
-                </div>
-              </Card>
-              <Card noPadding className="overflow-hidden">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-                    <Trophy size={15} className="text-[#16c60c]" />
-                    PP Leaders
-                  </div>
-                  <span className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Top 3</span>
-                </div>
-                <div className="grid gap-1.5 p-2">
-                  {leaders.pp.map((row, index) => (
-                    <LeaderCard key={row.store} row={row} rank={index + 1} metric="Total PP" value={formatNumber(row.totalPp)} />
-                  ))}
-                </div>
-              </Card>
-            </div>
-            )}
-
             {isMainDashboard && data?.summary && (
               <Card className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
@@ -506,53 +528,86 @@ export function PerformancePage() {
               </Card>
             )}
 
-            {isMainDashboard && (
             <Card noPadding className="overflow-hidden">
               <div className="flex flex-col gap-3 border-b border-[var(--border)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-[var(--text)]">District Outlook</div>
+                  <div className="text-sm font-semibold text-[var(--text)]">District Ranking</div>
                   <div className="text-xs text-[var(--text-tertiary)]">{filteredRows.length} stores ranked by {SORT_OPTIONS.find((option) => option.key === sortKey)?.label}</div>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {SORT_OPTIONS.map((option) => (
-                    <SortButton
-                      key={option.key}
-                      option={option}
-                      active={sortKey === option.key}
-                      direction={direction}
-                      onClick={() => setSort(option.key)}
-                    />
-                  ))}
+                <div className="flex flex-col gap-2 lg:items-end">
+                  <div className="flex flex-wrap gap-1.5">
+                    {storeRow && (
+                      <Button size="sm" variant="accent" icon={<LocateFixed size={13} />} onClick={jumpToMyStore}>
+                        My Store
+                      </Button>
+                    )}
+                    {SORT_OPTIONS.map((option) => (
+                      <SortButton
+                        key={option.key}
+                        option={option}
+                        active={sortKey === option.key}
+                        direction={direction}
+                        onClick={() => setSort(option.key)}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Columns3 size={13} className="text-[var(--text-tertiary)]" />
+                    {[
+                      ['traffic', 'Traffic'],
+                      ['postConv', 'Post Conv'],
+                      ['goals', 'Goals'],
+                      ['products', 'Products'],
+                    ].map(([key, label]) => (
+                      <button
+                        key={key}
+                        onClick={() => toggleColumn(key as OptionalColumn)}
+                        className={`h-7 rounded-md border px-2 text-[11px] font-medium transition-colors ${
+                          columns[key as OptionalColumn]
+                            ? 'border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]'
+                            : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-tertiary)]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1040px] text-left text-xs">
+                <table className="w-full min-w-[1120px] text-left text-xs">
                   <thead className="bg-[var(--surface-2)] text-[var(--text-tertiary)]">
                     <tr>
-                      <th className="px-4 py-2 font-medium">Rank</th>
-                      <th className="px-4 py-2 font-medium">Store</th>
-                      <th className="px-3 py-2 font-medium">Traffic</th>
-                      <th className="px-3 py-2 font-medium">Post Conv</th>
-                      <th className="px-3 py-2 font-medium">Net Rev</th>
-                      <th className="px-3 py-2 font-medium">NR Goal</th>
-                      <th className="px-3 py-2 font-medium">ACC</th>
-                      <th className="px-3 py-2 font-medium">ACC Goal</th>
-                      <th className="px-3 py-2 font-medium">PP</th>
-                      <th className="px-3 py-2 font-medium">VL</th>
-                      <th className="px-3 py-2 font-medium">BTS</th>
-                      <th className="px-3 py-2 font-medium">HSI</th>
-                      <th className="px-3 py-2 font-medium">VISA</th>
+                      <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-4 py-2 font-medium">Overall</th>
+                      <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-4 py-2 font-medium">Store</th>
+                      <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">NR Rank</th>
+                      <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">ACC Rank</th>
+                      <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">PP Rank</th>
+                      {columns.traffic && <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">Traffic</th>}
+                      {columns.postConv && <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">Post Conv</th>}
+                      <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">Net Rev</th>
+                      {columns.goals && <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">NR Goal</th>}
+                      <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">ACC</th>
+                      {columns.goals && <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">ACC Goal</th>}
+                      <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">PP</th>
+                      {columns.products && <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">VL</th>}
+                      {columns.products && <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">BTS</th>}
+                      {columns.products && <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">HSI</th>}
+                      {columns.products && <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium">VISA</th>}
+                      <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-3 py-2 font-medium" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {filteredRows.map((row, index) => {
+                    {filteredRows.map((row) => {
                       const dealer = dealerInfoForRow(row)
+                      const isCurrentStore = normalizeStoreId(row.storeCode) === currentStoreId
 
                       return (
                       <tr
                         key={row.store}
-                        className="cursor-pointer hover:bg-[var(--reveal-bg)]"
+                        ref={(element) => { rowRefs.current[normalizeStoreId(row.storeCode)] = element }}
+                        className={`cursor-pointer hover:bg-[var(--reveal-bg)] ${isCurrentStore ? 'bg-[var(--accent)]/10 shadow-[inset_3px_0_0_var(--accent)]' : ''}`}
                         onClick={() => setSelectedStore(row)}
                         tabIndex={0}
                         onKeyDown={(event) => {
@@ -563,34 +618,43 @@ export function PerformancePage() {
                         }}
                       >
                         <td className="px-4 py-3">
-                          <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs font-bold text-[var(--text)]">
-                            #{index + 1}
-                          </span>
+                          <RankPill rank={row.overallRank} tone="#7c5ff5" />
                         </td>
                         <td className="px-4 py-3">
-                          <div className="font-semibold text-[var(--text)]">{dealer.nickname}</div>
-                          <div className="text-[var(--text-tertiary)]">{dealer.location} | {dealer.code}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="min-w-0">
+                              <div className="font-semibold text-[var(--text)]">{dealer.nickname}</div>
+                              <div className="text-[var(--text-tertiary)]">{dealer.location} | {dealer.code}</div>
+                            </div>
+                            {isCurrentStore && <Badge color="#7c5ff5">Mine</Badge>}
+                          </div>
                         </td>
-                        <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.traffic)}</td>
-                        <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatPercent(row.postConv)}</td>
+                        <td className="px-3 py-3"><RankPill rank={row.netRevenueRank} tone="#f7b731" /></td>
+                        <td className="px-3 py-3"><RankPill rank={row.accessoryRank} tone="#00b7c3" /></td>
+                        <td className="px-3 py-3"><RankPill rank={row.ppRank} tone="#16c60c" /></td>
+                        {columns.traffic && <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.traffic)}</td>}
+                        {columns.postConv && <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatPercent(row.postConv)}</td>}
                         <td className="px-3 py-3">
                           <div className="font-semibold tabular-nums text-[var(--text)]">{formatMoney(row.netRevenue)}</div>
-                          <ScoreBar value={row.netRevenuePct} />
+                          <div className="mt-1"><GoalChip value={row.netRevenuePct} /></div>
                         </td>
-                        <td className="px-3 py-3 tabular-nums text-[var(--text-secondary)]">{formatMoney(row.netRevenueGoal)}</td>
+                        {columns.goals && <td className="px-3 py-3 tabular-nums text-[var(--text-secondary)]">{formatMoney(row.netRevenueGoal)}</td>}
                         <td className="px-3 py-3">
                           <div className="font-semibold tabular-nums text-[var(--text)]">{formatMoney(row.accessoryRevenue)}</div>
-                          <ScoreBar value={row.accessoryPct} />
+                          <div className="mt-1"><GoalChip value={row.accessoryPct} /></div>
                         </td>
-                        <td className="px-3 py-3 tabular-nums text-[var(--text-secondary)]">{formatMoney(row.accessoryGoal)}</td>
+                        {columns.goals && <td className="px-3 py-3 tabular-nums text-[var(--text-secondary)]">{formatMoney(row.accessoryGoal)}</td>}
                         <td className="px-3 py-3">
                           <div className="font-semibold tabular-nums text-[var(--text)]">{formatNumber(row.totalPp)}</div>
-                          <ScoreBar value={row.ppPct} />
+                          <div className="mt-1"><GoalChip value={row.ppPct} /></div>
                         </td>
-                        <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.vl)}</td>
-                        <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.bts)}</td>
-                        <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.hsi)}</td>
-                        <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.visa)}</td>
+                        {columns.products && <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.vl)}</td>}
+                        {columns.products && <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.bts)}</td>}
+                        {columns.products && <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.hsi)}</td>}
+                        {columns.products && <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.visa)}</td>}
+                        <td className="px-3 py-3 text-right text-[var(--text-tertiary)]">
+                          <ChevronRight size={15} />
+                        </td>
                       </tr>
                       )
                     })}
@@ -598,11 +662,10 @@ export function PerformancePage() {
                 </table>
               </div>
             </Card>
-            )}
           </div>
         )}
       </div>
-      <StoreDetailModal row={selectedStore} updated={updated} onClose={() => setSelectedStore(null)} />
+      <StoreDetailDrawer row={selectedStore} updated={updated} onClose={() => setSelectedStore(null)} />
     </div>
   )
 }
