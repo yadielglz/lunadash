@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import { AlertCircle, ArrowDown, ArrowUp, BarChart3, ChevronRight, Clock, Columns3, Filter, LocateFixed, Package, Pin, RefreshCw, Search, X } from 'lucide-react'
+import { toPng } from 'html-to-image'
+import { AlertCircle, ArrowDown, ArrowUp, BarChart3, Camera, ChevronRight, Clock, Columns3, Filter, LocateFixed, Package, Pin, RefreshCw, Search, X } from 'lucide-react'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
@@ -296,6 +297,8 @@ function StoreDetailDrawer({
   districtAverage: { netRevenuePct: number; accessoryPct: number; ppPct: number; overallScore: number } | null
   onClose: () => void
 }) {
+  const captureRef = useRef<HTMLElement | null>(null)
+  const [capturing, setCapturing] = useState(false)
   const netLeft = row ? row.netRevenueGoal - row.netRevenue : 0
   const accLeft = row ? row.accessoryGoal - row.accessoryRevenue : 0
   const ppLeft = row ? row.dortGoal - row.totalPp : 0
@@ -307,6 +310,71 @@ function StoreDetailDrawer({
   ] as const : []
   const strongest = metrics.length ? [...metrics].sort((a, b) => b[1] - a[1])[0] : null
   const weakest = metrics.length ? [...metrics].sort((a, b) => a[1] - b[1])[0] : null
+  const captureTitle = dealer ? `${dealer.nickname} Numbers` : 'Store Numbers'
+
+  const handleCapture = async () => {
+    if (!captureRef.current || !row || capturing) return
+    setCapturing(true)
+    const captureNode = captureRef.current
+    const scrollNode = captureNode.querySelector<HTMLElement>('[data-capture-scroll="true"]')
+    const previousCaptureStyle = captureNode.getAttribute('style')
+    const previousScrollStyle = scrollNode?.getAttribute('style') ?? null
+    try {
+      captureNode.style.height = 'auto'
+      captureNode.style.minHeight = '0'
+      captureNode.style.maxHeight = 'none'
+      captureNode.style.overflow = 'visible'
+      if (scrollNode) {
+        scrollNode.style.flex = 'none'
+        scrollNode.style.height = 'auto'
+        scrollNode.style.maxHeight = 'none'
+        scrollNode.style.overflow = 'visible'
+      }
+
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+
+      const dataUrl = await toPng(captureNode, {
+        cacheBust: true,
+        filter: (node) => !(node instanceof HTMLElement && node.dataset.captureExclude === 'true'),
+        height: captureNode.scrollHeight,
+        pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
+        width: captureNode.scrollWidth,
+        backgroundColor: getComputedStyle(captureNode).backgroundColor,
+      })
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
+      const fileName = `${row.storeCode}-${captureTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
+      const file = new File([blob], fileName, { type: 'image/png' })
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: captureTitle,
+          text: `${captureTitle} refreshed ${updated || 'just now'}`,
+        })
+        return
+      }
+
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = fileName
+      link.click()
+    } finally {
+      if (previousCaptureStyle === null) {
+        captureNode.removeAttribute('style')
+      } else {
+        captureNode.setAttribute('style', previousCaptureStyle)
+      }
+      if (scrollNode) {
+        if (previousScrollStyle === null) {
+          scrollNode.removeAttribute('style')
+        } else {
+          scrollNode.setAttribute('style', previousScrollStyle)
+        }
+      }
+      setCapturing(false)
+    }
+  }
 
   return (
     <div className={`fixed inset-0 z-[200] ${row ? 'pointer-events-auto' : 'pointer-events-none'}`}>
@@ -316,23 +384,29 @@ function StoreDetailDrawer({
         onClick={onClose}
       />
       <aside
+        ref={captureRef}
         className={`absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-modal)] transition-transform duration-200 ${row ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {row && (
           <>
             <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
               <div className="min-w-0">
-                <div className="truncate text-base font-semibold text-[var(--text)]">{dealer ? `${dealer.nickname} Numbers` : 'Store Numbers'}</div>
+                <div className="truncate text-base font-semibold text-[var(--text)]">{captureTitle}</div>
                 <div className="mt-1 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
                   <Clock size={12} />
                   Source refreshed {updated || 'just now'}
                 </div>
               </div>
-              <Button size="icon" variant="ghost" onClick={onClose} aria-label="Close store details">
-                <X size={16} />
-              </Button>
+              <div className="flex items-center gap-1" data-capture-exclude="true">
+                <Button size="icon" variant="ghost" onClick={handleCapture} loading={capturing} aria-label="Capture store numbers">
+                  <Camera size={16} />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={onClose} aria-label="Close store details">
+                  <X size={16} />
+                </Button>
+              </div>
             </div>
-            <div className="flex-1 space-y-4 overflow-y-auto p-5">
+            <div className="flex-1 space-y-4 overflow-y-auto bg-[var(--surface)] p-5" data-capture-scroll="true">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
