@@ -41,18 +41,18 @@ function EditableField({
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1">
+      <div className="titlebar-inline-control flex items-center gap-1">
         <input
           ref={inputRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
           onBlur={commit}
-          className={`bg-[var(--input-bg)] border border-[var(--accent)]/50 rounded px-1.5 py-0.5 text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)] ${className}`}
+          className={`titlebar-inline-input bg-[var(--input-bg)] border border-[var(--accent)]/50 rounded px-1.5 py-0.5 text-xs text-[var(--text)] focus:outline-none focus:border-[var(--accent)] ${className}`}
           placeholder={placeholder}
           style={{ width: Math.max(80, draft.length * 8) + 'px' }}
         />
-        <button onClick={commit} className="text-[var(--accent)]"><Check size={11} /></button>
+        <button onClick={commit} className="titlebar-inline-action text-[var(--accent)]"><Check size={11} /></button>
       </div>
     )
   }
@@ -60,7 +60,7 @@ function EditableField({
   return (
     <button
       onClick={() => { setDraft(value); setEditing(true) }}
-      className="group flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors"
+      className="titlebar-inline-action group flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors"
     >
       <span>{value || placeholder}</span>
       <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition-opacity" />
@@ -178,7 +178,7 @@ function StoreSelector() {
       onChange={(event) => {
         if (event.target.value) setStoreId(normalizeStoreId(event.target.value))
       }}
-      className="max-w-[190px] rounded border border-transparent bg-transparent py-0 pr-5 text-xs text-[var(--text-secondary)] outline-none transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] focus:border-[var(--accent)] focus:bg-[var(--surface-2)]"
+      className="titlebar-store-select max-w-[190px] rounded border border-transparent bg-transparent py-0 pr-5 text-xs text-[var(--text-secondary)] outline-none transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] focus:border-[var(--accent)] focus:bg-[var(--surface-2)]"
       title="Switch store"
     >
       {!currentValue && <option value="">{fallbackLabel}</option>}
@@ -213,8 +213,8 @@ export function TitleBar() {
             onChange={setCompanyName}
             className="font-semibold"
           />
-          <div className="flex items-center gap-1">
-            <Store size={9} className="text-[var(--text-tertiary)]" />
+          <div className="titlebar-store-row flex items-center gap-1">
+            <Store size={9} className="titlebar-store-icon text-[var(--text-tertiary)]" />
             <StoreSelector />
           </div>
         </div>

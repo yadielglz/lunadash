@@ -476,6 +476,56 @@ body::after {
   }
 }
 
+.titlebar-inline-action,
+.titlebar-inline-input,
+.titlebar-store-select {
+  min-height: 1.75rem;
+  height: 1.75rem;
+}
+
+.titlebar-inline-action {
+  min-width: 1.75rem;
+  border-radius: var(--radius-sm);
+  justify-content: center;
+}
+
+.titlebar-store-row {
+  min-height: 1.75rem;
+  align-items: center;
+}
+
+.titlebar-store-select {
+  line-height: 1.25rem;
+}
+
+@media (pointer: coarse) {
+  .titlebar-inline-action,
+  .titlebar-inline-input,
+  .titlebar-store-select {
+    min-height: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .titlebar-inline-action {
+    min-width: 2.25rem;
+  }
+
+  .titlebar-store-row {
+    min-height: 2.25rem;
+  }
+
+  .titlebar-store-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  .titlebar-store-select {
+    max-width: 14.5rem;
+    padding-left: 0.5rem;
+    padding-right: 1.75rem;
+  }
+}
+
 .status-dot {
   width: 0.5rem;
   height: 0.5rem;
