@@ -211,7 +211,12 @@ alter publication supabase_realtime add table employees;
 alter publication supabase_realtime add table employee_schedule_preferences;
 alter publication supabase_realtime add table employee_sales;
 alter publication supabase_realtime add table shifts;
-alter publication supabase_realtime add table schedule_exceptions;
+do $$
+begin
+  alter publication supabase_realtime add table schedule_exceptions;
+exception
+  when duplicate_object then null;
+end $$;
 alter publication supabase_realtime add table schedule_blocks;
 alter publication supabase_realtime add table schedule_templates;
 alter publication supabase_realtime add table goals;

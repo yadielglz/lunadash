@@ -17,4 +17,9 @@ alter table schedule_exceptions enable row level security;
 drop policy if exists "public" on schedule_exceptions;
 create policy "public" on schedule_exceptions for all using (true) with check (true);
 
-alter publication supabase_realtime add table schedule_exceptions;
+do $$
+begin
+  alter publication supabase_realtime add table schedule_exceptions;
+exception
+  when duplicate_object then null;
+end $$;

@@ -15,8 +15,16 @@ import { useUiStore } from '../../../store/uiStore'
 import { PrintableScheduleModal } from './PrintableScheduleModal'
 import { useDisplayStore } from '../../../store/displayStore'
 import { weekdayKeyForDate, type StoreHours } from '../../../lib/storeHours'
+import { useScheduleExceptionsStore, type ScheduleException, type ScheduleExceptionType } from '../../../store/scheduleExceptionsStore'
 
 const SCHEDULE_GRID_COLUMNS = '220px repeat(7, minmax(118px, 1fr))'
+const UNAVAILABLE_EXCEPTION_TYPES: ScheduleExceptionType[] = ['call_out', 'no_show', 'pto']
+const EXCEPTION_LABELS: Record<ScheduleExceptionType, string> = {
+  call_out: 'Call Out',
+  no_show: 'No Show',
+  pto: 'PTO',
+  holiday: 'Holiday',
+}
 
 function weekDates(weekStart: Date) {
   return Array.from({ length: 7 }, (_, i) => format(addDays(weekStart, i), 'yyyy-MM-dd'))
@@ -185,6 +193,21 @@ function minutesToTime(minutes: number) {
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
 }
 
+function exceptionOverlapsShift(exception: ScheduleException, shift: Shift) {
+  if (!UNAVAILABLE_EXCEPTION_TYPES.includes(exception.type)) return false
+  if (exception.employeeId !== shift.employeeId || exception.date !== shift.date) return false
+  if (!exception.startTime || !exception.endTime) return true
+  return exception.startTime < shift.endTime && shift.startTime < exception.endTime
+}
+
+function exceptionsForShift(shift: Shift, exceptions: ScheduleException[]) {
+  return exceptions.filter((exception) => exceptionOverlapsShift(exception, shift))
+}
+
+function hasUnavailableException(shift: Shift, exceptions: ScheduleException[]) {
+  return exceptionsForShift(shift, exceptions).length > 0
+}
+
 type CoverageAlert = {
   id: string
   date: string
@@ -193,13 +216,28 @@ type CoverageAlert = {
   severity: 'warning' | 'danger'
 }
 
-function buildCoverageAlerts(shifts: Shift[], dates: string[], storeHours: StoreHours): CoverageAlert[] {
+function buildCoverageAlerts(shifts: Shift[], dates: string[], storeHours: StoreHours, exceptions: ScheduleException[]): CoverageAlert[] {
   return dates.flatMap((date) => {
+    const holiday = exceptions.find((exception) => exception.type === 'holiday' && exception.date === date)
     const dayHours = storeHours[weekdayKeyForDate(new Date(`${date}T12:00:00`))]
     const dayShifts = shifts
       .filter((shift) => shift.date === date)
       .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    const availableDayShifts = dayShifts.filter((shift) => !hasUnavailableException(shift, exceptions))
     const alerts: CoverageAlert[] = []
+
+    if (holiday) {
+      if (dayShifts.length > 0) {
+        alerts.push({
+          id: `${date}-holiday-scheduled`,
+          date,
+          title: 'Holiday scheduled',
+          detail: `This date is marked as a holiday${holiday.note ? `: ${holiday.note}` : '.'}`,
+          severity: 'warning',
+        })
+      }
+      return alerts
+    }
 
     if (!dayHours.open) {
       if (dayShifts.length > 0) {
@@ -214,7 +252,7 @@ function buildCoverageAlerts(shifts: Shift[], dates: string[], storeHours: Store
       return alerts
     }
 
-    if (dayShifts.length === 0) {
+    if (availableDayShifts.length === 0) {
       alerts.push({
         id: `${date}-empty`,
         date,
@@ -227,7 +265,7 @@ function buildCoverageAlerts(shifts: Shift[], dates: string[], storeHours: Store
 
     const openingMinutes = timeToMinutes(dayHours.start)
     const closingMinutes = timeToMinutes(dayHours.end)
-    const coverageIntervals = dayShifts
+    const coverageIntervals = availableDayShifts
       .map((shift) => ({
         start: Math.max(timeToMinutes(shift.startTime), openingMinutes),
         end: Math.min(timeToMinutes(shift.endTime), closingMinutes),
@@ -294,7 +332,7 @@ function buildCoverageAlerts(shifts: Shift[], dates: string[], storeHours: Store
       })
     }
 
-    if (dayShifts.length === 1) {
+    if (availableDayShifts.length === 1) {
       alerts.push({
         id: `${date}-solo`,
         date,
@@ -355,6 +393,7 @@ function ShiftCard({
   showShiftName,
   showShiftNote,
   compact,
+  exceptionLabels,
   onClick,
   onDuplicate,
   onDragStart,
@@ -366,6 +405,7 @@ function ShiftCard({
   showShiftName: boolean
   showShiftNote: boolean
   compact: boolean
+  exceptionLabels?: string[]
   onClick: () => void
   onDuplicate: () => void
   onDragStart: () => void
@@ -402,6 +442,7 @@ function ShiftCard({
         )}
         <div className="flex items-center gap-1">
           {hasConflict && <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />}
+          {exceptionLabels && exceptionLabels.length > 0 && <AlertTriangle size={11} className="text-amber-300 flex-shrink-0" />}
           {canEdit && (
             <span
               role="button"
@@ -426,6 +467,15 @@ function ShiftCard({
           {shift.note}
         </div>
       )}
+      {exceptionLabels && exceptionLabels.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {exceptionLabels.map((label) => (
+            <span key={label} className="rounded border border-amber-400/25 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-200">
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
     </motion.button>
   )
 }
@@ -434,6 +484,7 @@ function MobileWeeklySchedule({
   days,
   employees,
   shifts,
+  exceptions,
   blockColors,
   canEdit,
   showShiftNames,
@@ -446,6 +497,7 @@ function MobileWeeklySchedule({
   days: Date[]
   employees: Employee[]
   shifts: Shift[]
+  exceptions: ScheduleException[]
   blockColors: Map<string, string>
   canEdit: boolean
   showShiftNames: boolean
@@ -462,6 +514,7 @@ function MobileWeeklySchedule({
         const dayShifts = shifts
           .filter((shift) => shift.date === dateStr)
           .sort((a, b) => a.startTime.localeCompare(b.startTime))
+        const holiday = exceptions.find((exception) => exception.type === 'holiday' && exception.date === dateStr)
         const today = isToday(day)
 
         return (
@@ -476,7 +529,10 @@ function MobileWeeklySchedule({
                 <div className="text-sm font-semibold text-[var(--text)]">{format(day, 'EEEE')}</div>
                 <div className="text-xs text-[var(--text-tertiary)]">{format(day, 'MMM d')}</div>
               </div>
-              {today && <span className="rounded-md bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold text-[var(--accent)]">Today</span>}
+              <div className="flex items-center gap-1.5">
+                {holiday && <span className="rounded-md bg-amber-400/10 px-2 py-1 text-[10px] font-semibold text-amber-200">Holiday</span>}
+                {today && <span className="rounded-md bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold text-[var(--accent)]">Today</span>}
+              </div>
             </div>
 
             {employees.length === 0 ? (
@@ -508,21 +564,25 @@ function MobileWeeklySchedule({
                       </div>
                       {employeeShifts.length > 0 ? (
                         <div className="space-y-1.5">
-                          {employeeShifts.map((shift) => (
-                            <ShiftCard
-                              key={shift.id}
-                              shift={shift}
-                              accentColor={blockColors.get(shift.type) ?? employee.color}
-                              hasConflict={conflictIds.has(shift.id)}
-                              canEdit={canEdit}
-                              showShiftName={showShiftNames}
-                              showShiftNote={showShiftNotes}
-                              compact={compactSchedule}
-                              onClick={() => openEdit(shift)}
-                              onDuplicate={() => duplicateShift(shift)}
-                              onDragStart={() => {}}
-                            />
-                          ))}
+                          {employeeShifts.map((shift) => {
+                            const shiftExceptions = exceptionsForShift(shift, exceptions)
+                            return (
+                              <ShiftCard
+                                key={shift.id}
+                                shift={shift}
+                                accentColor={blockColors.get(shift.type) ?? employee.color}
+                                hasConflict={conflictIds.has(shift.id)}
+                                canEdit={canEdit}
+                                showShiftName={showShiftNames}
+                                showShiftNote={showShiftNotes}
+                                compact={compactSchedule}
+                                exceptionLabels={shiftExceptions.map((exception) => EXCEPTION_LABELS[exception.type])}
+                                onClick={() => openEdit(shift)}
+                                onDuplicate={() => duplicateShift(shift)}
+                                onDragStart={() => {}}
+                              />
+                            )
+                          })}
                         </div>
                       ) : (
                         <p className="text-[11px] text-[var(--text-tertiary)]">No shift</p>
@@ -549,6 +609,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const compactSchedule = useSchedulePreferencesStore((s) => s.compactSchedule)
   const isMainDashboard = useUiStore((s) => s.storeId === 'main')
   const storeHours = useDisplayStore((s) => s.storeHours)
+  const exceptions = useScheduleExceptionsStore((s) => s.exceptions)
   const [weekOffset, setWeekOffset] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
@@ -567,8 +628,9 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const previousWeekDates = weekDates(previousWeekStart)
   const currentWeekShifts = shifts.filter((shift) => currentWeekDates.includes(shift.date))
   const previousWeekShifts = shifts.filter((shift) => previousWeekDates.includes(shift.date))
+  const currentWeekExceptions = exceptions.filter((exception) => currentWeekDates.includes(exception.date))
   const blockColors = new Map(blocks.map((block) => [block.name, block.color]))
-  const coverageAlerts = buildCoverageAlerts(currentWeekShifts, currentWeekDates, storeHours)
+  const coverageAlerts = buildCoverageAlerts(currentWeekShifts, currentWeekDates, storeHours, currentWeekExceptions)
 
   const openAdd = (date: string, employeeId: string) => {
     if (!canEdit) return
@@ -704,6 +766,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
             days={days}
             employees={employees}
             shifts={shifts}
+            exceptions={currentWeekExceptions}
             blockColors={blockColors}
             canEdit={canEdit}
             showShiftNames={showShiftNames}
@@ -720,6 +783,8 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
             <div className="sticky left-0 z-20 bg-[var(--bg)]" /> {/* Employee column spacer */}
             {days.map((d) => {
               const today = isToday(d)
+              const dateStr = format(d, 'yyyy-MM-dd')
+              const holiday = currentWeekExceptions.find((exception) => exception.type === 'holiday' && exception.date === dateStr)
               return (
                 <div
                   key={d.toISOString()}
@@ -735,6 +800,9 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                   </span>
                   {today && (
                     <span className="text-[9px] text-[var(--accent)] font-semibold">Today</span>
+                  )}
+                  {holiday && (
+                    <span className="rounded border border-amber-400/25 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-200">Holiday</span>
                   )}
                 </div>
               )
@@ -836,21 +904,25 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                       }`}
                     >
                       <AnimatePresence>
-                        {dayShifts.map((shift) => (
-                          <ShiftCard
-                            key={shift.id}
-                            shift={shift}
-                            accentColor={blockColors.get(shift.type) ?? emp.color}
-                            hasConflict={conflictIds.has(shift.id)}
-                            canEdit={canEdit}
-                            showShiftName={showShiftNames}
-                            showShiftNote={showShiftNotes}
-                            compact={compactSchedule}
-                            onClick={() => openEdit(shift)}
-                            onDuplicate={() => duplicateShift(shift)}
-                            onDragStart={() => { if (canEdit) setDragShiftId(shift.id) }}
-                          />
-                        ))}
+                        {dayShifts.map((shift) => {
+                          const shiftExceptions = exceptionsForShift(shift, currentWeekExceptions)
+                          return (
+                            <ShiftCard
+                              key={shift.id}
+                              shift={shift}
+                              accentColor={blockColors.get(shift.type) ?? emp.color}
+                              hasConflict={conflictIds.has(shift.id)}
+                              canEdit={canEdit}
+                              showShiftName={showShiftNames}
+                              showShiftNote={showShiftNotes}
+                              compact={compactSchedule}
+                              exceptionLabels={shiftExceptions.map((exception) => EXCEPTION_LABELS[exception.type])}
+                              onClick={() => openEdit(shift)}
+                              onDuplicate={() => duplicateShift(shift)}
+                              onDragStart={() => { if (canEdit) setDragShiftId(shift.id) }}
+                            />
+                          )
+                        })}
                       </AnimatePresence>
 
                       {canEdit && dayShifts.length === 0 && (
