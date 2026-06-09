@@ -3,29 +3,35 @@
 @tailwind utilities;
 
 /* ============================================================
-   FLAT MODERN DESIGN TOKENS
+   LUNA RETAIL OS TOKENS
    ============================================================ */
 :root {
   --font-display: 'Google Sans', 'GoogleSans', 'Google Sans Display', 'Google Sans Text', 'Google Sans Flex', 'Product Sans', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
   --font-text: 'Google Sans', 'GoogleSans', 'Google Sans Text', 'Google Sans Flex', 'Product Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
-  --app-wallpaper: url('https://i.ibb.co/39JLm174/Wall.png');
+  --app-wallpaper: none;
 
-  --accent: #0f7ad8;
-  --accent-hover: #0a67ba;
-  --accent-light: #dceeff;
-  --accent-secondary: #18a058;
-  --accent-glow: rgba(15, 122, 216, 0.16);
+  --accent: #0876c9;
+  --accent-hover: #065fa3;
+  --accent-light: #d9ecfb;
+  --accent-secondary: #1f8a4c;
+  --accent-glow: rgba(8, 118, 201, 0.14);
+  --status-good: #1f8a4c;
+  --status-warn: #c98408;
+  --status-danger: #c94040;
+  --status-info: #0876c9;
+  --console-rail: #09111c;
+  --console-ink: #0f1724;
 
   --radius-sm: 4px;
   --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
   --radius-pill: 100px;
 
   --shadow-card: none;
-  --shadow-float: 0 8px 18px rgba(15, 23, 42, 0.08);
-  --shadow-modal: 0 18px 40px rgba(15, 23, 42, 0.16);
+  --shadow-float: 0 10px 24px rgba(0, 0, 0, 0.16);
+  --shadow-modal: 0 20px 48px rgba(0, 0, 0, 0.28);
 
   --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
   --transition-normal: 250ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -38,64 +44,64 @@
    DARK THEME (default)
    ============================================================ */
 :root, .dark {
-  --bg: #111318;
-  --bg-gradient: #111318;
-  --surface: #171a21;
-  --surface-2: #1d222b;
-  --surface-3: #252b35;
-  --surface-solid: #171a21;
-  --surface-2-solid: #1d222b;
-  --border: rgba(255,255,255,0.08);
-  --border-strong: rgba(255,255,255,0.16);
+  --bg: #0f141b;
+  --bg-gradient: linear-gradient(180deg, #101822 0%, #0d1117 100%);
+  --surface: #151b24;
+  --surface-2: #1a222d;
+  --surface-3: #223040;
+  --surface-solid: #151b24;
+  --surface-2-solid: #1a222d;
+  --border: rgba(222,232,242,0.10);
+  --border-strong: rgba(222,232,242,0.18);
   --text: rgba(255,255,255,0.94);
-  --text-secondary: rgba(255,255,255,0.66);
-  --text-tertiary: rgba(255,255,255,0.42);
-  --acrylic: #171a21;
-  --mica: #14171d;
-  --taskbar-bg: #14171d;
-  --titlebar-bg: #14171d;
-  --reveal-bg: rgba(255,255,255,0.055);
+  --text-secondary: rgba(232,240,248,0.68);
+  --text-tertiary: rgba(232,240,248,0.44);
+  --acrylic: #151b24;
+  --mica: #111821;
+  --taskbar-bg: #0b1119;
+  --titlebar-bg: #0b1119;
+  --reveal-bg: rgba(232,240,248,0.06);
   --reveal-border: rgba(255,255,255,0.10);
-  --input-bg: #111318;
+  --input-bg: #0e141c;
   --scrollbar-track: rgba(255,255,255,0.04);
   --scrollbar-thumb: rgba(255,255,255,0.15);
   --scrollbar-thumb-hover: rgba(255,255,255,0.25);
-  --wallpaper-opacity: 0.18;
-  --wallpaper-overlay: rgba(17, 19, 24, 0.84);
+  --wallpaper-opacity: 0;
+  --wallpaper-overlay: rgba(15, 20, 27, 0.92);
 }
 
 /* ============================================================
    LIGHT THEME
    ============================================================ */
 .light {
-  --bg: #f4f6f8;
-  --bg-gradient: #f4f6f8;
+  --bg: #eef2f5;
+  --bg-gradient: linear-gradient(180deg, #f5f7f9 0%, #e9eef3 100%);
   --surface: #ffffff;
-  --surface-2: #ffffff;
-  --surface-3: #f7f9fb;
+  --surface-2: #f8fafc;
+  --surface-3: #eef3f7;
   --surface-solid: #ffffff;
   --surface-2-solid: #ffffff;
   --border: rgba(15,23,42,0.10);
   --border-strong: rgba(15,23,42,0.18);
-  --text: #18202b;
-  --text-secondary: #647084;
-  --text-tertiary: #8d99aa;
+  --text: #111827;
+  --text-secondary: #536173;
+  --text-tertiary: #8190a1;
   --acrylic: #ffffff;
   --mica: #ffffff;
-  --taskbar-bg: #ffffff;
-  --titlebar-bg: #ffffff;
+  --taskbar-bg: #f8fafc;
+  --titlebar-bg: #f8fafc;
   --reveal-bg: rgba(15,23,42,0.045);
   --reveal-border: rgba(15,23,42,0.08);
   --input-bg: #f7f9fb;
   --scrollbar-track: rgba(0,0,0,0.04);
   --scrollbar-thumb: rgba(0,0,0,0.15);
   --scrollbar-thumb-hover: rgba(0,0,0,0.25);
-  --accent: #0f6fca;
-  --accent-hover: #0b5dad;
+  --accent: #0876c9;
+  --accent-hover: #065fa3;
   --accent-light: #dceeff;
   --accent-glow: rgba(15, 111, 202, 0.14);
-  --wallpaper-opacity: 0.24;
-  --wallpaper-overlay: rgba(244, 246, 248, 0.82);
+  --wallpaper-opacity: 0;
+  --wallpaper-overlay: rgba(245, 247, 249, 0.9);
 }
 
 /* ============================================================
@@ -232,8 +238,11 @@ body::before {
 body::after {
   z-index: 0;
   background:
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,0.018) 1px, transparent 1px),
     linear-gradient(180deg, var(--wallpaper-overlay), var(--wallpaper-overlay)),
     var(--bg-gradient);
+  background-size: 24px 24px, 24px 24px, auto, auto;
 }
 
 #root {
@@ -349,6 +358,46 @@ body::after {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border: 1px solid var(--border);
+}
+
+.ops-surface {
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, white 6%), var(--surface));
+}
+
+.ops-panel {
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 92%, white 8%), var(--surface-2));
+}
+
+.ops-strip {
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 56%),
+    var(--surface-2);
+}
+
+.ops-kicker {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.ops-gridline {
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 100% 36px, 36px 100%;
+}
+
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .glass-strong {
   background: var(--surface-2);

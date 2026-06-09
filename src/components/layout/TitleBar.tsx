@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CloudSun, Sun, Moon, Store, Pencil, Check, LogOut } from 'lucide-react'
+import { CloudSun, Sun, Moon, Store, Pencil, Check, LogOut, RadioTower } from 'lucide-react'
 import { accessRoleLabel, useUiStore } from '../../store/uiStore'
 import { useTheme } from '../../hooks/useTheme'
 import { useClock } from '../../hooks/useClock'
@@ -200,10 +200,10 @@ export function TitleBar() {
   const mobileTabLabel = activeTab === 'goals' ? 'Performance' : activeTab
 
   return (
-    <div className="app-titlebar chrome-bar bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex flex-shrink-0 items-center justify-between px-3 sm:px-4 z-50">
+    <div className="app-titlebar chrome-bar bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex flex-shrink-0 items-center justify-between px-3 sm:px-4 z-50 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
       {/* Logo + store info */}
       <div className="flex min-w-0 items-center gap-2.5">
-        <div className="flex h-7 w-11 flex-shrink-0 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-1.5">
+        <div className="flex h-8 w-12 flex-shrink-0 items-center justify-center rounded-md border border-[var(--border-strong)] bg-[var(--console-rail)] px-1.5 shadow-[inset_0_1px_rgba(255,255,255,0.08)]">
           <LunaWirelessLogo className="h-4 w-full" />
         </div>
         <div className="hidden sm:flex flex-col leading-none gap-0.5">
@@ -224,9 +224,10 @@ export function TitleBar() {
       <div className="mx-2 flex min-w-0 flex-1 items-center justify-center gap-1.5 sm:gap-2">
         <button
           onClick={() => setTab('schedule')}
-          className="flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-transparent px-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] sm:px-2"
+          className="flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)] sm:px-2"
           title={dateStr}
         >
+          <RadioTower size={12} className="hidden text-[var(--accent)] sm:block" />
           <span className="hidden sm:inline">{dateStr}</span>
           <span className="sm:hidden text-sm font-medium capitalize text-[var(--text)]">{mobileTabLabel}</span>
           <span className="tabular-nums text-[var(--text)]">{timeStr}</span>

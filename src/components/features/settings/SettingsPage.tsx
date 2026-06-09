@@ -18,6 +18,7 @@ import { SyncArea, useSyncStore } from '../../../store/syncStore'
 import { WeatherPage } from '../weather/WeatherPage'
 import { getDealerInfo } from '../../../lib/dealers'
 import { normalizeStoreId } from '../../../lib/storeIds'
+import { WEEKDAY_KEYS, WEEKDAY_LABELS, type StoreHours } from '../../../lib/storeHours'
 import { Section, Row, Segment } from './SettingsLayout'
 import { AccessSection } from './AccessSection'
 
@@ -113,11 +114,12 @@ function GeneralSection() {
 
 // ── Store details ────────────────────────────────────────────────────────────
 function StoreSection() {
-  const { companyName, storeNumber, slideInterval, setCompanyName, setStoreNumber } = useDisplayStore()
+  const { companyName, storeNumber, slideInterval, storeHours, setCompanyName, setStoreNumber, setStoreHours } = useDisplayStore()
   const { storeId, setStoreId, accessRole } = useUiStore()
   const canSwitchStores = accessRole === 'admin'
   const [name, setName]       = useState(companyName)
   const [num, setNum]         = useState(storeNumber)
+  const [hours, setHours]     = useState<StoreHours>(storeHours)
   const [newStoreId, setNewStoreId] = useState('')
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [storesLoading, setStoresLoading] = useState(false)
@@ -149,12 +151,21 @@ function StoreSection() {
   useEffect(() => {
     setName(companyName)
     setNum(storeNumber)
-  }, [companyName, storeNumber])
+    setHours(storeHours)
+  }, [companyName, storeHours, storeNumber])
 
   const saveDetails = () => {
     setCompanyName(name.trim() || companyName)
     setStoreNumber(num.trim())
+    setStoreHours(hours)
     loadStores()
+  }
+
+  const updateDayHours = (day: keyof StoreHours, patch: Partial<StoreHours[keyof StoreHours]>) => {
+    setHours((current) => ({
+      ...current,
+      [day]: { ...current[day], ...patch },
+    }))
   }
 
   const switchStore = (nextStoreId: string) => {
@@ -238,6 +249,43 @@ function StoreSection() {
         <div className="grid grid-cols-2 gap-3">
           <Input label="Company Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Luna Store" />
           <Input label="Store Number" value={num} onChange={(e) => setNum(e.target.value)} placeholder="e.g. 1234" />
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+          <div className="border-b border-[var(--border)] px-3 py-2">
+            <p className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Store Hours</p>
+          </div>
+          <div className="divide-y divide-[var(--border)]">
+            {WEEKDAY_KEYS.map((day) => (
+              <div key={day} className="grid grid-cols-[minmax(74px,1fr)_auto] gap-2 px-3 py-2 sm:grid-cols-[110px_auto_1fr] sm:items-center">
+                <div className="text-xs font-medium text-[var(--text)]">{WEEKDAY_LABELS[day]}</div>
+                <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                  <input
+                    type="checkbox"
+                    checked={hours[day].open}
+                    onChange={(event) => updateDayHours(day, { open: event.target.checked })}
+                    className="accent-[var(--accent)]"
+                  />
+                  Open
+                </label>
+                <div className="col-span-2 grid grid-cols-2 gap-2 sm:col-span-1">
+                  <Input
+                    aria-label={`${WEEKDAY_LABELS[day]} open time`}
+                    type="time"
+                    value={hours[day].start}
+                    onChange={(event) => updateDayHours(day, { start: event.target.value })}
+                    disabled={!hours[day].open}
+                  />
+                  <Input
+                    aria-label={`${WEEKDAY_LABELS[day]} close time`}
+                    type="time"
+                    value={hours[day].end}
+                    onChange={(event) => updateDayHours(day, { end: event.target.value })}
+                    disabled={!hours[day].open}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         <div className="flex justify-end">
           <Button size="sm" onClick={saveDetails} icon={<Check size={12} />}>Save</Button>
@@ -1130,6 +1178,7 @@ function SyncStatusSection() {
   const rows: { area: SyncArea; label: string }[] = [
     { area: 'settings', label: 'Settings' },
     { area: 'schedule', label: 'Schedule' },
+    { area: 'tasks', label: 'Daily Checklist' },
     { area: 'goals', label: 'Performance Snapshots' },
     { area: 'announcements', label: 'Announcements' },
   ]

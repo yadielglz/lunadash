@@ -13,10 +13,10 @@ interface CardProps extends HTMLMotionProps<'div'> {
 export function Card({ children, className, variant = 'default', interactive = false, noPadding = false, ...rest }: CardProps) {
   const base = 'rounded-lg border transition-colors duration-150'
   const variants = {
-    default: 'bg-[var(--surface)] border-[var(--border)]',
-    elevated: 'bg-[var(--surface)] border-[var(--border-strong)] shadow-[var(--shadow-float)]',
-    glass: 'bg-[var(--surface)] border-[var(--border)]',
-    accent: 'border-[var(--accent)]/25 bg-[var(--accent)]/8',
+    default: 'ops-surface',
+    elevated: 'ops-surface border-[var(--border-strong)] shadow-[var(--shadow-float)]',
+    glass: 'ops-surface',
+    accent: 'ops-strip border-[var(--accent)]/25',
   }
   const interactiveClass = interactive
     ? 'cursor-pointer hover:border-[var(--accent)]/35 hover:bg-[var(--surface-3)] active:scale-[0.99]'

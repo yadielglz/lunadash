@@ -1,8 +1,18 @@
 import { create } from 'zustand'
 import { dbInsertTask, dbUpdateTask, dbDeleteTask } from '../lib/supabase'
 import { currentStoreId } from './currentStoreId'
+import { useSyncStore } from './syncStore'
 
 const today = () => new Date().toISOString().split('T')[0]
+
+function trackTaskSync(action: string, operation: Promise<void>) {
+  useSyncStore.getState().setSync('tasks', 'saving', action)
+  operation
+    .then(() => useSyncStore.getState().setSync('tasks', 'synced', 'Checklist confirmed in Supabase'))
+    .catch((err) => {
+      useSyncStore.getState().setSync('tasks', 'error', err instanceof Error ? err.message : 'Checklist sync failed')
+    })
+}
 
 export type TaskCategory = 'opening' | 'closing' | 'general'
 
@@ -43,17 +53,17 @@ export const useTasksStore = create<TasksState>()((set) => ({
       createdAt: new Date().toISOString(),
     }
     set((s) => ({ tasks: [...s.tasks, task] }))
-    dbInsertTask(task, currentStoreId())
+    trackTaskSync('Saving checklist task', dbInsertTask(task, currentStoreId()))
   },
 
   updateTask: (id, patch) => {
     set((s) => ({ tasks: s.tasks.map((t) => t.id === id ? { ...t, ...patch } : t) }))
-    dbUpdateTask(id, patch)
+    trackTaskSync('Saving checklist update', dbUpdateTask(id, patch))
   },
 
   removeTask: (id) => {
     set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }))
-    dbDeleteTask(id)
+    trackTaskSync('Deleting checklist task', dbDeleteTask(id))
   },
 
   toggleTask: (id) => {
@@ -61,7 +71,7 @@ export const useTasksStore = create<TasksState>()((set) => ({
       tasks: s.tasks.map((t) => {
         if (t.id !== id) return t
         const completedDate = t.completedDate === today() ? null : today()
-        dbUpdateTask(id, { completedDate })
+        trackTaskSync('Saving checklist completion', dbUpdateTask(id, { completedDate }))
         return { ...t, completedDate }
       }),
     }))
@@ -89,7 +99,7 @@ export const useTasksStore = create<TasksState>()((set) => ({
       ))
 
       reordered.forEach((t, index) => {
-        if (t.sortOrder !== index) dbUpdateTask(t.id, { sortOrder: index })
+        if (t.sortOrder !== index) trackTaskSync('Saving checklist order', dbUpdateTask(t.id, { sortOrder: index }))
       })
 
       return { tasks }

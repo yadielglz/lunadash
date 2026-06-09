@@ -5,6 +5,7 @@ import {
   dbUpdateSettings,
 } from '../lib/supabase'
 import { currentStoreId } from './currentStoreId'
+import { DEFAULT_STORE_HOURS, normalizeStoreHours, type StoreHours } from '../lib/storeHours'
 
 export interface Announcement {
   id: string
@@ -21,9 +22,10 @@ interface DisplayState {
   slideInterval: number
   companyName: string
   storeNumber: string
+  storeHours: StoreHours
   isLoaded: boolean
 
-  _init: (announcements: Announcement[], settings: { company_name: string; store_number: string; slide_interval: number }) => void
+  _init: (announcements: Announcement[], settings: { company_name: string; store_number: string; slide_interval: number; store_hours?: StoreHours | null }) => void
 
   addAnnouncement: (text: string, priority?: Announcement['priority'], period?: Pick<Announcement, 'startAt' | 'endAt'>, storeId?: string) => void
   updateAnnouncement: (id: string, updates: Partial<Announcement>) => void
@@ -32,6 +34,7 @@ interface DisplayState {
   setSlideInterval: (secs: number) => void
   setCompanyName: (name: string) => void
   setStoreNumber: (num: string) => void
+  setStoreHours: (hours: StoreHours) => void
 }
 
 export const useDisplayStore = create<DisplayState>()(
@@ -41,6 +44,7 @@ export const useDisplayStore = create<DisplayState>()(
       slideInterval: 8,
       companyName: 'Luna Store',
       storeNumber: '',
+      storeHours: DEFAULT_STORE_HOURS,
       isLoaded: false,
 
       _init: (announcements, settings) => set({
@@ -48,6 +52,7 @@ export const useDisplayStore = create<DisplayState>()(
         companyName:   settings.company_name,
         storeNumber:   settings.store_number,
         slideInterval: settings.slide_interval,
+        storeHours: normalizeStoreHours(settings.store_hours),
         isLoaded: true,
       }),
 
@@ -91,11 +96,17 @@ export const useDisplayStore = create<DisplayState>()(
         set({ storeNumber: num })
         dbUpdateSettings(currentStoreId(), { store_number: num })
       },
+
+      setStoreHours: (hours) => {
+        const normalized = normalizeStoreHours(hours)
+        set({ storeHours: normalized })
+        dbUpdateSettings(currentStoreId(), { store_hours: normalized })
+      },
     }),
     {
       // Keep slideInterval, companyName, storeNumber locally as fallback
       name: 'luna-display-ui',
-      partialize: (s) => ({ slideInterval: s.slideInterval, companyName: s.companyName, storeNumber: s.storeNumber }),
+      partialize: (s) => ({ slideInterval: s.slideInterval, companyName: s.companyName, storeNumber: s.storeNumber, storeHours: s.storeHours }),
     }
   )
 )

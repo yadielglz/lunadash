@@ -65,9 +65,10 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
   _init: (employees, shifts) => set({ employees, shifts, isLoaded: true }),
 
   addEmployee: (emp) => {
-    const newEmp: Employee = { ...emp, id: crypto.randomUUID(), sortOrder: get().employees.length }
+    const storeId = currentStoreId()
+    const newEmp: Employee = { ...emp, id: crypto.randomUUID(), storeId, sortOrder: get().employees.length }
     set((s) => ({ employees: [...s.employees, newEmp] }))
-    dbInsertEmployee(newEmp, currentStoreId())
+    dbInsertEmployee(newEmp, storeId)
   },
 
   updateEmployee: (id, updates) => {
@@ -90,9 +91,10 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
   },
 
   addShift: (shift) => {
-    const newShift: Shift = { ...shift, id: crypto.randomUUID() }
+    const storeId = currentStoreId()
+    const newShift: Shift = { ...shift, id: crypto.randomUUID(), storeId }
     set((s) => ({ shifts: [...s.shifts, newShift] }))
-    dbInsertShift(newShift, currentStoreId())
+    dbInsertShift(newShift, storeId)
   },
 
   updateShift: (id, updates) => {
@@ -106,9 +108,9 @@ export const useScheduleStore = create<ScheduleState>()((set, get) => ({
   },
 
   addShifts: (shifts) => {
-    const newShifts: Shift[] = shifts.map((shift) => ({ ...shift, id: crypto.randomUUID() }))
-    set((s) => ({ shifts: [...s.shifts, ...newShifts] }))
     const storeId = currentStoreId()
+    const newShifts: Shift[] = shifts.map((shift) => ({ ...shift, id: crypto.randomUUID(), storeId }))
+    set((s) => ({ shifts: [...s.shifts, ...newShifts] }))
     newShifts.forEach((shift) => dbInsertShift(shift, storeId))
   },
 

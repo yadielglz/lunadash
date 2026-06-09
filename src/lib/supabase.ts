@@ -11,6 +11,7 @@ import type { AccessRole } from '../store/uiStore'
 import { fetchPerformanceData, type PerformanceRow } from './performanceSheet'
 import { setDealerOverride, setDealerOverrides } from './dealers'
 import { normalizeAccessCode, normalizeStoreId } from './storeIds'
+import { normalizeStoreHours, type StoreHours } from './storeHours'
 
 export const supabase = createClient(
   'https://vzbuboclkpdthztfprgg.supabase.co',
@@ -31,6 +32,7 @@ type DbGoal = {
 type DbSettings = {
   store_id: string; company_name: string; store_number: string; slide_interval: number
   dealer_nickname?: string | null; dealer_location?: string | null
+  store_hours?: StoreHours | null
 }
 
 export type StoreSummary = DbSettings
@@ -117,6 +119,14 @@ type DbAnnouncementPatch = Partial<{
   start_at: string | null
   end_at: string | null
 }>
+
+function isMissingStoreHoursColumnError(error: unknown) {
+  if (!isSupabaseError(error)) return false
+  const text = `${error.code ?? ''} ${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
+  return text.includes('store_hours')
+    || text.includes('column app_settings.store_hours does not exist')
+    || text.includes("could not find the 'store_hours'")
+}
 
 export type StoreAccessCode = {
   id: string
@@ -763,20 +773,22 @@ export async function dbDeleteEmployeeSale(id: string): Promise<boolean> {
 
 export async function dbSaveScheduleSnapshot(storeId: string, employees: Employee[], shifts: Shift[]) {
   const sid = normalizeStoreId(storeId)
+  const snapshotEmployees = employees.filter((employee) => normalizeStoreId(employee.storeId ?? sid) === sid)
+  const snapshotShifts = shifts.filter((shift) => normalizeStoreId(shift.storeId ?? sid) === sid)
   useSyncStore.getState().setSync('schedule', 'saving', 'Saving schedule snapshot')
-  if (employees.length > 0) {
-    const { error } = await supabase.from('employees').upsert(employees.map((e, index) => ({
+  if (snapshotEmployees.length > 0) {
+    const { error } = await supabase.from('employees').upsert(snapshotEmployees.map((e, index) => ({
       id: e.id,
-      store_id: normalizeStoreId(e.storeId ?? sid),
+      store_id: sid,
       name: e.name,
       role: e.role,
       color: e.color,
       sort_order: e.sortOrder ?? index,
     })))
     if (error && isMissingEmployeeSortColumnError(error)) {
-      const legacy = await supabase.from('employees').upsert(employees.map((e) => ({
+      const legacy = await supabase.from('employees').upsert(snapshotEmployees.map((e) => ({
         id: e.id,
-        store_id: normalizeStoreId(e.storeId ?? sid),
+        store_id: sid,
         name: e.name,
         role: e.role,
         color: e.color,
@@ -787,10 +799,10 @@ export async function dbSaveScheduleSnapshot(storeId: string, employees: Employe
     }
   }
 
-  if (shifts.length > 0) {
-    const { error } = await supabase.from('shifts').upsert(shifts.map((s) => ({
+  if (snapshotShifts.length > 0) {
+    const { error } = await supabase.from('shifts').upsert(snapshotShifts.map((s) => ({
       id: s.id,
-      store_id: normalizeStoreId(s.storeId ?? sid),
+      store_id: sid,
       employee_id: s.employeeId,
       date: s.date,
       start_time: s.startTime,
@@ -801,6 +813,24 @@ export async function dbSaveScheduleSnapshot(storeId: string, employees: Employe
     throwIfError(error, 'Could not save schedule shifts')
   }
 
+  const [existingEmployees, existingShifts] = await Promise.all([
+    dbGetEmployees(sid),
+    dbGetShifts(sid),
+  ])
+  const snapshotEmployeeIds = new Set(snapshotEmployees.map((employee) => employee.id))
+  const snapshotShiftIds = new Set(snapshotShifts.map((shift) => shift.id))
+  const employeeIdsToDelete = existingEmployees.filter((employee) => !snapshotEmployeeIds.has(employee.id)).map((employee) => employee.id)
+  const shiftIdsToDelete = existingShifts.filter((shift) => !snapshotShiftIds.has(shift.id)).map((shift) => shift.id)
+
+  if (shiftIdsToDelete.length > 0) {
+    const { error } = await supabase.from('shifts').delete().in('id', shiftIdsToDelete)
+    throwIfError(error, 'Could not remove deleted schedule shifts')
+  }
+  if (employeeIdsToDelete.length > 0) {
+    const { error } = await supabase.from('employees').delete().in('id', employeeIdsToDelete)
+    throwIfError(error, 'Could not remove deleted schedule employees')
+  }
+
   const [savedEmployees, savedShifts] = await Promise.all([
     dbGetEmployees(sid),
     dbGetShifts(sid),
@@ -808,14 +838,16 @@ export async function dbSaveScheduleSnapshot(storeId: string, employees: Employe
 
   const employeeIds = new Set(savedEmployees.map((employee) => employee.id))
   const shiftIds = new Set(savedShifts.map((shift) => shift.id))
-  const missingEmployees = employees.filter((employee) => normalizeStoreId(employee.storeId ?? sid) === sid && !employeeIds.has(employee.id))
-  const missingShifts = shifts.filter((shift) => normalizeStoreId(shift.storeId ?? sid) === sid && !shiftIds.has(shift.id))
+  const missingEmployees = snapshotEmployees.filter((employee) => !employeeIds.has(employee.id))
+  const missingShifts = snapshotShifts.filter((shift) => !shiftIds.has(shift.id))
+  const extraEmployees = savedEmployees.filter((employee) => !snapshotEmployeeIds.has(employee.id))
+  const extraShifts = savedShifts.filter((shift) => !snapshotShiftIds.has(shift.id))
 
-  if (missingEmployees.length > 0 || missingShifts.length > 0) {
+  if (missingEmployees.length > 0 || missingShifts.length > 0 || extraEmployees.length > 0 || extraShifts.length > 0) {
     useSyncStore.getState().setSync('schedule', 'error', 'Schedule validation failed')
-    throw new Error(`Schedule validation failed: ${missingEmployees.length} employees and ${missingShifts.length} shifts were not confirmed in Supabase`)
+    throw new Error(`Schedule validation failed: ${missingEmployees.length} employees and ${missingShifts.length} shifts were missing; ${extraEmployees.length} employees and ${extraShifts.length} shifts were not removed`)
   }
-  useSyncStore.getState().setSync('schedule', 'synced', `${employees.length} employees and ${shifts.length} shifts confirmed`)
+  useSyncStore.getState().setSync('schedule', 'synced', `${snapshotEmployees.length} employees and ${snapshotShifts.length} shifts confirmed`)
 }
 
 // ── Goals ─────────────────────────────────────────────────────────────────────
@@ -1075,20 +1107,42 @@ export async function dbDeleteAnnouncement(id: string) {
 
 export async function dbGetSettings(storeId: string): Promise<DbSettings | null> {
   const sid = normalizeStoreId(storeId)
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('app_settings').select('*').eq('store_id', sid).maybeSingle()
+  if (error && isMissingStoreHoursColumnError(error)) {
+    const legacy = await supabase
+      .from('app_settings')
+      .select('store_id, company_name, store_number, slide_interval, dealer_nickname, dealer_location')
+      .eq('store_id', sid)
+      .maybeSingle()
+    data = legacy.data ? { ...legacy.data, store_hours: normalizeStoreHours(null) } : null
+    error = legacy.error
+  }
   throwIfError(error, 'Could not load app settings')
-  if (data) setDealerOverride(data as DbSettings)
-  return data as DbSettings | null
+  const settings = data ? { ...(data as DbSettings), store_hours: normalizeStoreHours((data as DbSettings).store_hours) } : null
+  if (settings) setDealerOverride(settings)
+  return settings
 }
 
 export async function dbGetStores(): Promise<StoreSummary[]> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('app_settings')
     .select('*')
     .order('store_id')
+  if (error && isMissingStoreHoursColumnError(error)) {
+    const legacy = await supabase
+      .from('app_settings')
+      .select('store_id, company_name, store_number, slide_interval, dealer_nickname, dealer_location')
+      .order('store_id')
+    data = (legacy.data ?? []).map((row) => ({ ...row, store_hours: normalizeStoreHours(null) }))
+    error = legacy.error
+  }
   throwIfError(error, 'Could not load stores')
-  const stores = (data ?? []).map((store) => ({ ...store, store_id: normalizeStoreId(store.store_id) })) as StoreSummary[]
+  const stores = (data ?? []).map((store) => ({
+    ...store,
+    store_id: normalizeStoreId(store.store_id),
+    store_hours: normalizeStoreHours((store as DbSettings).store_hours),
+  })) as StoreSummary[]
   setDealerOverrides(stores)
   return stores
 }
@@ -1101,9 +1155,14 @@ export async function dbDeleteSettings(storeId: string) {
 export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSettings, 'store_id'>>) {
   const sid = normalizeStoreId(storeId)
   useSyncStore.getState().setSync('settings', 'saving', 'Saving app settings')
-  const { error } = await supabase.from('app_settings').upsert({ store_id: sid, ...patch })
+  const normalizedPatch = patch.store_hours !== undefined ? { ...patch, store_hours: normalizeStoreHours(patch.store_hours) } : patch
+  const { error } = await supabase.from('app_settings').upsert({ store_id: sid, ...normalizedPatch })
+  if (error && isMissingStoreHoursColumnError(error)) {
+    useSyncStore.getState().setSync('settings', 'error', 'Store hours column is missing in Supabase')
+    throw new Error('Supabase is missing the app_settings.store_hours column. Run the latest schema.sql migration.')
+  }
   if (error && isSupabaseError(error) && /dealer_(nickname|location)|schema cache/i.test(error.message ?? '')) {
-    const legacyPatch = { ...patch }
+    const legacyPatch = { ...normalizedPatch }
     delete legacyPatch.dealer_nickname
     delete legacyPatch.dealer_location
     const legacy = await supabase.from('app_settings').upsert({ store_id: sid, ...legacyPatch })

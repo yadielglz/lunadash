@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowDown, ArrowUp, CheckSquare, Edit2, Plus, Check, Trash2, X, Save } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckSquare, Edit2, Plus, Check, Trash2, X, Save, Cloud } from 'lucide-react'
 import { useTasksStore } from '../../../store/tasksStore'
 import type { Task, TaskCategory } from '../../../store/tasksStore'
 import { Button } from '../../ui/Button'
@@ -9,6 +9,7 @@ import { Input, Select } from '../../ui/Input'
 import { dbSaveTasksSnapshot } from '../../../lib/supabase'
 import { currentStoreId } from '../../../store/currentStoreId'
 import { useUiStore } from '../../../store/uiStore'
+import { useSyncStore } from '../../../store/syncStore'
 
 const today = () => new Date().toISOString().split('T')[0]
 
@@ -54,13 +55,13 @@ function TaskRow({ task, canMoveUp, canMoveDown }: { task: Task; canMoveUp: bool
   return (
     <motion.div
       layout
-      className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[var(--reveal-bg)] transition-colors group"
+      className="group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:border-[var(--border)] hover:bg-[var(--reveal-bg)]"
     >
       <button
         onClick={() => toggleTask(task.id)}
         className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
           isDone
-            ? 'bg-[var(--accent)] border-[var(--accent)]'
+            ? 'bg-[var(--status-good)] border-[var(--status-good)]'
             : 'border-[var(--border)] hover:border-[var(--accent)]'
         }`}
       >
@@ -205,6 +206,7 @@ function AddTaskModal({ open, onClose }: { open: boolean; onClose: () => void })
 export function TasksPage() {
   const { tasks } = useTasksStore()
   const storeId = useUiStore((s) => s.storeId)
+  const syncEntry = useSyncStore((s) => s.entries.tasks)
   const [filter, setFilter] = useState<'all' | TaskCategory>('all')
   const [addOpen, setAddOpen] = useState(false)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -252,16 +254,33 @@ export function TasksPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-[var(--border)] space-y-3">
-        <div className="flex items-start justify-between gap-4">
+      <div className="border-b border-[var(--border)] bg-[var(--surface)] px-4 py-4 sm:px-6 sm:py-5">
+        <div className="ops-strip rounded-lg px-3 py-3 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
+              <span className="status-dot" />
+              <span className="ops-kicker text-[10px] font-semibold">Store Operations</span>
+            </div>
+            <div className="mt-1 flex items-center gap-2">
               <CheckSquare size={18} className="text-[var(--accent)]" />
               <h1 className="text-lg font-semibold text-[var(--text)]">Daily Checklist</h1>
             </div>
             <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{dateLabel} · {done}/{tasks.length} complete</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-[10px] font-semibold uppercase ${
+              syncEntry.state === 'error'
+                ? 'border-red-400/25 bg-red-400/10 text-red-300'
+                : syncEntry.state === 'saving'
+                  ? 'border-[var(--accent)]/25 bg-[var(--accent)]/10 text-[var(--accent)]'
+                  : syncEntry.state === 'synced'
+                    ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
+                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-tertiary)]'
+            }`}>
+              <Cloud size={11} />
+              {syncEntry.state}
+            </span>
             {saveMessage && (
               <span className={`hidden md:inline text-xs ${saveState === 'error' ? 'text-red-400' : 'text-[var(--accent)]'}`}>
                 {saveMessage}
@@ -285,7 +304,7 @@ export function TasksPage() {
         <div className="h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
           <motion.div
             className="h-full rounded-full"
-            style={{ background: 'var(--accent)' }}
+            style={{ background: pct === 100 ? 'var(--status-good)' : 'var(--accent)' }}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -298,16 +317,16 @@ export function TasksPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`relative px-3 py-1.5 rounded-full text-xs font-medium transition-all capitalize ${
+              className={`relative h-7 rounded-md border px-3 text-xs font-medium transition-all capitalize ${
                 filter === f
-                  ? 'text-[var(--accent)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)]'
+                  ? 'border-[var(--accent)]/35 text-[var(--accent)]'
+                  : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'
               }`}
             >
               {filter === f && (
                 <motion.div
                   layoutId="activeTaskFilter"
-                  className="absolute inset-0 rounded-full bg-[var(--accent)]/15 border border-[var(--accent)]/30"
+                  className="absolute inset-0 rounded-md bg-[var(--accent)]/10"
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
               )}
@@ -317,10 +336,11 @@ export function TasksPage() {
             </button>
           ))}
         </div>
+        </div>
       </div>
 
       {/* Task list */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-4">
         {tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <span className="text-5xl">✅</span>

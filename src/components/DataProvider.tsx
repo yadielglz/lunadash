@@ -57,6 +57,7 @@ type SettingsRow = {
   company_name: string
   store_number: string
   slide_interval: number
+  store_hours?: import('../lib/storeHours').StoreHours | null
 }
 type TaskRow = StoreScopedRow & {
   title: string

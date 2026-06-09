@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { format, addDays, startOfWeek, isToday } from 'date-fns'
 import { AlertTriangle, ChevronLeft, ChevronRight, Copy, GripVertical, Plus, Printer, Save, Upload } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useScheduleStore, Shift } from '../../../store/scheduleStore'
+import { useScheduleStore, Shift, type Employee } from '../../../store/scheduleStore'
 import { ShiftModal } from './ShiftModal'
 import { formatShiftTime, hexToRgba } from '../../../lib/utils'
 import { Modal } from '../../ui/Modal'
@@ -13,6 +13,8 @@ import { useSchedulePreferencesStore } from '../../../store/schedulePreferencesS
 import { shiftsToTemplateShifts, useScheduleTemplatesStore, type TemplateShift } from '../../../store/scheduleTemplatesStore'
 import { useUiStore } from '../../../store/uiStore'
 import { PrintableScheduleModal } from './PrintableScheduleModal'
+import { useDisplayStore } from '../../../store/displayStore'
+import { weekdayKeyForDate, type StoreHours } from '../../../lib/storeHours'
 
 const SCHEDULE_GRID_COLUMNS = '220px repeat(7, minmax(118px, 1fr))'
 
@@ -172,6 +174,140 @@ function shiftsOverlap(a: Shift, b: Shift) {
   return a.id !== b.id && a.startTime < b.endTime && b.startTime < a.endTime
 }
 
+function timeToMinutes(time: string) {
+  const [hours, minutes] = time.split(':').map(Number)
+  return (hours || 0) * 60 + (minutes || 0)
+}
+
+type CoverageAlert = {
+  id: string
+  date: string
+  title: string
+  detail: string
+  severity: 'warning' | 'danger'
+}
+
+function buildCoverageAlerts(shifts: Shift[], dates: string[], storeHours: StoreHours): CoverageAlert[] {
+  return dates.flatMap((date) => {
+    const dayHours = storeHours[weekdayKeyForDate(new Date(`${date}T12:00:00`))]
+    const dayShifts = shifts
+      .filter((shift) => shift.date === date)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    const alerts: CoverageAlert[] = []
+
+    if (!dayHours.open) {
+      if (dayShifts.length > 0) {
+        alerts.push({
+          id: `${date}-closed`,
+          date,
+          title: 'Closed day scheduled',
+          detail: 'This store is marked closed, but shifts are scheduled.',
+          severity: 'warning',
+        })
+      }
+      return alerts
+    }
+
+    if (dayShifts.length === 0) {
+      alerts.push({
+        id: `${date}-empty`,
+        date,
+        title: 'No coverage',
+        detail: `No shifts are scheduled during store hours ${dayHours.start}-${dayHours.end}.`,
+        severity: 'danger',
+      })
+      return alerts
+    }
+
+    const openingMinutes = timeToMinutes(dayHours.start)
+    const closingMinutes = timeToMinutes(dayHours.end)
+    const earliestStart = Math.min(...dayShifts.map((shift) => timeToMinutes(shift.startTime)))
+    const latestEnd = Math.max(...dayShifts.map((shift) => timeToMinutes(shift.endTime)))
+    if (earliestStart > openingMinutes) {
+      alerts.push({
+        id: `${date}-open`,
+        date,
+        title: 'Late opener',
+        detail: `First shift starts after the ${dayHours.start} opening time.`,
+        severity: 'warning',
+      })
+    }
+    if (latestEnd < closingMinutes) {
+      alerts.push({
+        id: `${date}-close`,
+        date,
+        title: 'Early close',
+        detail: `Last shift ends before the ${dayHours.end} closing time.`,
+        severity: 'warning',
+      })
+    }
+
+    for (let index = 0; index < dayShifts.length - 1; index += 1) {
+      const gap = timeToMinutes(dayShifts[index + 1].startTime) - timeToMinutes(dayShifts[index].endTime)
+      if (gap > 30) {
+        alerts.push({
+          id: `${date}-gap-${index}`,
+          date,
+          title: 'Coverage gap',
+          detail: `${formatShiftTime(dayShifts[index].endTime, dayShifts[index + 1].startTime)} is uncovered.`,
+          severity: 'warning',
+        })
+      }
+    }
+
+    if (dayShifts.length === 1) {
+      alerts.push({
+        id: `${date}-solo`,
+        date,
+        title: 'Single-person day',
+        detail: 'Only one shift is scheduled.',
+        severity: 'warning',
+      })
+    }
+
+    return alerts
+  })
+}
+
+function CoverageAlerts({ alerts }: { alerts: CoverageAlert[] }) {
+  if (alerts.length === 0) return null
+  const visibleAlerts = alerts.slice(0, 5)
+
+  return (
+    <div className="mx-3 mb-2 rounded-lg border border-amber-400/25 bg-[linear-gradient(90deg,rgba(201,132,8,0.16),rgba(201,132,8,0.04)_58%,transparent)] px-3 py-2 sm:mx-4">
+      <div className="flex items-start gap-2">
+        <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-amber-300" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="ops-kicker text-[10px] font-semibold">Schedule Exceptions</span>
+            <span className="rounded bg-amber-400/12 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">{alerts.length}</span>
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {visibleAlerts.map((alert) => (
+              <span
+                key={alert.id}
+                title={alert.detail}
+                className={`rounded-md border px-2 py-1 text-[10px] font-medium ${
+                  alert.severity === 'danger'
+                    ? 'border-red-400/25 bg-red-400/10 text-red-300'
+                    : 'border-amber-400/25 bg-amber-400/10 text-amber-200'
+                }`}
+              >
+                {format(new Date(`${alert.date}T12:00:00`), 'EEE')}: {alert.title}
+              </span>
+            ))}
+            {alerts.length > visibleAlerts.length && (
+              <span className="rounded-md border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--text-tertiary)]">
+                +{alerts.length - visibleAlerts.length} more
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ShiftCard({
   shift,
   accentColor,
@@ -255,6 +391,115 @@ function ShiftCard({
   )
 }
 
+function MobileWeeklySchedule({
+  days,
+  employees,
+  shifts,
+  blockColors,
+  canEdit,
+  showShiftNames,
+  showShiftNotes,
+  compactSchedule,
+  openAdd,
+  openEdit,
+  duplicateShift,
+}: {
+  days: Date[]
+  employees: Employee[]
+  shifts: Shift[]
+  blockColors: Map<string, string>
+  canEdit: boolean
+  showShiftNames: boolean
+  showShiftNotes: boolean
+  compactSchedule: boolean
+  openAdd: (date: string, employeeId: string) => void
+  openEdit: (shift: Shift) => void
+  duplicateShift: (shift: Shift) => void
+}) {
+  return (
+    <div className="space-y-3">
+      {days.map((day) => {
+        const dateStr = format(day, 'yyyy-MM-dd')
+        const dayShifts = shifts
+          .filter((shift) => shift.date === dateStr)
+          .sort((a, b) => a.startTime.localeCompare(b.startTime))
+        const today = isToday(day)
+
+        return (
+          <section
+            key={dateStr}
+            className={`rounded-lg border bg-[var(--surface-2)] p-3 ${
+              today ? 'border-[var(--accent)]/35' : 'border-[var(--border)]'
+            }`}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-[var(--text)]">{format(day, 'EEEE')}</div>
+                <div className="text-xs text-[var(--text-tertiary)]">{format(day, 'MMM d')}</div>
+              </div>
+              {today && <span className="rounded-md bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold text-[var(--accent)]">Today</span>}
+            </div>
+
+            {employees.length === 0 ? (
+              <p className="py-3 text-center text-xs text-[var(--text-tertiary)]">Add employees before scheduling shifts.</p>
+            ) : (
+              <div className="space-y-2">
+                {employees.map((employee) => {
+                  const employeeShifts = dayShifts.filter((shift) => shift.employeeId === employee.id)
+                  const conflictIds = new Set(employeeShifts.flatMap((shift) => (
+                    employeeShifts.some((other) => shiftsOverlap(shift, other)) ? [shift.id] : []
+                  )))
+
+                  return (
+                    <div key={employee.id} className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-2">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: employee.color }} />
+                          <span className="truncate text-xs font-semibold text-[var(--text)]">{employee.name}</span>
+                        </div>
+                        {canEdit && (
+                          <button
+                            onClick={() => openAdd(dateStr, employee.id)}
+                            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[var(--accent)] hover:bg-[var(--accent)]/10"
+                            aria-label={`Add shift for ${employee.name}`}
+                          >
+                            <Plus size={13} />
+                          </button>
+                        )}
+                      </div>
+                      {employeeShifts.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {employeeShifts.map((shift) => (
+                            <ShiftCard
+                              key={shift.id}
+                              shift={shift}
+                              accentColor={blockColors.get(shift.type) ?? employee.color}
+                              hasConflict={conflictIds.has(shift.id)}
+                              canEdit={canEdit}
+                              showShiftName={showShiftNames}
+                              showShiftNote={showShiftNotes}
+                              compact={compactSchedule}
+                              onClick={() => openEdit(shift)}
+                              onDuplicate={() => duplicateShift(shift)}
+                              onDragStart={() => {}}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-[var(--text-tertiary)]">No shift</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
 export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const { employees, shifts, addShift, addShifts, updateShift, removeShifts, reorderEmployees } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
@@ -264,6 +509,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const showEmployeeRoles = useSchedulePreferencesStore((s) => s.showEmployeeRoles)
   const compactSchedule = useSchedulePreferencesStore((s) => s.compactSchedule)
   const isMainDashboard = useUiStore((s) => s.storeId === 'main')
+  const storeHours = useDisplayStore((s) => s.storeHours)
   const [weekOffset, setWeekOffset] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
@@ -283,6 +529,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const currentWeekShifts = shifts.filter((shift) => currentWeekDates.includes(shift.date))
   const previousWeekShifts = shifts.filter((shift) => previousWeekDates.includes(shift.date))
   const blockColors = new Map(blocks.map((block) => [block.name, block.color]))
+  const coverageAlerts = buildCoverageAlerts(currentWeekShifts, currentWeekDates, storeHours)
 
   const openAdd = (date: string, employeeId: string) => {
     if (!canEdit) return
@@ -409,9 +656,26 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
         </div>
       </div>
 
+      <CoverageAlerts alerts={coverageAlerts} />
+
       {/* Main grid */}
       <div className="flex-1 overflow-auto px-3 sm:px-4 pb-4">
-        <div className="min-w-[1060px]">
+        <div className="sm:hidden">
+          <MobileWeeklySchedule
+            days={days}
+            employees={employees}
+            shifts={shifts}
+            blockColors={blockColors}
+            canEdit={canEdit}
+            showShiftNames={showShiftNames}
+            showShiftNotes={showShiftNotes}
+            compactSchedule={compactSchedule}
+            openAdd={openAdd}
+            openEdit={openEdit}
+            duplicateShift={duplicateShift}
+          />
+        </div>
+        <div className="hidden min-w-[1060px] sm:block">
           {/* Day headers */}
           <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: SCHEDULE_GRID_COLUMNS }}>
             <div className="sticky left-0 z-20 bg-[var(--bg)]" /> {/* Employee column spacer */}

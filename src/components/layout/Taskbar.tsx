@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import {
-  LayoutGrid, Calendar, Target, Settings, Monitor, UploadCloud, Users
+  LayoutGrid, Calendar, Target, Settings, Monitor, UploadCloud, Users, CheckSquare
 } from 'lucide-react'
 import { useUiStore, Tab } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
@@ -10,6 +10,7 @@ const TABS: { id: Tab; icon: React.ReactNode; label: string; mobile?: boolean }[
   { id: 'home',     icon: <LayoutGrid size={18} />,  label: 'Home'     },
   { id: 'employees', icon: <Users size={18} />,      label: 'Employees' },
   { id: 'schedule', icon: <Calendar size={18} />,    label: 'Schedule' },
+  { id: 'tasks',    icon: <CheckSquare size={18} />, label: 'Checklist' },
   { id: 'goals',    icon: <Target size={18} />,      label: 'Performance' },
   { id: 'updates',  icon: <UploadCloud size={18} />, label: 'Update' },
   { id: 'display',  icon: <Monitor size={18} />,     label: 'Display' },
@@ -25,11 +26,11 @@ export function Taskbar() {
 
   return (
     <nav
-      className="app-taskbar chrome-bar bg-[var(--taskbar-bg)] border-t border-[var(--border)] flex-shrink-0 z-50"
+      className="app-taskbar chrome-bar bg-[var(--taskbar-bg)] border-t border-[var(--border)] flex-shrink-0 z-50 shadow-[0_-1px_0_rgba(255,255,255,0.04)]"
       style={{ borderTop: '1px solid var(--border)' }}
     >
       {/* Desktop: centered icon bar */}
-      <div className="hidden sm:flex items-center justify-center gap-1 px-4 h-14">
+      <div className="hidden sm:flex items-center justify-center gap-1.5 px-4 h-14">
         {visibleTabs.map(({ id, icon, label }) => {
           const active = activeTab === id
           return (
@@ -37,10 +38,10 @@ export function Taskbar() {
               key={id}
               onClick={() => setTab(id)}
               className={cn(
-                'taskbar-tab relative flex flex-col items-center gap-0.5 px-4 py-2 rounded-md transition-colors duration-150 min-w-[64px]',
+                'taskbar-tab relative flex h-11 min-w-[72px] flex-col items-center justify-center gap-0.5 rounded-md border px-3 transition-colors duration-150',
                 active
-                  ? 'taskbar-tab-active text-[var(--accent)] bg-[var(--accent)]/10'
-                  : 'taskbar-tab-idle text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--reveal-bg)]'
+                  ? 'taskbar-tab-active border-[var(--accent)]/30 bg-[var(--accent)]/12 text-[var(--accent)] shadow-[inset_0_1px_rgba(255,255,255,0.06)]'
+                  : 'taskbar-tab-idle border-transparent text-[var(--text-secondary)] hover:border-[var(--border)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'
               )}
               whileTap={{ scale: 0.92 }}
             >
@@ -58,7 +59,7 @@ export function Taskbar() {
       </div>
 
       {/* Mobile: full-width tabs */}
-      <div className="sm:hidden flex items-stretch h-16">
+      <div className="sm:hidden flex items-stretch h-16 overflow-x-auto">
         {visibleTabs.filter((tab) => tab.mobile !== false).map(({ id, icon, label }) => {
           const active = activeTab === id
           return (
@@ -66,7 +67,7 @@ export function Taskbar() {
               key={id}
               onClick={() => setTab(id)}
               className={cn(
-                'taskbar-tab flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors duration-150 relative',
+                'taskbar-tab relative flex min-w-[68px] flex-1 flex-col items-center justify-center gap-0.5 transition-colors duration-150',
                 active
                   ? 'taskbar-tab-active text-[var(--accent)]'
                   : 'taskbar-tab-idle text-[var(--text-tertiary)]'

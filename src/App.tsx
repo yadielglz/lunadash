@@ -17,6 +17,7 @@ const SalesHomeDashboard = lazy(() => import('./components/features/performance/
 const DevicesPage = lazy(() => import('./components/features/devices/DevicesPage').then((m) => ({ default: m.DevicesPage })))
 const EmployeesPage = lazy(() => import('./components/features/employees/EmployeesPage').then((m) => ({ default: m.EmployeesPage })))
 const SchedulePage = lazy(() => import('./components/features/scheduling/SchedulePage').then((m) => ({ default: m.SchedulePage })))
+const TasksPage = lazy(() => import('./components/features/tasks/TasksPage').then((m) => ({ default: m.TasksPage })))
 const GoalsPage = lazy(() => import('./components/features/goals/GoalsPage').then((m) => ({ default: m.GoalsPage })))
 const PerformanceUpdatePage = lazy(() => import('./components/features/performance/PerformanceUpdatePage').then((m) => ({ default: m.PerformanceUpdatePage })))
 const DisplayPage = lazy(() => import('./components/features/screendisplay/DisplayPage').then((m) => ({ default: m.DisplayPage })))
@@ -197,6 +198,7 @@ export default function App() {
     devices:  devicesContent,
     employees: <EmployeesPage />,
     schedule: <SchedulePage />,
+    tasks:    <TasksPage />,
     goals:    <GoalsPage />,
     updates:  <PerformanceUpdatePage />,
     settings: <SettingsPage />,
