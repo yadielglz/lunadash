@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { KeyRound, Monitor, ShieldCheck, Smartphone, Store } from 'lucide-react'
+import { KeyRound, Monitor, ShieldCheck, Smartphone } from 'lucide-react'
 import { dbAuthenticateAccess, dbGetStores, type StoreAccessCode, type StoreSummary } from '../lib/supabase'
 import { hashPin } from '../store/lockStore'
 import { AccessMode, accessRoleLabel, useUiStore } from '../store/uiStore'
 import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 import { Button } from './ui/Button'
-import { Input } from './ui/Input'
+import { Input, Select } from './ui/Input'
 import { APP_META } from '../config/appMeta'
 import { LunaWirelessLogo } from './brand/LunaWirelessLogo'
 
@@ -159,47 +159,24 @@ export function StoreLaunchScreen() {
                 </p>
               </div>
 
-              <div className="max-h-[300px] space-y-2 overflow-y-auto pr-1">
+              <Select
+                label="Store"
+                value={selectedStoreId}
+                onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setSelectedStoreId(event.target.value)}
+              >
                 {pendingAccess.access.role === 'admin' && (
-                  <button
-                    onClick={() => setSelectedStoreId('main')}
-                    className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                      selectedStoreId === 'main'
-                        ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_10px_26px_rgba(15,122,216,0.26)]'
-                        : 'border-[var(--border)] bg-[var(--surface-solid)] text-[var(--text)] shadow-sm hover:border-[var(--accent)]/45 hover:bg-[var(--surface-3)]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Store size={14} className={selectedStoreId === 'main' ? 'text-white' : 'text-[var(--accent)]'} />
-                      <span className="text-sm font-semibold">Main Dashboard</span>
-                    </div>
-                    <p className={`mt-0.5 text-xs ${selectedStoreId === 'main' ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>All configured stores</p>
-                  </button>
+                  <option value="main">Main Dashboard - All configured stores</option>
                 )}
-
                 {pendingAccess.stores.map((store) => {
-                  const selected = selectedStoreId === store.store_id
+                  const storeName = store.company_name || store.store_id
+                  const storeNumber = store.store_number ? ` #${store.store_number}` : ''
                   return (
-                    <button
-                      key={store.store_id}
-                      onClick={() => setSelectedStoreId(store.store_id)}
-                      className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                        selected
-                          ? 'border-[var(--accent)] bg-[var(--accent)] text-white shadow-[0_10px_26px_rgba(15,122,216,0.26)]'
-                          : 'border-[var(--border)] bg-[var(--surface-solid)] text-[var(--text)] shadow-sm hover:border-[var(--accent)]/45 hover:bg-[var(--surface-3)]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="truncate text-sm font-semibold">{store.company_name || store.store_id}</span>
-                        <span className={`font-mono text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>{store.store_id}</span>
-                      </div>
-                      <p className={`mt-0.5 text-xs ${selected ? 'text-white/82' : 'text-[var(--text-secondary)]'}`}>
-                        {store.store_number ? `Store #${store.store_number}` : 'Configured store'}
-                      </p>
-                    </button>
+                    <option key={store.store_id} value={store.store_id}>
+                      {storeName}{storeNumber} - {store.store_id}
+                    </option>
                   )
                 })}
-              </div>
+              </Select>
 
               {pendingAccess.access.role !== 'admin' && pendingAccess.access.role !== 'display' && selectedStoreId !== 'main' && (
                 <div className="grid grid-cols-2 gap-2">
