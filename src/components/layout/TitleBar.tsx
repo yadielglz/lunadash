@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { CloudSun, Sun, Moon, Store, Pencil, Check, LogOut, RadioTower } from 'lucide-react'
+import { CloudSun, Sun, Moon, Pencil, Check, LogOut, RadioTower } from 'lucide-react'
 import { accessRoleLabel, useUiStore } from '../../store/uiStore'
 import { useTheme } from '../../hooks/useTheme'
 import { useClock } from '../../hooks/useClock'
@@ -8,14 +7,8 @@ import { useDisplayStore } from '../../store/displayStore'
 import { useWeather } from '../../hooks/useWeather'
 import { useTempDisplay } from '../../hooks/useTempDisplay'
 import { getWeatherInfo } from '../../lib/openMeteo'
-import { dbGetAccessCodes } from '../../lib/supabase'
-import { fetchPerformanceData } from '../../lib/performanceSheet'
-import { normalizeStoreId } from '../../lib/storeIds'
 import { LunaWirelessLogo } from '../brand/LunaWirelessLogo'
-
-function normalizeStoreCode(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '').trim()
-}
+import { StorePickerButton } from '../shared/StorePickerButton'
 
 function EditableField({
   value,
@@ -115,80 +108,6 @@ function WeatherStatus() {
   )
 }
 
-function StoreSelector() {
-  const { accessRole, storeId, setStoreId } = useUiStore()
-  const { storeNumber } = useDisplayStore()
-  const canSwitchStores = accessRole === 'admin' || accessRole === 'district_manager'
-  const accessQuery = useQuery({
-    queryKey: ['titlebar-access-stores'],
-    queryFn: dbGetAccessCodes,
-    enabled: canSwitchStores,
-    staleTime: 60_000,
-  })
-  const sourceQuery = useQuery({
-    queryKey: ['titlebar-performance-source'],
-    queryFn: fetchPerformanceData,
-    enabled: canSwitchStores,
-    staleTime: 55_000,
-    refetchInterval: 60_000,
-  })
-  const fallbackLabel = storeNumber ? `Store #${storeNumber}` : storeId || 'Store'
-
-  if (!canSwitchStores) {
-    return (
-      <span className="max-w-[170px] truncate text-xs text-[var(--text-secondary)]">
-        {fallbackLabel}
-      </span>
-    )
-  }
-
-  const sourceRows = sourceQuery.data?.rows ?? []
-  const sourceByCode = new Map(sourceRows.map((row) => [normalizeStoreCode(row.storeCode), row]))
-  const codedStores = new Map<string, { id: string; label: string }>()
-
-  accessQuery.data
-    ?.filter((code) => code.is_active && code.store_id && normalizeStoreId(code.store_id) !== 'main')
-    .forEach((code) => {
-      const storeId = normalizeStoreId(code.store_id)
-      const row = sourceByCode.get(normalizeStoreCode(storeId))
-      if (!row || codedStores.has(storeId)) return
-      codedStores.set(storeId, {
-        id: storeId,
-        label: `${row.teamName || row.store} #${row.storeCode}`,
-      })
-    })
-
-  const options = [
-    ...(accessRole === 'admin' ? [{ id: 'main', label: 'Main Dashboard' }] : []),
-    ...Array.from(codedStores.values()).sort((a, b) => a.label.localeCompare(b.label)),
-  ]
-
-  const currentValue = options.some((option) => option.id === storeId) ? storeId : ''
-  if (options.length === 0) {
-    return (
-      <span className="max-w-[170px] truncate text-xs text-[var(--text-secondary)]">
-        {fallbackLabel}
-      </span>
-    )
-  }
-
-  return (
-    <select
-      value={currentValue}
-      onChange={(event) => {
-        if (event.target.value) setStoreId(normalizeStoreId(event.target.value))
-      }}
-      className="titlebar-store-select max-w-[190px] rounded border border-transparent bg-transparent py-0 pr-5 text-xs text-[var(--text-secondary)] outline-none transition-colors hover:border-[var(--border)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] focus:border-[var(--accent)] focus:bg-[var(--surface-2)]"
-      title="Switch store"
-    >
-      {!currentValue && <option value="">{fallbackLabel}</option>}
-      {options.map((option) => (
-        <option key={option.id} value={option.id}>{option.label}</option>
-      ))}
-    </select>
-  )
-}
-
 export function TitleBar() {
   const { toggleTheme, isDark } = useTheme()
   const { activeTab, accessRole, accessLabel, clearStoreSession, setTab } = useUiStore()
@@ -213,10 +132,6 @@ export function TitleBar() {
             onChange={setCompanyName}
             className="font-semibold"
           />
-          <div className="titlebar-store-row flex items-center gap-1">
-            <Store size={9} className="titlebar-store-icon text-[var(--text-tertiary)]" />
-            <StoreSelector />
-          </div>
         </div>
       </div>
 
@@ -237,6 +152,7 @@ export function TitleBar() {
 
       {/* Actions */}
       <div className="flex flex-shrink-0 items-center gap-1">
+        <StorePickerButton className="hidden sm:inline-flex" />
         {accessRole && (
           <div className="hidden md:flex flex-col items-end leading-none mr-1">
             <span className="text-[10px] font-semibold uppercase text-[var(--accent)]">{accessRoleLabel(accessRole)}</span>

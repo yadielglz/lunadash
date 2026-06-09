@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Clock, GripVertical, LayoutGrid, Users, Trash2, Edit2, Save, Store, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Clock, GripVertical, LayoutGrid, Users, Trash2, Edit2, Save, Store, SlidersHorizontal } from 'lucide-react'
 import { WeeklyGrid } from './WeeklyGrid'
 import { MonthlyCalendar } from './MonthlyCalendar'
 import { Modal } from '../../ui/Modal'
@@ -9,13 +9,13 @@ import { Input, Select } from '../../ui/Input'
 import { Toggle } from '../../ui/Toggle'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useSchedulePreferencesStore } from '../../../store/schedulePreferencesStore'
-import { dbGetStores, dbSaveScheduleSnapshot, type StoreSummary } from '../../../lib/supabase'
+import { dbSaveScheduleSnapshot } from '../../../lib/supabase'
 import { currentStoreId } from '../../../store/currentStoreId'
 import { useUiStore } from '../../../store/uiStore'
-import { normalizeStoreId } from '../../../lib/storeIds'
 import { useDisplayStore } from '../../../store/displayStore'
 import { WEEKDAY_KEYS, WEEKDAY_LABELS, type StoreHours } from '../../../lib/storeHours'
 import { useScheduleExceptionsStore, type ScheduleExceptionType } from '../../../store/scheduleExceptionsStore'
+import { StorePickerButton } from '../../shared/StorePickerButton'
 
 const COLORS = ['#0078d4','#7c5ff5','#e74856','#16c60c','#f7630c','#00b7c3','#e3008c','#8764b8','#10893e']
 const EXCEPTION_LABELS: Record<ScheduleExceptionType, string> = {
@@ -355,46 +355,11 @@ export function SchedulePage() {
   const setCompactSchedule = useSchedulePreferencesStore((s) => s.setCompactSchedule)
   const storeId = useUiStore((s) => s.storeId)
   const accessRole = useUiStore((s) => s.accessRole)
-  const setStoreId = useUiStore((s) => s.setStoreId)
   const canChooseScheduleStore = accessRole === 'admin' || accessRole === 'district_manager'
   const canEditSchedule = accessRole === 'admin' || accessRole === 'district_manager' || accessRole === 'manager'
-  const [storePickerOpen, setStorePickerOpen] = useState(canChooseScheduleStore)
-  const [stores, setStores] = useState<StoreSummary[]>([])
-  const [storesLoading, setStoresLoading] = useState(false)
-  const [storesError, setStoresError] = useState('')
-  const [selectedStoreId, setSelectedStoreId] = useState(storeId === 'main' ? '' : storeId)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [saveMessage, setSaveMessage] = useState('')
   const [viewOptionsOpen, setViewOptionsOpen] = useState(false)
-
-  const loadStores = async () => {
-    setStoresLoading(true)
-    setStoresError('')
-    try {
-      setStores((await dbGetStores()).filter((store) => normalizeStoreId(store.store_id) !== 'MAIN'))
-    } catch (err) {
-      setStoresError(err instanceof Error ? err.message : 'Could not load stores')
-    } finally {
-      setStoresLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (!canChooseScheduleStore) return
-    setStorePickerOpen(true)
-    loadStores()
-  }, [canChooseScheduleStore])
-
-  useEffect(() => {
-    if (storeId !== 'main') setSelectedStoreId(storeId)
-  }, [storeId])
-
-  const applyScheduleStore = () => {
-    const nextStoreId = normalizeStoreId(selectedStoreId)
-    if (!nextStoreId || nextStoreId === 'MAIN') return
-    setStoreId(nextStoreId)
-    setStorePickerOpen(false)
-  }
 
   const saveSchedule = async () => {
     if (storeId === 'main') {
@@ -417,47 +382,6 @@ export function SchedulePage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Modal
-        open={storePickerOpen}
-        onClose={() => {
-          if (storeId !== 'main') setStorePickerOpen(false)
-        }}
-        title="Choose Schedule Store"
-        size="sm"
-      >
-        <div className="space-y-4">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-            <p className="text-sm font-semibold text-[var(--text)]">Which store schedule do you want to edit?</p>
-            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-              Schedule opens one store at a time so district and admin sessions do not mix shifts from multiple locations.
-            </p>
-          </div>
-          <Select
-            label="Store"
-            value={selectedStoreId}
-            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setSelectedStoreId(event.target.value)}
-          >
-            <option value="" disabled>Select a store</option>
-            {stores.map((store) => (
-              <option key={store.store_id} value={store.store_id}>
-                {store.company_name || 'Luna Store'}{store.store_number ? ` #${store.store_number}` : ''} ({store.store_id})
-              </option>
-            ))}
-            {storeId !== 'main' && !stores.some((store) => normalizeStoreId(store.store_id) === normalizeStoreId(storeId)) && (
-              <option value={storeId}>{storeId} (current)</option>
-            )}
-          </Select>
-          {storesError && <p className="text-xs text-red-400">{storesError}</p>}
-          <div className="flex justify-between gap-2">
-            <Button size="sm" variant="ghost" icon={<RefreshCw size={12} />} onClick={loadStores} loading={storesLoading}>
-              Refresh
-            </Button>
-            <Button size="sm" variant="primary" icon={<Store size={12} />} onClick={applyScheduleStore} disabled={!selectedStoreId}>
-              Open Schedule
-            </Button>
-          </div>
-        </div>
-      </Modal>
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
@@ -491,11 +415,7 @@ export function SchedulePage() {
               </div>
             )}
           </div>
-          {canChooseScheduleStore && (
-            <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Store size={13} />} onClick={() => setStorePickerOpen(true)}>
-              Store
-            </Button>
-          )}
+          {canChooseScheduleStore && <StorePickerButton className="flex-shrink-0" autoOpen requireSelection />}
           {storeId !== 'main' && canEditSchedule && (
             <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Clock size={13} />} onClick={() => setHoursModalOpen(true)}>
               Hours
