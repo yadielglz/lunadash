@@ -17,6 +17,12 @@
   --accent-glow: rgba(8, 118, 201, 0.14);
   --status-good: #1f8a4c;
   --status-warn: #c98408;
+  --status-warn-text: #f2c15b;
+  --status-warn-bg: rgba(201, 132, 8, 0.14);
+  --status-warn-border: rgba(201, 132, 8, 0.28);
+  --status-danger-text: #f87171;
+  --status-danger-bg: rgba(201, 64, 64, 0.12);
+  --status-danger-border: rgba(201, 64, 64, 0.28);
   --status-danger: #c94040;
   --status-info: #0876c9;
   --console-rail: #09111c;
@@ -100,6 +106,12 @@
   --accent-hover: #065fa3;
   --accent-light: #dceeff;
   --accent-glow: rgba(15, 111, 202, 0.14);
+  --status-warn-text: #8a5800;
+  --status-warn-bg: rgba(201, 132, 8, 0.14);
+  --status-warn-border: rgba(154, 100, 6, 0.32);
+  --status-danger-text: #a62323;
+  --status-danger-bg: rgba(201, 64, 64, 0.11);
+  --status-danger-border: rgba(166, 35, 35, 0.28);
   --wallpaper-opacity: 0;
   --wallpaper-overlay: rgba(245, 247, 249, 0.9);
 }
@@ -176,6 +188,16 @@
   --wallpaper-overlay: rgba(248, 250, 252, 0.68);
 }
 
+.vista,
+.mac {
+  --status-warn-text: #7a4b00;
+  --status-warn-bg: rgba(201, 132, 8, 0.14);
+  --status-warn-border: rgba(154, 100, 6, 0.32);
+  --status-danger-text: #9f1d1d;
+  --status-danger-bg: rgba(201, 64, 64, 0.11);
+  --status-danger-border: rgba(166, 35, 35, 0.28);
+}
+
 /* ============================================================
    BASE RESETS & GLOBAL STYLES
    ============================================================ */
@@ -207,6 +229,14 @@ textarea,
 select {
   font: inherit;
   font-family: var(--font-text) !important;
+}
+
+button,
+[role="button"],
+input,
+select,
+textarea {
+  touch-action: manipulation;
 }
 
 h1,
@@ -390,6 +420,60 @@ body::after {
     linear-gradient(var(--border) 1px, transparent 1px),
     linear-gradient(90deg, var(--border) 1px, transparent 1px);
   background-size: 100% 36px, 36px 100%;
+}
+
+.status-warning-surface {
+  border-color: var(--status-warn-border);
+  background:
+    linear-gradient(90deg, var(--status-warn-bg), color-mix(in srgb, var(--status-warn-bg) 35%, transparent) 58%, transparent),
+    var(--surface-2);
+  color: var(--status-warn-text);
+}
+
+.status-warning-chip {
+  border-color: var(--status-warn-border);
+  background: var(--status-warn-bg);
+  color: var(--status-warn-text);
+}
+
+.status-danger-chip {
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-bg);
+  color: var(--status-danger-text);
+}
+
+@media (pointer: coarse) {
+  html {
+    font-size: 15px;
+  }
+
+  button,
+  [role="button"],
+  input,
+  select {
+    min-height: 44px;
+  }
+
+  button,
+  [role="button"] {
+    min-width: 44px;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 22px;
+    min-height: 22px;
+  }
+
+  .app-titlebar {
+    height: calc(4.25rem + max(var(--safe-area-top), 0px));
+  }
+
+  .app-taskbar button,
+  .taskbar-tab {
+    min-width: 56px;
+    min-height: 52px;
+  }
 }
 
 .status-dot {

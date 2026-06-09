@@ -351,13 +351,13 @@ function CoverageAlerts({ alerts }: { alerts: CoverageAlert[] }) {
   const visibleAlerts = alerts.slice(0, 5)
 
   return (
-    <div className="mx-3 mb-2 rounded-lg border border-amber-400/25 bg-[linear-gradient(90deg,rgba(201,132,8,0.16),rgba(201,132,8,0.04)_58%,transparent)] px-3 py-2 sm:mx-4">
+    <div className="status-warning-surface mx-3 mb-2 rounded-lg border px-3 py-2 sm:mx-4">
       <div className="flex items-start gap-2">
-        <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-amber-300" />
+        <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-[var(--status-warn-text)]" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="ops-kicker text-[10px] font-semibold">Schedule Exceptions</span>
-            <span className="rounded bg-amber-400/12 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">{alerts.length}</span>
+            <span className="status-warning-chip rounded border px-1.5 py-0.5 text-[10px] font-semibold">{alerts.length}</span>
           </div>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {visibleAlerts.map((alert) => (
@@ -366,8 +366,8 @@ function CoverageAlerts({ alerts }: { alerts: CoverageAlert[] }) {
                 title={alert.detail}
                 className={`rounded-md border px-2 py-1 text-[10px] font-medium ${
                   alert.severity === 'danger'
-                    ? 'border-red-400/25 bg-red-400/10 text-red-300'
-                    : 'border-amber-400/25 bg-amber-400/10 text-amber-200'
+                    ? 'status-danger-chip'
+                    : 'status-warning-chip'
                 }`}
               >
                 {format(new Date(`${alert.date}T12:00:00`), 'EEE')}: {alert.title}
@@ -442,7 +442,7 @@ function ShiftCard({
         )}
         <div className="flex items-center gap-1">
           {hasConflict && <AlertTriangle size={11} className="text-red-400 flex-shrink-0" />}
-          {exceptionLabels && exceptionLabels.length > 0 && <AlertTriangle size={11} className="text-amber-300 flex-shrink-0" />}
+          {exceptionLabels && exceptionLabels.length > 0 && <AlertTriangle size={11} className="text-[var(--status-warn-text)] flex-shrink-0" />}
           {canEdit && (
             <span
               role="button"
@@ -470,7 +470,7 @@ function ShiftCard({
       {exceptionLabels && exceptionLabels.length > 0 && (
         <div className="mt-1 flex flex-wrap gap-1">
           {exceptionLabels.map((label) => (
-            <span key={label} className="rounded border border-amber-400/25 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-200">
+            <span key={label} className="status-warning-chip rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase">
               {label}
             </span>
           ))}
@@ -530,7 +530,7 @@ function MobileWeeklySchedule({
                 <div className="text-xs text-[var(--text-tertiary)]">{format(day, 'MMM d')}</div>
               </div>
               <div className="flex items-center gap-1.5">
-                {holiday && <span className="rounded-md bg-amber-400/10 px-2 py-1 text-[10px] font-semibold text-amber-200">Holiday</span>}
+                {holiday && <span className="status-warning-chip rounded-md border px-2 py-1 text-[10px] font-semibold">Holiday</span>}
                 {today && <span className="rounded-md bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold text-[var(--accent)]">Today</span>}
               </div>
             </div>
@@ -761,7 +761,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
 
       {/* Main grid */}
       <div className="flex-1 overflow-auto px-3 sm:px-4 pb-4">
-        <div className="sm:hidden">
+        <div className="lg:hidden">
           <MobileWeeklySchedule
             days={days}
             employees={employees}
@@ -777,7 +777,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
             duplicateShift={duplicateShift}
           />
         </div>
-        <div className="hidden min-w-[1060px] sm:block">
+        <div className="hidden min-w-[1060px] lg:block">
           {/* Day headers */}
           <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: SCHEDULE_GRID_COLUMNS }}>
             <div className="sticky left-0 z-20 bg-[var(--bg)]" /> {/* Employee column spacer */}
@@ -802,7 +802,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                     <span className="text-[9px] text-[var(--accent)] font-semibold">Today</span>
                   )}
                   {holiday && (
-                    <span className="rounded border border-amber-400/25 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-200">Holiday</span>
+                    <span className="status-warning-chip rounded border px-1.5 py-0.5 text-[9px] font-semibold uppercase">Holiday</span>
                   )}
                 </div>
               )
