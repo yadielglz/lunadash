@@ -9,6 +9,7 @@ drop table if exists goals         cascade;
 drop table if exists employee_sales cascade;
 drop table if exists employee_schedule_preferences cascade;
 drop table if exists schedule_templates cascade;
+drop table if exists schedule_exceptions cascade;
 drop table if exists schedule_blocks cascade;
 drop table if exists shifts        cascade;
 drop table if exists employees     cascade;
@@ -72,6 +73,21 @@ create table shifts (
 );
 create index shifts_store_idx on shifts(store_id);
 create index shifts_date_idx  on shifts(store_id, date);
+
+-- Schedule exceptions: call outs, no shows, PTO, and holidays
+create table schedule_exceptions (
+  id             text primary key,
+  store_id       text not null default 'default',
+  employee_id    text references employees(id) on delete set null,
+  exception_date text not null,
+  type           text not null check (type in ('call_out', 'no_show', 'pto', 'holiday')),
+  start_time     text,
+  end_time       text,
+  note           text default '',
+  created_at     timestamptz default now()
+);
+create index schedule_exceptions_store_date_idx on schedule_exceptions(store_id, exception_date);
+create index schedule_exceptions_employee_idx on schedule_exceptions(employee_id, exception_date);
 
 -- Schedule blocks
 create table schedule_blocks (
@@ -172,6 +188,7 @@ alter table employees     enable row level security;
 alter table employee_schedule_preferences enable row level security;
 alter table employee_sales enable row level security;
 alter table shifts        enable row level security;
+alter table schedule_exceptions enable row level security;
 alter table schedule_blocks enable row level security;
 alter table schedule_templates enable row level security;
 alter table goals         enable row level security;
@@ -182,6 +199,7 @@ create policy "public" on employees     for all using (true) with check (true);
 create policy "public" on employee_schedule_preferences for all using (true) with check (true);
 create policy "public" on employee_sales for all using (true) with check (true);
 create policy "public" on shifts        for all using (true) with check (true);
+create policy "public" on schedule_exceptions for all using (true) with check (true);
 create policy "public" on schedule_blocks for all using (true) with check (true);
 create policy "public" on schedule_templates for all using (true) with check (true);
 create policy "public" on goals         for all using (true) with check (true);
@@ -193,6 +211,7 @@ alter publication supabase_realtime add table employees;
 alter publication supabase_realtime add table employee_schedule_preferences;
 alter publication supabase_realtime add table employee_sales;
 alter publication supabase_realtime add table shifts;
+alter publication supabase_realtime add table schedule_exceptions;
 alter publication supabase_realtime add table schedule_blocks;
 alter publication supabase_realtime add table schedule_templates;
 alter publication supabase_realtime add table goals;

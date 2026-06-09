@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowDown, ArrowUp, Calendar, GripVertical, LayoutGrid, Users, Trash2, Edit2, Save, Store, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Clock, GripVertical, LayoutGrid, Users, Trash2, Edit2, Save, Store, RefreshCw, SlidersHorizontal } from 'lucide-react'
 import { WeeklyGrid } from './WeeklyGrid'
 import { MonthlyCalendar } from './MonthlyCalendar'
 import { Modal } from '../../ui/Modal'
@@ -13,8 +13,17 @@ import { dbGetStores, dbSaveScheduleSnapshot, type StoreSummary } from '../../..
 import { currentStoreId } from '../../../store/currentStoreId'
 import { useUiStore } from '../../../store/uiStore'
 import { normalizeStoreId } from '../../../lib/storeIds'
+import { useDisplayStore } from '../../../store/displayStore'
+import { WEEKDAY_KEYS, WEEKDAY_LABELS, type StoreHours } from '../../../lib/storeHours'
+import { useScheduleExceptionsStore, type ScheduleExceptionType } from '../../../store/scheduleExceptionsStore'
 
 const COLORS = ['#0078d4','#7c5ff5','#e74856','#16c60c','#f7630c','#00b7c3','#e3008c','#8764b8','#10893e']
+const EXCEPTION_LABELS: Record<ScheduleExceptionType, string> = {
+  call_out: 'Call Out',
+  no_show: 'No Show',
+  pto: 'PTO',
+  holiday: 'Holiday',
+}
 
 function EmployeeManagerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { employees, addEmployee, removeEmployee, updateEmployee, reorderEmployees } = useScheduleStore()
@@ -118,9 +127,223 @@ function EmployeeManagerModal({ open, onClose }: { open: boolean; onClose: () =>
   )
 }
 
+function StoreHoursModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const storeHours = useDisplayStore((s) => s.storeHours)
+  const setStoreHours = useDisplayStore((s) => s.setStoreHours)
+  const [hours, setHours] = useState<StoreHours>(storeHours)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    setHours(storeHours)
+    setSaveState('idle')
+    setMessage('')
+  }, [open, storeHours])
+
+  const updateDayHours = (day: keyof StoreHours, patch: Partial<StoreHours[keyof StoreHours]>) => {
+    setHours((current) => ({
+      ...current,
+      [day]: { ...current[day], ...patch },
+    }))
+  }
+
+  const save = async () => {
+    setSaveState('saving')
+    setMessage('')
+    try {
+      await setStoreHours(hours)
+      setSaveState('saved')
+      setMessage('Store hours saved.')
+    } catch (err) {
+      setSaveState('error')
+      setMessage(err instanceof Error ? err.message : 'Store hours could not be saved.')
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Store Hours" size="md">
+      <div className="space-y-4">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+          <p className="text-sm font-semibold text-[var(--text)]">Schedule coverage uses these hours.</p>
+          <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+            Update exceptions here when a store opens late, closes early, or has different Sunday hours.
+          </p>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+          <div className="divide-y divide-[var(--border)]">
+            {WEEKDAY_KEYS.map((day) => (
+              <div key={day} className="grid grid-cols-[minmax(74px,1fr)_auto] gap-2 px-3 py-2 sm:grid-cols-[110px_auto_1fr] sm:items-center">
+                <div className="text-xs font-medium text-[var(--text)]">{WEEKDAY_LABELS[day]}</div>
+                <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                  <input
+                    type="checkbox"
+                    checked={hours[day].open}
+                    onChange={(event) => updateDayHours(day, { open: event.target.checked })}
+                    className="accent-[var(--accent)]"
+                  />
+                  Open
+                </label>
+                <div className="col-span-2 grid grid-cols-2 gap-2 sm:col-span-1">
+                  <Input
+                    aria-label={`${WEEKDAY_LABELS[day]} open time`}
+                    type="time"
+                    value={hours[day].start}
+                    onChange={(event) => updateDayHours(day, { start: event.target.value })}
+                    disabled={!hours[day].open}
+                  />
+                  <Input
+                    aria-label={`${WEEKDAY_LABELS[day]} close time`}
+                    type="time"
+                    value={hours[day].end}
+                    onChange={(event) => updateDayHours(day, { end: event.target.value })}
+                    disabled={!hours[day].open}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          {message && (
+            <span className={`text-xs ${saveState === 'error' ? 'text-red-400' : 'text-[var(--accent)]'}`}>
+              {message}
+            </span>
+          )}
+          <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
+          <Button size="sm" variant={saveState === 'saved' ? 'accent' : 'primary'} icon={<Save size={12} />} loading={saveState === 'saving'} onClick={save}>
+            Save Hours
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { employees } = useScheduleStore()
+  const { exceptions, addException, removeException } = useScheduleExceptionsStore()
+  const [type, setType] = useState<ScheduleExceptionType>('call_out')
+  const [employeeId, setEmployeeId] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [allDay, setAllDay] = useState(true)
+  const [startTime, setStartTime] = useState('10:00')
+  const [endTime, setEndTime] = useState('21:00')
+  const [note, setNote] = useState('')
+
+  useEffect(() => {
+    if (!open) return
+    setEmployeeId(employees[0]?.id ?? '')
+    setDate(new Date().toISOString().split('T')[0])
+    setAllDay(true)
+    setStartTime('10:00')
+    setEndTime('21:00')
+    setNote('')
+  }, [employees, open])
+
+  const save = () => {
+    if (type !== 'holiday' && !employeeId) return
+    addException({
+      type,
+      employeeId: type === 'holiday' ? null : employeeId,
+      date,
+      startTime: allDay ? null : startTime,
+      endTime: allDay ? null : endTime,
+      note: note.trim(),
+    })
+    setNote('')
+  }
+
+  const sortedExceptions = [...exceptions].sort((a, b) => (
+    b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
+  ))
+
+  return (
+    <Modal open={open} onClose={onClose} title="Schedule Exceptions" size="md">
+      <div className="space-y-4">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Select label="Type" value={type} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setType(event.target.value as ScheduleExceptionType)}>
+              {(Object.keys(EXCEPTION_LABELS) as ScheduleExceptionType[]).map((key) => (
+                <option key={key} value={key}>{EXCEPTION_LABELS[key]}</option>
+              ))}
+            </Select>
+            <Input label="Date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          </div>
+          {type !== 'holiday' && (
+            <div className="mt-3">
+              <Select label="Employee" value={employeeId} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setEmployeeId(event.target.value)}>
+                <option value="" disabled>Select employee</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>{employee.name}</option>
+                ))}
+              </Select>
+            </div>
+          )}
+          <label className="mt-3 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+            <input type="checkbox" checked={allDay} onChange={(event) => setAllDay(event.target.checked)} className="accent-[var(--accent)]" />
+            All day
+          </label>
+          {!allDay && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <Input label="Start" type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+              <Input label="End" type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+            </div>
+          )}
+          <div className="mt-3">
+            <Input label="Note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional note" />
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button size="sm" variant="primary" icon={<AlertTriangle size={12} />} onClick={save} disabled={type !== 'holiday' && !employeeId}>
+              Add Exception
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {sortedExceptions.map((exception) => {
+            const employee = employees.find((item) => item.id === exception.employeeId)
+            return (
+              <div key={exception.id} className="flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--text-secondary)]">
+                      {EXCEPTION_LABELS[exception.type]}
+                    </span>
+                    <span className="text-xs font-medium text-[var(--text)]">{exception.date}</span>
+                    {employee && <span className="text-xs text-[var(--text-secondary)]">{employee.name}</span>}
+                    {!exception.startTime || !exception.endTime ? (
+                      <span className="text-[10px] text-[var(--text-tertiary)]">All day</span>
+                    ) : (
+                      <span className="text-[10px] text-[var(--text-tertiary)]">{exception.startTime}-{exception.endTime}</span>
+                    )}
+                  </div>
+                  {exception.note && <p className="mt-1 text-xs text-[var(--text-tertiary)]">{exception.note}</p>}
+                </div>
+                <button
+                  onClick={() => removeException(exception.id)}
+                  className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-red-400"
+                  aria-label="Remove exception"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            )
+          })}
+          {sortedExceptions.length === 0 && (
+            <p className="py-5 text-center text-xs text-[var(--text-tertiary)]">No call outs, no shows, PTO, or holidays logged yet.</p>
+          )}
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 export function SchedulePage() {
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly')
   const [empModalOpen, setEmpModalOpen] = useState(false)
+  const [hoursModalOpen, setHoursModalOpen] = useState(false)
+  const [exceptionsModalOpen, setExceptionsModalOpen] = useState(false)
   const { employees, shifts } = useScheduleStore()
   const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
   const showShiftNotes = useSchedulePreferencesStore((s) => s.showShiftNotes)
@@ -273,6 +496,16 @@ export function SchedulePage() {
               Store
             </Button>
           )}
+          {storeId !== 'main' && canEditSchedule && (
+            <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Clock size={13} />} onClick={() => setHoursModalOpen(true)}>
+              Hours
+            </Button>
+          )}
+          {storeId !== 'main' && canEditSchedule && (
+            <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<AlertTriangle size={13} />} onClick={() => setExceptionsModalOpen(true)}>
+              Exceptions
+            </Button>
+          )}
           {saveMessage && (
             <span className={`hidden md:inline text-xs ${saveState === 'error' ? 'text-red-400' : 'text-[var(--accent)]'}`}>
               {saveMessage}
@@ -337,6 +570,8 @@ export function SchedulePage() {
       </div>
 
       {canEditSchedule && <EmployeeManagerModal open={empModalOpen} onClose={() => setEmpModalOpen(false)} />}
+      {canEditSchedule && <StoreHoursModal open={hoursModalOpen} onClose={() => setHoursModalOpen(false)} />}
+      {canEditSchedule && <ScheduleExceptionsModal open={exceptionsModalOpen} onClose={() => setExceptionsModalOpen(false)} />}
     </div>
   )
 }

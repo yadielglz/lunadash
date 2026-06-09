@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
-import { supabase, dbGetEmployees, dbGetShifts, dbGetScheduleBlocks, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetStores, dbGetTasks, GLOBAL_ANNOUNCEMENT_STORE_ID } from '../lib/supabase'
+import { supabase, dbGetEmployees, dbGetShifts, dbGetScheduleExceptions, dbGetScheduleBlocks, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetStores, dbGetTasks, GLOBAL_ANNOUNCEMENT_STORE_ID } from '../lib/supabase'
 import { useScheduleStore } from '../store/scheduleStore'
 import { useScheduleBlocksStore } from '../store/scheduleBlocksStore'
 import { useGoalsStore } from '../store/goalsStore'
 import { useDisplayStore } from '../store/displayStore'
 import { useUiStore } from '../store/uiStore'
 import { useTasksStore } from '../store/tasksStore'
+import { useScheduleExceptionsStore } from '../store/scheduleExceptionsStore'
 import { DashboardLoader } from './ui/DashboardLoader'
 import type { Employee, Shift } from '../store/scheduleStore'
 import type { ScheduleBlock } from '../store/scheduleBlocksStore'
 import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
 import type { Task } from '../store/tasksStore'
+import type { ScheduleException } from '../store/scheduleExceptionsStore'
 
 type StoreScopedRow = { id: string; store_id: string }
 type EmployeeRow = StoreScopedRow & { name: string; role: string; color: string; sort_order?: number | null }
@@ -59,6 +61,15 @@ type SettingsRow = {
   slide_interval: number
   store_hours?: import('../lib/storeHours').StoreHours | null
 }
+type ScheduleExceptionRow = StoreScopedRow & {
+  employee_id?: string | null
+  exception_date: string
+  type: ScheduleException['type']
+  start_time?: string | null
+  end_time?: string | null
+  note?: string | null
+  created_at: string
+}
 type TaskRow = StoreScopedRow & {
   title: string
   category: Task['category']
@@ -94,6 +105,18 @@ const shiftFromRow = (r: ShiftRow): Shift => ({
   endTime: r.end_time,
   type: r.type,
   note: r.note ?? '',
+})
+
+const scheduleExceptionFromRow = (r: ScheduleExceptionRow): ScheduleException => ({
+  id: r.id,
+  storeId: r.store_id,
+  employeeId: r.employee_id ?? null,
+  date: r.exception_date,
+  type: r.type,
+  startTime: r.start_time ?? null,
+  endTime: r.end_time ?? null,
+  note: r.note ?? '',
+  createdAt: r.created_at,
 })
 
 const scheduleBlockFromRow = (r: ScheduleBlockRow): ScheduleBlock => ({
@@ -159,6 +182,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const storeId      = useUiStore((s) => s.storeId)
   const activeTab    = useUiStore((s) => s.activeTab)
   const scheduleInit = useScheduleStore((s) => s._init)
+  const scheduleExceptionsInit = useScheduleExceptionsStore((s) => s._init)
   const scheduleBlocksInit = useScheduleBlocksStore((s) => s._init)
   const goalsInit    = useGoalsStore((s) => s._init)
   const displayInit  = useDisplayStore((s) => s._init)
@@ -184,9 +208,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         const goalStoreIds = isMain ? ['main', ...storeIds] : storeIds
 
-        const [employeeSets, shiftSets, blockSets, goalSets, announcementSets, settings, taskSets] = await Promise.all([
+        const [employeeSets, shiftSets, exceptionSets, blockSets, goalSets, announcementSets, settings, taskSets] = await Promise.all([
           Promise.all(storeIds.map(dbGetEmployees)),
           Promise.all(storeIds.map(dbGetShifts)),
+          Promise.all(storeIds.map(dbGetScheduleExceptions)),
           Promise.all(storeIds.map(dbGetScheduleBlocks)),
           Promise.all(goalStoreIds.map(dbGetGoals)),
           Promise.all(storeIds.map(dbGetAnnouncements)),
@@ -195,6 +220,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ])
         if (cancelled) return
         scheduleInit(sortEmployees(employeeSets.flat()), shiftSets.flat())
+        scheduleExceptionsInit(exceptionSets.flat())
         scheduleBlocksInit(sortScheduleBlocks(blockSets.flat()))
         goalsInit(goalSets.flat())
         displayInit(
@@ -245,6 +271,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const old = p.old as StoreScopedRow
         if (!isMain && old.store_id !== storeId) return
         useScheduleStore.setState((s) => ({ shifts: s.shifts.filter((sh) => sh.id !== old.id) }))
+      })
+
+      // Schedule exceptions
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'schedule_exceptions', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+        const item = scheduleExceptionFromRow(p.new as ScheduleExceptionRow)
+        useScheduleExceptionsStore.setState((s) => ({ exceptions: [...s.exceptions.filter((exception) => exception.id !== item.id), item] }))
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'schedule_exceptions', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+        const item = scheduleExceptionFromRow(p.new as ScheduleExceptionRow)
+        useScheduleExceptionsStore.setState((s) => ({ exceptions: s.exceptions.map((exception) => exception.id === item.id ? item : exception) }))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'schedule_exceptions' }, (p) => {
+        const old = p.old as StoreScopedRow
+        if (!isMain && old.store_id !== storeId) return
+        useScheduleExceptionsStore.setState((s) => ({ exceptions: s.exceptions.filter((exception) => exception.id !== old.id) }))
       })
 
       // Schedule blocks
@@ -325,7 +366,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       cancelled = true
       supabase.removeChannel(channel)
     }
-  }, [activeTab, storeId, retryKey, scheduleInit, scheduleBlocksInit, goalsInit, displayInit, tasksInit])
+  }, [activeTab, storeId, retryKey, scheduleInit, scheduleExceptionsInit, scheduleBlocksInit, goalsInit, displayInit, tasksInit])
 
   if (isLoading) {
     return <DashboardLoader label="Syncing store data" />

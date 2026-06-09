@@ -125,6 +125,8 @@ function StoreSection() {
   const [storesLoading, setStoresLoading] = useState(false)
   const [storesError, setStoresError] = useState('')
   const [sidSaved, setSidSaved] = useState(false)
+  const [detailsSaveState, setDetailsSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [detailsSaveMessage, setDetailsSaveMessage] = useState('')
 
   const loadStores = async () => {
     setStoresLoading(true)
@@ -154,11 +156,22 @@ function StoreSection() {
     setHours(storeHours)
   }, [companyName, storeHours, storeNumber])
 
-  const saveDetails = () => {
-    setCompanyName(name.trim() || companyName)
-    setStoreNumber(num.trim())
-    setStoreHours(hours)
-    loadStores()
+  const saveDetails = async () => {
+    setDetailsSaveState('saving')
+    setDetailsSaveMessage('')
+    try {
+      await Promise.all([
+        setCompanyName(name.trim() || companyName),
+        setStoreNumber(num.trim()),
+        setStoreHours(hours),
+      ])
+      setDetailsSaveState('saved')
+      setDetailsSaveMessage('Store details and hours saved.')
+      loadStores()
+    } catch (err) {
+      setDetailsSaveState('error')
+      setDetailsSaveMessage(err instanceof Error ? err.message : 'Store details could not be saved.')
+    }
   }
 
   const updateDayHours = (day: keyof StoreHours, patch: Partial<StoreHours[keyof StoreHours]>) => {
@@ -287,8 +300,15 @@ function StoreSection() {
             ))}
           </div>
         </div>
-        <div className="flex justify-end">
-          <Button size="sm" onClick={saveDetails} icon={<Check size={12} />}>Save</Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          {detailsSaveMessage && (
+            <span className={`text-xs ${detailsSaveState === 'error' ? 'text-red-400' : 'text-[var(--accent)]'}`}>
+              {detailsSaveMessage}
+            </span>
+          )}
+          <Button size="sm" onClick={saveDetails} icon={<Check size={12} />} loading={detailsSaveState === 'saving'}>
+            Save
+          </Button>
         </div>
       </div>
 

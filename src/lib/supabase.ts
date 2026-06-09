@@ -6,6 +6,7 @@ import type { EmployeeSale, EmployeeSchedulePreference } from '../store/employee
 import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
 import type { Task, TaskCategory } from '../store/tasksStore'
+import type { ScheduleException } from '../store/scheduleExceptionsStore'
 import { useSyncStore } from '../store/syncStore'
 import type { AccessRole } from '../store/uiStore'
 import { fetchPerformanceData, type PerformanceRow } from './performanceSheet'
@@ -45,6 +46,12 @@ type DbShift = {
   id: string; store_id: string; employee_id: string; date: string
   start_time: string; end_time: string; type: Shift['type']; note: string | null
   created_at: string
+}
+
+type DbScheduleException = {
+  id: string; store_id: string; employee_id: string | null; exception_date: string
+  type: ScheduleException['type']; start_time: string | null; end_time: string | null
+  note: string | null; created_at: string
 }
 
 type DbScheduleBlock = {
@@ -118,6 +125,15 @@ type DbAnnouncementPatch = Partial<{
   priority: Announcement['priority']
   start_at: string | null
   end_at: string | null
+}>
+
+type DbScheduleExceptionPatch = Partial<{
+  employee_id: string | null
+  exception_date: string
+  type: ScheduleException['type']
+  start_time: string | null
+  end_time: string | null
+  note: string
 }>
 
 function isMissingStoreHoursColumnError(error: unknown) {
@@ -201,6 +217,7 @@ function throwIfError(error: unknown, context: string) {
 let optionalTasksWarningShown = false
 let optionalScheduleBlocksWarningShown = false
 let optionalScheduleTemplatesWarningShown = false
+let optionalScheduleExceptionsWarningShown = false
 let optionalEmployeeInsightsWarningShown = false
 
 function logOptionalTasksWarning(action: string, error: unknown) {
@@ -431,7 +448,7 @@ export async function dbResetAccessOnboarding(id: string) {
 }
 
 export async function dbCheckSchemaHealth() {
-  const tables = ['employees', 'employee_schedule_preferences', 'employee_sales', 'shifts', 'schedule_blocks', 'schedule_templates', 'goals', 'announcements', 'app_settings', 'tasks', 'store_access_codes']
+  const tables = ['employees', 'employee_schedule_preferences', 'employee_sales', 'shifts', 'schedule_exceptions', 'schedule_blocks', 'schedule_templates', 'goals', 'announcements', 'app_settings', 'tasks', 'store_access_codes']
   const results = await Promise.all(tables.map(async (table) => {
     const { error } = await supabase.from(table).select('*', { head: true, count: 'exact' })
     return {
@@ -552,6 +569,68 @@ export async function dbDeleteShift(id: string) {
 }
 
 // ── Schedule blocks ──────────────────────────────────────────────────────────
+
+function scheduleExceptionToDb(exception: ScheduleException, storeId: string) {
+  return {
+    id: exception.id,
+    store_id: normalizeStoreId(exception.storeId ?? storeId),
+    employee_id: exception.type === 'holiday' ? null : exception.employeeId ?? null,
+    exception_date: exception.date,
+    type: exception.type,
+    start_time: exception.startTime || null,
+    end_time: exception.endTime || null,
+    note: exception.note ?? '',
+  }
+}
+
+function dbToScheduleException(row: DbScheduleException): ScheduleException {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    employeeId: row.employee_id,
+    date: row.exception_date,
+    type: row.type,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    note: row.note ?? '',
+    createdAt: row.created_at,
+  }
+}
+
+export async function dbGetScheduleExceptions(storeId: string): Promise<ScheduleException[]> {
+  const sid = normalizeStoreId(storeId)
+  const { data, error } = await supabase
+    .from('schedule_exceptions')
+    .select('*')
+    .eq('store_id', sid)
+    .order('exception_date')
+    .order('created_at')
+  if (logOptionalScheduleExceptionsWarning('schedule exceptions', error)) return []
+  throwIfError(error, 'Could not load schedule exceptions')
+  return ((data ?? []) as DbScheduleException[]).map(dbToScheduleException)
+}
+
+export async function dbInsertScheduleException(exception: ScheduleException, storeId: string) {
+  const { error } = await supabase.from('schedule_exceptions').insert(scheduleExceptionToDb(exception, storeId))
+  if (!logOptionalScheduleExceptionsWarning('new schedule exceptions', error)) throwIfError(error, 'Could not save schedule exception')
+}
+
+export async function dbUpdateScheduleException(id: string, patch: Partial<ScheduleException>) {
+  const dbPatch: DbScheduleExceptionPatch = {}
+  if (patch.employeeId !== undefined) dbPatch.employee_id = patch.type === 'holiday' ? null : patch.employeeId ?? null
+  if (patch.date !== undefined) dbPatch.exception_date = patch.date
+  if (patch.type !== undefined) dbPatch.type = patch.type
+  if (patch.startTime !== undefined) dbPatch.start_time = patch.startTime || null
+  if (patch.endTime !== undefined) dbPatch.end_time = patch.endTime || null
+  if (patch.note !== undefined) dbPatch.note = patch.note
+  const { error } = await supabase.from('schedule_exceptions').update(dbPatch).eq('id', id)
+  if (!logOptionalScheduleExceptionsWarning('schedule exception updates', error)) throwIfError(error, 'Could not update schedule exception')
+}
+
+export async function dbDeleteScheduleException(id: string) {
+  const { error } = await supabase.from('schedule_exceptions').delete().eq('id', id)
+  if (!logOptionalScheduleExceptionsWarning('schedule exception deletion', error)) throwIfError(error, 'Could not delete schedule exception')
+}
 
 function dbToScheduleBlock(r: DbScheduleBlock): ScheduleBlock {
   return {
@@ -848,6 +927,15 @@ export async function dbSaveScheduleSnapshot(storeId: string, employees: Employe
     throw new Error(`Schedule validation failed: ${missingEmployees.length} employees and ${missingShifts.length} shifts were missing; ${extraEmployees.length} employees and ${extraShifts.length} shifts were not removed`)
   }
   useSyncStore.getState().setSync('schedule', 'synced', `${snapshotEmployees.length} employees and ${snapshotShifts.length} shifts confirmed`)
+}
+
+function logOptionalScheduleExceptionsWarning(action: string, error: unknown) {
+  if (!isMissingTableError(error)) return false
+  if (!optionalScheduleExceptionsWarningShown) {
+    optionalScheduleExceptionsWarningShown = true
+    console.warn(`Schedule exceptions table is not available in this Supabase project; ${action} will stay local until migration is applied.`)
+  }
+  return true
 }
 
 // ── Goals ─────────────────────────────────────────────────────────────────────

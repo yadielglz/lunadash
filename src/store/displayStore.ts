@@ -31,10 +31,10 @@ interface DisplayState {
   updateAnnouncement: (id: string, updates: Partial<Announcement>) => void
   removeAnnouncement: (id: string) => void
   reorderAnnouncements: (announcements: Announcement[]) => void
-  setSlideInterval: (secs: number) => void
-  setCompanyName: (name: string) => void
-  setStoreNumber: (num: string) => void
-  setStoreHours: (hours: StoreHours) => void
+  setSlideInterval: (secs: number) => Promise<void>
+  setCompanyName: (name: string) => Promise<void>
+  setStoreNumber: (num: string) => Promise<void>
+  setStoreHours: (hours: StoreHours) => Promise<void>
 }
 
 export const useDisplayStore = create<DisplayState>()(
@@ -84,23 +84,23 @@ export const useDisplayStore = create<DisplayState>()(
 
       setSlideInterval: (secs) => {
         set({ slideInterval: secs })
-        dbUpdateSettings(currentStoreId(), { slide_interval: secs })
+        return dbUpdateSettings(currentStoreId(), { slide_interval: secs })
       },
 
       setCompanyName: (name) => {
         set({ companyName: name })
-        dbUpdateSettings(currentStoreId(), { company_name: name })
+        return dbUpdateSettings(currentStoreId(), { company_name: name })
       },
 
       setStoreNumber: (num) => {
         set({ storeNumber: num })
-        dbUpdateSettings(currentStoreId(), { store_number: num })
+        return dbUpdateSettings(currentStoreId(), { store_number: num })
       },
 
       setStoreHours: (hours) => {
         const normalized = normalizeStoreHours(hours)
         set({ storeHours: normalized })
-        dbUpdateSettings(currentStoreId(), { store_hours: normalized })
+        return dbUpdateSettings(currentStoreId(), { store_hours: normalized })
       },
     }),
     {

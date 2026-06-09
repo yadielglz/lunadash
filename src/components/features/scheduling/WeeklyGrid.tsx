@@ -179,6 +179,12 @@ function timeToMinutes(time: string) {
   return (hours || 0) * 60 + (minutes || 0)
 }
 
+function minutesToTime(minutes: number) {
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+}
+
 type CoverageAlert = {
   id: string
   date: string
@@ -221,38 +227,71 @@ function buildCoverageAlerts(shifts: Shift[], dates: string[], storeHours: Store
 
     const openingMinutes = timeToMinutes(dayHours.start)
     const closingMinutes = timeToMinutes(dayHours.end)
-    const earliestStart = Math.min(...dayShifts.map((shift) => timeToMinutes(shift.startTime)))
-    const latestEnd = Math.max(...dayShifts.map((shift) => timeToMinutes(shift.endTime)))
-    if (earliestStart > openingMinutes) {
+    const coverageIntervals = dayShifts
+      .map((shift) => ({
+        start: Math.max(timeToMinutes(shift.startTime), openingMinutes),
+        end: Math.min(timeToMinutes(shift.endTime), closingMinutes),
+      }))
+      .filter((interval) => interval.end > interval.start)
+      .sort((a, b) => a.start - b.start)
+
+    if (coverageIntervals.length === 0) {
+      alerts.push({
+        id: `${date}-empty-hours`,
+        date,
+        title: 'No coverage',
+        detail: `No shifts cover store hours ${dayHours.start}-${dayHours.end}.`,
+        severity: 'danger',
+      })
+      return alerts
+    }
+
+    const mergedIntervals = coverageIntervals.reduce((merged, interval) => {
+      const current = merged[merged.length - 1]
+      if (!current || interval.start > current.end) {
+        merged.push({ ...interval })
+        return merged
+      }
+      current.end = Math.max(current.end, interval.end)
+      return merged
+    }, [] as Array<{ start: number; end: number }>)
+
+    const firstCoverage = mergedIntervals[0]
+    const lastCoverage = mergedIntervals[mergedIntervals.length - 1]
+
+    if (firstCoverage.start > openingMinutes) {
       alerts.push({
         id: `${date}-open`,
         date,
         title: 'Late opener',
-        detail: `First shift starts after the ${dayHours.start} opening time.`,
-        severity: 'warning',
-      })
-    }
-    if (latestEnd < closingMinutes) {
-      alerts.push({
-        id: `${date}-close`,
-        date,
-        title: 'Early close',
-        detail: `Last shift ends before the ${dayHours.end} closing time.`,
+        detail: `${formatShiftTime(minutesToTime(openingMinutes), minutesToTime(firstCoverage.start))} is uncovered.`,
         severity: 'warning',
       })
     }
 
-    for (let index = 0; index < dayShifts.length - 1; index += 1) {
-      const gap = timeToMinutes(dayShifts[index + 1].startTime) - timeToMinutes(dayShifts[index].endTime)
+    mergedIntervals.forEach((interval, index) => {
+      const next = mergedIntervals[index + 1]
+      if (!next) return
+      const gap = next.start - interval.end
       if (gap > 30) {
         alerts.push({
           id: `${date}-gap-${index}`,
           date,
           title: 'Coverage gap',
-          detail: `${formatShiftTime(dayShifts[index].endTime, dayShifts[index + 1].startTime)} is uncovered.`,
+          detail: `${formatShiftTime(minutesToTime(interval.end), minutesToTime(next.start))} is uncovered.`,
           severity: 'warning',
         })
       }
+    })
+
+    if (lastCoverage.end < closingMinutes) {
+      alerts.push({
+        id: `${date}-close`,
+        date,
+        title: 'Early close',
+        detail: `${formatShiftTime(minutesToTime(lastCoverage.end), minutesToTime(closingMinutes))} is uncovered.`,
+        severity: 'warning',
+      })
     }
 
     if (dayShifts.length === 1) {
