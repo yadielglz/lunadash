@@ -16,6 +16,7 @@ import { useDisplayStore } from '../../../store/displayStore'
 import { WEEKDAY_KEYS, WEEKDAY_LABELS, type StoreHours } from '../../../lib/storeHours'
 import { useScheduleExceptionsStore, type ScheduleExceptionType } from '../../../store/scheduleExceptionsStore'
 import { StorePickerButton } from '../../shared/StorePickerButton'
+import { formatDate, formatShiftTime, timeToMinutes } from '../../../lib/utils'
 
 const COLORS = ['#0078d4','#7c5ff5','#e74856','#16c60c','#f7630c','#00b7c3','#e3008c','#8764b8','#10893e']
 const EXCEPTION_LABELS: Record<ScheduleExceptionType, string> = {
@@ -339,6 +340,129 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
   )
 }
 
+function todayKey() {
+  const now = new Date()
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function MobileScheduleToday({ canChooseScheduleStore }: { canChooseScheduleStore: boolean }) {
+  const { employees, shifts } = useScheduleStore()
+  const exceptions = useScheduleExceptionsStore((s) => s.exceptions)
+  const storeId = useUiStore((s) => s.storeId)
+  const today = todayKey()
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
+  const todayShifts = shifts
+    .filter((shift) => shift.date === today)
+    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
+  const todayExceptions = exceptions.filter((exception) => exception.date === today)
+  const employeeById = new Map(employees.map((employee) => [employee.id, employee]))
+
+  return (
+    <div className="flex h-full flex-col overflow-y-auto bg-[var(--bg)] sm:hidden">
+      <div className="border-b border-[var(--border)] px-4 py-4">
+        <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
+          <Calendar size={18} className="text-[var(--accent)]" />
+          Today&apos;s Schedule
+        </h1>
+        <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{formatDate(new Date(today + 'T12:00:00'))}</p>
+      </div>
+
+      <div className="space-y-4 p-4">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+          <div className="flex items-start gap-3">
+            <Clock size={16} className="mt-0.5 text-[var(--accent)]" />
+            <div>
+              <p className="text-sm font-semibold text-[var(--text)]">Schedule editing is desktop only.</p>
+              <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
+                Mobile shows who is working today. Add shifts, edit employees, hours, and exceptions from the desktop version.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {storeId === 'main' && (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+            <p className="text-sm font-semibold text-[var(--text)]">Choose a store</p>
+            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+              {canChooseScheduleStore ? 'Use the store button in the top bar to view one location.' : 'A single store is required for mobile schedule coverage.'}
+            </p>
+          </div>
+        )}
+
+        {storeId !== 'main' && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Working Today</div>
+              <div className="text-xs tabular-nums text-[var(--text-secondary)]">{todayShifts.length} shift{todayShifts.length === 1 ? '' : 's'}</div>
+            </div>
+
+            {todayShifts.map((shift) => {
+              const employee = employeeById.get(shift.employeeId)
+              const start = timeToMinutes(shift.startTime)
+              const end = timeToMinutes(shift.endTime)
+              const onNow = Number.isFinite(start) && Number.isFinite(end) && nowMinutes >= start && nowMinutes < end
+
+              return (
+                <div key={shift.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: employee?.color ?? 'var(--accent)' }} />
+                        <p className="truncate text-base font-semibold text-[var(--text)]">{employee?.name ?? 'Open shift'}</p>
+                      </div>
+                      <p className="mt-1 text-xs text-[var(--text-tertiary)]">{employee?.role ?? shift.type}</p>
+                    </div>
+                    {onNow && (
+                      <span className="rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase text-[var(--accent)]">
+                        On now
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 text-sm font-medium text-[var(--text)]">
+                    <Clock size={14} className="text-[var(--text-tertiary)]" />
+                    {formatShiftTime(shift.startTime, shift.endTime)}
+                  </div>
+                  {shift.note && <p className="mt-2 text-xs text-[var(--text-secondary)]">{shift.note}</p>}
+                </div>
+              )
+            })}
+
+            {todayShifts.length === 0 && (
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-8 text-center">
+                <Users size={22} className="mx-auto text-[var(--text-tertiary)]" />
+                <p className="mt-3 text-sm font-semibold text-[var(--text)]">No one is scheduled today.</p>
+                <p className="mt-1 text-xs text-[var(--text-tertiary)]">Open LunaDash on desktop to add coverage.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {storeId !== 'main' && todayExceptions.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Today&apos;s Exceptions</div>
+            {todayExceptions.map((exception) => {
+              const employee = exception.employeeId ? employeeById.get(exception.employeeId) : null
+              return (
+                <div key={exception.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-[var(--text)]">{EXCEPTION_LABELS[exception.type]}</span>
+                    <span className="text-xs text-[var(--text-tertiary)]">{employee?.name ?? 'Store'}</span>
+                  </div>
+                  {exception.note && <p className="mt-1 text-xs text-[var(--text-secondary)]">{exception.note}</p>}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function SchedulePage() {
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly')
   const [empModalOpen, setEmpModalOpen] = useState(false)
@@ -381,7 +505,9 @@ export function SchedulePage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <>
+    <MobileScheduleToday canChooseScheduleStore={canChooseScheduleStore} />
+    <div className="hidden h-full flex-col sm:flex">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
@@ -493,5 +619,6 @@ export function SchedulePage() {
       {canEditSchedule && <StoreHoursModal open={hoursModalOpen} onClose={() => setHoursModalOpen(false)} />}
       {canEditSchedule && <ScheduleExceptionsModal open={exceptionsModalOpen} onClose={() => setExceptionsModalOpen(false)} />}
     </div>
+    </>
   )
 }
