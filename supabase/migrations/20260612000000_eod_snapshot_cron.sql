@@ -1,8 +1,6 @@
 create extension if not exists pg_cron with schema extensions;
 create extension if not exists pg_net with schema extensions;
 
--- Runs hourly from Supabase itself. The Edge Function only writes a snapshot
--- after 10 PM America/New_York, so this remains DST-safe without browser uptime.
 do $$
 begin
   if exists (select 1 from cron.job where jobname = 'lunadash-eod-snapshot') then

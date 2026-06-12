@@ -5,6 +5,7 @@ const PERFORMANCE_SHEET_CSV_URL =
   'https://docs.google.com/spreadsheets/d/1hJuUd6UkzfWBeTywVM6Yi5g0BxJodsNLe0XHgt-9nOQ/export?format=csv&gid=1896995460'
 const SNAPSHOT_CATEGORY = 'Performance Snapshot'
 const SNAPSHOT_PREFIX = 'source-snapshot:'
+const SNAPSHOT_START_HOUR = 22
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -66,6 +67,12 @@ function parseNumber(value: string) {
   if (!normalized) return 0
   const parsed = Number(normalized)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function normalizeStoreId(value: string) {
+  const cleaned = value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 20)
+  if (!cleaned) return ''
+  return cleaned.toLowerCase() === 'main' ? 'main' : cleaned.toUpperCase()
 }
 
 function splitStoreName(value: string) {
@@ -153,11 +160,23 @@ function snapshotDescription(metricKey: string) {
 }
 
 function dateKey(date: Date) {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-')
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? ''
+  return `${value('year')}-${value('month')}-${value('day')}`
+}
+
+function newYorkHour(date: Date) {
+  const hour = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: '2-digit',
+    hour12: false,
+  }).formatToParts(date).find((part) => part.type === 'hour')?.value
+  return Number(hour)
 }
 
 Deno.serve(async (req: Request) => {
@@ -165,7 +184,7 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: CORS_HEADERS })
   }
 
-  const nyTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const now = new Date()
   const url = new URL(req.url)
   let force = url.searchParams.get('force') === 'true'
   try {
@@ -175,11 +194,15 @@ Deno.serve(async (req: Request) => {
     // Scheduled invokes do not send JSON.
   }
 
-  if (!force && ![22, 23].includes(nyTime.getHours())) {
-    return new Response('Not 10:00 PM or 11:00 PM New York time. Skipping snapshot.', { status: 200, headers: CORS_HEADERS })
+  const hour = newYorkHour(now)
+  if (!force && hour < SNAPSHOT_START_HOUR) {
+    return Response.json({
+      message: 'Not EOD yet in New York. Skipping snapshot.',
+      skipped: true,
+    }, { status: 200, headers: CORS_HEADERS })
   }
 
-  const snapshotDay = dateKey(nyTime)
+  const snapshotDay = dateKey(now)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -200,15 +223,16 @@ Deno.serve(async (req: Request) => {
 
     const targets = [
       ...(liveTotal ? [{ storeId: 'main', row: liveTotal }] : []),
-      ...liveRows.map((row) => ({ storeId: row.storeCode, row })),
+      ...liveRows.map((row) => ({ storeId: normalizeStoreId(row.storeCode), row })),
     ]
 
     const existingGoals = (goals ?? []) as SnapshotGoal[]
     const updates = targets.flatMap(({ storeId, row }) => (
       SNAPSHOT_METRICS.map((metric) => {
         const description = snapshotDescription(metric.key)
+        const normalizedStoreId = normalizeStoreId(storeId)
         const existingGoal = existingGoals.find((goal) => (
-          goal.store_id === storeId
+          normalizeStoreId(goal.store_id) === normalizedStoreId
           && metricKeyFromGoal(goal) === metric.key
         ))
         const log = existingGoal?.daily_log ?? {}
@@ -231,7 +255,7 @@ Deno.serve(async (req: Request) => {
           .from('goals')
           .insert({
             id: crypto.randomUUID(),
-            store_id: storeId,
+            store_id: normalizedStoreId,
             title: metric.title,
             description,
             category: SNAPSHOT_CATEGORY,

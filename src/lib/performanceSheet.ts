@@ -60,6 +60,11 @@ function parseNullableNumber(value: string) {
   return parseNumber(value)
 }
 
+function percentToGoal(value: number, goal: number, fallback: number) {
+  if (goal <= 0) return fallback
+  return (value / goal) * 100
+}
+
 function splitStoreName(value: string) {
   const [code, ...nameParts] = value.split(' - ')
   return {
@@ -71,6 +76,12 @@ function splitStoreName(value: string) {
 function rowFromCsv(row: RawCsvRow): PerformanceRow {
   const store = cell(row, 1)
   const { storeCode, teamName } = splitStoreName(store)
+  const netRevenueGoal = parseNumber(cell(row, 4))
+  const netRevenue = parseNumber(cell(row, 5))
+  const accessoryGoal = parseNumber(cell(row, 7))
+  const accessoryRevenue = parseNumber(cell(row, 8))
+  const dortGoal = parseNumber(cell(row, 10))
+  const totalPp = parseNumber(cell(row, 11))
 
   return {
     rank: cell(row, 0),
@@ -79,15 +90,15 @@ function rowFromCsv(row: RawCsvRow): PerformanceRow {
     teamName,
     traffic: parseNumber(cell(row, 2)),
     postConv: parseNumber(cell(row, 3)),
-    netRevenueGoal: parseNumber(cell(row, 4)),
-    netRevenue: parseNumber(cell(row, 5)),
-    netRevenuePct: parseNumber(cell(row, 6)),
-    accessoryGoal: parseNumber(cell(row, 7)),
-    accessoryRevenue: parseNumber(cell(row, 8)),
-    accessoryPct: parseNumber(cell(row, 9)),
-    dortGoal: parseNumber(cell(row, 10)),
-    totalPp: parseNumber(cell(row, 11)),
-    ppPct: parseNumber(cell(row, 12)),
+    netRevenueGoal,
+    netRevenue,
+    netRevenuePct: percentToGoal(netRevenue, netRevenueGoal, parseNumber(cell(row, 6))),
+    accessoryGoal,
+    accessoryRevenue,
+    accessoryPct: percentToGoal(accessoryRevenue, accessoryGoal, parseNumber(cell(row, 9))),
+    dortGoal,
+    totalPp,
+    ppPct: percentToGoal(totalPp, dortGoal, parseNumber(cell(row, 12))),
     vl: parseNumber(cell(row, 13)),
     bts: parseNumber(cell(row, 14)),
     hsi: parseNumber(cell(row, 15)),

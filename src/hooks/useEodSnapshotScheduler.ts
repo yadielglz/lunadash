@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { dbForceEodSnapshot } from '../lib/supabase'
 
-const SNAPSHOT_HOURS = new Set([22, 23])
+const SNAPSHOT_START_HOUR = 22
 const CHECK_MS = 60_000
 
 function newYorkParts(date = new Date()) {
@@ -29,9 +29,9 @@ export function useEodSnapshotScheduler(enabled: boolean) {
 
     const runIfDue = async () => {
       const { day, hour } = newYorkParts()
-      if (!SNAPSHOT_HOURS.has(hour)) return
+      if (hour < SNAPSHOT_START_HOUR) return
 
-      const key = `luna-eod-snapshot:${day}:${hour}`
+      const key = `luna-eod-snapshot:${day}`
       if (localStorage.getItem(key) === 'saved' || runningRef.current) return
 
       runningRef.current = true
@@ -47,6 +47,18 @@ export function useEodSnapshotScheduler(enabled: boolean) {
 
     runIfDue()
     const id = window.setInterval(runIfDue, CHECK_MS)
-    return () => window.clearInterval(id)
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') runIfDue()
+    }
+
+    window.addEventListener('focus', runIfDue)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      window.clearInterval(id)
+      window.removeEventListener('focus', runIfDue)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [enabled])
 }
