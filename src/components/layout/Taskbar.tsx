@@ -26,7 +26,7 @@ export function Taskbar() {
 
   return (
     <nav
-      className="app-taskbar chrome-bar bg-[var(--taskbar-bg)] border-t border-[var(--border)] flex-shrink-0 z-50 shadow-[0_-1px_0_rgba(255,255,255,0.04)]"
+      className="app-taskbar chrome-bar hidden bg-[var(--taskbar-bg)] border-t border-[var(--border)] flex-shrink-0 z-50 shadow-[0_-1px_0_rgba(255,255,255,0.04)] sm:block"
       style={{ borderTop: '1px solid var(--border)' }}
     >
       {/* Desktop: centered icon bar */}
@@ -54,34 +54,6 @@ export function Taskbar() {
                 />
               )}
             </motion.button>
-          )
-        })}
-      </div>
-
-      {/* Mobile: full-width tabs */}
-      <div className="sm:hidden flex items-stretch h-16 overflow-x-auto">
-        {visibleTabs.filter((tab) => tab.mobile !== false).map(({ id, icon, label }) => {
-          const active = activeTab === id
-          return (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={cn(
-                'taskbar-tab relative flex min-w-[68px] flex-1 flex-col items-center justify-center gap-0.5 transition-colors duration-150',
-                active
-                  ? 'taskbar-tab-active text-[var(--accent)]'
-                  : 'taskbar-tab-idle text-[var(--text-tertiary)]'
-              )}
-            >
-              {active && (
-                <motion.span
-                  layoutId="taskbar-indicator-mobile"
-                  className="absolute top-0 left-1/4 right-1/4 h-0.5 rounded-full bg-[var(--accent)]"
-                />
-              )}
-              {icon}
-              <span className="text-[9px] font-medium">{label}</span>
-            </button>
           )
         })}
       </div>

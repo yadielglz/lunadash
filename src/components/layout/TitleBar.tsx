@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { CloudSun, Sun, Moon, Pencil, Check, LogOut, RadioTower } from 'lucide-react'
+import { CloudSun, Sun, Moon, Pencil, Check, LogOut, RadioTower, Menu } from 'lucide-react'
 import { accessRoleLabel, useUiStore } from '../../store/uiStore'
 import { useTheme } from '../../hooks/useTheme'
 import { useClock } from '../../hooks/useClock'
@@ -9,6 +9,7 @@ import { useTempDisplay } from '../../hooks/useTempDisplay'
 import { getWeatherInfo } from '../../lib/openMeteo'
 import { LunaWirelessLogo } from '../brand/LunaWirelessLogo'
 import { StorePickerButton } from '../shared/StorePickerButton'
+import { MobileNavDrawer } from './MobileNavDrawer'
 
 function EditableField({
   value,
@@ -110,19 +111,26 @@ function WeatherStatus() {
 
 export function TitleBar() {
   const { toggleTheme, isDark } = useTheme()
-  const { activeTab, accessRole, accessLabel, clearStoreSession, setTab } = useUiStore()
+  const { accessRole, accessLabel, clearStoreSession, setTab } = useUiStore()
   const now = useClock()
   const { companyName, setCompanyName } = useDisplayStore()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
   const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
-  const mobileTabLabel = activeTab === 'goals' ? 'Performance' : activeTab
 
   return (
-    <div className="app-titlebar chrome-bar bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex flex-shrink-0 items-center justify-between px-3 sm:px-4 z-50 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
+    <div className="app-titlebar chrome-bar bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex flex-shrink-0 items-center justify-between px-2 sm:px-4 z-50 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
       {/* Logo + store info */}
       <div className="flex min-w-0 items-center gap-2.5">
-        <div className="flex h-8 w-12 flex-shrink-0 items-center justify-center rounded-md border border-[var(--border-strong)] bg-[var(--console-rail)] px-1.5 shadow-[inset_0_1px_rgba(255,255,255,0.08)]">
+        <button
+          onClick={() => setMenuOpen(true)}
+          className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] sm:hidden"
+          aria-label="Open menu"
+        >
+          <Menu size={19} />
+        </button>
+        <div className="flex h-8 w-12 flex-shrink-0 items-center justify-center rounded-md border border-[var(--border-strong)] bg-[var(--console-rail)] px-1.5 shadow-[inset_0_1px_rgba(255,255,255,0.08)] sm:h-8 sm:w-12">
           <LunaWirelessLogo className="h-4 w-full" />
         </div>
         <div className="hidden sm:flex flex-col leading-none gap-0.5">
@@ -139,13 +147,12 @@ export function TitleBar() {
       <div className="mx-2 flex min-w-0 flex-1 items-center justify-center gap-1.5 sm:gap-2">
         <button
           onClick={() => setTab('schedule')}
-          className="flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)] sm:px-2"
+          className="flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)]"
           title={dateStr}
         >
           <RadioTower size={12} className="hidden text-[var(--accent)] sm:block" />
           <span className="hidden sm:inline">{dateStr}</span>
-          <span className="sm:hidden text-sm font-medium capitalize text-[var(--text)]">{mobileTabLabel}</span>
-          <span className="tabular-nums text-[var(--text)]">{timeStr}</span>
+          <span className="whitespace-nowrap tabular-nums text-[var(--text)]">{timeStr}</span>
         </button>
         <WeatherStatus />
       </div>
@@ -153,6 +160,11 @@ export function TitleBar() {
       {/* Actions */}
       <div className="flex flex-shrink-0 items-center gap-1">
         <StorePickerButton className="hidden sm:inline-flex" />
+        <StorePickerButton
+          compact
+          readOnlyWhenLocked
+          className="inline-flex h-9 min-w-[48px] flex-col items-center justify-center gap-0.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-1.5 text-[var(--text-secondary)] sm:hidden"
+        />
         {accessRole && (
           <div className="hidden md:flex flex-col items-end leading-none mr-1">
             <span className="text-[10px] font-semibold uppercase text-[var(--accent)]">{accessRoleLabel(accessRole)}</span>
@@ -161,19 +173,20 @@ export function TitleBar() {
         )}
         <button
           onClick={toggleTheme}
-          className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
+          className="hidden w-8 h-8 rounded-md sm:flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
           title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {isDark ? <Sun size={15} /> : <Moon size={15} />}
         </button>
         <button
           onClick={clearStoreSession}
-          className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
+          className="hidden w-8 h-8 rounded-md sm:flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
           title="Log out"
         >
           <LogOut size={15} />
         </button>
       </div>
+      <MobileNavDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   )
 }

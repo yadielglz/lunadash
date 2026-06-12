@@ -11,12 +11,16 @@ interface StorePickerButtonProps {
   autoOpen?: boolean
   className?: string
   requireSelection?: boolean
+  compact?: boolean
+  readOnlyWhenLocked?: boolean
 }
 
 export function StorePickerButton({
   autoOpen = false,
   className,
   requireSelection = false,
+  compact = false,
+  readOnlyWhenLocked = false,
 }: StorePickerButtonProps) {
   const storeId = useUiStore((s) => s.storeId)
   const accessRole = useUiStore((s) => s.accessRole)
@@ -50,7 +54,21 @@ export function StorePickerButton({
     if (storeId !== 'main') setSelectedStoreId(storeId)
   }, [storeId])
 
-  if (!canChooseStore) return null
+  if (!canChooseStore) {
+    if (!readOnlyWhenLocked) return null
+
+    return (
+      <button
+        type="button"
+        className={className}
+        disabled
+        title={storeId || 'Store'}
+      >
+        <Store size={15} />
+        <span className={compact ? 'text-[9px] font-semibold leading-none tabular-nums' : ''}>{storeId || 'Store'}</span>
+      </button>
+    )
+  }
 
   const openPicker = () => {
     setOpen(true)
@@ -72,7 +90,9 @@ export function StorePickerButton({
   return (
     <>
       <Button className={className} size="sm" variant="ghost" icon={<Store size={13} />} onClick={openPicker}>
-        Store
+        {compact ? (
+          <span className="text-[9px] font-semibold leading-none tabular-nums">{storeId || 'Store'}</span>
+        ) : 'Store'}
       </Button>
       <Modal open={open} onClose={closePicker} title="Choose Store" size="sm">
         <div className="space-y-4">

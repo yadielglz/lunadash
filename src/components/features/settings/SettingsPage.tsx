@@ -874,7 +874,13 @@ function ReportSection() {
   const [snapshotRunning, setSnapshotRunning] = useState(false)
   const [snapshotMessage, setSnapshotMessage] = useState('')
   const [snapshotError, setSnapshotError] = useState('')
-  const snapshotGoals = goals.filter((goal) => goal.category === SNAPSHOT_CATEGORY && snapshotKey(goal))
+  const [reportError, setReportError] = useState('')
+  const reportStoreId = normalizeStoreId(storeId || 'main')
+  const snapshotGoals = goals.filter((goal) => (
+    goal.category === SNAPSHOT_CATEGORY
+    && snapshotKey(goal)
+    && normalizeStoreId(goal.storeId ?? '') === reportStoreId
+  ))
   const months = Array.from(new Set(
     snapshotGoals.flatMap((goal) => Object.keys(goal.dailyLog ?? {}).map((day) => day.slice(0, 7)))
   ))
@@ -888,6 +894,7 @@ function ReportSection() {
   }, [months, selectedMonth])
 
   const printReport = () => {
+    setReportError('')
     if (!selectedMonth) return
 
     const rows = Object.entries(REPORT_METRICS).map(([key, meta]) => {
@@ -1008,10 +1015,13 @@ function ReportSection() {
       </html>
     `
 
-    const reportWindow = window.open('', '_blank', 'noopener,noreferrer')
-    if (!reportWindow) return
-    reportWindow.document.write(html)
-    reportWindow.document.close()
+    const blob = new Blob([html], { type: 'text/html' })
+    const reportUrl = URL.createObjectURL(blob)
+    const reportWindow = window.open(reportUrl, '_blank')
+    window.setTimeout(() => URL.revokeObjectURL(reportUrl), 60_000)
+    if (!reportWindow) {
+      setReportError('Report popup was blocked. Allow popups for LunaDash and try again.')
+    }
   }
 
   const forceSnapshot = async () => {
@@ -1064,6 +1074,7 @@ function ReportSection() {
         <p className="text-[10px] text-[var(--text-tertiary)]">
           Reports open in a print window so the Settings tab stays clean.
         </p>
+        {reportError && <p className="text-xs text-red-400">{reportError}</p>}
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
