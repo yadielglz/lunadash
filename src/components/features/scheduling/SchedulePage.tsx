@@ -355,11 +355,12 @@ function MobileScheduleToday({ canChooseScheduleStore }: { canChooseScheduleStor
   const storeId = useUiStore((s) => s.storeId)
   const today = todayKey()
   const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
+  const employeeById = new Map(employees.map((employee) => [employee.id, employee]))
   const todayShifts = shifts
     .filter((shift) => shift.date === today)
+    .filter((shift) => employeeById.has(shift.employeeId))
     .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
   const todayExceptions = exceptions.filter((exception) => exception.date === today)
-  const employeeById = new Map(employees.map((employee) => [employee.id, employee]))
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-[var(--bg)] sm:hidden">
