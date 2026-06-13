@@ -7,6 +7,7 @@ const CORS_HEADERS = {
 }
 const ALLOWED_ROLES = new Set(['admin', 'district_manager', 'manager', 'employee'])
 const STORE_SHEETS: Record<string, string> = {
+  '892E': 'Lakeside',
   '697D': 'Poinciana',
   '769D': 'Haines City',
   '180E': 'Clermont',

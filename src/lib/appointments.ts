@@ -13,6 +13,7 @@ export const APPOINTMENT_BUCKETS: AppointmentBucket[] = [
 ]
 
 export const APPOINTMENT_STORE_SHEETS: Record<string, string> = {
+  '892E': 'Lakeside',
   '697D': 'Poinciana',
   '769D': 'Haines City',
   '180E': 'Clermont',
