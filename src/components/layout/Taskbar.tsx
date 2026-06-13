@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import {
-  LayoutGrid, Calendar, Target, Settings, Monitor, UploadCloud, Users, CheckSquare
+  LayoutGrid, Calendar, Target, Settings, Monitor, UploadCloud, Users, CheckSquare, CalendarPlus
 } from 'lucide-react'
 import { useUiStore, Tab } from '../../store/uiStore'
 import { cn } from '../../lib/utils'
@@ -10,6 +10,7 @@ const TABS: { id: Tab; icon: React.ReactNode; label: string; mobile?: boolean }[
   { id: 'home',     icon: <LayoutGrid size={18} />,  label: 'Home'     },
   { id: 'employees', icon: <Users size={18} />,      label: 'Employees' },
   { id: 'schedule', icon: <Calendar size={18} />,    label: 'Schedule' },
+  { id: 'appointments', icon: <CalendarPlus size={18} />, label: 'Appts' },
   { id: 'tasks',    icon: <CheckSquare size={18} />, label: 'Checklist' },
   { id: 'goals',    icon: <Target size={18} />,      label: 'Performance' },
   { id: 'updates',  icon: <UploadCloud size={18} />, label: 'Update' },
