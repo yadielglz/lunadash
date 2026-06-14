@@ -13,11 +13,18 @@ import { getWeatherInfo } from '../../../lib/openMeteo'
 import { formatShiftTime, hexToRgba } from '../../../lib/utils'
 import { fetchPerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
 import { dealerInfoForRow } from '../../../lib/dealers'
+import { weekdayKeyForDate, type StoreHours } from '../../../lib/storeHours'
 
 // T-Mobile magenta palette
 const MG  = '#E20074'       // primary magenta
 const MG2 = '#FF0084'       // bright magenta for glows
-const MG3 = '#9B004F'       // deep magenta
+const CYAN = '#36D1DC'
+const GREEN = '#35D07F'
+const GOLD = '#F8C14A'
+const PANEL = 'rgba(255,255,255,0.075)'
+const PANEL_STRONG = 'rgba(255,255,255,0.12)'
+const LINE = 'rgba(255,255,255,0.14)'
+const SPARTANS_LOGO_URL = 'https://i.ibb.co/67JVjLg0/Store-Logo.png'
 
 function formatMoney(value: number) {
   return Math.round(value).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
@@ -27,10 +34,131 @@ function formatNumber(value: number) {
   return Math.round(value).toLocaleString('en-US')
 }
 
+function formatPercent(value: number) {
+  return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`
+}
+
+function minutesFromTime(value: string) {
+  const [hours, minutes] = value.split(':').map(Number)
+  return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(minutes) ? minutes : 0)
+}
+
+function shiftProgressPercent(now: Date, start: string, end: string) {
+  const startMinutes = minutesFromTime(start)
+  let endMinutes = minutesFromTime(end)
+  let currentMinutes = now.getHours() * 60 + now.getMinutes()
+
+  if (endMinutes <= startMinutes) {
+    endMinutes += 24 * 60
+    if (currentMinutes < startMinutes) currentMinutes += 24 * 60
+  }
+
+  if (currentMinutes <= startMinutes) return 0
+  if (currentMinutes >= endMinutes) return 100
+  return ((currentMinutes - startMinutes) / (endMinutes - startMinutes)) * 100
+}
+
+function formatStoreTime(value: string) {
+  const [hours = 0, minutes = 0] = value.split(':').map(Number)
+  const date = new Date()
+  date.setHours(hours, minutes, 0, 0)
+  return format(date, 'h:mm a')
+}
+
+function nextOpeningLabel(now: Date, hours: StoreHours) {
+  const todayMinutes = now.getHours() * 60 + now.getMinutes()
+
+  for (let offset = 0; offset < 7; offset += 1) {
+    const date = addDays(now, offset)
+    const dayHours = hours[weekdayKeyForDate(date)]
+    if (!dayHours.open) continue
+
+    const startMinutes = minutesFromTime(dayHours.start)
+    if (offset === 0 && todayMinutes < startMinutes) {
+      return `Opens ${formatStoreTime(dayHours.start)}`
+    }
+    if (offset > 0) {
+      const dayLabel = offset === 1 ? 'tomorrow' : format(date, 'EEEE')
+      return `Opens ${dayLabel} ${formatStoreTime(dayHours.start)}`
+    }
+  }
+
+  return 'No open hours set'
+}
+
+function storeStatusFor(now: Date, hours: StoreHours) {
+  const today = hours[weekdayKeyForDate(now)]
+  if (!today.open) return { label: 'Closed', detail: nextOpeningLabel(now, hours), accent: 'rgba(255,255,255,0.5)' }
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+  const startMinutes = minutesFromTime(today.start)
+  const endMinutes = minutesFromTime(today.end)
+  const isOpen = endMinutes >= startMinutes
+    ? currentMinutes >= startMinutes && currentMinutes < endMinutes
+    : currentMinutes >= startMinutes || currentMinutes < endMinutes
+
+  return isOpen
+    ? { label: 'Open', detail: `Closes ${formatStoreTime(today.end)}`, accent: GREEN }
+    : { label: 'Closed', detail: nextOpeningLabel(now, hours), accent: MG }
+}
+
+function overallScore(row: PerformanceRow) {
+  return (row.netRevenuePct + row.accessoryPct + row.ppPct) / 3
+}
+
+function performanceRows(rows: PerformanceRow[]) {
+  return rows.filter((row) => row.store.toLowerCase() !== 'total')
+}
+
+function goalState(progress?: number) {
+  if (progress === undefined) return null
+  if (progress >= 100) return { label: 'Goal met', color: GREEN }
+  if (progress >= 80) return { label: `${Math.round(progress)}% to goal`, color: GOLD }
+  return { label: `${Math.round(progress)}% to goal`, color: 'rgba(255,255,255,0.48)' }
+}
+
+function SlideHeader({ eyebrow, title, detail }: { eyebrow: string; title: string; detail?: string }) {
+  return (
+    <div className="flex w-full flex-shrink-0 items-end justify-between gap-[2vw]">
+      <div className="min-w-0">
+        <div className="mb-[0.7vh] text-[0.9vw] font-bold uppercase tracking-[0.28em]" style={{ color: CYAN }}>
+          {eyebrow}
+        </div>
+        <h2 className="truncate text-[3vw] font-black leading-none text-white">{title}</h2>
+      </div>
+      {detail && (
+        <div className="rounded-full border px-[1vw] py-[0.55vh] text-[0.95vw] font-semibold text-white/62" style={{ borderColor: LINE, background: 'rgba(0,0,0,0.22)' }}>
+          {detail}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StatTile({ label, value, accent = CYAN }: { label: string; value: string; accent?: string }) {
+  return (
+    <div className="rounded-xl border px-[1.1vw] py-[1vh]" style={{ background: 'rgba(0,0,0,0.24)', borderColor: LINE }}>
+      <div className="text-[0.78vw] font-bold uppercase tracking-[0.2em] text-white/38">{label}</div>
+      <div className="mt-[0.35vh] text-[1.45vw] font-black tabular-nums text-white" style={{ color: accent }}>{value}</div>
+    </div>
+  )
+}
+
+function ProgressBar({ value, accent }: { value: number; accent: string }) {
+  return (
+    <div className="h-[0.62vh] overflow-hidden rounded-full bg-white/10">
+      <div
+        className="h-full rounded-full"
+        style={{ width: `${Math.min(Math.max(value, 0), 100)}%`, background: accent }}
+      />
+    </div>
+  )
+}
+
 // ── Slide: Clock ─────────────────────────────────────────────────────────────
 function ClockSlide() {
   const [now, setNow] = useState(new Date())
-  const { companyName, storeNumber } = useDisplayStore()
+  const { companyName, storeNumber, storeHours } = useDisplayStore()
   const { timeFormat } = useUiStore()
 
   useEffect(() => {
@@ -44,6 +172,65 @@ function ClockSlide() {
   const minutes = now.getMinutes().toString().padStart(2, '0')
   const seconds = now.getSeconds().toString().padStart(2, '0')
   const ampm    = timeFormat === '12' ? format(now, 'a') : null
+  const storeStatus = storeStatusFor(now, storeHours)
+
+  return (
+    <div className="flex h-full flex-col px-[6vw] pb-[9vh] pt-[5.5vh] select-none">
+      <header className="flex flex-shrink-0 flex-col items-center text-center">
+        <div className="text-[0.9vw] font-bold uppercase tracking-[0.32em]" style={{ color: CYAN }}>Live store display</div>
+        <h1 className="mt-[0.9vh] max-w-[72vw] text-[3.2vw] font-black leading-none text-white">
+          {companyName}
+        </h1>
+        {storeNumber && <div className="mt-[0.8vh] text-[1.05vw] font-semibold text-white/48">Store #{storeNumber}</div>}
+      </header>
+
+      <div className="mt-[3vh] grid flex-1 grid-cols-[0.9fr_1.1fr] items-start gap-[4.2vw] overflow-hidden">
+        <div className="min-w-0">
+          <div
+            className="flex h-[53vh] w-full max-w-[34vw] items-center justify-center"
+          >
+            <img
+              src={SPARTANS_LOGO_URL}
+              alt="Spartans logo"
+              className="h-full w-full object-contain drop-shadow-[0_2vw_3vw_rgba(0,0,0,0.45)]"
+              draggable={false}
+            />
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <div className="w-full rounded-[1.8vw] border p-[2.4vw]" style={{ background: 'linear-gradient(135deg, rgba(226,0,116,0.15), rgba(54,209,220,0.08), rgba(255,255,255,0.035))', borderColor: LINE }}>
+          <div className="flex items-start justify-between gap-[2vw]">
+            <div
+              className="rounded-full px-[1vw] py-[0.55vh] text-[0.95vw] font-black uppercase tracking-[0.22em]"
+              style={{ background: `${CYAN}20`, color: CYAN }}
+            >
+              Spartans
+            </div>
+            {ampm && <div className="rounded-md px-[0.8vw] py-[0.4vh] text-[1.05vw] font-black tracking-[0.18em]" style={{ background: `${MG}24`, color: MG }}>{ampm}</div>}
+          </div>
+
+          <div className="mt-[4vh] flex items-end justify-end gap-[1vw] tabular-nums leading-none">
+            <span className="text-[12.8vw] font-black text-white">{hours}:{minutes}</span>
+            <span className="pb-[1.35vw] text-[2.8vw] font-semibold text-white/35">:{seconds}</span>
+          </div>
+          <div className="mt-[1.4vh] h-[0.7vh] overflow-hidden rounded-full bg-white/10">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: `linear-gradient(90deg, ${MG}, ${CYAN})` }}
+              animate={{ width: `${(now.getSeconds() / 59) * 100}%` }}
+              transition={{ duration: 0.2 }}
+            />
+          </div>
+          <div className="mt-[2.2vh] grid grid-cols-2 gap-[1vw]">
+            <StatTile label={storeStatus.detail} value={storeStatus.label} accent={storeStatus.accent} />
+            <StatTile label={format(now, 'EEEE')} value={format(now, 'MMM d')} accent={GOLD} />
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-3 select-none">
@@ -112,10 +299,65 @@ function WeatherSlide() {
     )
   }
 
-  const cw = data.current_weather
+  const weatherData = data
+  const cw = weatherData.current_weather
   const weather = getWeatherInfo(cw.weathercode, cw.is_day)
-  const dailyHigh = data.daily.temperature_2m_max[0]
-  const dailyLow  = data.daily.temperature_2m_min[0]
+  const dailyHigh = weatherData.daily.temperature_2m_max[0]
+  const dailyLow  = weatherData.daily.temperature_2m_min[0]
+
+  return (
+    <div className="flex h-full flex-col px-[5vw] pb-[4vh] pt-[5vh] gap-[3vh] select-none">
+      <SlideHeader eyebrow="Local conditions" title="Weather Board" detail={format(new Date(), 'EEEE, MMM d')} />
+
+      <div className="grid flex-1 grid-cols-[1.05fr_0.95fr] gap-[2vw] overflow-hidden">
+        <div className="flex min-w-0 flex-col justify-between rounded-[1.3vw] border p-[2vw]" style={{ background: 'linear-gradient(135deg, rgba(54,209,220,0.18), rgba(255,255,255,0.045))', borderColor: `${CYAN}55` }}>
+          <div className="flex items-start justify-between gap-[2vw]">
+            <div>
+              <div className="text-[1vw] font-bold uppercase tracking-[0.24em] text-white/42">Now</div>
+              <div className="mt-[1vh] text-[2.4vw] font-black text-white">{weather.label}</div>
+            </div>
+            <span className="text-[7vw] leading-none">{weather.icon}</span>
+          </div>
+
+          <div>
+            <div className="text-[10vw] font-black leading-none tabular-nums text-white">
+              {fmt(cw.temperature)}<span className="text-[4vw] text-white/45">{unit}</span>
+            </div>
+            <div className="mt-[2vh] grid grid-cols-2 gap-[1vw]">
+              <StatTile label="High" value={`${fmt(dailyHigh)}${unit}`} accent={MG2} />
+              <StatTile label="Low" value={`${fmt(dailyLow)}${unit}`} accent={CYAN} />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-rows-5 gap-[1vh]">
+          {weatherData.daily.time.slice(0, 5).map((d, i) => {
+            const isToday = i === 0
+            return (
+              <div
+                key={d}
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[1vw] rounded-xl border px-[1.2vw]"
+                style={{
+                  background: isToday ? `${MG}18` : PANEL,
+                  borderColor: isToday ? `${MG}55` : LINE,
+                }}
+              >
+                <div className="text-[2.5vw] leading-none">{getWeatherInfo(weatherData.daily.weathercode[i]).icon}</div>
+                <div className="min-w-0">
+                  <div className="truncate text-[1.35vw] font-black text-white">{isToday ? 'Today' : format(new Date(d + 'T12:00'), 'EEEE')}</div>
+                  <div className="text-[0.9vw] font-semibold text-white/38">{format(new Date(d + 'T12:00'), 'MMM d')}</div>
+                </div>
+                <div className="text-right tabular-nums">
+                  <div className="text-[1.35vw] font-black text-white">{fmt(weatherData.daily.temperature_2m_max[i])}{unit}</div>
+                  <div className="text-[0.9vw] font-semibold text-white/38">{fmt(weatherData.daily.temperature_2m_min[i])}{unit}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-6 px-[6vw] select-none">
@@ -139,7 +381,7 @@ function WeatherSlide() {
 
       {/* 5-day forecast */}
       <div className="flex items-center gap-6 w-full max-w-4xl justify-center">
-        {data.daily.time.slice(0, 5).map((d, i) => {
+        {weatherData.daily.time.slice(0, 5).map((d, i) => {
           const isToday = i === 0
           return (
             <div
@@ -153,12 +395,12 @@ function WeatherSlide() {
               <span className={`text-[1.3vw] font-semibold ${isToday ? '' : 'text-white/50'}`} style={isToday ? { color: MG } : {}}>
                 {isToday ? 'Today' : format(new Date(d + 'T12:00'), 'EEE')}
               </span>
-              <span className="text-[2.5vw] leading-none">{getWeatherInfo(data.daily.weathercode[i]).icon}</span>
+              <span className="text-[2.5vw] leading-none">{getWeatherInfo(weatherData.daily.weathercode[i]).icon}</span>
               <span className="text-[1.4vw] text-white font-medium">
-                {fmt(data.daily.temperature_2m_max[i])}{unit}
+                {fmt(weatherData.daily.temperature_2m_max[i])}{unit}
               </span>
               <span className="text-[1vw] text-white/35">
-                {fmt(data.daily.temperature_2m_min[i])}{unit}
+                {fmt(weatherData.daily.temperature_2m_min[i])}{unit}
               </span>
             </div>
           )
@@ -171,12 +413,84 @@ function WeatherSlide() {
 // ── Slide: Schedule ───────────────────────────────────────────────────────────
 function ScheduleSlide() {
   const { employees, getShiftsForDate } = useScheduleStore()
+  const [now, setNow] = useState(new Date())
   const todayStr = format(new Date(), 'yyyy-MM-dd')
   const shifts   = getShiftsForDate(todayStr)
   const sorted   = [...shifts].sort((a, b) => a.startTime.localeCompare(b.startTime))
 
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
   // Font scale: fewer shifts = bigger text
   const scale = sorted.length <= 4 ? 1 : sorted.length <= 6 ? 0.85 : 0.72
+
+  return (
+    <div className="flex h-full flex-col px-[5vw] pb-[4vh] pt-[5vh] gap-[2.5vh] select-none">
+      <SlideHeader eyebrow="Team coverage" title="Today's Schedule" detail={format(new Date(), 'EEEE, MMMM d')} />
+
+      {sorted.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center rounded-[1.2vw] border text-[2vw] font-semibold text-white/34" style={{ borderColor: LINE, background: PANEL }}>
+          No shifts scheduled today
+        </div>
+      ) : (
+        <div className="grid flex-1 grid-cols-[0.35fr_0.65fr] gap-[2vw] overflow-hidden">
+          <div className="flex flex-col justify-between rounded-[1.2vw] border p-[1.5vw]" style={{ background: 'linear-gradient(135deg, rgba(226,0,116,0.16), rgba(255,255,255,0.045))', borderColor: `${MG}45` }}>
+            <div>
+              <div className="text-[0.9vw] font-bold uppercase tracking-[0.24em] text-white/40">Coverage</div>
+              <div className="mt-[1vh] text-[6vw] font-black leading-none tabular-nums text-white">{sorted.length}</div>
+              <div className="mt-[0.6vh] text-[1.2vw] font-semibold text-white/44">scheduled shifts</div>
+            </div>
+            <div className="grid gap-[1vh]">
+              <StatTile label="First in" value={sorted[0]?.startTime ?? '--'} accent={GREEN} />
+              <StatTile label="Last out" value={sorted[sorted.length - 1]?.endTime ?? '--'} accent={CYAN} />
+            </div>
+          </div>
+
+          <div className="grid auto-rows-fr gap-[1vh] overflow-hidden">
+            {sorted.map((s, index) => {
+              const emp = employees.find((e) => e.id === s.employeeId)
+              if (!emp) return null
+              const initials = emp.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+
+              return (
+                <div
+                  key={s.id}
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[1.1vw] rounded-xl border px-[1.2vw]"
+                  style={{
+                    background: index === 0 ? hexToRgba(emp.color, 0.16) : PANEL,
+                    borderColor: index === 0 ? hexToRgba(emp.color, 0.48) : LINE,
+                  }}
+                >
+                  <div
+                    className="flex h-[3.4vw] w-[3.4vw] items-center justify-center rounded-lg text-[1.1vw] font-black text-white"
+                    style={{ background: emp.color }}
+                  >
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-[1.55vw] font-black text-white">{emp.name}</div>
+                    <div className="mt-[0.2vh] flex items-center gap-[0.7vw] text-[0.9vw] font-semibold text-white/42">
+                      <span>{emp.role}</span>
+                      <span className="text-white/16">|</span>
+                      <span>{s.type}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[1.55vw] font-black tabular-nums text-white">{formatShiftTime(s.startTime, s.endTime)}</div>
+                    <div className="mt-[0.4vh] h-[0.45vh] w-[10vw] overflow-hidden rounded-full bg-white/10">
+                      <div className="h-full rounded-full" style={{ width: `${shiftProgressPercent(now, s.startTime, s.endTime)}%`, background: emp.color }} />
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <div className="flex flex-col items-center h-full pt-[4vh] pb-[3vh] px-[6vw] gap-4 select-none">
@@ -397,17 +711,13 @@ function DistrictOutlookSlide() {
     staleTime: 55_000,
     refetchInterval: 60_000,
   })
-  const rows = (data?.rows ?? [])
-    .filter((row) => row.store.toLowerCase() !== 'total')
+  const rows = performanceRows(data?.rows ?? [])
     .sort((a, b) => b.netRevenue - a.netRevenue)
     .slice(0, 5)
 
   return (
-    <div className="flex flex-col items-center h-full pt-[3.5vh] pb-[2vh] px-[4vw] gap-4 select-none">
-      <div className="flex flex-col items-center gap-1 flex-shrink-0">
-        <h2 className="text-[2.8vw] font-black text-white tracking-tight">District Outlook</h2>
-        <p className="text-[1.2vw]" style={{ color: MG }}>Top 5 by Net Revenue</p>
-      </div>
+    <div className="flex h-full flex-col px-[4.5vw] pb-[3vh] pt-[5vh] gap-[2.2vh] select-none">
+      <SlideHeader eyebrow="Source live" title="District Outlook" detail="Top 5 by Net Revenue" />
 
       <div className="flex-1 w-full max-w-6xl overflow-hidden">
         {isLoading ? (
@@ -422,38 +732,38 @@ function DistrictOutlookSlide() {
               return (
                 <div
                   key={row.store}
-                  className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-[1.2vw] rounded-2xl px-[1.4vw] py-[1vh]"
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-[1.2vw] rounded-xl px-[1.4vw] py-[1vh]"
                   style={{
-                    background: index === 0 ? `${MG}18` : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${index === 0 ? `${MG}45` : 'rgba(255,255,255,0.08)'}`,
+                    background: index === 0 ? `linear-gradient(90deg, ${MG}24, ${PANEL})` : PANEL,
+                    border: `1px solid ${index === 0 ? `${MG}55` : LINE}`,
                   }}
                 >
                   <div
-                    className="flex h-[3.2vw] w-[3.2vw] items-center justify-center rounded-xl text-[1.4vw] font-black text-white"
-                    style={{ background: index === 0 ? MG : 'rgba(255,255,255,0.12)' }}
+                    className="flex h-[3.2vw] w-[3.2vw] items-center justify-center rounded-lg text-[1.4vw] font-black text-white"
+                    style={{ background: index === 0 ? MG : PANEL_STRONG }}
                   >
                     {index + 1}
                   </div>
                   <div className="min-w-0">
                     <div className="truncate text-[1.55vw] font-black text-white">{dealer.nickname}</div>
-                    <div className="text-[0.95vw] text-white/35">{dealer.location} | {dealer.code}</div>
+                    <div className="text-[0.95vw] text-white/40">{dealer.location} | {dealer.code}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-[1.5vw] font-black text-white tabular-nums">{formatMoney(row.netRevenue)}</div>
-                    <div className="text-[0.85vw]" style={{ color: row.netRevenuePct >= 100 ? MG : 'rgba(255,255,255,0.35)' }}>
+                    <div className="text-[0.85vw]" style={{ color: row.netRevenuePct >= 100 ? GREEN : 'rgba(255,255,255,0.45)' }}>
                       {row.netRevenuePct >= 100 ? 'Goal Met' : `${Math.round(row.netRevenuePct)}% to goal`}
                     </div>
                   </div>
                   <div className="grid min-w-[14vw] grid-cols-3 gap-[0.5vw] text-center">
-                    <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
+                    <div className="rounded-md px-[0.6vw] py-[0.45vh]" style={{ background: 'rgba(0,0,0,0.22)' }}>
                       <div className="text-[0.7vw] uppercase text-white/30">ACC</div>
                       <div className="text-[0.95vw] font-bold text-white">{formatMoney(row.accessoryRevenue)}</div>
                     </div>
-                    <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
+                    <div className="rounded-md px-[0.6vw] py-[0.45vh]" style={{ background: 'rgba(0,0,0,0.22)' }}>
                       <div className="text-[0.7vw] uppercase text-white/30">PP</div>
                       <div className="text-[0.95vw] font-bold text-white">{formatNumber(row.totalPp)}</div>
                     </div>
-                    <div className="rounded-lg bg-white/5 px-[0.6vw] py-[0.45vh]">
+                    <div className="rounded-md px-[0.6vw] py-[0.45vh]" style={{ background: 'rgba(0,0,0,0.22)' }}>
                       <div className="text-[0.7vw] uppercase text-white/30">Traffic</div>
                       <div className="text-[0.95vw] font-bold text-white">{formatNumber(row.traffic)}</div>
                     </div>
@@ -473,9 +783,12 @@ type LeaderboardMetric = {
   title: string
   subtitle: string
   metricLabel: string
+  eyebrow?: string
+  accent?: string
   value: (row: PerformanceRow) => number
   goalValue?: (row: PerformanceRow) => number
   progress?: (row: PerformanceRow) => number
+  detail?: (row: PerformanceRow) => string
   formatValue: (value: number) => string
 }
 
@@ -486,17 +799,88 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
     staleTime: 55_000,
     refetchInterval: 60_000,
   })
-  const rows = (data?.rows ?? [])
-    .filter((row) => row.store.toLowerCase() !== 'total')
+  const rows = performanceRows(data?.rows ?? [])
     .sort((a, b) => metric.value(b) - metric.value(a))
     .slice(0, 5)
+  const accent = metric.accent ?? MG
+  const leader = rows[0]
+  const leaderDealer = leader ? dealerInfoForRow(leader) : null
+  const leaderProgress = leader ? metric.progress?.(leader) : undefined
+  const runnerUps = rows.slice(1)
 
   return (
-    <div className="flex flex-col items-center h-full pt-[3.5vh] pb-[2vh] px-[4vw] gap-4 select-none">
-      <div className="flex flex-col items-center gap-1 flex-shrink-0">
-        <h2 className="text-[2.8vw] font-black text-white tracking-tight">{metric.title}</h2>
-        <p className="text-[1.2vw]" style={{ color: MG }}>{metric.subtitle}</p>
+    <div className="flex h-full flex-col px-[4.5vw] pb-[3.5vh] pt-[5vh] gap-[2.2vh] select-none">
+      <SlideHeader eyebrow={metric.eyebrow ?? 'Leaderboard'} title={metric.title} detail={metric.subtitle} />
+
+      <div className="flex-1 overflow-hidden">
+        {isLoading ? (
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">Loading leaderboard...</div>
+        ) : !leader || !leaderDealer ? (
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">No Source rows available</div>
+        ) : (
+          <div className="grid h-full grid-cols-[1.08fr_0.92fr] gap-[2vw]">
+            <div className="relative flex min-w-0 flex-col justify-between overflow-hidden rounded-[1.4vw] border p-[2vw]" style={{ background: `linear-gradient(135deg, ${accent}26, rgba(255,255,255,0.055))`, borderColor: `${accent}66` }}>
+              <div className="absolute right-[-2vw] top-[-3vh] text-[14vw] font-black leading-none text-white/[0.035]">01</div>
+              <div className="relative">
+                <div className="inline-flex rounded-md px-[0.8vw] py-[0.42vh] text-[0.9vw] font-black uppercase tracking-[0.2em] text-black" style={{ background: accent }}>
+                  Current leader
+                </div>
+                <div className="mt-[2vh] text-[4.7vw] font-black leading-[0.92] text-white">{leaderDealer.nickname}</div>
+                <div className="mt-[1vh] text-[1.25vw] font-semibold text-white/45">{leaderDealer.location} | {leaderDealer.code}</div>
+              </div>
+
+              <div className="relative">
+                <div className="text-[6vw] font-black leading-none tabular-nums text-white">{metric.formatValue(metric.value(leader))}</div>
+                <div className="mt-[0.8vh] text-[1.05vw] font-semibold" style={{ color: goalState(leaderProgress)?.color ?? 'rgba(255,255,255,0.48)' }}>
+                  {goalState(leaderProgress)?.label ?? metric.metricLabel}
+                </div>
+                {leaderProgress !== undefined && (
+                  <div className="mt-[1.3vh]">
+                    <ProgressBar value={leaderProgress} accent={accent} />
+                  </div>
+                )}
+                <div className="mt-[1.4vh] grid grid-cols-3 gap-[0.8vw]">
+                  <StatTile label="NR" value={formatPercent(leader.netRevenuePct)} accent={MG} />
+                  <StatTile label="ACC" value={formatPercent(leader.accessoryPct)} accent={GOLD} />
+                  <StatTile label="PP" value={formatPercent(leader.ppPct)} accent={GREEN} />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-rows-4 gap-[1vh] overflow-hidden">
+              {runnerUps.map((row, idx) => {
+                const dealer = dealerInfoForRow(row)
+                const progress = metric.progress?.(row)
+                return (
+                  <div
+                    key={row.store}
+                    className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[1vw] rounded-xl border px-[1.1vw]"
+                    style={{ background: PANEL, borderColor: LINE }}
+                  >
+                    <div className="flex h-[3vw] w-[3vw] items-center justify-center rounded-lg text-[1.15vw] font-black text-white" style={{ background: PANEL_STRONG }}>
+                      {idx + 2}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-[1.35vw] font-black text-white">{dealer.nickname}</div>
+                      <div className="mt-[0.2vh] truncate text-[0.82vw] font-semibold text-white/38">{metric.detail?.(row) ?? dealer.code}</div>
+                    </div>
+                    <div className="min-w-[10vw] text-right">
+                      <div className="text-[1.55vw] font-black tabular-nums text-white">{metric.formatValue(metric.value(row))}</div>
+                      {progress !== undefined && <div className="mt-[0.45vh]"><ProgressBar value={progress} accent={accent} /></div>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
+    </div>
+  )
+
+  return (
+    <div className="flex h-full flex-col px-[4.5vw] pb-[3vh] pt-[5vh] gap-[2.2vh] select-none">
+      <SlideHeader eyebrow={metric.eyebrow ?? 'Leaderboard'} title={metric.title} detail={metric.subtitle} />
 
       <div className="flex-1 w-full max-w-6xl overflow-hidden">
         {isLoading ? (
@@ -513,40 +897,38 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
               return (
                 <div
                   key={row.store}
-                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[1.2vw] rounded-2xl px-[1.4vw] py-[1vh]"
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[1.35vw] rounded-xl px-[1.4vw] py-[1vh]"
                   style={{
-                    background: index === 0 ? `${MG}18` : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${index === 0 ? `${MG}45` : 'rgba(255,255,255,0.08)'}`,
+                    background: index === 0 ? `linear-gradient(90deg, ${accent}24, ${PANEL})` : PANEL,
+                    border: `1px solid ${index === 0 ? `${accent}55` : LINE}`,
                   }}
                 >
                   <div
-                    className="flex h-[3.4vw] w-[3.4vw] items-center justify-center rounded-xl text-[1.45vw] font-black text-white"
-                    style={{ background: index === 0 ? MG : 'rgba(255,255,255,0.12)' }}
+                    className="flex h-[3.5vw] w-[3.5vw] items-center justify-center rounded-lg text-[1.45vw] font-black text-white"
+                    style={{ background: index === 0 ? accent : PANEL_STRONG }}
                   >
                     {index + 1}
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-[1.65vw] font-black text-white">{dealer.nickname}</div>
-                    <div className="mt-[0.25vh] flex items-center gap-[0.7vw] text-[0.95vw] text-white/35">
+                    <div className="truncate text-[1.7vw] font-black text-white">{dealer.nickname}</div>
+                    <div className="mt-[0.25vh] flex items-center gap-[0.7vw] text-[0.95vw] text-white/42">
                       <span>{dealer.location}</span>
                       <span className="text-white/15">|</span>
                       <span>{dealer.code}</span>
                       <span className="text-white/15">|</span>
-                      <span>Traffic {formatNumber(row.traffic)}</span>
+                      <span>{metric.detail?.(row) ?? `Traffic ${formatNumber(row.traffic)}`}</span>
                     </div>
                   </div>
                   <div className="min-w-[18vw] text-right">
                     <div className="text-[2.2vw] font-black text-white tabular-nums">{metric.formatValue(metric.value(row))}</div>
-                    <div className="mt-[0.3vh] text-[0.85vw]" style={{ color: progress !== undefined && progress >= 100 ? MG : 'rgba(255,255,255,0.35)' }}>
-                      {progress !== undefined
-                        ? progress >= 100 ? 'Goal Met' : `${Math.round(progress)}% to goal`
-                        : metric.metricLabel}
+                    <div className="mt-[0.3vh] text-[0.85vw]" style={{ color: goalState(progress)?.color ?? 'rgba(255,255,255,0.45)' }}>
+                      {goalState(progress)?.label ?? metric.metricLabel}
                     </div>
                     {goal !== undefined && goal > 0 && (
                       <div className="mt-[0.55vh] h-[0.55vh] overflow-hidden rounded-full bg-white/10">
                         <div
                           className="h-full rounded-full"
-                          style={{ width: `${Math.min(progress ?? 0, 100)}%`, background: MG }}
+                          style={{ width: `${Math.min(progress ?? 0, 100)}%`, background: accent }}
                         />
                       </div>
                     )}
@@ -568,10 +950,31 @@ function PostPaidLeaderboardSlide() {
         title: 'Post Paid Leaderboard',
         subtitle: 'Top 5 by Post Paid Activations',
         metricLabel: 'PP Activations',
+        eyebrow: 'Activation pace',
+        accent: GREEN,
         value: (row) => row.totalPp,
         goalValue: (row) => row.dortGoal,
         progress: (row) => row.ppPct,
+        detail: (row) => `PP ${formatPercent(row.ppPct)} | Traffic ${formatNumber(row.traffic)}`,
         formatValue: formatNumber,
+      }}
+    />
+  )
+}
+
+function OverallLeaderboardSlide() {
+  return (
+    <PerformanceLeaderboardSlide
+      metric={{
+        title: 'Overall Leaderboard',
+        subtitle: 'Net Rev + ACC + PP goal pace',
+        metricLabel: 'Blended score',
+        eyebrow: 'District ranking',
+        accent: CYAN,
+        value: overallScore,
+        progress: overallScore,
+        detail: (row) => `NR ${formatPercent(row.netRevenuePct)} | ACC ${formatPercent(row.accessoryPct)} | PP ${formatPercent(row.ppPct)}`,
+        formatValue: formatPercent,
       }}
     />
   )
@@ -584,9 +987,12 @@ function AccessoriesLeaderboardSlide() {
         title: 'Accessories Leaderboard',
         subtitle: 'Top 5 by Accessory Revenue',
         metricLabel: "Acc's",
+        eyebrow: 'Attach performance',
+        accent: GOLD,
         value: (row) => row.accessoryRevenue,
         goalValue: (row) => row.accessoryGoal,
         progress: (row) => row.accessoryPct,
+        detail: (row) => `ACC ${formatPercent(row.accessoryPct)} | NR ${formatMoney(row.netRevenue)}`,
         formatValue: formatMoney,
       }}
     />
@@ -649,6 +1055,7 @@ const SLIDES = [
   { key: 'sched',    label: 'Schedule',       component: ScheduleSlide },
   { key: 'outlook',  label: 'Outlook',        component: ScheduleOutlookSlide },
   { key: 'district', label: 'District',       component: DistrictOutlookSlide },
+  { key: 'overall',  label: 'Overall',        component: OverallLeaderboardSlide },
   { key: 'pp',       label: 'PP',             component: PostPaidLeaderboardSlide },
   { key: 'acc',      label: "Acc's",          component: AccessoriesLeaderboardSlide },
   { key: 'announce', label: 'Announcements',  component: AnnouncementsSlide },
@@ -717,27 +1124,32 @@ export function DisplayPage() {
   return (
     <div
       className="relative w-screen h-screen overflow-hidden cursor-none"
-      style={{ background: '#0D0007' }}
+      style={{ background: '#07090F' }}
       onMouseMove={resetHideTimer}
     >
-      {/* Ambient magenta glow */}
+      {/* Broadcast backdrop */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
-          className="absolute -top-1/3 -left-1/4 w-3/4 h-3/4 rounded-full blur-[160px] opacity-15"
-          style={{ background: MG }}
+          className="absolute inset-0"
+          style={{
+            background: [
+              'linear-gradient(135deg, rgba(226,0,116,0.18), transparent 34%)',
+              'linear-gradient(315deg, rgba(54,209,220,0.14), transparent 36%)',
+              'linear-gradient(180deg, rgba(255,255,255,0.035), transparent 42%)',
+            ].join(', '),
+          }}
         />
         <div
-          className="absolute -bottom-1/3 -right-1/4 w-2/3 h-2/3 rounded-full blur-[140px] opacity-10"
-          style={{ background: MG3 }}
+          className="absolute inset-x-[-10%] bottom-[-28%] h-[58%] rotate-[-5deg]"
+          style={{ background: 'linear-gradient(90deg, rgba(226,0,116,0.11), rgba(54,209,220,0.08), transparent)', filter: 'blur(38px)' }}
         />
-        {/* Subtle vignette */}
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.6) 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.72) 100%)' }} />
       </div>
 
-      {/* Thin magenta top line accent */}
+      {/* Thin top line accent */}
       <div
         className="absolute top-0 left-0 right-0 h-0.5 z-10"
-        style={{ background: `linear-gradient(90deg, transparent 0%, ${MG} 30%, ${MG2} 50%, ${MG} 70%, transparent 100%)` }}
+        style={{ background: `linear-gradient(90deg, ${MG}, ${CYAN}, ${GREEN})` }}
       />
 
       {/* Slide content */}
@@ -769,8 +1181,8 @@ export function DisplayPage() {
               {/* Brand */}
               <div className="flex items-center gap-2.5">
                 <div
-                  className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-black"
-                  style={{ background: `linear-gradient(135deg, ${MG}, ${MG3})`, boxShadow: `0 0 16px ${MG}50` }}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-black"
+                  style={{ background: `linear-gradient(135deg, ${MG}, ${CYAN})` }}
                 >
                   T
                 </div>
@@ -787,23 +1199,23 @@ export function DisplayPage() {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setPaused((p) => !p)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white/70 text-xs transition-colors hover:text-white cursor-auto"
-                  style={{ background: 'rgba(255,255,255,0.08)' }}
+                  className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-white/70 text-xs transition-colors hover:text-white cursor-auto"
+                  style={{ background: 'rgba(0,0,0,0.28)', borderColor: LINE }}
                 >
                   {paused ? <Play size={11} /> : <Pause size={11} />}
                   {paused ? 'Resume' : 'Pause'}
                 </button>
                 <button
                   onClick={() => isFullscreen ? exitFs() : enterFs()}
-                  className="p-2 rounded-lg text-white/70 hover:text-white transition-colors cursor-auto"
-                  style={{ background: 'rgba(255,255,255,0.08)' }}
+                  className="p-2 rounded-md border text-white/70 hover:text-white transition-colors cursor-auto"
+                  style={{ background: 'rgba(0,0,0,0.28)', borderColor: LINE }}
                 >
                   {isFullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
                 </button>
                 <button
                   onClick={restartDisplay}
-                  className="p-2 rounded-lg text-white/70 hover:text-white transition-colors cursor-auto"
-                  style={{ background: 'rgba(255,255,255,0.08)' }}
+                  className="p-2 rounded-md border text-white/70 hover:text-white transition-colors cursor-auto"
+                  style={{ background: 'rgba(0,0,0,0.28)', borderColor: LINE }}
                   title={accessMode === 'display' ? 'Reload display' : 'Exit display'}
                 >
                   <X size={13} />
@@ -811,8 +1223,8 @@ export function DisplayPage() {
                 {accessMode === 'display' && (
                   <button
                     onClick={logoutDisplay}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white/70 text-xs transition-colors hover:text-white cursor-auto"
-                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                    className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-white/70 text-xs transition-colors hover:text-white cursor-auto"
+                    style={{ background: 'rgba(0,0,0,0.28)', borderColor: LINE }}
                     title="Log out"
                   >
                     <LogOut size={11} />
@@ -825,15 +1237,15 @@ export function DisplayPage() {
             {/* Side nav arrows */}
             <button
               onClick={prev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-2xl text-white/60 hover:text-white transition-all cursor-auto"
-              style={{ background: 'rgba(255,255,255,0.07)' }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg border p-2.5 text-white/60 hover:text-white transition-all cursor-auto"
+              style={{ background: 'rgba(0,0,0,0.25)', borderColor: LINE }}
             >
               <ChevronLeft size={22} />
             </button>
             <button
               onClick={next}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-2xl text-white/60 hover:text-white transition-all cursor-auto"
-              style={{ background: 'rgba(255,255,255,0.07)' }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border p-2.5 text-white/60 hover:text-white transition-all cursor-auto"
+              style={{ background: 'rgba(0,0,0,0.25)', borderColor: LINE }}
             >
               <ChevronRight size={22} />
             </button>
@@ -866,7 +1278,7 @@ export function DisplayPage() {
                         {active && !paused && (
                           <motion.div
                             className="h-full rounded-full"
-                            style={{ background: MG }}
+                            style={{ background: `linear-gradient(90deg, ${MG}, ${CYAN})` }}
                             initial={{ width: '0%' }}
                             animate={{ width: '100%' }}
                             transition={{ duration: slideInterval, ease: 'linear' }}
@@ -874,7 +1286,7 @@ export function DisplayPage() {
                           />
                         )}
                         {active && paused && (
-                          <div className="h-full w-full rounded-full" style={{ background: MG }} />
+                          <div className="h-full w-full rounded-full" style={{ background: `linear-gradient(90deg, ${MG}, ${CYAN})` }} />
                         )}
                         {i < slideIdx && (
                           <div className="h-full w-full rounded-full bg-white/50" />
