@@ -14,6 +14,20 @@ import { formatShiftTime, hexToRgba } from '../../../lib/utils'
 import { fetchPerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
 import { dealerInfoForRow } from '../../../lib/dealers'
 import { weekdayKeyForDate, type StoreHours } from '../../../lib/storeHours'
+import {
+  RADAR_BASEMAP_ZOOM,
+  RADAR_RADIUS_MILES,
+  RADAR_TILE_SIZE,
+  RADAR_VIEW_SCALE,
+  fetchRainViewerMaps,
+  latToTileY,
+  lonToTileX,
+  radarTileUrl,
+  radarVisibleTiles,
+  wrapTileX,
+  clampTileY,
+  type RadarFrame,
+} from '../../../lib/radar'
 
 // T-Mobile magenta palette
 const MG  = '#E20074'       // primary magenta
@@ -24,12 +38,6 @@ const GOLD = '#F8C14A'
 const PANEL = 'rgba(255,255,255,0.075)'
 const PANEL_STRONG = 'rgba(255,255,255,0.12)'
 const LINE = 'rgba(255,255,255,0.14)'
-const RAINVIEWER_API_URL = 'https://api.rainviewer.com/public/weather-maps.json'
-const RADAR_ZOOM = 7
-const RADAR_BASEMAP_ZOOM = 9
-const RADAR_TILE_SIZE = 256
-const RADAR_VIEW_SCALE = 2 ** (RADAR_BASEMAP_ZOOM - RADAR_ZOOM)
-const RADAR_RADIUS_MILES = 100
 const STORE_LOGOS: Record<string, { url: string; alt: string; label?: string }> = {}
 
 type SlideAvailability = {
@@ -45,20 +53,6 @@ type DisplaySlideConfig = {
   shouldShow?: (availability: SlideAvailability) => boolean
 }
 
-type RadarFrame = {
-  time: number
-  path: string
-}
-
-type RainViewerMaps = {
-  generated: number
-  host: string
-  radar?: {
-    past?: RadarFrame[]
-    nowcast?: RadarFrame[]
-  }
-}
-
 function formatMoney(value: number) {
   return Math.round(value).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 }
@@ -69,57 +63,6 @@ function formatNumber(value: number) {
 
 function formatPercent(value: number) {
   return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`
-}
-
-function lonToTileX(lon: number, zoom: number) {
-  return ((lon + 180) / 360) * 2 ** zoom
-}
-
-function latToTileY(lat: number, zoom: number) {
-  const rad = lat * Math.PI / 180
-  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** zoom
-}
-
-function wrapTileX(x: number, zoom: number) {
-  const max = 2 ** zoom
-  return ((x % max) + max) % max
-}
-
-function clampTileY(y: number, zoom: number) {
-  const max = 2 ** zoom
-  return Math.min(Math.max(y, 0), max - 1)
-}
-
-async function fetchRainViewerMaps(): Promise<RainViewerMaps> {
-  const res = await fetch(RAINVIEWER_API_URL)
-  if (!res.ok) throw new Error('Could not load radar map data')
-  return res.json()
-}
-
-function radarTileUrl(host: string, framePath: string, x: number, y: number) {
-  return `${host}${framePath}/${RADAR_TILE_SIZE}/${RADAR_ZOOM}/${x}/${y}/2/1_1.png`
-}
-
-function radarVisibleTiles(lat: number, lon: number) {
-  const radarCenterX = lonToTileX(lon, RADAR_ZOOM)
-  const radarCenterY = latToTileY(lat, RADAR_ZOOM)
-  const radarTileX = Math.floor(radarCenterX)
-  const radarTileY = Math.floor(radarCenterY)
-  const radarCols = [-2, -1, 0, 1, 2]
-  const radarRows = [-2, -1, 0, 1, 2]
-  return radarRows.flatMap((dy) => radarCols.map((dx) => {
-    const rawX = radarTileX + dx
-    const rawY = radarTileY + dy
-    const x = wrapTileX(rawX, RADAR_ZOOM)
-    const y = clampTileY(rawY, RADAR_ZOOM)
-    return {
-      key: `${rawX}:${rawY}`,
-      x,
-      y,
-      left: (rawX - radarCenterX) * RADAR_TILE_SIZE,
-      top: (rawY - radarCenterY) * RADAR_TILE_SIZE,
-    }
-  }))
 }
 
 function minutesFromTime(value: string) {
