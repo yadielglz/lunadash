@@ -11,6 +11,7 @@ import { LunaWirelessLogo } from './brand/LunaWirelessLogo'
 
 const DEALER_PLACEHOLDERS = ['693D', 'admin', 'Gateway']
 const LOGIN_BACKDROP_URL = 'https://i.ibb.co/39JLm174/Wall.png'
+const KIOSK_LOGIN_CODE = 'KIOSK'
 
 type PendingAccess = {
   access: StoreAccessCode
@@ -35,6 +36,7 @@ export function StoreLaunchScreen() {
   const [error, setError] = useState('')
   const darkLogin = theme === 'dark' || theme === 'vista'
   const compactLogin = Boolean(pendingAccess)
+  const isKioskLogin = normalizeAccessCode(dealerCode) === KIOSK_LOGIN_CODE
 
   const completeLogin = (access: StoreAccessCode, accessMode: AccessMode, storeId: string) => {
     setAccessSession({
@@ -55,7 +57,7 @@ export function StoreLaunchScreen() {
       setError('Use the store ID or admin login.')
       return
     }
-    if (!/^\d{4}$/.test(cleanPin)) {
+    if (code !== KIOSK_LOGIN_CODE && !/^\d{4}$/.test(cleanPin)) {
       setError('PIN must be 4 digits.')
       return
     }
@@ -63,6 +65,37 @@ export function StoreLaunchScreen() {
     setIsLoading(true)
     setError('')
     try {
+      if (code === KIOSK_LOGIN_CODE) {
+        let stores: StoreSummary[] = []
+        try {
+          stores = (await dbGetStores()).filter((store) => normalizeStoreId(store.store_id) !== 'main')
+        } catch {
+          stores = []
+        }
+        if (stores.length === 0) {
+          setError('No configured stores are available for kiosk display.')
+          return
+        }
+        const now = new Date().toISOString()
+        setPendingAccess({
+          access: {
+            id: 'built-in-kiosk',
+            dealer_code: KIOSK_LOGIN_CODE,
+            store_id: normalizeStoreId(stores[0].store_id),
+            assigned_store_ids: stores.map((store) => normalizeStoreId(store.store_id)),
+            role: 'display',
+            label: 'Kiosk Display',
+            is_active: true,
+            created_at: now,
+            last_used_at: now,
+            onboarded_at: now,
+          },
+          stores,
+        })
+        setSelectedStoreId(stores[0]?.store_id ?? '')
+        return
+      }
+
       const access = await dbAuthenticateAccess(code, await hashPin(cleanPin))
       if (!access) {
         setError('Login or PIN was not recognized.')
@@ -255,21 +288,24 @@ export function StoreLaunchScreen() {
                   setDealerCode(normalizeAccessCode(e.target.value))
                   setError('')
                 }}
+                onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' && isKioskLogin) login() }}
                 placeholder={dealerPlaceholder}
               />
-              <Input
-                label="PIN"
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={pin}
-                onChange={(e) => {
-                  setPin(e.target.value.replace(/\D/g, '').slice(0, 4))
-                  setError('')
-                }}
-                onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') login() }}
-                placeholder="4-digit PIN"
-              />
+              {!isKioskLogin && (
+                <Input
+                  label="PIN"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pin}
+                  onChange={(e) => {
+                    setPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                    setError('')
+                  }}
+                  onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') login() }}
+                  placeholder="4-digit PIN"
+                />
+              )}
 
               {error && <p className="text-xs text-red-400">{error}</p>}
 
@@ -279,7 +315,7 @@ export function StoreLaunchScreen() {
                 icon={<ShieldCheck size={14} />}
                 loading={isLoading}
                 onClick={login}
-                disabled={!isValidLoginCode(dealerCode) || pin.length !== 4}
+                disabled={!isValidLoginCode(dealerCode) || (!isKioskLogin && pin.length !== 4)}
               >
                 Continue
               </Button>

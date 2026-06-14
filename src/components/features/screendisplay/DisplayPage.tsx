@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Maximize, Minimize, X, ChevronLeft, ChevronRight, Pause, Play, LogOut } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -24,7 +24,40 @@ const GOLD = '#F8C14A'
 const PANEL = 'rgba(255,255,255,0.075)'
 const PANEL_STRONG = 'rgba(255,255,255,0.12)'
 const LINE = 'rgba(255,255,255,0.14)'
-const SPARTANS_LOGO_URL = 'https://i.ibb.co/67JVjLg0/Store-Logo.png'
+const RAINVIEWER_API_URL = 'https://api.rainviewer.com/public/weather-maps.json'
+const RADAR_ZOOM = 7
+const RADAR_BASEMAP_ZOOM = 9
+const RADAR_TILE_SIZE = 256
+const RADAR_VIEW_SCALE = 2 ** (RADAR_BASEMAP_ZOOM - RADAR_ZOOM)
+const RADAR_RADIUS_MILES = 100
+const STORE_LOGOS: Record<string, { url: string; alt: string; label?: string }> = {}
+
+type SlideAvailability = {
+  hasTodaySchedule: boolean
+  hasScheduleOutlook: boolean
+  hasAnnouncements: boolean
+}
+
+type DisplaySlideConfig = {
+  key: string
+  label: string
+  component: () => JSX.Element
+  shouldShow?: (availability: SlideAvailability) => boolean
+}
+
+type RadarFrame = {
+  time: number
+  path: string
+}
+
+type RainViewerMaps = {
+  generated: number
+  host: string
+  radar?: {
+    past?: RadarFrame[]
+    nowcast?: RadarFrame[]
+  }
+}
 
 function formatMoney(value: number) {
   return Math.round(value).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
@@ -36,6 +69,57 @@ function formatNumber(value: number) {
 
 function formatPercent(value: number) {
   return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`
+}
+
+function lonToTileX(lon: number, zoom: number) {
+  return ((lon + 180) / 360) * 2 ** zoom
+}
+
+function latToTileY(lat: number, zoom: number) {
+  const rad = lat * Math.PI / 180
+  return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** zoom
+}
+
+function wrapTileX(x: number, zoom: number) {
+  const max = 2 ** zoom
+  return ((x % max) + max) % max
+}
+
+function clampTileY(y: number, zoom: number) {
+  const max = 2 ** zoom
+  return Math.min(Math.max(y, 0), max - 1)
+}
+
+async function fetchRainViewerMaps(): Promise<RainViewerMaps> {
+  const res = await fetch(RAINVIEWER_API_URL)
+  if (!res.ok) throw new Error('Could not load radar map data')
+  return res.json()
+}
+
+function radarTileUrl(host: string, framePath: string, x: number, y: number) {
+  return `${host}${framePath}/${RADAR_TILE_SIZE}/${RADAR_ZOOM}/${x}/${y}/2/1_1.png`
+}
+
+function radarVisibleTiles(lat: number, lon: number) {
+  const radarCenterX = lonToTileX(lon, RADAR_ZOOM)
+  const radarCenterY = latToTileY(lat, RADAR_ZOOM)
+  const radarTileX = Math.floor(radarCenterX)
+  const radarTileY = Math.floor(radarCenterY)
+  const radarCols = [-2, -1, 0, 1, 2]
+  const radarRows = [-2, -1, 0, 1, 2]
+  return radarRows.flatMap((dy) => radarCols.map((dx) => {
+    const rawX = radarTileX + dx
+    const rawY = radarTileY + dy
+    const x = wrapTileX(rawX, RADAR_ZOOM)
+    const y = clampTileY(rawY, RADAR_ZOOM)
+    return {
+      key: `${rawX}:${rawY}`,
+      x,
+      y,
+      left: (rawX - radarCenterX) * RADAR_TILE_SIZE,
+      top: (rawY - radarCenterY) * RADAR_TILE_SIZE,
+    }
+  }))
 }
 
 function minutesFromTime(value: string) {
@@ -159,7 +243,7 @@ function ProgressBar({ value, accent }: { value: number; accent: string }) {
 function ClockSlide() {
   const [now, setNow] = useState(new Date())
   const { companyName, storeNumber, storeHours } = useDisplayStore()
-  const { timeFormat } = useUiStore()
+  const { timeFormat, storeId } = useUiStore()
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
@@ -173,6 +257,7 @@ function ClockSlide() {
   const seconds = now.getSeconds().toString().padStart(2, '0')
   const ampm    = timeFormat === '12' ? format(now, 'a') : null
   const storeStatus = storeStatusFor(now, storeHours)
+  const storeLogo = STORE_LOGOS[storeId]
 
   return (
     <div className="flex h-full flex-col px-[6vw] pb-[9vh] pt-[5.5vh] select-none">
@@ -184,33 +269,35 @@ function ClockSlide() {
         {storeNumber && <div className="mt-[0.8vh] text-[1.05vw] font-semibold text-white/48">Store #{storeNumber}</div>}
       </header>
 
-      <div className="mt-[3vh] grid flex-1 grid-cols-[0.9fr_1.1fr] items-start gap-[4.2vw] overflow-hidden">
-        <div className="min-w-0">
-          <div
-            className="flex h-[53vh] w-full max-w-[34vw] items-center justify-center"
-          >
-            <img
-              src={SPARTANS_LOGO_URL}
-              alt="Spartans logo"
-              className="h-full w-full object-contain drop-shadow-[0_2vw_3vw_rgba(0,0,0,0.45)]"
-              draggable={false}
-            />
+      <div className={`mt-[3vh] grid flex-1 items-center gap-[4.2vw] overflow-hidden ${storeLogo ? 'grid-cols-[0.9fr_1.1fr]' : 'place-items-center'}`}>
+        {storeLogo && (
+          <div className="min-w-0">
+            <div
+              className="flex h-[53vh] w-full max-w-[34vw] items-center justify-center"
+            >
+              <img
+                src={storeLogo.url}
+                alt={storeLogo.alt}
+                className="h-full w-full object-contain drop-shadow-[0_2vw_3vw_rgba(0,0,0,0.45)]"
+                draggable={false}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="min-w-0">
+        <div className={`min-w-0 ${storeLogo ? '' : 'w-full max-w-[70vw]'}`}>
           <div className="w-full rounded-[1.8vw] border p-[2.4vw]" style={{ background: 'linear-gradient(135deg, rgba(226,0,116,0.15), rgba(54,209,220,0.08), rgba(255,255,255,0.035))', borderColor: LINE }}>
           <div className="flex items-start justify-between gap-[2vw]">
             <div
               className="rounded-full px-[1vw] py-[0.55vh] text-[0.95vw] font-black uppercase tracking-[0.22em]"
               style={{ background: `${CYAN}20`, color: CYAN }}
             >
-              Spartans
+              {storeLogo?.label ?? 'Store Clock'}
             </div>
             {ampm && <div className="rounded-md px-[0.8vw] py-[0.4vh] text-[1.05vw] font-black tracking-[0.18em]" style={{ background: `${MG}24`, color: MG }}>{ampm}</div>}
           </div>
 
-          <div className="mt-[4vh] flex items-end justify-end gap-[1vw] tabular-nums leading-none">
+          <div className={`mt-[4vh] flex items-end gap-[1vw] tabular-nums leading-none ${storeLogo ? 'justify-end' : 'justify-center'}`}>
             <span className="text-[12.8vw] font-black text-white">{hours}:{minutes}</span>
             <span className="pb-[1.35vw] text-[2.8vw] font-semibold text-white/35">:{seconds}</span>
           </div>
@@ -405,6 +492,179 @@ function WeatherSlide() {
             </div>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+// ── Slide: Radar ──────────────────────────────────────────────────────────────
+function RadarTileGrid({ lat, lon, frame, host, transitionMs }: { lat: number; lon: number; frame: RadarFrame; host: string; transitionMs: number }) {
+  const baseCenterX = lonToTileX(lon, RADAR_BASEMAP_ZOOM)
+  const baseCenterY = latToTileY(lat, RADAR_BASEMAP_ZOOM)
+  const baseTileX = Math.floor(baseCenterX)
+  const baseTileY = Math.floor(baseCenterY)
+  const baseCols = [-4, -3, -2, -1, 0, 1, 2, 3, 4]
+  const baseRows = [-3, -2, -1, 0, 1, 2, 3]
+  const baseTiles = baseRows.flatMap((dy) => baseCols.map((dx) => {
+    const rawX = baseTileX + dx
+    const rawY = baseTileY + dy
+    const x = wrapTileX(rawX, RADAR_BASEMAP_ZOOM)
+    const y = clampTileY(rawY, RADAR_BASEMAP_ZOOM)
+    return {
+      key: `${rawX}:${rawY}`,
+      x,
+      y,
+      left: (rawX - baseCenterX) * RADAR_TILE_SIZE,
+      top: (rawY - baseCenterY) * RADAR_TILE_SIZE,
+    }
+  }))
+  const radarTiles = radarVisibleTiles(lat, lon)
+
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[#09111a]" />
+      {baseTiles.map((tile) => (
+        <img
+          key={`base:${tile.key}`}
+          alt=""
+          src={`https://a.basemaps.cartocdn.com/dark_all/${RADAR_BASEMAP_ZOOM}/${tile.x}/${tile.y}.png`}
+          className="absolute max-w-none select-none"
+          draggable={false}
+          style={{
+            left: `calc(50% + ${tile.left}px)`,
+            top: `calc(50% + ${tile.top}px)`,
+            width: RADAR_TILE_SIZE,
+            height: RADAR_TILE_SIZE,
+          }}
+        />
+      ))}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,rgba(7,9,15,0.08)_42%,rgba(7,9,15,0.48)_100%)]" />
+      <AnimatePresence initial={false}>
+        <motion.div
+          key={frame.time}
+          className="absolute inset-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.74 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: transitionMs / 1000, ease: 'linear' }}
+          style={{ transform: `scale(${RADAR_VIEW_SCALE})`, transformOrigin: 'center', mixBlendMode: 'screen' }}
+        >
+          {radarTiles.map((tile) => (
+            <img
+              key={`radar:${frame.time}:${tile.key}`}
+              alt=""
+              src={radarTileUrl(host, frame.path, tile.x, tile.y)}
+              className="absolute max-w-none select-none"
+              draggable={false}
+              style={{
+                left: `calc(50% + ${tile.left}px)`,
+                top: `calc(50% + ${tile.top}px)`,
+                width: RADAR_TILE_SIZE,
+                height: RADAR_TILE_SIZE,
+              }}
+            />
+          ))}
+        </motion.div>
+      </AnimatePresence>
+      <div className="absolute left-1/2 top-1/2 h-[1.2vw] w-[1.2vw] -translate-x-1/2 -translate-y-1/2 rounded-full border-[0.22vw] border-white bg-[var(--accent)] shadow-[0_0_0_0.45vw_rgba(226,0,116,0.22),0_0_2vw_rgba(226,0,116,0.85)]" />
+      <div className="absolute left-1/2 top-1/2 h-[5vw] w-[5vw] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20" />
+      <div className="absolute bottom-3 right-4 rounded-md bg-black/42 px-2 py-1 text-[0.62vw] font-semibold text-white/42">
+        Radar: RainViewer | Map: CARTO
+      </div>
+    </div>
+  )
+}
+
+function RadarSlide() {
+  const { location } = useWeather()
+  const { companyName, slideInterval } = useDisplayStore()
+  const { timeFormat } = useUiStore()
+  const [frameIndex, setFrameIndex] = useState(0)
+  const [now, setNow] = useState(new Date())
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['rainviewer-maps'],
+    queryFn: fetchRainViewerMaps,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    retry: 1,
+  })
+  const frames = data?.radar?.past ?? []
+  const frame = frames[frameIndex] ?? frames[frames.length - 1]
+  const frameDelay = frames.length > 1
+    ? Math.max(100, Math.floor((slideInterval * 1000) / (frames.length * 2)))
+    : 800
+  const frameTransitionMs = Math.min(700, Math.max(180, Math.floor(frameDelay * 0.85)))
+
+  useEffect(() => {
+    if (frames.length === 0) return
+    setFrameIndex(frames.length - 1)
+  }, [frames.length])
+
+  useEffect(() => {
+    if (frames.length <= 1) return
+    const id = window.setInterval(() => {
+      setFrameIndex((current) => (current + 1) % frames.length)
+    }, frameDelay)
+    return () => window.clearInterval(id)
+  }, [frameDelay, frames.length])
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    if (!data?.host || frames.length <= 1) return
+    const tiles = radarVisibleTiles(location.lat, location.lon)
+    const nextFrames = [1, 2]
+      .map((offset) => frames[(frameIndex + offset) % frames.length])
+      .filter(Boolean)
+    nextFrames.forEach((nextFrame) => {
+      tiles.forEach((tile) => {
+        const image = new Image()
+        image.src = radarTileUrl(data.host, nextFrame.path, tile.x, tile.y)
+      })
+    })
+  }, [data?.host, frameIndex, frames, location.lat, location.lon])
+
+  const frameDate = frame ? new Date(frame.time * 1000) : null
+  const clockFormat = timeFormat === '24' ? 'HH:mm' : 'h:mm a'
+
+  return (
+    <div className="flex h-full flex-col px-[4.5vw] pb-[4vh] pt-[5vh] gap-[2.5vh] select-none">
+      <SlideHeader
+        eyebrow="Live radar"
+        title="Storm Tracker"
+        detail={frameDate ? `${format(frameDate, 'h:mm a')} | ${RADAR_RADIUS_MILES} mi radius` : `${RADAR_RADIUS_MILES} mi radius`}
+      />
+
+      <div className="grid flex-1 grid-cols-[minmax(0,1fr)_21vw] gap-[2vw] overflow-hidden">
+        <div className="relative min-w-0 overflow-hidden rounded-[1.4vw] border" style={{ background: 'rgba(0,0,0,0.24)', borderColor: `${CYAN}45` }}>
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center text-[1.4vw] font-semibold text-white/34">Loading radar...</div>
+          ) : isError || !data?.host || !frame ? (
+            <div className="flex h-full flex-col items-center justify-center gap-[1vh] text-center">
+              <div className="text-[1.6vw] font-black text-white/72">Radar unavailable</div>
+              <div className="max-w-[34vw] text-[1vw] font-semibold text-white/36">RainViewer map data could not be loaded right now.</div>
+            </div>
+          ) : (
+            <RadarTileGrid lat={location.lat} lon={location.lon} frame={frame} host={data.host} transitionMs={frameTransitionMs} />
+          )}
+        </div>
+
+        <aside className="flex min-w-0 flex-col gap-[1vh]">
+          <div className="rounded-[1.1vw] border p-[1.35vw]" style={{ background: `linear-gradient(135deg, ${MG}18, rgba(255,255,255,0.045))`, borderColor: `${MG}4d` }}>
+            <div className="text-[0.78vw] font-bold uppercase tracking-[0.22em] text-white/38">Centered on</div>
+            <div className="mt-[0.8vh] text-[1.65vw] font-black leading-tight text-white">{companyName}</div>
+            <div className="mt-[0.5vh] text-[0.9vw] font-semibold text-white/42">{location.name}</div>
+          </div>
+          <StatTile label="Current Date" value={format(now, 'MMM d')} accent={CYAN} />
+          <StatTile label="Time Clock" value={format(now, clockFormat)} accent={GOLD} />
+          <StatTile label="Local View" value="Central Florida" accent={MG2} />
+          <div className="mt-auto rounded-[1.1vw] border p-[1.1vw] text-[0.85vw] font-semibold leading-relaxed text-white/38" style={{ background: PANEL, borderColor: LINE }}>
+            Shows recent RainViewer radar imagery around the store area. The store marker stays fixed at center while the radar timeline loops.
+          </div>
+        </aside>
       </div>
     </div>
   )
@@ -1049,16 +1309,17 @@ function AnnouncementsSlide() {
 }
 
 // ── Slide registry ────────────────────────────────────────────────────────────
-const SLIDES = [
+const SLIDES: DisplaySlideConfig[] = [
   { key: 'clock',    label: 'Clock',         component: ClockSlide },
   { key: 'weather',  label: 'Weather',        component: WeatherSlide },
-  { key: 'sched',    label: 'Schedule',       component: ScheduleSlide },
-  { key: 'outlook',  label: 'Outlook',        component: ScheduleOutlookSlide },
+  { key: 'radar',    label: 'Radar',          component: RadarSlide },
+  { key: 'sched',    label: 'Schedule',       component: ScheduleSlide, shouldShow: ({ hasTodaySchedule }) => hasTodaySchedule },
+  { key: 'outlook',  label: 'Outlook',        component: ScheduleOutlookSlide, shouldShow: ({ hasScheduleOutlook }) => hasScheduleOutlook },
   { key: 'district', label: 'District',       component: DistrictOutlookSlide },
   { key: 'overall',  label: 'Overall',        component: OverallLeaderboardSlide },
   { key: 'pp',       label: 'PP',             component: PostPaidLeaderboardSlide },
   { key: 'acc',      label: "Acc's",          component: AccessoriesLeaderboardSlide },
-  { key: 'announce', label: 'Announcements',  component: AnnouncementsSlide },
+  { key: 'announce', label: 'Announcements',  component: AnnouncementsSlide, shouldShow: ({ hasAnnouncements }) => hasAnnouncements },
 ]
 
 // ── Display shell ─────────────────────────────────────────────────────────────
@@ -1066,13 +1327,28 @@ export function DisplayPage() {
   const { accessMode, clearStoreSession, setTab } = useUiStore()
   const { isFullscreen, enter: enterFs, exit: exitFs } = useFullscreen()
   const { slideInterval, companyName, storeNumber } = useDisplayStore()
+  const shifts = useScheduleStore((s) => s.shifts)
+  const announcements = useDisplayStore((s) => s.announcements)
   const [slideIdx, setSlideIdx] = useState(0)
   const [paused, setPaused] = useState(false)
   const [showControls, setShowControls] = useState(true)
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const slideAvailability = useMemo<SlideAvailability>(() => {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const outlookDates = new Set([1, 2, 3, 4].map((offset) => format(addDays(new Date(), offset), 'yyyy-MM-dd')))
+    return {
+      hasTodaySchedule: shifts.some((shift) => shift.date === today),
+      hasScheduleOutlook: shifts.some((shift) => outlookDates.has(shift.date)),
+      hasAnnouncements: announcements.some((announcement) => isAnnouncementActive(announcement)),
+    }
+  }, [announcements, shifts])
+  const visibleSlides = useMemo(() => (
+    SLIDES.filter((slide) => slide.shouldShow?.(slideAvailability) ?? true)
+  ), [slideAvailability])
+  const slideCount = visibleSlides.length
 
-  const prev = () => setSlideIdx((i) => (i - 1 + SLIDES.length) % SLIDES.length)
-  const next = useCallback(() => setSlideIdx((i) => (i + 1) % SLIDES.length), [])
+  const prev = useCallback(() => setSlideIdx((i) => (i - 1 + slideCount) % slideCount), [slideCount])
+  const next = useCallback(() => setSlideIdx((i) => (i + 1) % slideCount), [slideCount])
   const restartDisplay = useCallback(() => {
     exitFs()
     if (accessMode === 'display') {
@@ -1087,10 +1363,14 @@ export function DisplayPage() {
   }, [clearStoreSession, exitFs])
 
   useEffect(() => {
-    if (paused) return
+    if (slideIdx >= slideCount) setSlideIdx(0)
+  }, [slideCount, slideIdx])
+
+  useEffect(() => {
+    if (paused || slideCount <= 1) return
     const id = setInterval(next, slideInterval * 1000)
     return () => clearInterval(id)
-  }, [paused, slideInterval, next])
+  }, [paused, slideCount, slideInterval, next])
 
   const resetHideTimer = useCallback(() => {
     setShowControls(true)
@@ -1119,7 +1399,7 @@ export function DisplayPage() {
     return () => window.removeEventListener('keydown', handler)
   }, [next, restartDisplay])
 
-  const Slide = SLIDES[slideIdx].component
+  const Slide = visibleSlides[slideIdx]?.component ?? ClockSlide
 
   return (
     <div
@@ -1155,7 +1435,7 @@ export function DisplayPage() {
       {/* Slide content */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={slideIdx}
+          key={visibleSlides[slideIdx]?.key ?? 'clock'}
           className="absolute inset-0"
           initial={{ opacity: 0, scale: 1.015 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -1253,7 +1533,7 @@ export function DisplayPage() {
             {/* Bottom: indicators */}
             <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center pb-5 gap-2.5 pointer-events-auto">
               <div className="flex items-end gap-3">
-                {SLIDES.map((s, i) => {
+                {visibleSlides.map((s, i) => {
                   const active = i === slideIdx
                   return (
                     <button
