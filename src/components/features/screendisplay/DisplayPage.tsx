@@ -457,7 +457,7 @@ function ScheduleSlide() {
               return (
                 <div
                   key={s.id}
-                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[1.1vw] rounded-xl border px-[1.2vw]"
+                  className="grid grid-cols-[auto_minmax(0,1fr)_15vw] items-center gap-[1.1vw] rounded-xl border px-[1.2vw]"
                   style={{
                     background: index === 0 ? hexToRgba(emp.color, 0.16) : PANEL,
                     borderColor: index === 0 ? hexToRgba(emp.color, 0.48) : LINE,
@@ -477,9 +477,9 @@ function ScheduleSlide() {
                       <span>{s.type}</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[1.55vw] font-black tabular-nums text-white">{formatShiftTime(s.startTime, s.endTime)}</div>
-                    <div className="mt-[0.4vh] h-[0.45vh] w-[10vw] overflow-hidden rounded-full bg-white/10">
+                  <div className="w-[15vw] justify-self-end text-right">
+                    <div className="whitespace-nowrap text-[1.55vw] font-black tabular-nums text-white">{formatShiftTime(s.startTime, s.endTime)}</div>
+                    <div className="mt-[0.4vh] h-[0.45vh] w-full overflow-hidden rounded-full bg-white/10">
                       <div className="h-full rounded-full" style={{ width: `${shiftProgressPercent(now, s.startTime, s.endTime)}%`, background: emp.color }} />
                     </div>
                   </div>
