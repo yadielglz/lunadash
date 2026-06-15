@@ -61,6 +61,7 @@ interface Fl511TrafficEventRow {
 interface Fl511TrafficEventResponse {
   data?: Fl511TrafficEventRow[]
   recordsTotal?: number
+  recordsFiltered?: number
 }
 
 export interface Fl511Camera {
@@ -221,19 +222,39 @@ export async function fetchFl511Cameras(center: Coords, radiusMiles = TRAFFIC_RA
     .sort((a, b) => a.distanceMiles - b.distanceMiles)
 }
 
-export async function fetchFl511TrafficEvents(center: Coords, radiusMiles = TRAFFIC_RADIUS_MILES): Promise<Fl511TrafficEvent[]> {
+async function fetchTrafficEventsPage(start: number, length: number): Promise<Fl511TrafficEventResponse> {
   const res = await fetch(trafficEventsEndpoint(), {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       'x-requested-with': 'XMLHttpRequest',
     },
-    body: JSON.stringify(trafficEventsPayload(300)),
+    body: JSON.stringify({ ...trafficEventsPayload(length), start }),
   })
   if (!res.ok) throw new Error(`FL511 events failed: ${res.status}`)
-  const data = await res.json() as Fl511TrafficEventResponse
+  return await res.json() as Fl511TrafficEventResponse
+}
 
-  return (data.data ?? [])
+async function fetchTrafficEventRows(): Promise<Fl511TrafficEventRow[]> {
+  const pageLength = 100
+  const firstPage = await fetchTrafficEventsPage(0, pageLength)
+  const rows = [...(firstPage.data ?? [])]
+  const total = firstPage.recordsFiltered ?? firstPage.recordsTotal ?? rows.length
+
+  for (let start = rows.length; start < total; start += pageLength) {
+    const page = await fetchTrafficEventsPage(start, pageLength)
+    const pageRows = page.data ?? []
+    if (pageRows.length === 0) break
+    rows.push(...pageRows)
+  }
+
+  return rows
+}
+
+export async function fetchFl511TrafficEvents(center: Coords, radiusMiles = TRAFFIC_RADIUS_MILES): Promise<Fl511TrafficEvent[]> {
+  const rows = await fetchTrafficEventRows()
+
+  return rows
     .map((event) => {
       const coords = eventCoords(event)
       if (!coords) return null
