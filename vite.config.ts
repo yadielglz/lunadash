@@ -21,5 +21,12 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    proxy: {
+      '/api/fl511-events': {
+        target: 'https://fl511.com',
+        changeOrigin: true,
+        rewrite: () => '/List/GetData/traffic',
+      },
+    },
   },
 })

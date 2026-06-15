@@ -1,4 +1,5 @@
 const FL511_CAMERA_LAYER = 'https://services.arcgis.com/3wFbqsFPLeKqOlIK/arcgis/rest/services/FL511_Traffic_Cameras/FeatureServer/0/query'
+const FL511_TRAFFIC_EVENTS_DIRECT = 'https://fl511.com/List/GetData/traffic'
 export const TRAFFIC_RADIUS_MILES = 20
 
 interface Coords {
@@ -30,6 +31,38 @@ interface ArcGisCameraResponse {
   error?: { message?: string }
 }
 
+interface Fl511EventCamera {
+  location?: string
+  latLng?: {
+    geography?: {
+      wellKnownText?: string
+    }
+  }
+}
+
+interface Fl511TrafficEventRow {
+  DT_RowId?: string
+  id?: number
+  type?: string
+  layerName?: string
+  roadwayName?: string
+  description?: string
+  startDate?: string
+  lastUpdated?: string
+  isFullClosure?: boolean
+  severity?: string
+  direction?: string
+  laneDescription?: string
+  county?: string
+  region?: string
+  cameras?: Fl511EventCamera[]
+}
+
+interface Fl511TrafficEventResponse {
+  data?: Fl511TrafficEventRow[]
+  recordsTotal?: number
+}
+
 export interface Fl511Camera {
   id: string
   title: string
@@ -43,6 +76,23 @@ export interface Fl511Camera {
   distanceMiles: number
 }
 
+export interface Fl511TrafficEvent {
+  id: string
+  type: string
+  roadway: string
+  direction: string
+  severity: string
+  description: string
+  county: string
+  region: string
+  laneDescription: string
+  startDate: string
+  lastUpdated: string
+  lat: number
+  lon: number
+  distanceMiles: number
+}
+
 export function distanceMiles(a: Coords, b: Coords) {
   const earthRadiusMiles = 3958.8
   const toRad = (value: number) => value * Math.PI / 180
@@ -52,6 +102,61 @@ export function distanceMiles(a: Coords, b: Coords) {
   const lat2 = toRad(b.lat)
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
   return 2 * earthRadiusMiles * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
+function parseWellKnownPoint(value: string | undefined): Coords | null {
+  if (!value) return null
+  const match = value.match(/POINT\s*\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\)/i)
+  if (!match) return null
+  const lon = Number(match[1])
+  const lat = Number(match[2])
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
+  return { lat, lon }
+}
+
+function eventCoords(event: Fl511TrafficEventRow): Coords | null {
+  const points = (event.cameras ?? [])
+    .map((camera) => parseWellKnownPoint(camera.latLng?.geography?.wellKnownText))
+    .filter((point): point is Coords => Boolean(point))
+  if (points.length === 0) return null
+  return {
+    lat: points.reduce((sum, point) => sum + point.lat, 0) / points.length,
+    lon: points.reduce((sum, point) => sum + point.lon, 0) / points.length,
+  }
+}
+
+function trafficEventsEndpoint() {
+  if (typeof window === 'undefined') return FL511_TRAFFIC_EVENTS_DIRECT
+  return window.location.protocol === 'file:' ? FL511_TRAFFIC_EVENTS_DIRECT : '/api/fl511-events'
+}
+
+const TRAFFIC_EVENT_COLUMNS = [
+  ['region', false, false],
+  ['county', false, false],
+  ['roadwayName', false, true],
+  ['direction', false, true],
+  ['type', false, false],
+  ['severity', false, true],
+  ['description', false, false],
+  ['startDate', false, true],
+  ['lastUpdated', false, true],
+] as const
+
+function trafficEventsPayload(length: number) {
+  return {
+    draw: 1,
+    columns: TRAFFIC_EVENT_COLUMNS.map(([data, searchable, orderable]) => ({
+      data,
+      name: data,
+      searchable,
+      orderable,
+      search: { value: '', regex: false },
+    })),
+    order: [{ column: 8, dir: 'desc' }],
+    start: 0,
+    length,
+    search: { value: '', regex: false },
+  }
 }
 
 function bboxAround(center: Coords, radiusMiles: number) {
@@ -114,4 +219,51 @@ export async function fetchFl511Cameras(center: Coords, radiusMiles = TRAFFIC_RA
     })
     .filter((camera): camera is Fl511Camera => Boolean(camera))
     .sort((a, b) => a.distanceMiles - b.distanceMiles)
+}
+
+export async function fetchFl511TrafficEvents(center: Coords, radiusMiles = TRAFFIC_RADIUS_MILES): Promise<Fl511TrafficEvent[]> {
+  const res = await fetch(trafficEventsEndpoint(), {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-requested-with': 'XMLHttpRequest',
+    },
+    body: JSON.stringify(trafficEventsPayload(300)),
+  })
+  if (!res.ok) throw new Error(`FL511 events failed: ${res.status}`)
+  const data = await res.json() as Fl511TrafficEventResponse
+
+  return (data.data ?? [])
+    .map((event) => {
+      const coords = eventCoords(event)
+      if (!coords) return null
+      const distance = distanceMiles(center, coords)
+      if (distance > radiusMiles) return null
+      return {
+        id: String(event.id ?? event.DT_RowId ?? `${event.roadwayName}:${event.lastUpdated}`),
+        type: event.type || event.layerName || 'Traffic event',
+        roadway: event.roadwayName || '',
+        direction: event.direction || '',
+        severity: event.severity || 'Unknown',
+        description: event.description || '',
+        county: event.county || '',
+        region: event.region || '',
+        laneDescription: event.laneDescription || '',
+        startDate: event.startDate || '',
+        lastUpdated: event.lastUpdated || '',
+        lat: coords.lat,
+        lon: coords.lon,
+        distanceMiles: distance,
+      }
+    })
+    .filter((event): event is Fl511TrafficEvent => Boolean(event))
+    .sort((a, b) => {
+      const severityRank = (severity: string) => (
+        /major/i.test(severity) ? 0
+        : /intermediate/i.test(severity) ? 1
+        : /minor/i.test(severity) ? 2
+        : 3
+      )
+      return severityRank(a.severity) - severityRank(b.severity) || a.distanceMiles - b.distanceMiles
+    })
 }
