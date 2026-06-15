@@ -1,6 +1,6 @@
 export const APP_META = {
   name: 'LunaDash',
-  version: '5.4.3',
+  version: '5.4.4',
   build: 'prod.260615-A',
   copyright: '© 2026 Glz Technical Services | Glz Tech',
   supportEmail: 'service@glztech.com',
