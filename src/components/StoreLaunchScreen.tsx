@@ -1,6 +1,15 @@
-import { useState } from 'react'
-import { KeyRound, Monitor, ShieldCheck, Smartphone } from 'lucide-react'
-import { dbAuthenticateAccess, dbGetStores, type StoreAccessCode, type StoreSummary } from '../lib/supabase'
+import { useEffect, useState } from 'react'
+import { KeyRound, Loader2, Monitor, ShieldCheck, Smartphone } from 'lucide-react'
+import {
+  dbAuthenticateAccess,
+  dbCreateKioskEnrollment,
+  dbGetKioskEnrollmentByToken,
+  dbGetStores,
+  dbTouchKioskEnrollment,
+  type KioskEnrollment,
+  type StoreAccessCode,
+  type StoreSummary,
+} from '../lib/supabase'
 import { hashPin } from '../store/lockStore'
 import { AccessMode, accessRoleLabel, useUiStore } from '../store/uiStore'
 import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
@@ -12,6 +21,7 @@ import { LunaWirelessLogo } from './brand/LunaWirelessLogo'
 const DEALER_PLACEHOLDERS = ['693D', 'admin', 'Gateway']
 const LOGIN_BACKDROP_URL = 'https://i.ibb.co/39JLm174/Wall.png'
 const KIOSK_LOGIN_CODE = 'KIOSK'
+const KIOSK_ENROLLMENT_KEY = 'luna-kiosk-enrollment-token'
 
 type PendingAccess = {
   access: StoreAccessCode
@@ -31,12 +41,27 @@ export function StoreLaunchScreen() {
   const [pin, setPin] = useState('')
   const [mode, setMode] = useState<'manager' | 'display'>('manager')
   const [pendingAccess, setPendingAccess] = useState<PendingAccess | null>(null)
+  const [kioskEnrollment, setKioskEnrollment] = useState<KioskEnrollment | null>(null)
   const [selectedStoreId, setSelectedStoreId] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const darkLogin = theme === 'dark' || theme === 'vista'
-  const compactLogin = Boolean(pendingAccess)
+  const compactLogin = Boolean(pendingAccess || kioskEnrollment)
   const isKioskLogin = normalizeAccessCode(dealerCode) === KIOSK_LOGIN_CODE
+
+  const completeKioskEnrollment = (enrollment: KioskEnrollment) => {
+    if (!enrollment.store_id || enrollment.status !== 'approved') return
+    window.localStorage.removeItem(KIOSK_ENROLLMENT_KEY)
+    setAccessSession({
+      id: enrollment.id,
+      storeId: enrollment.store_id,
+      role: 'display',
+      dealerCode: KIOSK_LOGIN_CODE,
+      label: enrollment.display_name || 'Kiosk Display',
+      onboardedAt: enrollment.approved_at ?? new Date().toISOString(),
+      mode: 'display',
+    })
+  }
 
   const completeLogin = (access: StoreAccessCode, accessMode: AccessMode, storeId: string) => {
     setAccessSession({
@@ -49,6 +74,62 @@ export function StoreLaunchScreen() {
       mode: accessMode,
     })
   }
+
+  useEffect(() => {
+    const token = window.localStorage.getItem(KIOSK_ENROLLMENT_KEY)
+    if (!token) return
+    let cancelled = false
+    dbGetKioskEnrollmentByToken(token)
+      .then((enrollment) => {
+        if (cancelled || !enrollment) {
+          if (!cancelled) window.localStorage.removeItem(KIOSK_ENROLLMENT_KEY)
+          return
+        }
+        if (enrollment.status === 'approved') completeKioskEnrollment(enrollment)
+        else if (enrollment.status === 'pending') {
+          setShowLogin(true)
+          setDealerCode(KIOSK_LOGIN_CODE)
+          setKioskEnrollment(enrollment)
+        } else {
+          window.localStorage.removeItem(KIOSK_ENROLLMENT_KEY)
+        }
+      })
+      .catch(() => window.localStorage.removeItem(KIOSK_ENROLLMENT_KEY))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!kioskEnrollment?.device_token) return
+    let cancelled = false
+    const checkEnrollment = async () => {
+      try {
+        await dbTouchKioskEnrollment(kioskEnrollment.device_token)
+        const enrollment = await dbGetKioskEnrollmentByToken(kioskEnrollment.device_token)
+        if (cancelled || !enrollment) return
+        if (enrollment.status === 'approved') {
+          completeKioskEnrollment(enrollment)
+          return
+        }
+        if (enrollment.status === 'rejected') {
+          window.localStorage.removeItem(KIOSK_ENROLLMENT_KEY)
+          setKioskEnrollment(null)
+          setError('This kiosk enrollment was rejected. Start a new pairing session.')
+          return
+        }
+        setKioskEnrollment(enrollment)
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not check kiosk enrollment.')
+      }
+    }
+    checkEnrollment()
+    const id = window.setInterval(checkEnrollment, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [kioskEnrollment?.device_token])
 
   const login = async () => {
     const code = normalizeAccessCode(dealerCode)
@@ -66,33 +147,9 @@ export function StoreLaunchScreen() {
     setError('')
     try {
       if (code === KIOSK_LOGIN_CODE) {
-        let stores: StoreSummary[] = []
-        try {
-          stores = (await dbGetStores()).filter((store) => normalizeStoreId(store.store_id) !== 'main')
-        } catch {
-          stores = []
-        }
-        if (stores.length === 0) {
-          setError('No configured stores are available for kiosk display.')
-          return
-        }
-        const now = new Date().toISOString()
-        setPendingAccess({
-          access: {
-            id: 'built-in-kiosk',
-            dealer_code: KIOSK_LOGIN_CODE,
-            store_id: normalizeStoreId(stores[0].store_id),
-            assigned_store_ids: stores.map((store) => normalizeStoreId(store.store_id)),
-            role: 'display',
-            label: 'Kiosk Display',
-            is_active: true,
-            created_at: now,
-            last_used_at: now,
-            onboarded_at: now,
-          },
-          stores,
-        })
-        setSelectedStoreId(stores[0]?.store_id ?? '')
+        const enrollment = await dbCreateKioskEnrollment('Kiosk browser')
+        window.localStorage.setItem(KIOSK_ENROLLMENT_KEY, enrollment.device_token)
+        setKioskEnrollment(enrollment)
         return
       }
 
@@ -176,14 +233,45 @@ export function StoreLaunchScreen() {
               </span>
               <div className="text-left">
                 <h1 className="text-lg font-semibold text-[var(--text)]">LunaDash Access</h1>
-                <p className="text-xs text-[var(--text-secondary)]">{showLogin || pendingAccess ? 'Enter your store login and 4-digit PIN.' : 'Store workspace and display access.'}</p>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {kioskEnrollment ? 'Waiting for admin approval.' : showLogin || pendingAccess ? 'Enter your store login and 4-digit PIN.' : 'Store workspace and display access.'}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
         <div className={`${compactLogin ? 'space-y-3 p-5' : 'space-y-4 p-6'} min-h-0 overflow-y-auto`}>
-          {pendingAccess ? (
+          {kioskEnrollment ? (
+            <>
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] px-3.5 py-3 text-center shadow-sm">
+                <p className="text-sm font-semibold text-[var(--text)]">Pair this kiosk display</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">Approve this code from Settings &gt; Access on an admin device.</p>
+                <div className="mt-4 rounded-lg border border-[var(--accent)]/35 bg-[var(--accent)]/10 px-4 py-4 text-3xl font-black tracking-[0.22em] text-[var(--accent)]">
+                  {kioskEnrollment.pairing_code}
+                </div>
+                <div className="mt-3 flex items-center justify-center gap-2 text-xs text-[var(--text-tertiary)]">
+                  <Loader2 size={13} className="animate-spin" />
+                  Waiting for approval
+                </div>
+              </div>
+
+              {error && <p className="text-xs text-red-400">{error}</p>}
+
+              <Button
+                className="w-full"
+                variant="ghost"
+                onClick={() => {
+                  window.localStorage.removeItem(KIOSK_ENROLLMENT_KEY)
+                  setKioskEnrollment(null)
+                  setDealerCode('')
+                  setError('')
+                }}
+              >
+                Cancel Pairing
+              </Button>
+            </>
+          ) : pendingAccess ? (
             <>
               <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] px-3.5 py-2.5 shadow-sm">
                 <p className="text-sm font-semibold text-[var(--text)]">Choose store</p>

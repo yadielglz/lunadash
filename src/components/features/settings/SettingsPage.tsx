@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles, CarFront
+  Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles, CarFront, MonitorCheck
 } from 'lucide-react'
 import { type SessionTimeout, Theme, useUiStore } from '../../../store/uiStore'
 
@@ -22,6 +22,7 @@ import { normalizeStoreId } from '../../../lib/storeIds'
 import { WEEKDAY_KEYS, WEEKDAY_LABELS, type StoreHours } from '../../../lib/storeHours'
 import { Section, Row, Segment } from './SettingsLayout'
 import { AccessSection } from './AccessSection'
+import { RemoteSection } from './RemoteSection'
 
 function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Theme) => void }) {
   const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string }[] = [
@@ -1300,6 +1301,7 @@ const SECTIONS = [
   { id: 'weather',       label: 'Weather',       icon: <Cloud size={14} /> },
   { id: 'traffic',       label: 'Traffic',       icon: <CarFront size={14} /> },
   { id: 'display',       label: 'Display',       icon: <Tv2 size={14} /> },
+  { id: 'remote',        label: 'Remote',        icon: <MonitorCheck size={14} /> },
   { id: 'store',         label: 'Store Details',  icon: <Store size={14} /> },
   { id: 'configuredStores', label: 'Configured Stores', icon: <Store size={14} /> },
   { id: 'reports',       label: 'Reports',        icon: <FileText size={14} /> },
@@ -1313,7 +1315,7 @@ const SECTIONS = [
 
 type SectionId = typeof SECTIONS[number]['id']
 const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'traffic']
-const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores']
+const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores', 'remote']
 const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store']
 
 function isSectionId(value: string): value is SectionId {
@@ -1356,6 +1358,7 @@ export function SettingsPage() {
     weather:       <WeatherPage />,
     traffic:       <TrafficPage />,
     display:       <DisplaySettingsSection />,
+    remote:        <RemoteSection />,
     store:         <StoreSection />,
     configuredStores: <ConfiguredStoresSection />,
     reports:       <ReportSection />,

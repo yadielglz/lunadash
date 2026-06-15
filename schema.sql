@@ -270,3 +270,28 @@ create table if not exists store_access_assignments (
 create index if not exists store_access_assignments_store_idx on store_access_assignments(store_id);
 alter table store_access_assignments enable row level security;
 create policy "public" on store_access_assignments for all using (true) with check (true);
+
+-- ── Kiosk display enrollment ───────────────────────────────────
+create table if not exists kiosk_enrollments (
+  id text primary key,
+  pairing_code text not null,
+  device_token text not null unique,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  store_id text,
+  display_name text,
+  device_label text,
+  user_agent text,
+  created_at timestamptz not null default now(),
+  approved_at timestamptz,
+  last_seen_at timestamptz
+);
+create index if not exists kiosk_enrollments_status_idx on kiosk_enrollments(status, created_at desc);
+create index if not exists kiosk_enrollments_pairing_code_idx on kiosk_enrollments(pairing_code);
+alter table kiosk_enrollments enable row level security;
+create policy "public" on kiosk_enrollments for all using (true) with check (true);
+do $$
+begin
+  alter publication supabase_realtime add table kiosk_enrollments;
+exception
+  when duplicate_object then null;
+end $$;

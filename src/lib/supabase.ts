@@ -448,7 +448,7 @@ export async function dbResetAccessOnboarding(id: string) {
 }
 
 export async function dbCheckSchemaHealth() {
-  const tables = ['employees', 'employee_schedule_preferences', 'employee_sales', 'shifts', 'schedule_exceptions', 'schedule_blocks', 'schedule_templates', 'goals', 'announcements', 'app_settings', 'tasks', 'store_access_codes']
+  const tables = ['employees', 'employee_schedule_preferences', 'employee_sales', 'shifts', 'schedule_exceptions', 'schedule_blocks', 'schedule_templates', 'goals', 'announcements', 'app_settings', 'tasks', 'store_access_codes', 'kiosk_enrollments']
   const results = await Promise.all(tables.map(async (table) => {
     const { error } = await supabase.from(table).select('*', { head: true, count: 'exact' })
     return {
@@ -1265,6 +1265,111 @@ export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSe
   throwIfError(error, 'Could not save app settings')
   setDealerOverride({ store_id: sid, dealer_nickname: patch.dealer_nickname, dealer_location: patch.dealer_location })
   useSyncStore.getState().setSync('settings', 'synced', 'Settings confirmed in Supabase')
+}
+
+// ── Kiosk enrollment ──────────────────────────────────────────────────────────
+
+export type KioskEnrollmentStatus = 'pending' | 'approved' | 'rejected'
+
+export type KioskEnrollment = {
+  id: string
+  pairing_code: string
+  device_token: string
+  status: KioskEnrollmentStatus
+  store_id: string | null
+  display_name: string | null
+  device_label: string | null
+  user_agent: string | null
+  created_at: string
+  approved_at: string | null
+  last_seen_at: string | null
+}
+
+type DbKioskEnrollmentPatch = Partial<{
+  status: KioskEnrollmentStatus
+  store_id: string | null
+  display_name: string | null
+  device_label: string | null
+  user_agent: string | null
+  approved_at: string | null
+  last_seen_at: string | null
+}>
+
+function kioskEnrollmentFromDb(row: KioskEnrollment): KioskEnrollment {
+  return {
+    ...row,
+    store_id: row.store_id ? normalizeStoreId(row.store_id) : null,
+  }
+}
+
+function pairingCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = ''
+  for (let i = 0; i < 6; i += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)]
+  }
+  return `${code.slice(0, 3)}-${code.slice(3)}`
+}
+
+export async function dbCreateKioskEnrollment(deviceLabel = 'Browser display'): Promise<KioskEnrollment> {
+  const row = {
+    id: crypto.randomUUID(),
+    pairing_code: pairingCode(),
+    device_token: crypto.randomUUID(),
+    status: 'pending' satisfies KioskEnrollmentStatus,
+    store_id: null,
+    display_name: null,
+    device_label: deviceLabel,
+    user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+  }
+  const { data, error } = await supabase
+    .from('kiosk_enrollments')
+    .insert(row)
+    .select('*')
+    .single()
+  throwIfError(error, 'Could not start kiosk enrollment')
+  return kioskEnrollmentFromDb(data as KioskEnrollment)
+}
+
+export async function dbGetKioskEnrollmentByToken(deviceToken: string): Promise<KioskEnrollment | null> {
+  const { data, error } = await supabase
+    .from('kiosk_enrollments')
+    .select('*')
+    .eq('device_token', deviceToken)
+    .maybeSingle()
+  throwIfError(error, 'Could not load kiosk enrollment')
+  return data ? kioskEnrollmentFromDb(data as KioskEnrollment) : null
+}
+
+export async function dbTouchKioskEnrollment(deviceToken: string) {
+  const { error } = await supabase
+    .from('kiosk_enrollments')
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq('device_token', deviceToken)
+  throwIfError(error, 'Could not update kiosk heartbeat')
+}
+
+export async function dbGetKioskEnrollments(): Promise<KioskEnrollment[]> {
+  const { data, error } = await supabase
+    .from('kiosk_enrollments')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(30)
+  if (isMissingTableError(error)) return []
+  throwIfError(error, 'Could not load kiosk enrollments')
+  return ((data ?? []) as KioskEnrollment[]).map(kioskEnrollmentFromDb)
+}
+
+export async function dbUpdateKioskEnrollment(id: string, patch: DbKioskEnrollmentPatch) {
+  const normalizedPatch = {
+    ...patch,
+    ...(patch.store_id !== undefined ? { store_id: patch.store_id ? normalizeStoreId(patch.store_id) : null } : {}),
+  }
+  const { error } = await supabase
+    .from('kiosk_enrollments')
+    .update(normalizedPatch)
+    .eq('id', id)
+  throwIfError(error, 'Could not update kiosk enrollment')
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────

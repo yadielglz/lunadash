@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react'
 import { KeyRound, Plus, Check, Edit2, Power, Trash2, ChevronDown } from 'lucide-react'
 import { accessRoleLabel, useUiStore, AccessRole } from '../../../store/uiStore'
-import { dbGetAccessCodes, dbCreateAccessCode, dbUpdateAccessCode, dbDeleteAccessCode, dbResetAccessOnboarding, dbSetAccessAssignments, dbGetStores, StoreAccessCode, StoreSummary } from '../../../lib/supabase'
+import {
+  dbGetAccessCodes,
+  dbCreateAccessCode,
+  dbUpdateAccessCode,
+  dbDeleteAccessCode,
+  dbResetAccessOnboarding,
+  dbSetAccessAssignments,
+  dbGetStores,
+  type StoreAccessCode,
+  type StoreSummary,
+} from '../../../lib/supabase'
 import { Input, Select } from '../../ui/Input'
 import { Button } from '../../ui/Button'
 import { hashPin } from '../../../store/lockStore'
