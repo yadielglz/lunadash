@@ -283,8 +283,14 @@ create table if not exists kiosk_enrollments (
   user_agent text,
   created_at timestamptz not null default now(),
   approved_at timestamptz,
-  last_seen_at timestamptz
+  last_seen_at timestamptz,
+  command text check (command in ('refresh', 'update')),
+  command_issued_at timestamptz,
+  command_ack_at timestamptz
 );
+alter table kiosk_enrollments add column if not exists command text check (command in ('refresh', 'update'));
+alter table kiosk_enrollments add column if not exists command_issued_at timestamptz;
+alter table kiosk_enrollments add column if not exists command_ack_at timestamptz;
 create index if not exists kiosk_enrollments_status_idx on kiosk_enrollments(status, created_at desc);
 create index if not exists kiosk_enrollments_pairing_code_idx on kiosk_enrollments(pairing_code);
 alter table kiosk_enrollments enable row level security;

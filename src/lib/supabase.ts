@@ -1270,6 +1270,7 @@ export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSe
 // ── Kiosk enrollment ──────────────────────────────────────────────────────────
 
 export type KioskEnrollmentStatus = 'pending' | 'approved' | 'rejected'
+export type KioskRemoteCommand = 'refresh' | 'update'
 
 export type KioskEnrollment = {
   id: string
@@ -1283,6 +1284,9 @@ export type KioskEnrollment = {
   created_at: string
   approved_at: string | null
   last_seen_at: string | null
+  command: KioskRemoteCommand | null
+  command_issued_at: string | null
+  command_ack_at: string | null
 }
 
 type DbKioskEnrollmentPatch = Partial<{
@@ -1293,6 +1297,9 @@ type DbKioskEnrollmentPatch = Partial<{
   user_agent: string | null
   approved_at: string | null
   last_seen_at: string | null
+  command: KioskRemoteCommand | null
+  command_issued_at: string | null
+  command_ack_at: string | null
 }>
 
 function kioskEnrollmentFromDb(row: KioskEnrollment): KioskEnrollment {
@@ -1370,6 +1377,14 @@ export async function dbUpdateKioskEnrollment(id: string, patch: DbKioskEnrollme
     .update(normalizedPatch)
     .eq('id', id)
   throwIfError(error, 'Could not update kiosk enrollment')
+}
+
+export async function dbIssueKioskCommand(id: string, command: KioskRemoteCommand) {
+  return dbUpdateKioskEnrollment(id, {
+    command,
+    command_issued_at: new Date().toISOString(),
+    command_ack_at: null,
+  })
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────

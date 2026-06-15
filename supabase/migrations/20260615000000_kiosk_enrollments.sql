@@ -10,7 +10,10 @@ create table if not exists kiosk_enrollments (
   user_agent text,
   created_at timestamptz not null default now(),
   approved_at timestamptz,
-  last_seen_at timestamptz
+  last_seen_at timestamptz,
+  command text check (command in ('refresh', 'update')),
+  command_issued_at timestamptz,
+  command_ack_at timestamptz
 );
 
 create index if not exists kiosk_enrollments_status_idx on kiosk_enrollments(status, created_at desc);

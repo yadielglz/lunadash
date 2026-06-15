@@ -154,7 +154,7 @@ function SlideHeader({ eyebrow, title, detail }: { eyebrow: string; title: strin
         <h2 className="truncate text-[3vw] font-black leading-none text-white">{title}</h2>
       </div>
       {detail && (
-        <div className="rounded-full border px-[1vw] py-[0.55vh] text-[0.95vw] font-semibold text-white/62" style={{ borderColor: LINE, background: 'rgba(0,0,0,0.22)' }}>
+        <div className="rounded-full border px-[1vw] py-[0.55vh] text-[0.95vw] font-semibold text-white/70" style={{ borderColor: LINE, background: 'rgba(0,0,0,0.22)' }}>
           {detail}
         </div>
       )}
@@ -165,7 +165,7 @@ function SlideHeader({ eyebrow, title, detail }: { eyebrow: string; title: strin
 function StatTile({ label, value, accent = CYAN }: { label: string; value: string; accent?: string }) {
   return (
     <div className="rounded-xl border px-[1.1vw] py-[1vh]" style={{ background: 'rgba(0,0,0,0.24)', borderColor: LINE }}>
-      <div className="text-[0.78vw] font-bold uppercase tracking-[0.2em] text-white/38">{label}</div>
+      <div className="text-[0.78vw] font-bold uppercase tracking-[0.2em] text-white/40">{label}</div>
       <div className="mt-[0.35vh] text-[1.45vw] font-black tabular-nums text-white" style={{ color: accent }}>{value}</div>
     </div>
   )
@@ -209,7 +209,7 @@ function ClockSlide() {
         <h1 className="mt-[0.9vh] max-w-[72vw] text-[3.2vw] font-black leading-none text-white">
           {companyName}
         </h1>
-        {storeNumber && <div className="mt-[0.8vh] text-[1.05vw] font-semibold text-white/48">Store #{storeNumber}</div>}
+        {storeNumber && <div className="mt-[0.8vh] text-[1.05vw] font-semibold text-white/50">Store #{storeNumber}</div>}
       </header>
 
       <div className={`mt-[3vh] grid flex-1 items-center gap-[4.2vw] overflow-hidden ${storeLogo ? 'grid-cols-[0.9fr_1.1fr]' : 'place-items-center'}`}>
@@ -242,7 +242,7 @@ function ClockSlide() {
 
           <div className={`mt-[4vh] flex items-end gap-[1vw] tabular-nums leading-none ${storeLogo ? 'justify-end' : 'justify-center'}`}>
             <span className="text-[12.8vw] font-black text-white">{hours}:{minutes}</span>
-            <span className="pb-[1.35vw] text-[2.8vw] font-semibold text-white/35">:{seconds}</span>
+            <span className="pb-[1.35vw] text-[2.8vw] font-semibold text-white/40">:{seconds}</span>
           </div>
           <div className="mt-[1.4vh] h-[0.7vh] overflow-hidden rounded-full bg-white/10">
             <motion.div
@@ -343,7 +343,7 @@ function WeatherSlide() {
         <div className="flex min-w-0 flex-col justify-between rounded-[1.3vw] border p-[2vw]" style={{ background: 'linear-gradient(135deg, rgba(54,209,220,0.18), rgba(255,255,255,0.045))', borderColor: `${CYAN}55` }}>
           <div className="flex items-start justify-between gap-[2vw]">
             <div>
-              <div className="text-[1vw] font-bold uppercase tracking-[0.24em] text-white/42">Now</div>
+              <div className="text-[1vw] font-bold uppercase tracking-[0.24em] text-white/50">Now</div>
               <div className="mt-[1vh] text-[2.4vw] font-black text-white">{weather.label}</div>
             </div>
             <span className="text-[7vw] leading-none">{weather.icon}</span>
@@ -351,7 +351,7 @@ function WeatherSlide() {
 
           <div>
             <div className="text-[10vw] font-black leading-none tabular-nums text-white">
-              {fmt(cw.temperature)}<span className="text-[4vw] text-white/45">{unit}</span>
+              {fmt(cw.temperature)}<span className="text-[4vw] text-white/50">{unit}</span>
             </div>
             <div className="mt-[2vh] grid grid-cols-2 gap-[1vw]">
               <StatTile label="High" value={`${fmt(dailyHigh)}${unit}`} accent={MG2} />
@@ -375,11 +375,11 @@ function WeatherSlide() {
                 <div className="text-[2.5vw] leading-none">{getWeatherInfo(weatherData.daily.weathercode[i]).icon}</div>
                 <div className="min-w-0">
                   <div className="truncate text-[1.35vw] font-black text-white">{isToday ? 'Today' : format(new Date(d + 'T12:00'), 'EEEE')}</div>
-                  <div className="text-[0.9vw] font-semibold text-white/38">{format(new Date(d + 'T12:00'), 'MMM d')}</div>
+                  <div className="text-[0.9vw] font-semibold text-white/40">{format(new Date(d + 'T12:00'), 'MMM d')}</div>
                 </div>
                 <div className="text-right tabular-nums">
                   <div className="text-[1.35vw] font-black text-white">{fmt(weatherData.daily.temperature_2m_max[i])}{unit}</div>
-                  <div className="text-[0.9vw] font-semibold text-white/38">{fmt(weatherData.daily.temperature_2m_min[i])}{unit}</div>
+                  <div className="text-[0.9vw] font-semibold text-white/40">{fmt(weatherData.daily.temperature_2m_min[i])}{unit}</div>
                 </div>
               </div>
             )
@@ -429,7 +429,7 @@ function WeatherSlide() {
               <span className="text-[1.4vw] text-white font-medium">
                 {fmt(weatherData.daily.temperature_2m_max[i])}{unit}
               </span>
-              <span className="text-[1vw] text-white/35">
+              <span className="text-[1vw] text-white/40">
                 {fmt(weatherData.daily.temperature_2m_min[i])}{unit}
               </span>
             </div>
@@ -511,7 +511,7 @@ function RadarTileGrid({ lat, lon, frame, host, transitionMs }: { lat: number; l
       </AnimatePresence>
       <div className="absolute left-1/2 top-1/2 h-[1.2vw] w-[1.2vw] -translate-x-1/2 -translate-y-1/2 rounded-full border-[0.22vw] border-white bg-[var(--accent)] shadow-[0_0_0_0.45vw_rgba(226,0,116,0.22),0_0_2vw_rgba(226,0,116,0.85)]" />
       <div className="absolute left-1/2 top-1/2 h-[5vw] w-[5vw] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20" />
-      <div className="absolute bottom-3 right-4 rounded-md bg-black/42 px-2 py-1 text-[0.62vw] font-semibold text-white/42">
+      <div className="absolute bottom-3 right-4 rounded-md bg-black/40 px-2 py-1 text-[0.62vw] font-semibold text-white/50">
         Radar: RainViewer | Map: CARTO
       </div>
     </div>
@@ -584,11 +584,11 @@ function RadarSlide() {
       <div className="grid flex-1 grid-cols-[minmax(0,1fr)_21vw] gap-[2vw] overflow-hidden">
         <div className="relative min-w-0 overflow-hidden rounded-[1.4vw] border" style={{ background: 'rgba(0,0,0,0.24)', borderColor: `${CYAN}45` }}>
           {isLoading ? (
-            <div className="flex h-full items-center justify-center text-[1.4vw] font-semibold text-white/34">Loading radar...</div>
+            <div className="flex h-full items-center justify-center text-[1.4vw] font-semibold text-white/40">Loading radar...</div>
           ) : isError || !data?.host || !frame ? (
             <div className="flex h-full flex-col items-center justify-center gap-[1vh] text-center">
-              <div className="text-[1.6vw] font-black text-white/72">Radar unavailable</div>
-              <div className="max-w-[34vw] text-[1vw] font-semibold text-white/36">RainViewer map data could not be loaded right now.</div>
+              <div className="text-[1.6vw] font-black text-white/75">Radar unavailable</div>
+              <div className="max-w-[34vw] text-[1vw] font-semibold text-white/40">RainViewer map data could not be loaded right now.</div>
             </div>
           ) : (
             <RadarTileGrid lat={location.lat} lon={location.lon} frame={frame} host={data.host} transitionMs={frameTransitionMs} />
@@ -597,14 +597,14 @@ function RadarSlide() {
 
         <aside className="flex min-w-0 flex-col gap-[1vh]">
           <div className="rounded-[1.1vw] border p-[1.35vw]" style={{ background: `linear-gradient(135deg, ${MG}18, rgba(255,255,255,0.045))`, borderColor: `${MG}4d` }}>
-            <div className="text-[0.78vw] font-bold uppercase tracking-[0.22em] text-white/38">Centered on</div>
+            <div className="text-[0.78vw] font-bold uppercase tracking-[0.22em] text-white/40">Centered on</div>
             <div className="mt-[0.8vh] text-[1.65vw] font-black leading-tight text-white">{companyName}</div>
-            <div className="mt-[0.5vh] text-[0.9vw] font-semibold text-white/42">{location.name}</div>
+            <div className="mt-[0.5vh] text-[0.9vw] font-semibold text-white/50">{location.name}</div>
           </div>
           <StatTile label="Current Date" value={format(now, 'MMM d')} accent={CYAN} />
           <StatTile label="Time Clock" value={format(now, clockFormat)} accent={GOLD} />
           <StatTile label="Local View" value="Central Florida" accent={MG2} />
-          <div className="mt-auto rounded-[1.1vw] border p-[1.1vw] text-[0.85vw] font-semibold leading-relaxed text-white/38" style={{ background: PANEL, borderColor: LINE }}>
+          <div className="mt-auto rounded-[1.1vw] border p-[1.1vw] text-[0.85vw] font-semibold leading-relaxed text-white/40" style={{ background: PANEL, borderColor: LINE }}>
             Shows recent RainViewer radar imagery around the store area. The store marker stays fixed at center while the radar timeline loops.
           </div>
         </aside>
@@ -634,7 +634,7 @@ function ScheduleSlide() {
       <SlideHeader eyebrow="Team coverage" title="Today's Schedule" detail={format(new Date(), 'EEEE, MMMM d')} />
 
       {sorted.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center rounded-[1.2vw] border text-[2vw] font-semibold text-white/34" style={{ borderColor: LINE, background: PANEL }}>
+        <div className="flex flex-1 items-center justify-center rounded-[1.2vw] border text-[2vw] font-semibold text-white/40" style={{ borderColor: LINE, background: PANEL }}>
           No shifts scheduled today
         </div>
       ) : (
@@ -643,7 +643,7 @@ function ScheduleSlide() {
             <div>
               <div className="text-[0.9vw] font-bold uppercase tracking-[0.24em] text-white/40">Coverage</div>
               <div className="mt-[1vh] text-[6vw] font-black leading-none tabular-nums text-white">{sorted.length}</div>
-              <div className="mt-[0.6vh] text-[1.2vw] font-semibold text-white/44">scheduled shifts</div>
+              <div className="mt-[0.6vh] text-[1.2vw] font-semibold text-white/50">scheduled shifts</div>
             </div>
             <div className="grid gap-[1vh]">
               <StatTile label="First in" value={sorted[0]?.startTime ?? '--'} accent={GREEN} />
@@ -674,9 +674,9 @@ function ScheduleSlide() {
                   </div>
                   <div className="min-w-0">
                     <div className="truncate text-[1.55vw] font-black text-white">{emp.name}</div>
-                    <div className="mt-[0.2vh] flex items-center gap-[0.7vw] text-[0.9vw] font-semibold text-white/42">
+                    <div className="mt-[0.2vh] flex items-center gap-[0.7vw] text-[0.9vw] font-semibold text-white/50">
                       <span>{emp.role}</span>
-                      <span className="text-white/16">|</span>
+                      <span className="text-white/20">|</span>
                       <span>{s.type}</span>
                     </div>
                   </div>
@@ -848,7 +848,7 @@ function ScheduleOutlookSlide() {
                 <span>{sublabel}</span>
                 {forecast && (
                   <>
-                    <span className="text-white/15">·</span>
+                    <span className="text-white/20">·</span>
                     <span className="text-[1.05vw] leading-none">{forecast.icon}</span>
                     <span className="tabular-nums">{forecast.high}{unit}</span>
                   </>
@@ -1029,7 +1029,7 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
                   Current leader
                 </div>
                 <div className="mt-[2vh] text-[4.7vw] font-black leading-[0.92] text-white">{leaderDealer.nickname}</div>
-                <div className="mt-[1vh] text-[1.25vw] font-semibold text-white/45">{leaderDealer.location} | {leaderDealer.code}</div>
+                <div className="mt-[1vh] text-[1.25vw] font-semibold text-white/50">{leaderDealer.location} | {leaderDealer.code}</div>
               </div>
 
               <div className="relative">
@@ -1065,7 +1065,7 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
                     </div>
                     <div className="min-w-0">
                       <div className="truncate text-[1.35vw] font-black text-white">{dealer.nickname}</div>
-                      <div className="mt-[0.2vh] truncate text-[0.82vw] font-semibold text-white/38">{metric.detail?.(row) ?? dealer.code}</div>
+                      <div className="mt-[0.2vh] truncate text-[0.82vw] font-semibold text-white/40">{metric.detail?.(row) ?? dealer.code}</div>
                     </div>
                     <div className="min-w-[10vw] text-right">
                       <div className="text-[1.55vw] font-black tabular-nums text-white">{metric.formatValue(metric.value(row))}</div>
@@ -1114,11 +1114,11 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
                   </div>
                   <div className="min-w-0">
                     <div className="truncate text-[1.7vw] font-black text-white">{dealer.nickname}</div>
-                    <div className="mt-[0.25vh] flex items-center gap-[0.7vw] text-[0.95vw] text-white/42">
+                    <div className="mt-[0.25vh] flex items-center gap-[0.7vw] text-[0.95vw] text-white/50">
                       <span>{dealer.location}</span>
-                      <span className="text-white/15">|</span>
+                      <span className="text-white/20">|</span>
                       <span>{dealer.code}</span>
-                      <span className="text-white/15">|</span>
+                      <span className="text-white/20">|</span>
                       <span>{metric.detail?.(row) ?? `Traffic ${formatNumber(row.traffic)}`}</span>
                     </div>
                   </div>

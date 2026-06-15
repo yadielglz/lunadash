@@ -51,7 +51,6 @@ export function StoreLaunchScreen() {
 
   const completeKioskEnrollment = (enrollment: KioskEnrollment) => {
     if (!enrollment.store_id || enrollment.status !== 'approved') return
-    window.localStorage.removeItem(KIOSK_ENROLLMENT_KEY)
     setAccessSession({
       id: enrollment.id,
       storeId: enrollment.store_id,

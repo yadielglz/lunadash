@@ -12,8 +12,10 @@ import { useTheme } from './hooks/useTheme'
 import { useEodSnapshotScheduler } from './hooks/useEodSnapshotScheduler'
 import { useControllerInput } from './hooks/useControllerInput'
 import { canAccessTab, defaultTabForRole } from './lib/accessControl'
+import { dbGetKioskEnrollmentByToken, dbTouchKioskEnrollment, dbUpdateKioskEnrollment } from './lib/supabase'
 
 const DEFAULT_PIN = '6974'
+const KIOSK_ENROLLMENT_KEY = 'luna-kiosk-enrollment-token'
 const TodayDashboard = lazy(() => import('./components/features/home/TodayDashboard').then((m) => ({ default: m.TodayDashboard })))
 const DevicesPage = lazy(() => import('./components/features/devices/DevicesPage').then((m) => ({ default: m.DevicesPage })))
 const EmployeesPage = lazy(() => import('./components/features/employees/EmployeesPage').then((m) => ({ default: m.EmployeesPage })))
@@ -101,11 +103,26 @@ function AnnouncementPopup() {
   )
 }
 
+async function runKioskCommand(command: 'refresh' | 'update') {
+  if (command === 'update') {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(registrations.map((registration) => registration.update()))
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((key) => caches.delete(key)))
+    }
+  }
+  window.location.reload()
+}
+
 export default function App() {
   const { activeTab } = useUiStore()
   const storeId = useUiStore((s) => s.storeId)
   const accessMode = useUiStore((s) => s.accessMode)
   const accessRole = useUiStore((s) => s.accessRole)
+  const accessId = useUiStore((s) => s.accessId)
   const needsOnboarding = useUiStore((s) => s.needsOnboarding)
   const sessionExpiresAt = useUiStore((s) => s.sessionExpiresAt)
   const clearStoreSession = useUiStore((s) => s.clearStoreSession)
@@ -151,6 +168,39 @@ export default function App() {
       useUiStore.getState().setTab('display')
     }
   }, [accessMode, activeTab])
+
+  useEffect(() => {
+    if (accessMode !== 'display' || accessRole !== 'display') return
+    const token = window.localStorage.getItem(KIOSK_ENROLLMENT_KEY)
+    if (!token) return
+
+    let cancelled = false
+    const pollKioskRemote = async () => {
+      try {
+        await dbTouchKioskEnrollment(token)
+        const enrollment = await dbGetKioskEnrollmentByToken(token)
+        if (cancelled || !enrollment || enrollment.status !== 'approved') return
+        const hasPendingCommand = enrollment.command
+          && enrollment.command_issued_at
+          && enrollment.command_ack_at !== enrollment.command_issued_at
+        if (!hasPendingCommand) return
+
+        await dbUpdateKioskEnrollment(enrollment.id, { command_ack_at: enrollment.command_issued_at })
+        if (!cancelled && (enrollment.command === 'refresh' || enrollment.command === 'update')) {
+          await runKioskCommand(enrollment.command)
+        }
+      } catch (err) {
+        console.warn('Kiosk remote command check failed', err)
+      }
+    }
+
+    pollKioskRemote()
+    const id = window.setInterval(pollKioskRemote, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [accessId, accessMode, accessRole])
 
   useEffect(() => {
     if (!storeId || !accessRole) return
