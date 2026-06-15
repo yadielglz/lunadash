@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles
+  Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles, CarFront
 } from 'lucide-react'
-import { Theme, useUiStore } from '../../../store/uiStore'
+import { type SessionTimeout, Theme, useUiStore } from '../../../store/uiStore'
 
 import { isAnnouncementActive, useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
@@ -16,6 +16,7 @@ import { Button } from '../../ui/Button'
 import { APP_META } from '../../../config/appMeta'
 import { SyncArea, useSyncStore } from '../../../store/syncStore'
 import { WeatherPage } from '../weather/WeatherPage'
+import { TrafficPage } from '../traffic/TrafficPage'
 import { getDealerInfo } from '../../../lib/dealers'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import { WEEKDAY_KEYS, WEEKDAY_LABELS, type StoreHours } from '../../../lib/storeHours'
@@ -68,7 +69,7 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
 
 // ── General section ──────────────────────────────────────────────────────────
 function GeneralSection() {
-  const { theme, setTheme, brand, setBrand, timeFormat, setTimeFormat, tempUnit, toggleTempUnit, uiScale, setUiScale } = useUiStore()
+  const { theme, setTheme, brand, setBrand, timeFormat, setTimeFormat, tempUnit, toggleTempUnit, uiScale, setUiScale, sessionTimeout, setSessionTimeout } = useUiStore()
   return (
     <Section icon={<Clock size={14} />} title="General">
       <Row label="Theme" description="Choose the dashboard appearance">
@@ -99,6 +100,19 @@ function GeneralSection() {
           options={[{ value: '12', label: '12h' }, { value: '24', label: '24h' }]}
           value={timeFormat}
           onChange={setTimeFormat}
+        />
+      </Row>
+      <Row label="Session Timeout" description="How long store access stays open after activity">
+        <Segment<SessionTimeout>
+          options={[
+            { value: '2m', label: '2 min' },
+            { value: '15m', label: '15 min' },
+            { value: '1h', label: '1 hr' },
+            { value: '4h', label: '4 hr' },
+            { value: 'never', label: 'Stay logged in' },
+          ]}
+          value={sessionTimeout}
+          onChange={setSessionTimeout}
         />
       </Row>
       <Row label="Temperature Unit" description="Used in weather and display slides">
@@ -1098,7 +1112,7 @@ function ReportSection() {
 
 // ── About section ─────────────────────────────────────────────────────────────
 function AboutSection() {
-  const { setTab, sessionExpiresAt, extendStoreSession, accessRole } = useUiStore()
+  const { setTab, sessionExpiresAt, sessionTimeout, extendStoreSession, accessRole } = useUiStore()
   const [now, setNow] = useState(Date.now())
   const [refreshing, setRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState('')
@@ -1109,7 +1123,9 @@ function AboutSection() {
   }, [])
 
   const remaining = Math.max(0, Math.ceil(((sessionExpiresAt ?? now) - now) / 1000))
-  const remainingLabel = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`
+  const remainingLabel = sessionTimeout === 'never'
+    ? 'Stay logged in'
+    : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`
 
   const forceUpdateRestart = async () => {
     setRefreshing(true)
@@ -1178,11 +1194,13 @@ function AboutSection() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-medium text-[var(--text)]">Store Session</p>
-              <p className="text-[10px] text-[var(--text-tertiary)]">Timer resets with activity. Display and Performance stay open.</p>
+              <p className="text-[10px] text-[var(--text-tertiary)]">
+                {sessionTimeout === 'never' ? 'This device keeps the store session open.' : 'Timer resets with activity. Display and Performance stay open.'}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm text-[var(--accent)]">{remainingLabel}</span>
-              <Button size="sm" variant="ghost" onClick={extendStoreSession}>Extend</Button>
+              {sessionTimeout !== 'never' && <Button size="sm" variant="ghost" onClick={extendStoreSession}>Extend</Button>}
             </div>
           </div>
         </div>
@@ -1280,6 +1298,7 @@ function SyncStatusSection() {
 const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
   { id: 'weather',       label: 'Weather',       icon: <Cloud size={14} /> },
+  { id: 'traffic',       label: 'Traffic',       icon: <CarFront size={14} /> },
   { id: 'display',       label: 'Display',       icon: <Tv2 size={14} /> },
   { id: 'store',         label: 'Store Details',  icon: <Store size={14} /> },
   { id: 'configuredStores', label: 'Configured Stores', icon: <Store size={14} /> },
@@ -1293,7 +1312,7 @@ const SECTIONS = [
 ] as const
 
 type SectionId = typeof SECTIONS[number]['id']
-const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather']
+const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'traffic']
 const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores']
 const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store']
 
@@ -1335,6 +1354,7 @@ export function SettingsPage() {
   const content: Record<SectionId, React.ReactNode> = {
     general:       <GeneralSection />,
     weather:       <WeatherPage />,
+    traffic:       <TrafficPage />,
     display:       <DisplaySettingsSection />,
     store:         <StoreSection />,
     configuredStores: <ConfiguredStoresSection />,

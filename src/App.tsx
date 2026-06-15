@@ -139,7 +139,7 @@ export default function App() {
     }
   }, [accessMode, accessRole, activeTab, storeId])
 
-  // Close the selected-store session after 2 minutes of inactivity unless a passive display is active.
+  // Close the selected-store session after the configured inactivity timeout unless a passive display is active.
   useEffect(() => {
     if (!storeId || !sessionExpiresAt) return
     if (activeTab === 'display' || activeTab === 'goals') return
@@ -155,7 +155,7 @@ export default function App() {
   }, [activeTab, clearStoreSession, sessionExpiresAt, storeId])
 
   useEffect(() => {
-    if (!storeId) return
+    if (!storeId || !sessionExpiresAt) return
     if (activeTab === 'display' || activeTab === 'goals') return
 
     let lastExtended = 0
@@ -172,7 +172,7 @@ export default function App() {
     return () => {
       events.forEach((eventName) => window.removeEventListener(eventName, refreshSession, options))
     }
-  }, [activeTab, extendStoreSession, storeId])
+  }, [activeTab, extendStoreSession, sessionExpiresAt, storeId])
 
   if (!storeId) {
     return <StoreLaunchScreen />

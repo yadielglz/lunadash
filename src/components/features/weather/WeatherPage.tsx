@@ -10,7 +10,7 @@ import { Input } from '../../ui/Input'
 import { Card } from '../../ui/Card'
 import { Button } from '../../ui/Button'
 import { getStoreWeatherLocation } from '../../../config/storeWeather'
-import { useUiStore } from '../../../store/uiStore'
+import { type Theme, useUiStore } from '../../../store/uiStore'
 import {
   RADAR_BASEMAP_ZOOM,
   RADAR_RADIUS_MILES,
@@ -26,7 +26,9 @@ import {
   type RadarFrame,
 } from '../../../lib/radar'
 
-function WeatherRadarMap({ lat, lon, frame, host }: { lat: number; lon: number; frame: RadarFrame; host: string }) {
+function WeatherRadarMap({ lat, lon, frame, host, theme }: { lat: number; lon: number; frame: RadarFrame; host: string; theme: Theme }) {
+  const lightMap = theme === 'light' || theme === 'mac'
+  const basemapStyle = lightMap ? 'light_all' : 'dark_all'
   const baseCenterX = lonToTileX(lon, RADAR_BASEMAP_ZOOM)
   const baseCenterY = latToTileY(lat, RADAR_BASEMAP_ZOOM)
   const baseTileX = Math.floor(baseCenterX)
@@ -50,12 +52,12 @@ function WeatherRadarMap({ lat, lon, frame, host }: { lat: number; lon: number; 
 
   return (
     <div className="absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[#09111a]" />
+      <div className={lightMap ? 'absolute inset-0 bg-[#eef2f7]' : 'absolute inset-0 bg-[#09111a]'} />
       {baseTiles.map((tile) => (
         <img
           key={`base:${tile.key}`}
           alt=""
-          src={`https://a.basemaps.cartocdn.com/dark_all/${RADAR_BASEMAP_ZOOM}/${tile.x}/${tile.y}.png`}
+          src={`https://a.basemaps.cartocdn.com/${basemapStyle}/${RADAR_BASEMAP_ZOOM}/${tile.x}/${tile.y}.png`}
           className="absolute max-w-none select-none"
           draggable={false}
           style={{
@@ -66,7 +68,10 @@ function WeatherRadarMap({ lat, lon, frame, host }: { lat: number; lon: number; 
           }}
         />
       ))}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,rgba(7,9,15,0.08)_42%,rgba(7,9,15,0.58)_100%)]" />
+      <div className={lightMap
+        ? 'absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,rgba(255,255,255,0.05)_45%,rgba(226,232,240,0.46)_100%)]'
+        : 'absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,rgba(7,9,15,0.08)_42%,rgba(7,9,15,0.58)_100%)]'
+      } />
       <AnimatePresence initial={false}>
         <motion.div
           key={frame.time}
@@ -75,7 +80,7 @@ function WeatherRadarMap({ lat, lon, frame, host }: { lat: number; lon: number; 
           animate={{ opacity: 0.72 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.45, ease: 'linear' }}
-          style={{ transform: `scale(${RADAR_VIEW_SCALE})`, transformOrigin: 'center', mixBlendMode: 'screen' }}
+          style={{ transform: `scale(${RADAR_VIEW_SCALE})`, transformOrigin: 'center', mixBlendMode: lightMap ? 'normal' : 'screen' }}
         >
           {radarTiles.map((tile) => (
             <img
@@ -95,8 +100,11 @@ function WeatherRadarMap({ lat, lon, frame, host }: { lat: number; lon: number; 
         </motion.div>
       </AnimatePresence>
       <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[var(--accent)] shadow-[0_0_0_8px_rgba(226,0,116,0.2),0_0_24px_rgba(226,0,116,0.75)]" />
-      <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20" />
-      <div className="absolute bottom-3 right-3 rounded-md bg-black/45 px-2 py-1 text-[10px] font-semibold text-white/45">
+      <div className={`absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border ${lightMap ? 'border-slate-700/20' : 'border-white/20'}`} />
+      <div className={lightMap
+        ? 'absolute bottom-3 right-3 rounded-md bg-white/75 px-2 py-1 text-[10px] font-semibold text-slate-500 shadow-sm'
+        : 'absolute bottom-3 right-3 rounded-md bg-black/45 px-2 py-1 text-[10px] font-semibold text-white/45'
+      }>
         RainViewer | CARTO
       </div>
     </div>
@@ -104,6 +112,7 @@ function WeatherRadarMap({ lat, lon, frame, host }: { lat: number; lon: number; 
 }
 
 function WeatherRadarCard({ location }: { location: WeatherLocation }) {
+  const theme = useUiStore((state) => state.theme)
   const [frameIndex, setFrameIndex] = useState(0)
   const { data, isLoading, isError } = useQuery({
     queryKey: ['rainviewer-maps'],
@@ -158,15 +167,21 @@ function WeatherRadarCard({ location }: { location: WeatherLocation }) {
             <p className="max-w-xs text-xs text-[var(--text-secondary)]">RainViewer map data could not be loaded right now.</p>
           </div>
         ) : (
-          <WeatherRadarMap lat={location.lat} lon={location.lon} frame={frame} host={data.host} />
+          <WeatherRadarMap lat={location.lat} lon={location.lon} frame={frame} host={data.host} theme={theme} />
         )}
-        <div className="absolute left-4 top-4 rounded-lg border border-white/10 bg-black/45 px-3 py-2 text-white shadow-lg">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-white/55">
+        <div className={`absolute left-4 top-4 rounded-lg px-3 py-2 shadow-lg ${
+          theme === 'light' || theme === 'mac'
+            ? 'border border-slate-200/80 bg-white/80 text-slate-900'
+            : 'border border-white/10 bg-black/45 text-white'
+        }`}>
+          <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] ${
+            theme === 'light' || theme === 'mac' ? 'text-slate-500' : 'text-white/55'
+          }`}>
             <Radar size={13} />
             Live radar
           </div>
           <div className="mt-1 text-lg font-semibold">{RADAR_RADIUS_MILES} mi radius</div>
-          <div className="text-xs text-white/55">{frameDate ? format(frameDate, 'h:mm a') : location.name}</div>
+          <div className={`text-xs ${theme === 'light' || theme === 'mac' ? 'text-slate-500' : 'text-white/55'}`}>{frameDate ? format(frameDate, 'h:mm a') : location.name}</div>
         </div>
       </div>
     </Card>

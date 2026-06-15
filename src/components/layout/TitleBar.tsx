@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { CloudSun, Sun, Moon, Pencil, Check, LogOut, RadioTower, Menu } from 'lucide-react'
+import { CarFront, CloudSun, Sun, Moon, Pencil, Check, LogOut, RadioTower, Menu } from 'lucide-react'
 import { accessRoleLabel, useUiStore } from '../../store/uiStore'
 import { useTheme } from '../../hooks/useTheme'
 import { useClock } from '../../hooks/useClock'
@@ -109,6 +109,25 @@ function WeatherStatus() {
   )
 }
 
+function TrafficButton() {
+  const { setTab, setSettingsSection } = useUiStore()
+  const openTrafficSettings = () => {
+    setSettingsSection('traffic')
+    setTab('settings')
+  }
+
+  return (
+    <button
+      onClick={openTrafficSettings}
+      className="flex h-7 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text)]"
+      title="Open traffic"
+    >
+      <CarFront size={13} className="text-[var(--accent)]" />
+      <span className="hidden sm:inline">Traffic</span>
+    </button>
+  )
+}
+
 export function TitleBar() {
   const { toggleTheme, isDark } = useTheme()
   const { accessRole, accessLabel, clearStoreSession, setTab } = useUiStore()
@@ -155,6 +174,7 @@ export function TitleBar() {
           <span className="whitespace-nowrap tabular-nums text-[var(--text)]">{timeStr}</span>
         </button>
         <WeatherStatus />
+        <TrafficButton />
       </div>
 
       {/* Actions */}

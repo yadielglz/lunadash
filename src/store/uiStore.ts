@@ -8,6 +8,7 @@ export type Brand = 'default' | 'tmobile' | 'green' | 'black' | 'yellow'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
 export type UiScale = '100' | '120'
+export type SessionTimeout = '2m' | '15m' | '1h' | '4h' | 'never'
 export type AccessMode = 'manager' | 'display' | 'admin'
 export type AccessRole = 'admin' | 'district_manager' | 'manager' | 'employee' | 'display'
 
@@ -19,8 +20,15 @@ export function accessRoleLabel(role: AccessRole | null) {
   return 'None'
 }
 
-const SESSION_MS = 2 * 60 * 1000
+const DEFAULT_SESSION_TIMEOUT: SessionTimeout = '2m'
+const SESSION_TIMEOUT_MS: Record<Exclude<SessionTimeout, 'never'>, number> = {
+  '2m': 2 * 60 * 1000,
+  '15m': 15 * 60 * 1000,
+  '1h': 60 * 60 * 1000,
+  '4h': 4 * 60 * 60 * 1000,
+}
 const THEME_CLASSES: Theme[] = ['dark', 'light', 'vista', 'mac']
+const SESSION_TIMEOUTS: SessionTimeout[] = ['2m', '15m', '1h', '4h', 'never']
 const BRAND_ACCENTS: Record<Exclude<Brand, 'default'>, {
   accent: string
   hover: string
@@ -53,6 +61,10 @@ function applyBrandAccent(brand: Brand) {
   document.documentElement.style.setProperty('--accent-glow', accent.glow)
 }
 
+function sessionExpiresAtFor(timeout: SessionTimeout) {
+  return timeout === 'never' ? null : Date.now() + SESSION_TIMEOUT_MS[timeout]
+}
+
 interface UiState {
   activeTab: Tab
   theme: Theme
@@ -60,6 +72,7 @@ interface UiState {
   tempUnit: TempUnit
   timeFormat: TimeFormat
   uiScale: UiScale
+  sessionTimeout: SessionTimeout
   storeId: string          // unique per-store key, shared across all devices in that store
   accessMode: AccessMode
   accessRole: AccessRole | null
@@ -79,6 +92,7 @@ interface UiState {
   toggleTempUnit: () => void
   setTimeFormat: (fmt: TimeFormat) => void
   setUiScale: (scale: UiScale) => void
+  setSessionTimeout: (timeout: SessionTimeout) => void
   setStoreId: (id: string) => void
   setAccessMode: (mode: AccessMode) => void
   setAccessSession: (access: { id: string; storeId: string; role: AccessRole; dealerCode: string; label?: string | null; mode?: AccessMode; onboardedAt?: string | null }) => void
@@ -104,6 +118,7 @@ export const useUiStore = create<UiState>()(
       tempUnit: 'F' as TempUnit,
       timeFormat: '12' as TimeFormat,
       uiScale: '100' as UiScale,
+      sessionTimeout: DEFAULT_SESSION_TIMEOUT,
       storeId: '',
       accessMode: 'manager',
       accessRole: null,
@@ -120,9 +135,13 @@ export const useUiStore = create<UiState>()(
       toggleTempUnit: () => set((s) => ({ tempUnit: s.tempUnit === 'C' ? 'F' : 'C' })),
       setTimeFormat: (fmt) => set({ timeFormat: fmt }),
       setUiScale: (scale) => set({ uiScale: scale }),
+      setSessionTimeout: (sessionTimeout) => set((s) => ({
+        sessionTimeout,
+        sessionExpiresAt: s.storeId ? sessionExpiresAtFor(sessionTimeout) : null,
+      })),
       setStoreId: (id) => {
         const storeId = normalizeStoreId(id)
-        set({ storeId, sessionExpiresAt: storeId ? Date.now() + SESSION_MS : null })
+        set({ storeId, sessionExpiresAt: storeId ? sessionExpiresAtFor(get().sessionTimeout) : null })
       },
       setAccessMode: (mode) => set({ accessMode: mode, activeTab: mode === 'display' ? 'display' : get().activeTab }),
       setAccessSession: ({ id, storeId, role, dealerCode, label, mode, onboardedAt }) => {
@@ -135,13 +154,13 @@ export const useUiStore = create<UiState>()(
           dealerCode: normalizeAccessCode(dealerCode),
           accessLabel: label ?? '',
           needsOnboarding: role !== 'display' && !onboardedAt,
-          sessionExpiresAt: Date.now() + SESSION_MS,
+          sessionExpiresAt: sessionExpiresAtFor(get().sessionTimeout),
           activeTab: accessMode === 'display' ? 'display' : 'home',
         })
       },
       setAccessOnboarded: () => set({ needsOnboarding: false }),
       clearStoreSession: () => set({ storeId: '', accessMode: 'manager', accessRole: null, accessId: '', dealerCode: '', accessLabel: '', needsOnboarding: false, sessionExpiresAt: null, activeTab: 'home' }),
-      extendStoreSession: () => set((s) => s.storeId ? { sessionExpiresAt: Date.now() + SESSION_MS } : s),
+      extendStoreSession: () => set((s) => s.storeId ? { sessionExpiresAt: sessionExpiresAtFor(s.sessionTimeout) } : s),
       setTheme: (theme) => {
         set({ theme })
         applyThemeClass(theme)
@@ -160,7 +179,7 @@ export const useUiStore = create<UiState>()(
     {
       name: 'luna-ui',
       version: 2,
-      partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, uiScale: s.uiScale, activeTab: s.activeTab }),
+      partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, uiScale: s.uiScale, sessionTimeout: s.sessionTimeout, activeTab: s.activeTab }),
       migrate: (persisted) => {
         const state = persisted as Partial<UiState> | undefined
         return {
@@ -170,6 +189,7 @@ export const useUiStore = create<UiState>()(
           tempUnit: state?.tempUnit ?? 'F',
           timeFormat: state?.timeFormat ?? '12',
           uiScale: state?.uiScale === '120' ? '120' : '100',
+          sessionTimeout: state?.sessionTimeout && SESSION_TIMEOUTS.includes(state.sessionTimeout) ? state.sessionTimeout : DEFAULT_SESSION_TIMEOUT,
         }
       },
       onRehydrateStorage: () => (state) => {
