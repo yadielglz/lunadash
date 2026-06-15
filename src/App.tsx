@@ -14,7 +14,7 @@ import { useControllerInput } from './hooks/useControllerInput'
 import { canAccessTab, defaultTabForRole } from './lib/accessControl'
 
 const DEFAULT_PIN = '6974'
-const SalesHomeDashboard = lazy(() => import('./components/features/performance/SalesHomeDashboard').then((m) => ({ default: m.SalesHomeDashboard })))
+const TodayDashboard = lazy(() => import('./components/features/home/TodayDashboard').then((m) => ({ default: m.TodayDashboard })))
 const DevicesPage = lazy(() => import('./components/features/devices/DevicesPage').then((m) => ({ default: m.DevicesPage })))
 const EmployeesPage = lazy(() => import('./components/features/employees/EmployeesPage').then((m) => ({ default: m.EmployeesPage })))
 const SchedulePage = lazy(() => import('./components/features/scheduling/SchedulePage').then((m) => ({ default: m.SchedulePage })))
@@ -25,8 +25,28 @@ const PerformanceUpdatePage = lazy(() => import('./components/features/performan
 const DisplayPage = lazy(() => import('./components/features/screendisplay/DisplayPage').then((m) => ({ default: m.DisplayPage })))
 const SettingsPage = lazy(() => import('./components/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 
-function PageFallback() {
+function DisplayFallback() {
   return <DashboardLoader label="Opening dashboard" />
+}
+
+function PageFallback() {
+  return (
+    <div className="h-full w-full p-4">
+      <div className="mx-auto flex h-full max-w-6xl flex-col gap-4">
+        <div className="h-24 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]" />
+        <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="space-y-4">
+            <div className="h-44 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]" />
+            <div className="h-64 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]" />
+          </div>
+          <div className="hidden space-y-4 lg:block">
+            <div className="h-40 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]" />
+            <div className="h-48 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function AnnouncementPopup() {
@@ -185,7 +205,7 @@ export default function App() {
   if (activeTab === 'display') {
     return (
       <DataProvider>
-        <Suspense fallback={<PageFallback />}>
+        <Suspense fallback={<DisplayFallback />}>
           <DisplayPage />
         </Suspense>
       </DataProvider>
@@ -197,7 +217,7 @@ export default function App() {
     : <DevicesPage />
 
   const pages: Record<string, React.ReactNode> = {
-    home:     <SalesHomeDashboard />,
+    home:     <TodayDashboard />,
     devices:  devicesContent,
     employees: <EmployeesPage />,
     schedule: <SchedulePage />,

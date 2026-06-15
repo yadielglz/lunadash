@@ -180,7 +180,6 @@ const taskFromRow = (r: TaskRow): Task => ({
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const storeId      = useUiStore((s) => s.storeId)
-  const activeTab    = useUiStore((s) => s.activeTab)
   const scheduleInit = useScheduleStore((s) => s._init)
   const scheduleExceptionsInit = useScheduleExceptionsStore((s) => s._init)
   const scheduleBlocksInit = useScheduleBlocksStore((s) => s._init)
@@ -195,7 +194,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false
     const isMain = storeId === 'main'
-    const shouldSyncTasks = activeTab === 'tasks'
 
     // ── Load all data for this store ────────────────────────────
     async function load() {
@@ -216,7 +214,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           Promise.all(goalStoreIds.map(dbGetGoals)),
           Promise.all(storeIds.map(dbGetAnnouncements)),
           isMain ? Promise.resolve({ company_name: 'Main Dashboard', store_number: 'All Stores', slide_interval: 8 }) : dbGetSettings(storeIds[0]),
-          shouldSyncTasks ? Promise.all(storeIds.map(dbGetTasks)) : Promise.resolve([]),
+          Promise.all(storeIds.map(dbGetTasks)),
         ])
         if (cancelled) return
         scheduleInit(sortEmployees(employeeSets.flat()), shiftSets.flat())
@@ -227,7 +225,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           uniqueAnnouncements(announcementSets.flat()),
           settings ?? { company_name: 'Luna Store', store_number: '', slide_interval: 8 }
         )
-        if (shouldSyncTasks) tasksInit(taskSets.flat())
+        tasksInit(taskSets.flat())
       } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : 'Could not load dashboard data')
@@ -342,22 +340,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         useDisplayStore.setState({ companyName: r.company_name, storeNumber: r.store_number, slideInterval: r.slide_interval })
       })
 
-    if (shouldSyncTasks) {
-      // Tasks
-      channel = channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
-        const task = taskFromRow(p.new as TaskRow)
-        useTasksStore.setState((s) => ({ tasks: [...s.tasks.filter((t) => t.id !== task.id), task] }))
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
-        const task = taskFromRow(p.new as TaskRow)
-        useTasksStore.setState((s) => ({ tasks: s.tasks.map((t) => t.id === task.id ? task : t) }))
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tasks' }, (p) => {
-        const old = p.old as StoreScopedRow
-        if (!isMain && old.store_id !== storeId) return
-        useTasksStore.setState((s) => ({ tasks: s.tasks.filter((t) => t.id !== old.id) }))
-      })
-    }
+    // Tasks
+    channel = channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+      const task = taskFromRow(p.new as TaskRow)
+      useTasksStore.setState((s) => ({ tasks: [...s.tasks.filter((t) => t.id !== task.id), task] }))
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+      const task = taskFromRow(p.new as TaskRow)
+      useTasksStore.setState((s) => ({ tasks: s.tasks.map((t) => t.id === task.id ? task : t) }))
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tasks' }, (p) => {
+      const old = p.old as StoreScopedRow
+      if (!isMain && old.store_id !== storeId) return
+      useTasksStore.setState((s) => ({ tasks: s.tasks.filter((t) => t.id !== old.id) }))
+    })
 
     channel.subscribe()
 
@@ -366,7 +362,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       cancelled = true
       supabase.removeChannel(channel)
     }
-  }, [activeTab, storeId, retryKey, scheduleInit, scheduleExceptionsInit, scheduleBlocksInit, goalsInit, displayInit, tasksInit])
+  }, [storeId, retryKey, scheduleInit, scheduleExceptionsInit, scheduleBlocksInit, goalsInit, displayInit, tasksInit])
 
   if (isLoading) {
     return <DashboardLoader label="Syncing store data" />
