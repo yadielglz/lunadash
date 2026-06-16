@@ -144,6 +144,16 @@ function isMissingStoreHoursColumnError(error: unknown) {
     || text.includes("could not find the 'store_hours'")
 }
 
+function isMissingKioskCommandColumnError(error: unknown) {
+  if (!isSupabaseError(error)) return false
+  const text = `${error.code ?? ''} ${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
+  return text.includes('kiosk_enrollments')
+    && (text.includes("'command'")
+      || text.includes('command_issued_at')
+      || text.includes('command_ack_at')
+      || text.includes('schema cache'))
+}
+
 export type StoreAccessCode = {
   id: string
   dealer_code: string
@@ -1388,11 +1398,18 @@ export async function dbDeleteKioskEnrollment(id: string) {
 }
 
 export async function dbIssueKioskCommand(id: string, command: KioskRemoteCommand) {
-  return dbUpdateKioskEnrollment(id, {
-    command,
-    command_issued_at: new Date().toISOString(),
-    command_ack_at: null,
-  })
+  try {
+    return await dbUpdateKioskEnrollment(id, {
+      command,
+      command_issued_at: new Date().toISOString(),
+      command_ack_at: null,
+    })
+  } catch (error) {
+    if (isMissingKioskCommandColumnError(error)) {
+      throw new Error('Remote command columns are missing in Supabase. Run migration 20260615001000_kiosk_remote_commands.sql, then retry after the schema cache refreshes.')
+    }
+    throw error
+  }
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────

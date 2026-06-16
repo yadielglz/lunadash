@@ -7,3 +7,5 @@ alter table kiosk_enrollments
 
 alter table kiosk_enrollments
   add column if not exists command_ack_at timestamptz;
+
+notify pgrst, 'reload schema';

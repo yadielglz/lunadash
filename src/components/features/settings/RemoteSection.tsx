@@ -176,12 +176,7 @@ export function RemoteSection() {
     setLoading(true)
     setError('')
     try {
-      await dbUpdateKioskEnrollment(enrollment.id, {
-        status: 'rejected',
-        command: null,
-        command_issued_at: null,
-        command_ack_at: null,
-      })
+      await dbUpdateKioskEnrollment(enrollment.id, { status: 'rejected' })
       await loadKioskEnrollments()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not disconnect display')
