@@ -109,6 +109,20 @@ function getSystemTheme(): Theme {
   return 'dark'
 }
 
+function persistedPreferences(persisted: unknown) {
+  const state = persisted as Partial<UiState> | undefined
+  return {
+    activeTab: state?.activeTab ?? 'home',
+    theme: state?.theme && THEME_CLASSES.includes(state.theme) ? state.theme : getSystemTheme(),
+    brand: state?.brand && (state.brand === 'default' || state.brand in BRAND_ACCENTS) ? state.brand : 'default',
+    tempUnit: state?.tempUnit ?? 'F',
+    timeFormat: state?.timeFormat ?? '12',
+    uiScale: state?.uiScale === '120' ? '120' : '100',
+    sessionTimeout: state?.sessionTimeout && SESSION_TIMEOUTS.includes(state.sessionTimeout) ? state.sessionTimeout : DEFAULT_SESSION_TIMEOUT,
+    settingsSection: state?.settingsSection ?? 'general',
+  } satisfies Partial<UiState>
+}
+
 export const useUiStore = create<UiState>()(
   persist(
     (set, get) => ({
@@ -179,19 +193,20 @@ export const useUiStore = create<UiState>()(
     {
       name: 'luna-ui',
       version: 2,
-      partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, uiScale: s.uiScale, sessionTimeout: s.sessionTimeout, activeTab: s.activeTab }),
-      migrate: (persisted) => {
-        const state = persisted as Partial<UiState> | undefined
-        return {
-          activeTab: state?.activeTab ?? 'home',
-          theme: state?.theme && THEME_CLASSES.includes(state.theme) ? state.theme : getSystemTheme(),
-          brand: state?.brand && (state.brand === 'default' || state.brand in BRAND_ACCENTS) ? state.brand : 'default',
-          tempUnit: state?.tempUnit ?? 'F',
-          timeFormat: state?.timeFormat ?? '12',
-          uiScale: state?.uiScale === '120' ? '120' : '100',
-          sessionTimeout: state?.sessionTimeout && SESSION_TIMEOUTS.includes(state.sessionTimeout) ? state.sessionTimeout : DEFAULT_SESSION_TIMEOUT,
-        }
-      },
+      partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, uiScale: s.uiScale, sessionTimeout: s.sessionTimeout, activeTab: s.activeTab, settingsSection: s.settingsSection }),
+      migrate: (persisted) => persistedPreferences(persisted),
+      merge: (persisted, current) => ({
+        ...current,
+        ...persistedPreferences(persisted),
+        storeId: '',
+        accessMode: 'manager',
+        accessRole: null,
+        accessId: '',
+        dealerCode: '',
+        accessLabel: '',
+        needsOnboarding: false,
+        sessionExpiresAt: null,
+      }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           applyThemeClass(state.theme)

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Check, MonitorCheck, RefreshCw, X } from 'lucide-react'
+import { Check, MonitorCheck, Power, RefreshCw, Trash2, X } from 'lucide-react'
 import {
+  dbDeleteKioskEnrollment,
   dbIssueKioskCommand,
   dbGetKioskEnrollments,
   dbGetStores,
@@ -47,8 +48,11 @@ export function RemoteSection() {
       setKioskStoreById((current) => {
         const next = { ...current }
         enrollments.forEach((enrollment) => {
-          if (!next[enrollment.id] || normalizeStoreId(next[enrollment.id]) === 'main') {
-            next[enrollment.id] = firstAssignableStoreId
+          if (!next[enrollment.id]) {
+            next[enrollment.id] = enrollment.store_id || firstAssignableStoreId
+          }
+          if (normalizeStoreId(next[enrollment.id]) === 'main') {
+            next[enrollment.id] = enrollment.store_id || firstAssignableStoreId
           }
         })
         return next
@@ -115,6 +119,27 @@ export function RemoteSection() {
     }
   }
 
+  const saveManagedDisplay = async (enrollment: KioskEnrollment) => {
+    const targetStore = normalizeStoreId(kioskStoreById[enrollment.id] || enrollment.store_id || firstAssignableStoreId)
+    if (!targetStore) {
+      setError('Choose a store before saving the display.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      await dbUpdateKioskEnrollment(enrollment.id, {
+        store_id: targetStore,
+        display_name: kioskNameById[enrollment.id]?.trim() || enrollment.display_name || 'Kiosk Display',
+      })
+      await loadKioskEnrollments()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save display assignment')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const issueCommand = async (enrollment: KioskEnrollment, command: KioskRemoteCommand) => {
     setLoading(true)
     setError('')
@@ -123,6 +148,58 @@ export function RemoteSection() {
       await loadKioskEnrollments()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send remote command')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const clearCommand = async (enrollment: KioskEnrollment) => {
+    setLoading(true)
+    setError('')
+    try {
+      await dbUpdateKioskEnrollment(enrollment.id, {
+        command: null,
+        command_issued_at: null,
+        command_ack_at: null,
+      })
+      await loadKioskEnrollments()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not clear command status')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const disconnectDisplay = async (enrollment: KioskEnrollment) => {
+    const name = enrollment.display_name || enrollment.pairing_code
+    if (!window.confirm(`Disconnect ${name}? The kiosk browser will leave display mode on its next check-in.`)) return
+    setLoading(true)
+    setError('')
+    try {
+      await dbUpdateKioskEnrollment(enrollment.id, {
+        status: 'rejected',
+        command: null,
+        command_issued_at: null,
+        command_ack_at: null,
+      })
+      await loadKioskEnrollments()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not disconnect display')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const deleteDisplay = async (enrollment: KioskEnrollment) => {
+    const name = enrollment.display_name || enrollment.pairing_code
+    if (!window.confirm(`Delete ${name} from Remote? If it is online, it will leave display mode on its next check-in.`)) return
+    setLoading(true)
+    setError('')
+    try {
+      await dbDeleteKioskEnrollment(enrollment.id)
+      await loadKioskEnrollments()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete display')
     } finally {
       setLoading(false)
     }
@@ -243,22 +320,59 @@ export function RemoteSection() {
             <div className="divide-y divide-[var(--border)] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
               {managedKioskEnrollments.map((enrollment) => {
                 const seen = lastSeenLabel(enrollment)
+                const targetStore = kioskStoreById[enrollment.id] || enrollment.store_id || firstAssignableStoreId
                 return (
-                  <div key={enrollment.id} className="flex flex-col gap-3 px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div key={enrollment.id} className="flex flex-col gap-3 px-3 py-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-[var(--text)]">{enrollment.display_name || 'Kiosk Display'}</p>
                       <p className="mt-1 text-xs text-[var(--text-tertiary)]">
                         Store {enrollment.store_id || 'unassigned'} · Code {enrollment.pairing_code} · {commandLabel(enrollment)}
                       </p>
                     </div>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <span className={`text-xs font-semibold ${seen.tone}`}>{seen.label}</span>
-                      <div className="flex gap-2">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Input
+                          label="Display Name"
+                          value={kioskNameById[enrollment.id] ?? ''}
+                          onChange={(event) => setKioskNameById((current) => ({ ...current, [enrollment.id]: event.target.value }))}
+                          placeholder="Front Display"
+                        />
+                        <Select
+                          label="Assigned Store"
+                          value={targetStore}
+                          onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setKioskStoreById((current) => ({ ...current, [enrollment.id]: event.target.value }))}
+                        >
+                          {stores.map((store) => {
+                            const id = normalizeStoreId(store.store_id)
+                            return (
+                              <option key={id} value={id}>
+                                {store.company_name || id} - {id}
+                              </option>
+                            )
+                          })}
+                        </Select>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <span className={`text-xs font-semibold ${seen.tone}`}>{seen.label}</span>
+                        <Button size="sm" variant="ghost" loading={loading} disabled={!targetStore} onClick={() => saveManagedDisplay(enrollment)}>
+                          Save
+                        </Button>
+                        {enrollment.command && (
+                          <Button size="sm" variant="ghost" loading={loading} onClick={() => clearCommand(enrollment)}>
+                            Clear Status
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" icon={<RefreshCw size={12} />} loading={loading} onClick={() => issueCommand(enrollment, 'refresh')}>
                           Force Refresh
                         </Button>
                         <Button size="sm" icon={<RefreshCw size={12} />} loading={loading} onClick={() => issueCommand(enrollment, 'update')}>
                           Force Update
+                        </Button>
+                        <Button size="sm" variant="ghost" icon={<Power size={12} />} loading={loading} onClick={() => disconnectDisplay(enrollment)}>
+                          Disconnect
+                        </Button>
+                        <Button size="sm" variant="danger" icon={<Trash2 size={12} />} loading={loading} onClick={() => deleteDisplay(enrollment)}>
+                          Delete
                         </Button>
                       </div>
                     </div>

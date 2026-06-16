@@ -1379,6 +1379,14 @@ export async function dbUpdateKioskEnrollment(id: string, patch: DbKioskEnrollme
   throwIfError(error, 'Could not update kiosk enrollment')
 }
 
+export async function dbDeleteKioskEnrollment(id: string) {
+  const { error } = await supabase
+    .from('kiosk_enrollments')
+    .delete()
+    .eq('id', id)
+  throwIfError(error, 'Could not delete kiosk display')
+}
+
 export async function dbIssueKioskCommand(id: string, command: KioskRemoteCommand) {
   return dbUpdateKioskEnrollment(id, {
     command,

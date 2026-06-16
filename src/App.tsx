@@ -123,6 +123,7 @@ export default function App() {
   const accessMode = useUiStore((s) => s.accessMode)
   const accessRole = useUiStore((s) => s.accessRole)
   const accessId = useUiStore((s) => s.accessId)
+  const setAccessSession = useUiStore((s) => s.setAccessSession)
   const needsOnboarding = useUiStore((s) => s.needsOnboarding)
   const sessionExpiresAt = useUiStore((s) => s.sessionExpiresAt)
   const clearStoreSession = useUiStore((s) => s.clearStoreSession)
@@ -179,7 +180,24 @@ export default function App() {
       try {
         await dbTouchKioskEnrollment(token)
         const enrollment = await dbGetKioskEnrollmentByToken(token)
-        if (cancelled || !enrollment || enrollment.status !== 'approved') return
+        if (cancelled) return
+        if (!enrollment || enrollment.status !== 'approved') {
+          window.localStorage.removeItem(KIOSK_ENROLLMENT_KEY)
+          clearStoreSession()
+          return
+        }
+        if (enrollment.store_id && enrollment.store_id !== storeId) {
+          setAccessSession({
+            id: enrollment.id,
+            storeId: enrollment.store_id,
+            role: 'display',
+            dealerCode: 'KIOSK',
+            label: enrollment.display_name || 'Kiosk Display',
+            onboardedAt: enrollment.approved_at ?? new Date().toISOString(),
+            mode: 'display',
+          })
+          return
+        }
         const hasPendingCommand = enrollment.command
           && enrollment.command_issued_at
           && enrollment.command_ack_at !== enrollment.command_issued_at
@@ -200,7 +218,7 @@ export default function App() {
       cancelled = true
       window.clearInterval(id)
     }
-  }, [accessId, accessMode, accessRole])
+  }, [accessId, accessMode, accessRole, clearStoreSession, setAccessSession, storeId])
 
   useEffect(() => {
     if (!storeId || !accessRole) return
