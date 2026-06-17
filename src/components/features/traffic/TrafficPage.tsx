@@ -13,6 +13,7 @@ import {
   hasTomTomTrafficKey,
   TRAFFIC_POLL_INTERVAL_MS,
   TRAFFIC_RADIUS_MILES,
+  tomTomTrafficConfigMessage,
   tomTomFlowTileUrl,
   type Fl511Camera,
   type Fl511TrafficEvent,
@@ -331,10 +332,17 @@ function TrafficFlowCard({ flow }: { flow: TomTomTrafficFlow | undefined }) {
   )
 }
 
+function trafficErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message
+  return fallback
+}
+
 export function TrafficPage() {
   const theme = useUiStore((state) => state.theme)
   const [mapZoom, setMapZoom] = useState(TRAFFIC_MAP_MIN_ZOOM)
   const { location } = useWeather(undefined, { useGeolocation: false })
+  const tomTomConfigured = hasTomTomTrafficKey()
+  const configMessage = tomTomTrafficConfigMessage()
   const { data: cameras = [], isLoading: camerasLoading, isFetching: camerasFetching, refetch: refetchCameras } = useQuery({
     queryKey: ['fl511-cameras', location.lat, location.lon],
     queryFn: () => fetchFl511Cameras({ lat: location.lat, lon: location.lon }),
@@ -344,18 +352,20 @@ export function TrafficPage() {
     refetchOnWindowFocus: false,
     retry: 1,
   })
-  const { data: events = [], isLoading: eventsLoading, isError: eventsError, isFetching: eventsFetching, refetch: refetchEvents } = useQuery({
+  const { data: events = [], isLoading: eventsLoading, isError: eventsError, error: eventsQueryError, isFetching: eventsFetching, refetch: refetchEvents } = useQuery({
     queryKey: ['tomtom-events', location.lat, location.lon],
     queryFn: () => fetchTomTomTrafficEvents({ lat: location.lat, lon: location.lon }),
+    enabled: tomTomConfigured,
     staleTime: TRAFFIC_POLL_INTERVAL_MS,
     refetchInterval: TRAFFIC_POLL_INTERVAL_MS,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     retry: 1,
   })
-  const { data: flow, isFetching: flowFetching, refetch: refetchFlow } = useQuery({
+  const { data: flow, isError: flowError, error: flowQueryError, isFetching: flowFetching, refetch: refetchFlow } = useQuery({
     queryKey: ['tomtom-flow', location.lat, location.lon],
     queryFn: () => fetchTomTomTrafficFlow({ lat: location.lat, lon: location.lon }),
+    enabled: tomTomConfigured,
     staleTime: TRAFFIC_POLL_INTERVAL_MS,
     refetchInterval: TRAFFIC_POLL_INTERVAL_MS,
     refetchIntervalInBackground: false,
@@ -380,9 +390,15 @@ export function TrafficPage() {
 
   const refreshTraffic = () => {
     refetchCameras()
-    refetchEvents()
-    refetchFlow()
+    if (tomTomConfigured) {
+      refetchEvents()
+      refetchFlow()
+    }
   }
+
+  const tomTomError = configMessage
+    || trafficErrorMessage(eventsQueryError, '')
+    || trafficErrorMessage(flowQueryError, '')
 
   return (
     <div className="flex h-full flex-col">
@@ -406,7 +422,18 @@ export function TrafficPage() {
 
       <div className="grid flex-1 gap-4 overflow-y-auto p-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
         <div className="space-y-4">
-          <TrafficSignalGrid events={events} loading={eventsLoading} />
+          {tomTomError && (
+            <Card className="border-amber-500/25 bg-amber-500/10">
+              <div className="flex gap-3">
+                <AlertTriangle size={18} className="mt-0.5 flex-shrink-0 text-amber-400" />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text)]">Traffic data needs attention</p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">{tomTomError}</p>
+                </div>
+              </div>
+            </Card>
+          )}
+          <TrafficSignalGrid events={events} loading={tomTomConfigured && eventsLoading} />
           <TrafficMap
             cameras={cameras}
             events={events}
@@ -452,7 +479,7 @@ export function TrafficPage() {
                 </div>
               </div>
             </Card>
-            <TrafficFlowCard flow={flow} />
+            <TrafficFlowCard flow={tomTomConfigured && !flowError ? flow : undefined} />
           </div>
         </div>
 
@@ -473,13 +500,19 @@ export function TrafficPage() {
             </a>
           </div>
 
-          {eventsLoading ? (
+          {!tomTomConfigured ? (
+            <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
+              <TrafficCone size={26} className="text-[var(--text-tertiary)]" />
+              <p className="text-sm font-semibold text-[var(--text)]">TomTom key missing</p>
+              <p className="max-w-xs text-xs text-[var(--text-secondary)]">{configMessage}</p>
+            </div>
+          ) : eventsLoading ? (
             <div className="flex h-48 items-center justify-center text-sm font-semibold text-[var(--text-secondary)]">Loading TomTom...</div>
           ) : eventsError ? (
             <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
               <TrafficCone size={26} className="text-[var(--text-tertiary)]" />
               <p className="text-sm font-semibold text-[var(--text)]">Traffic feed unavailable</p>
-              <p className="max-w-xs text-xs text-[var(--text-secondary)]">TomTom event data could not be loaded right now.</p>
+              <p className="max-w-xs text-xs text-[var(--text-secondary)]">{trafficErrorMessage(eventsQueryError, 'TomTom event data could not be loaded right now.')}</p>
             </div>
           ) : events.length === 0 ? (
             <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">

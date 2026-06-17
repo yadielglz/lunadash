@@ -158,6 +158,12 @@ export function hasTomTomTrafficKey() {
   return Boolean(tomTomApiKey()?.trim())
 }
 
+export function tomTomTrafficConfigMessage() {
+  return hasTomTomTrafficKey()
+    ? ''
+    : 'TomTom traffic is not configured for this build. Add VITE_TOMTOM_API_KEY to the production environment and redeploy.'
+}
+
 function requireTomTomApiKey() {
   const key = tomTomApiKey()?.trim()
   if (!key) throw new Error('TomTom traffic API key is missing. Add VITE_TOMTOM_API_KEY to the app environment.')
