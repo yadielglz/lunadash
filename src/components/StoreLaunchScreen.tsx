@@ -73,6 +73,21 @@ export function StoreLaunchScreen() {
   const compactLogin = Boolean(pendingAccess || kioskEnrollment)
   const isKioskLogin = normalizeAccessCode(dealerCode) === KIOSK_LOGIN_CODE
   const limitedBrowserContext = typeof window !== 'undefined' && !window.isSecureContext
+  const selectedStore = pendingAccess?.stores.find((store) => normalizeStoreId(store.store_id) === normalizeStoreId(selectedStoreId))
+  const welcomeName = pendingAccess?.access.label || pendingAccess?.access.dealer_code || ''
+  const welcomeStore = selectedStoreId === 'main'
+    ? 'Main Dashboard'
+    : selectedStore
+      ? `${selectedStore.company_name || selectedStore.store_id}${selectedStore.store_number ? ` #${selectedStore.store_number}` : ''}`
+      : selectedStoreId
+  const heroTitle = kioskEnrollment
+    ? 'Welcome, kiosk display.'
+    : pendingAccess
+      ? `Welcome, ${welcomeName || welcomeStore || 'Store'}.`
+      : 'Orlando Phoenix Dashboard.'
+  const heroSubtitle = pendingAccess
+    ? [welcomeStore, accessRoleLabel(pendingAccess.access.role)].filter(Boolean).join(' · ')
+    : 'Project by Marcos G © 2025 Glz Tech.'
 
   const completeKioskEnrollment = (enrollment: KioskEnrollment) => {
     if (!enrollment.store_id || enrollment.status !== 'approved') return
@@ -258,10 +273,10 @@ export function StoreLaunchScreen() {
                 Data Dashboard Access
               </div>
               <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-normal text-white">
-                Orlando Phoenix Dashboard.
+                {heroTitle}
               </h1>
               <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-white/[0.68]">
-                Project by Marcos G © 2025 Glz Tech.
+                {heroSubtitle}
               </p>
             </div>
           </div>
@@ -286,13 +301,13 @@ export function StoreLaunchScreen() {
                 {kioskEnrollment ? <Monitor size={19} /> : pendingAccess ? <Store size={19} /> : <KeyRound size={19} />}
               </div>
               <h2 className="mt-4 text-2xl font-semibold tracking-normal text-[var(--text)]">
-                {kioskEnrollment ? 'Pair display' : pendingAccess ? 'Choose workspace' : 'Sign in'}
+                {kioskEnrollment ? 'Pair display' : pendingAccess ? `Welcome, ${welcomeName || 'Store'}` : 'Sign in'}
               </h2>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
                 {kioskEnrollment
                   ? 'Admin approval is required before this screen opens.'
                   : pendingAccess
-                    ? `${pendingAccess.access.label || 'Access session'} · ${accessRoleLabel(pendingAccess.access.role)}`
+                    ? heroSubtitle || 'Choose workspace'
                     : 'Use your assigned login and 4-digit PIN.'}
               </p>
             </div>
