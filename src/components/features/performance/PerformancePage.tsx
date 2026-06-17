@@ -728,10 +728,10 @@ export function PerformancePage() {
           <div className="min-w-0">
             <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
               <BarChart3 size={18} className="text-[var(--accent)]" />
-              {isMainDashboard ? 'Phoenix Performance' : `${focusedDealer?.nickname ?? currentStoreId} Performance`}
+              District Outlook
             </h1>
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              Source metrics{updated ? ` · refreshed ${updated}` : ''} · auto-refreshes every 60s
+              Store rankings and district Source metrics{updated ? ` · refreshed ${updated}` : ''} · auto-refreshes every 60s
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

@@ -12,6 +12,7 @@ import {
   Menu,
   Monitor,
   Moon,
+  Radar,
   Settings,
   Sun,
   UploadCloud,
@@ -31,7 +32,8 @@ import { StorePickerButton } from '../shared/StorePickerButton'
 
 const NAV_ITEMS: { id: Tab; icon: React.ReactNode; label: string; helper: string }[] = [
   { id: 'home', icon: <LayoutDashboard size={18} />, label: 'Today', helper: 'Daily command' },
-  { id: 'goals', icon: <BarChart3 size={18} />, label: 'Performance', helper: 'Goals and snapshots' },
+  { id: 'district', icon: <Radar size={18} />, label: 'District Outlook', helper: 'Store rankings' },
+  { id: 'goals', icon: <BarChart3 size={18} />, label: 'Goals', helper: 'Targets and snapshots' },
   { id: 'schedule', icon: <Calendar size={18} />, label: 'Schedule', helper: 'Staff coverage' },
   { id: 'appointments', icon: <CalendarPlus size={18} />, label: 'Appointments', helper: 'Customer flow' },
   { id: 'tasks', icon: <CheckSquare size={18} />, label: 'Checklist', helper: 'Open and close' },

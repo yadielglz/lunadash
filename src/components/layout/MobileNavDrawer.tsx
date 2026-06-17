@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Calendar, CalendarPlus, CheckSquare, LayoutGrid, Settings, Target, UploadCloud, Users, X } from 'lucide-react'
+import { Calendar, CalendarPlus, CheckSquare, LayoutGrid, Radar, Settings, Target, UploadCloud, Users, X } from 'lucide-react'
 import { useUiStore, type Tab } from '../../store/uiStore'
 import { canAccessTab } from '../../lib/accessControl'
 import { fetchPerformanceData, type PerformanceRow } from '../../lib/performanceSheet'
@@ -10,11 +10,12 @@ import { cn } from '../../lib/utils'
 
 const NAV_ITEMS: { id: Tab; icon: ReactNode; label: string; employee?: boolean }[] = [
   { id: 'home', icon: <LayoutGrid size={17} />, label: 'Home' },
+  { id: 'district', icon: <Radar size={17} />, label: 'District Outlook' },
   { id: 'employees', icon: <Users size={17} />, label: 'Employees', employee: true },
   { id: 'schedule', icon: <Calendar size={17} />, label: 'Schedule' },
   { id: 'appointments', icon: <CalendarPlus size={17} />, label: 'Appointments' },
   { id: 'tasks', icon: <CheckSquare size={17} />, label: 'Checklist' },
-  { id: 'goals', icon: <Target size={17} />, label: 'Performance' },
+  { id: 'goals', icon: <Target size={17} />, label: 'Goals' },
   { id: 'updates', icon: <UploadCloud size={17} />, label: 'Update' },
   { id: 'settings', icon: <Settings size={17} />, label: 'Settings' },
 ]
@@ -99,7 +100,7 @@ export function MobileNavDrawer({ open, onClose }: { open: boolean; onClose: () 
                     return (
                       <button
                         key={row.store}
-                        onClick={() => go('goals')}
+                        onClick={() => go('district')}
                         className="flex w-full items-center justify-between gap-3 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-left"
                       >
                         <div className="min-w-0">

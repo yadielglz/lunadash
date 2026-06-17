@@ -22,6 +22,7 @@ const EmployeesPage = lazy(() => import('./components/features/employees/Employe
 const SchedulePage = lazy(() => import('./components/features/scheduling/SchedulePage').then((m) => ({ default: m.SchedulePage })))
 const AppointmentsPage = lazy(() => import('./components/features/appointments/AppointmentsPage').then((m) => ({ default: m.AppointmentsPage })))
 const TasksPage = lazy(() => import('./components/features/tasks/TasksPage').then((m) => ({ default: m.TasksPage })))
+const PerformancePage = lazy(() => import('./components/features/performance/PerformancePage').then((m) => ({ default: m.PerformancePage })))
 const GoalsPage = lazy(() => import('./components/features/goals/GoalsPage').then((m) => ({ default: m.GoalsPage })))
 const PerformanceUpdatePage = lazy(() => import('./components/features/performance/PerformanceUpdatePage').then((m) => ({ default: m.PerformanceUpdatePage })))
 const DisplayPage = lazy(() => import('./components/features/screendisplay/DisplayPage').then((m) => ({ default: m.DisplayPage })))
@@ -230,7 +231,7 @@ export default function App() {
   // Close the selected-store session after the configured inactivity timeout unless a passive display is active.
   useEffect(() => {
     if (!storeId || !sessionExpiresAt) return
-    if (activeTab === 'display' || activeTab === 'goals') return
+    if (activeTab === 'display' || activeTab === 'district' || activeTab === 'goals') return
 
     const remaining = sessionExpiresAt - Date.now()
     if (remaining <= 0) {
@@ -244,7 +245,7 @@ export default function App() {
 
   useEffect(() => {
     if (!storeId || !sessionExpiresAt) return
-    if (activeTab === 'display' || activeTab === 'goals') return
+    if (activeTab === 'display' || activeTab === 'district' || activeTab === 'goals') return
 
     let lastExtended = 0
     const refreshSession = () => {
@@ -291,6 +292,7 @@ export default function App() {
     schedule: <SchedulePage />,
     appointments: <AppointmentsPage />,
     tasks:    <TasksPage />,
+    district: <PerformancePage />,
     goals:    <GoalsPage />,
     updates:  <PerformanceUpdatePage />,
     settings: <SettingsPage />,
