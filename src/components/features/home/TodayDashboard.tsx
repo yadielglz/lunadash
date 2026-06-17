@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   CheckSquare,
   Clock,
+  Sparkles,
+  Trophy,
   RadioTower,
   TrendingUp,
   Users,
@@ -22,6 +24,7 @@ import { useScheduleStore } from '../../../store/scheduleStore'
 import { useTasksStore } from '../../../store/tasksStore'
 import { useSyncStore } from '../../../store/syncStore'
 import { fetchPerformanceData, formatMoney, formatNumber, formatPercent, type PerformanceRow } from '../../../lib/performanceSheet'
+import { districtWins, smartDailyBrief } from '../../../lib/districtInsights'
 import { appointmentFilledRows, fetchAppointmentTrackerData } from '../../../lib/appointments'
 import { normalizeStoreId } from '../../../lib/storeIds'
 
@@ -156,6 +159,83 @@ function StorePulse({ row }: { row: PerformanceRow | null }) {
   )
 }
 
+function SmartBriefCard({
+  brief,
+  onOpenDistrict,
+}: {
+  brief: ReturnType<typeof smartDailyBrief>
+  onOpenDistrict: () => void
+}) {
+  const tone = metricTone(brief.focusValue)
+
+  return (
+    <Card className="today-panel" noPadding>
+      <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+            <Sparkles size={16} className="text-[var(--accent)]" />
+            Smart Daily Brief
+          </div>
+          <p className="mt-1 text-xs text-[var(--text-tertiary)]">{brief.headline}</p>
+        </div>
+        <Badge color={tone}>{brief.focusLabel}</Badge>
+      </div>
+      <div className="space-y-2 p-4">
+        {brief.lines.map((line) => (
+          <div key={line} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+            {line}
+          </div>
+        ))}
+        <Button size="sm" variant="accent" onClick={onOpenDistrict} icon={<BarChart3 size={13} />}>
+          Open District Outlook
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+function DistrictWinsCard({
+  wins,
+  onOpenDistrict,
+}: {
+  wins: ReturnType<typeof districtWins>
+  onOpenDistrict: () => void
+}) {
+  return (
+    <Card className="today-panel" noPadding>
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+            <Trophy size={16} className="text-[var(--accent)]" />
+            District Wins
+          </h2>
+          <p className="text-xs text-[var(--text-tertiary)]">Leaderboard moments from Source</p>
+        </div>
+        <Button size="sm" variant="ghost" onClick={onOpenDistrict}>Open</Button>
+      </div>
+      <div className="space-y-2 p-4">
+        {wins.length === 0 ? (
+          <p className="text-sm text-[var(--text-secondary)]">No district wins are available yet.</p>
+        ) : wins.map((win) => (
+          <button
+            type="button"
+            key={win.id}
+            onClick={onOpenDistrict}
+            className="flex w-full items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 text-left transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-3)]"
+          >
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: win.tone }} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-[var(--text)]">{win.label}</span>
+              <span className="block truncate text-xs text-[var(--text-secondary)]">{win.detail}</span>
+            </span>
+            <ArrowRight size={14} className="text-[var(--text-tertiary)]" />
+          </button>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
 export function TodayDashboard() {
   const { dealerCode, setTab, storeId, accessRole } = useUiStore()
   const { companyName, storeNumber, announcements } = useDisplayStore()
@@ -209,6 +289,16 @@ export function TodayDashboard() {
   const hasTasks = tasks.length > 0
   const urgentAnnouncements = activeAnnouncements.filter((announcement) => announcement.priority === 'urgent').length
   const appointmentRows = appointmentFilledRows(appointmentsQuery.data ?? null, 'Week 1').length
+  const openTaskCount = Math.max(tasks.length - doneTasks, 0)
+  const brief = smartDailyBrief({
+    data: performanceQuery.data,
+    row: performanceRow,
+    identifiers: [dealerCode, storeNumber, storeId],
+    shiftCount: todayShifts.length,
+    openTaskCount,
+    appointmentRows,
+  })
+  const wins = districtWins(performanceQuery.data)
   const syncProblems = Object.entries(syncEntries).filter(([, entry]) => entry.state === 'error')
   const savingAreas = Object.entries(syncEntries).filter(([, entry]) => entry.state === 'saving')
   const dashboardTitle = isMain
@@ -255,6 +345,8 @@ export function TodayDashboard() {
 
       <div className="today-grid">
         <div className="space-y-4">
+          <SmartBriefCard brief={brief} onOpenDistrict={() => setTab('district')} />
+
           <StorePulse row={performanceRow} />
 
           <Card className="today-panel" noPadding>
@@ -297,6 +389,8 @@ export function TodayDashboard() {
         </div>
 
         <aside className="space-y-4">
+          <DistrictWinsCard wins={wins} onOpenDistrict={() => setTab('district')} />
+
           <Card className="today-panel" noPadding>
             <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
               <div>

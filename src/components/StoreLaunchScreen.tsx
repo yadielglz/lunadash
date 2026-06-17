@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { KeyRound, Loader2, Monitor, ShieldCheck, Smartphone } from 'lucide-react'
+import { AlertTriangle, KeyRound, Loader2, Monitor, ShieldCheck, Smartphone } from 'lucide-react'
 import {
   dbAuthenticateAccess,
   dbCreateKioskEnrollment,
@@ -48,6 +48,7 @@ export function StoreLaunchScreen() {
   const darkLogin = theme === 'dark' || theme === 'vista'
   const compactLogin = Boolean(pendingAccess || kioskEnrollment)
   const isKioskLogin = normalizeAccessCode(dealerCode) === KIOSK_LOGIN_CODE
+  const limitedBrowserContext = typeof window !== 'undefined' && !window.isSecureContext
 
   const completeKioskEnrollment = (enrollment: KioskEnrollment) => {
     if (!enrollment.store_id || enrollment.status !== 'approved') return
@@ -241,6 +242,15 @@ export function StoreLaunchScreen() {
         </div>
 
         <div className={`${compactLogin ? 'space-y-3 p-5' : 'space-y-4 p-6'} min-h-0 overflow-y-auto`}>
+          {limitedBrowserContext && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100">
+              <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-amber-300" />
+              <span>
+                Network dev mode is running over plain HTTP. Login will use compatibility hashing, but some browser features may need HTTPS or localhost.
+              </span>
+            </div>
+          )}
+
           {kioskEnrollment ? (
             <>
               <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] px-3.5 py-3 text-center shadow-sm">

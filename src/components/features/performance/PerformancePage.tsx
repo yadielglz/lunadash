@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { toPng } from 'html-to-image'
-import { AlertCircle, ArrowDown, ArrowUp, BarChart3, Camera, ChevronRight, Clock, Columns3, Filter, LocateFixed, Package, Pin, RefreshCw, Search, X } from 'lucide-react'
+import { AlertCircle, ArrowDown, ArrowUp, BarChart3, Camera, CheckCircle2, ChevronRight, Clock, Columns3, Filter, LocateFixed, MessageSquarePlus, Package, Pin, RefreshCw, RotateCcw, Search, Trash2, X } from 'lucide-react'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
-import { Input } from '../../ui/Input'
+import { Input, Textarea } from '../../ui/Input'
 import { useUiStore } from '../../../store/uiStore'
+import { useDistrictCoachingStore } from '../../../store/districtCoachingStore'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import {
   fetchPerformanceData,
@@ -299,6 +300,11 @@ function StoreDetailDrawer({
 }) {
   const captureRef = useRef<HTMLElement | null>(null)
   const [capturing, setCapturing] = useState(false)
+  const [noteText, setNoteText] = useState('')
+  const notes = useDistrictCoachingStore((s) => s.notes)
+  const addNote = useDistrictCoachingStore((s) => s.addNote)
+  const setNoteStatus = useDistrictCoachingStore((s) => s.setNoteStatus)
+  const removeNote = useDistrictCoachingStore((s) => s.removeNote)
   const netLeft = row ? row.netRevenueGoal - row.netRevenue : 0
   const accLeft = row ? row.accessoryGoal - row.accessoryRevenue : 0
   const ppLeft = row ? row.dortGoal - row.totalPp : 0
@@ -311,6 +317,16 @@ function StoreDetailDrawer({
   const strongest = metrics.length ? [...metrics].sort((a, b) => b[1] - a[1])[0] : null
   const weakest = metrics.length ? [...metrics].sort((a, b) => a[1] - b[1])[0] : null
   const captureTitle = dealer ? `${dealer.nickname} Numbers` : 'Store Numbers'
+  const storeNotes = row
+    ? notes.filter((note) => normalizeStoreId(note.storeId) === normalizeStoreId(row.storeCode))
+    : []
+  const openNotes = storeNotes.filter((note) => note.status === 'open')
+
+  const saveNote = () => {
+    if (!row || !noteText.trim()) return
+    addNote(row.storeCode, noteText)
+    setNoteText('')
+  }
 
   const handleCapture = async () => {
     if (!captureRef.current || !row || capturing) return
@@ -461,6 +477,68 @@ function StoreDetailDrawer({
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Card noPadding className="overflow-hidden md:col-span-2">
+              <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+                    <MessageSquarePlus size={14} className="text-[var(--accent)]" />
+                    Coaching Notes
+                  </div>
+                  <div className="text-xs text-[var(--text-tertiary)]">{openNotes.length} open action plan{openNotes.length === 1 ? '' : 's'}</div>
+                </div>
+                {!!openNotes.length && <Badge color="#c98408">{openNotes.length} open</Badge>}
+              </div>
+              <div className="space-y-3 p-4">
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                  <Textarea
+                    label="Action Plan"
+                    rows={2}
+                    value={noteText}
+                    onChange={(event) => setNoteText(event.target.value)}
+                    placeholder="Add the next coaching move for this store"
+                  />
+                  <Button size="sm" variant="primary" icon={<MessageSquarePlus size={13} />} onClick={saveNote} disabled={!noteText.trim()}>
+                    Add Note
+                  </Button>
+                </div>
+
+                {storeNotes.length === 0 ? (
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-3 text-sm text-[var(--text-secondary)]">
+                    No coaching notes yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {storeNotes.map((note) => (
+                      <div key={note.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className={`text-sm ${note.status === 'resolved' ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text)]'}`}>{note.text}</div>
+                            <div className="mt-1 text-[10px] font-medium uppercase text-[var(--text-tertiary)]">
+                              {note.status} · {new Date(note.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                            </div>
+                          </div>
+                          <div className="flex flex-shrink-0 gap-1">
+                            {note.status === 'open' ? (
+                              <Button size="icon" variant="ghost" onClick={() => setNoteStatus(note.id, 'resolved')} aria-label="Resolve note">
+                                <CheckCircle2 size={15} />
+                              </Button>
+                            ) : (
+                              <Button size="icon" variant="ghost" onClick={() => setNoteStatus(note.id, 'open')} aria-label="Reopen note">
+                                <RotateCcw size={15} />
+                              </Button>
+                            )}
+                            <Button size="icon" variant="ghost" onClick={() => removeNote(note.id)} aria-label="Delete note">
+                              <Trash2 size={15} />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
+
             <Card noPadding className="overflow-hidden">
               <div className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text)]">Goal Breakdown</div>
               <div className="divide-y divide-[var(--border)]">
@@ -512,6 +590,7 @@ function StoreDetailDrawer({
 
 export function PerformancePage() {
   const storeId = useUiStore((s) => s.storeId)
+  const coachingNotes = useDistrictCoachingStore((s) => s.notes)
   const [data, setData] = useState<PerformanceData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -639,6 +718,15 @@ export function PerformancePage() {
       .filter((row): row is RankedRow => !!row)
   ), [compareStores, rankedRows])
 
+  const openNotesByStore = useMemo(() => (
+    coachingNotes.reduce((acc, note) => {
+      if (note.status !== 'open') return acc
+      const key = normalizeStoreId(note.storeId)
+      acc.set(key, (acc.get(key) ?? 0) + 1)
+      return acc
+    }, new Map<string, number>())
+  ), [coachingNotes])
+
   const todayRows = useMemo(() => {
     const current = storeRow
       ? rankedRows.find((row) => normalizeStoreId(row.storeCode) === currentStoreId)
@@ -753,9 +841,13 @@ export function PerformancePage() {
 
       <div className="flex-1 overflow-y-auto p-4">
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-            <AlertCircle size={15} />
-            {error}
+          <div className="mb-4 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <div className="flex items-center gap-2 font-semibold">
+              <AlertCircle size={15} />
+              Performance Source could not load
+            </div>
+            <p className="mt-1 text-xs text-red-200/85">{error}</p>
+            <p className="mt-1 text-xs text-red-200/75">Confirm the Google Sheet CSV is published, this device has internet access, and ad blockers are not blocking docs.google.com.</p>
           </div>
         )}
 
@@ -983,9 +1075,12 @@ export function PerformancePage() {
 
             {!isMainDashboard && !storeRow && (
               <Card>
-                <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                  <AlertCircle size={15} className="text-[#f7b731]" />
-                  No Source row was found for store ID {currentStoreId}.
+                <div className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+                  <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-[#f7b731]" />
+                  <div>
+                    <p className="font-semibold text-[var(--text)]">No Source row was found for store ID {currentStoreId}.</p>
+                    <p className="mt-1 text-xs">Check this session’s store ID, dealer code, and the Source sheet store code. LunaDash matches against the store code in the sheet, such as 693D or 5383.</p>
+                  </div>
                 </div>
               </Card>
             )}
@@ -1107,6 +1202,7 @@ export function PerformancePage() {
                     {filteredRows.map((row) => {
                       const dealer = dealerInfoForRow(row)
                       const isCurrentStore = normalizeStoreId(row.storeCode) === currentStoreId
+                      const openNoteCount = openNotesByStore.get(normalizeStoreId(row.storeCode)) ?? 0
 
                       return (
                       <tr
@@ -1144,6 +1240,7 @@ export function PerformancePage() {
                               <div className="text-[var(--text-tertiary)]">{dealer.location} | {dealer.code}</div>
                             </div>
                             {isCurrentStore && <Badge color="#7c5ff5">Mine</Badge>}
+                            {openNoteCount > 0 && <Badge color="#c98408">{openNoteCount} note{openNoteCount === 1 ? '' : 's'}</Badge>}
                           </div>
                         </td>
                         <td className="px-3 py-3"><RankPill rank={row.netRevenueRank} tone="#f7b731" /></td>
@@ -1182,6 +1279,7 @@ export function PerformancePage() {
                   {filteredRows.map((row) => {
                     const dealer = dealerInfoForRow(row)
                     const isCurrentStore = normalizeStoreId(row.storeCode) === currentStoreId
+                    const openNoteCount = openNotesByStore.get(normalizeStoreId(row.storeCode)) ?? 0
 
                     return (
                       <div
@@ -1195,6 +1293,7 @@ export function PerformancePage() {
                               <RankPill rank={row.overallRank} />
                               <MovementBadge movement={row.movement} />
                               {isCurrentStore && <Badge color="#7c5ff5">Mine</Badge>}
+                              {openNoteCount > 0 && <Badge color="#c98408">{openNoteCount} note{openNoteCount === 1 ? '' : 's'}</Badge>}
                             </div>
                             <div className="mt-2 truncate text-sm font-semibold text-[var(--text)]">{dealer.nickname}</div>
                             <div className="text-xs text-[var(--text-tertiary)]">{dealer.location} | {dealer.code}</div>
