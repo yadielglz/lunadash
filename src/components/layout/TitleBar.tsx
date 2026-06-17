@@ -149,8 +149,8 @@ export function TitleBar() {
         >
           <Menu size={19} />
         </button>
-        <div className="flex h-8 w-12 flex-shrink-0 items-center justify-center rounded-md border border-[var(--border-strong)] bg-[var(--console-rail)] px-1.5 shadow-[inset_0_1px_rgba(255,255,255,0.08)] sm:h-8 sm:w-12">
-          <LunaWirelessLogo className="h-4 w-full" />
+        <div className="luna-logo-badge flex h-10 w-10 flex-shrink-0 items-center justify-center">
+          <LunaWirelessLogo className="h-8 w-8" />
         </div>
         <div className="hidden sm:flex flex-col leading-none gap-0.5">
           <EditableField

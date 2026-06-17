@@ -1,6 +1,9 @@
 const FL511_CAMERA_LAYER = 'https://services.arcgis.com/3wFbqsFPLeKqOlIK/arcgis/rest/services/FL511_Traffic_Cameras/FeatureServer/0/query'
 const FL511_TRAFFIC_EVENTS_DIRECT = 'https://fl511.com/List/GetData/traffic'
+const TOMTOM_TRAFFIC_INCIDENTS = 'https://api.tomtom.com/traffic/services/5/incidentDetails'
+const TOMTOM_TRAFFIC_FLOW = 'https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json'
 export const TRAFFIC_RADIUS_MILES = 20
+export const TRAFFIC_POLL_INTERVAL_MS = 10 * 60 * 1000
 
 interface Coords {
   lat: number
@@ -94,6 +97,73 @@ export interface Fl511TrafficEvent {
   distanceMiles: number
 }
 
+interface TomTomIncidentResponse {
+  incidents?: TomTomIncident[]
+}
+
+interface TomTomIncident {
+  geometry?: {
+    type?: 'Point' | 'LineString'
+    coordinates?: number[] | number[][]
+  }
+  properties?: {
+    id?: string
+    iconCategory?: number
+    magnitudeOfDelay?: number
+    events?: Array<{
+      description?: string
+      code?: number
+      iconCategory?: number
+    }>
+    startTime?: string
+    endTime?: string
+    from?: string
+    to?: string
+    length?: number
+    delay?: number
+    roadNumbers?: string[]
+    timeValidity?: string
+    lastReportTime?: string
+  }
+}
+
+interface TomTomFlowResponse {
+  flowSegmentData?: {
+    frc?: string
+    currentSpeed?: number
+    freeFlowSpeed?: number
+    currentTravelTime?: number
+    freeFlowTravelTime?: number
+    confidence?: number
+    roadClosure?: boolean
+  }
+}
+
+export interface TomTomTrafficFlow {
+  currentSpeed: number
+  freeFlowSpeed: number
+  currentTravelTime: number
+  freeFlowTravelTime: number
+  confidence: number
+  roadClosure: boolean
+  congestionPct: number
+  updatedAt: string
+}
+
+function tomTomApiKey() {
+  return import.meta.env.VITE_TOMTOM_API_KEY as string | undefined
+}
+
+export function hasTomTomTrafficKey() {
+  return Boolean(tomTomApiKey()?.trim())
+}
+
+function requireTomTomApiKey() {
+  const key = tomTomApiKey()?.trim()
+  if (!key) throw new Error('TomTom traffic API key is missing. Add VITE_TOMTOM_API_KEY to the app environment.')
+  return key
+}
+
 export function distanceMiles(a: Coords, b: Coords) {
   const earthRadiusMiles = 3958.8
   const toRad = (value: number) => value * Math.PI / 180
@@ -169,6 +239,63 @@ function bboxAround(center: Coords, radiusMiles: number) {
     minLon: center.lon - lonDelta,
     maxLon: center.lon + lonDelta,
   }
+}
+
+function bboxParam(center: Coords, radiusMiles: number) {
+  const bbox = bboxAround(center, radiusMiles)
+  return `${bbox.minLon},${bbox.minLat},${bbox.maxLon},${bbox.maxLat}`
+}
+
+function tomTomCategoryLabel(category: number | undefined) {
+  switch (category) {
+    case 1: return 'Accident'
+    case 2: return 'Fog'
+    case 3: return 'Dangerous conditions'
+    case 4: return 'Rain'
+    case 5: return 'Ice'
+    case 6: return 'Congestion'
+    case 7: return 'Lane closed'
+    case 8: return 'Road closed'
+    case 9: return 'Road work'
+    case 10: return 'Wind'
+    case 11: return 'Flooding'
+    case 14: return 'Disabled vehicle'
+    default: return 'Traffic event'
+  }
+}
+
+function tomTomSeverity(category: number | undefined, magnitude: number | undefined) {
+  if (category === 8) return 'Critical'
+  if ((magnitude ?? 0) >= 3) return 'Major'
+  if ((magnitude ?? 0) >= 2) return 'Intermediate'
+  return 'Minor'
+}
+
+function tomTomIncidentCoords(incident: TomTomIncident): Coords | null {
+  const coords = incident.geometry?.coordinates
+  if (!Array.isArray(coords)) return null
+
+  if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+    const lon = coords[0]
+    const lat = coords[1]
+    return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null
+  }
+
+  const points = coords
+    .filter((point): point is number[] => Array.isArray(point))
+    .map((point) => ({ lon: Number(point[0]), lat: Number(point[1]) }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lon))
+
+  if (points.length === 0) return null
+  return {
+    lat: points.reduce((sum, point) => sum + point.lat, 0) / points.length,
+    lon: points.reduce((sum, point) => sum + point.lon, 0) / points.length,
+  }
+}
+
+function roadFromIncident(properties: TomTomIncident['properties']) {
+  const road = properties?.roadNumbers?.find(Boolean)
+  return road || properties?.from || properties?.to || ''
 }
 
 export async function fetchFl511Cameras(center: Coords, radiusMiles = TRAFFIC_RADIUS_MILES): Promise<Fl511Camera[]> {
@@ -287,4 +414,95 @@ export async function fetchFl511TrafficEvents(center: Coords, radiusMiles = TRAF
       )
       return severityRank(a.severity) - severityRank(b.severity) || a.distanceMiles - b.distanceMiles
     })
+}
+
+export async function fetchTomTomTrafficEvents(center: Coords, radiusMiles = TRAFFIC_RADIUS_MILES): Promise<Fl511TrafficEvent[]> {
+  const url = new URL(TOMTOM_TRAFFIC_INCIDENTS)
+  url.searchParams.set('key', requireTomTomApiKey())
+  url.searchParams.set('bbox', bboxParam(center, radiusMiles))
+  url.searchParams.set('fields', '{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,events{description,code,iconCategory},startTime,endTime,from,to,length,delay,roadNumbers,timeValidity,lastReportTime}}}')
+  url.searchParams.set('language', 'en-US')
+  url.searchParams.set('timeValidityFilter', 'present')
+
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error(`TomTom traffic events failed: ${res.status}`)
+  const data = await res.json() as TomTomIncidentResponse
+
+  return (data.incidents ?? [])
+    .map((incident) => {
+      const coords = tomTomIncidentCoords(incident)
+      if (!coords) return null
+      const distance = distanceMiles(center, coords)
+      if (distance > radiusMiles) return null
+
+      const properties = incident.properties ?? {}
+      const category = properties.events?.[0]?.iconCategory ?? properties.iconCategory
+      const description = properties.events?.map((event) => event.description).filter(Boolean).join(' | ') || tomTomCategoryLabel(category)
+
+      return {
+        id: properties.id ?? `${coords.lat}:${coords.lon}:${properties.startTime ?? description}`,
+        type: tomTomCategoryLabel(category),
+        roadway: roadFromIncident(properties),
+        direction: '',
+        severity: tomTomSeverity(category, properties.magnitudeOfDelay),
+        description,
+        county: '',
+        region: '',
+        laneDescription: properties.delay ? `${Math.round(properties.delay / 60)} min delay` : '',
+        startDate: properties.startTime ?? '',
+        lastUpdated: properties.lastReportTime ?? properties.startTime ?? new Date().toISOString(),
+        lat: coords.lat,
+        lon: coords.lon,
+        distanceMiles: distance,
+      }
+    })
+    .filter((event): event is Fl511TrafficEvent => Boolean(event))
+    .sort((a, b) => {
+      const severityRank = (severity: string) => (
+        /critical|major/i.test(severity) ? 0
+        : /intermediate/i.test(severity) ? 1
+        : /minor/i.test(severity) ? 2
+        : 3
+      )
+      return severityRank(a.severity) - severityRank(b.severity) || a.distanceMiles - b.distanceMiles
+    })
+}
+
+export async function fetchTomTomTrafficFlow(center: Coords): Promise<TomTomTrafficFlow> {
+  const url = new URL(TOMTOM_TRAFFIC_FLOW)
+  url.searchParams.set('key', requireTomTomApiKey())
+  url.searchParams.set('point', `${center.lat},${center.lon}`)
+  url.searchParams.set('unit', 'mph')
+
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error(`TomTom traffic flow failed: ${res.status}`)
+  const data = await res.json() as TomTomFlowResponse
+  const flow = data.flowSegmentData
+  if (!flow) throw new Error('TomTom traffic flow unavailable')
+
+  const currentSpeed = flow.currentSpeed ?? 0
+  const freeFlowSpeed = flow.freeFlowSpeed ?? 0
+  const congestionPct = freeFlowSpeed > 0
+    ? Math.max(0, Math.min(100, Math.round((1 - currentSpeed / freeFlowSpeed) * 100)))
+    : 0
+
+  return {
+    currentSpeed,
+    freeFlowSpeed,
+    currentTravelTime: flow.currentTravelTime ?? 0,
+    freeFlowTravelTime: flow.freeFlowTravelTime ?? 0,
+    confidence: flow.confidence ?? 0,
+    roadClosure: Boolean(flow.roadClosure),
+    congestionPct,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+export function tomTomFlowTileUrl(x: number, y: number, zoom: number, style = 'relative0') {
+  const key = tomTomApiKey()?.trim()
+  if (!key) return ''
+  const url = new URL(`https://api.tomtom.com/traffic/map/4/tile/flow/${style}/${zoom}/${x}/${y}.png`)
+  url.searchParams.set('key', key)
+  url.searchParams.set('tileSize', '256')
+  return url.toString()
 }

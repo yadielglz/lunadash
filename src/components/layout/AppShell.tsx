@@ -12,6 +12,7 @@ import {
   Menu,
   Monitor,
   Moon,
+  PanelLeftOpen,
   Radar,
   Settings,
   Sun,
@@ -133,10 +134,10 @@ function TopCommandBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
         <button
           type="button"
           onClick={() => setTab('home')}
-          className="hidden h-9 w-11 items-center justify-center rounded-md border border-[var(--border-strong)] bg-[var(--console-rail)] px-1.5 lg:flex"
+          className="luna-logo-badge hidden h-10 w-10 items-center justify-center lg:flex"
           aria-label="Open Today"
         >
-          <LunaWirelessLogo className="h-4 w-full" />
+          <LunaWirelessLogo className="h-8 w-8" />
         </button>
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-[var(--text)]">{activeLabel}</div>
@@ -184,11 +185,15 @@ function TopCommandBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
 }
 
 function NavigationRail({
+  collapsed = false,
   mobile = false,
   onNavigate,
+  onToggleCollapse,
 }: {
+  collapsed?: boolean
   mobile?: boolean
   onNavigate?: () => void
+  onToggleCollapse?: () => void
 }) {
   const { accessRole, activeTab, setTab } = useUiStore()
   const visibleItems = NAV_ITEMS.filter((item) => canAccessTab(accessRole, item.id))
@@ -199,16 +204,28 @@ function NavigationRail({
   }
 
   return (
-    <nav className={cn('command-nav', mobile && 'command-nav-mobile')}>
-      <div className="mb-5 flex items-center gap-3 px-2">
-        <div className="flex h-10 w-12 items-center justify-center rounded-md border border-[var(--border-strong)] bg-[var(--console-rail)] px-2">
-          <LunaWirelessLogo className="h-4 w-full" />
+    <nav className={cn('command-nav', collapsed && !mobile && 'command-nav-collapsed', mobile && 'command-nav-mobile')}>
+      <div className={cn('mb-5 flex items-center gap-3 px-2', collapsed && !mobile && 'justify-center px-0')}>
+        <div className="luna-logo-badge flex h-12 w-12 items-center justify-center">
+          <LunaWirelessLogo className="h-9 w-9" />
         </div>
-        <div className="min-w-0">
+        <div className={cn('min-w-0', collapsed && !mobile && 'hidden')}>
           <div className="text-sm font-semibold text-[var(--text)]">LunaDash</div>
           <div className="text-xs text-[var(--text-tertiary)]">Store operations</div>
         </div>
       </div>
+      {onToggleCollapse && !mobile && (
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className={cn('command-nav-toggle mb-3', collapsed && 'mx-auto w-10 justify-center px-0')}
+          title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+          aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+        >
+          {collapsed ? <PanelLeftOpen size={16} /> : <Menu size={16} />}
+          {!collapsed && <span>Navigation</span>}
+        </button>
+      )}
 
       <div className="space-y-1">
         {visibleItems.map((item) => {
@@ -219,13 +236,15 @@ function NavigationRail({
               type="button"
               onClick={() => navigate(item.id)}
               className={cn('command-nav-item', active && 'command-nav-item-active')}
+              title={collapsed && !mobile ? item.label : undefined}
+              aria-label={item.label}
             >
               <span className="command-nav-icon">{item.icon}</span>
-              <span className="min-w-0 flex-1 text-left">
+              <span className={cn('min-w-0 flex-1 text-left', collapsed && !mobile && 'hidden')}>
                 <span className="block truncate text-sm font-medium">{item.label}</span>
                 <span className="block truncate text-[11px] text-[var(--text-tertiary)]">{item.helper}</span>
               </span>
-              {active && <ChevronLeft size={14} className="hidden text-[var(--accent)] lg:block" />}
+              {active && !collapsed && <ChevronLeft size={14} className="hidden text-[var(--accent)] lg:block" />}
             </button>
           )
         })}
@@ -267,7 +286,26 @@ function MobileNavOverlay({ open, onClose }: { open: boolean; onClose: () => voi
 export function AppShell({ children, activeKey }: AppShellProps) {
   const { activeTab, uiScale } = useUiStore()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [railCollapsed, setRailCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('luna-left-rail-collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
   const zoom = uiScale === '120' ? 1.2 : 1
+
+  const toggleRailCollapsed = () => {
+    setRailCollapsed((collapsed) => {
+      const next = !collapsed
+      try {
+        localStorage.setItem('luna-left-rail-collapsed', String(next))
+      } catch {
+        // Non-critical preference cache.
+      }
+      return next
+    })
+  }
 
   if (activeTab === 'display') {
     return <>{children}</>
@@ -284,8 +322,11 @@ export function AppShell({ children, activeKey }: AppShellProps) {
           transformOrigin: 'top left',
         }}
       >
-        <aside className="hidden min-h-0 w-[17rem] flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-3 lg:block">
-          <NavigationRail />
+        <aside className={cn(
+          'hidden min-h-0 flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-3 transition-[width] duration-200 lg:block',
+          railCollapsed ? 'w-[5rem]' : 'w-[17rem]'
+        )}>
+          <NavigationRail collapsed={railCollapsed} onToggleCollapse={toggleRailCollapsed} />
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <TopCommandBar onOpenMobileNav={() => setMobileNavOpen(true)} />

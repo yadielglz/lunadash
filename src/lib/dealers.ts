@@ -1,24 +1,32 @@
 import type { PerformanceRow } from './performanceSheet'
+import { STORE_PROFILES, getStoreProfile } from '../config/storeProfiles'
 
 export type DealerInfo = {
   code: string
   nickname: string
   location: string
+  address?: string
+  city?: string
+  state?: string
+  zip?: string
+  lat?: number
+  lon?: number
 }
 
-export const DEALERS_BY_CODE: Record<string, DealerInfo> = {
-  '892E': { code: '892E', nickname: 'Avengers', location: 'Windermere' },
-  '697D': { code: '697D', nickname: 'Wolfpack', location: 'Poinciana' },
-  '769D': { code: '769D', nickname: 'Pink Mafia', location: 'Haines City' },
-  '180E': { code: '180E', nickname: 'Titans', location: 'Clermont N' },
-  '561D': { code: '561D', nickname: 'Top Guns', location: 'Clermont S' },
-  '5383': { code: '5383', nickname: 'Pink Panthers', location: 'Davenport' },
-  '582D': { code: '582D', nickname: 'Magenta Warriors', location: 'Lake Wales' },
-  '843D': { code: '843D', nickname: 'El Cartel', location: 'Kissimmee' },
-  '886E': { code: '886E', nickname: "D'Sharks", location: 'College Park' },
-  '5733': { code: '5733', nickname: 'Undefeated', location: 'Havendale Blvd' },
-  '693D': { code: '693D', nickname: 'GateWay', location: 'Champions Gate' },
-}
+export const DEALERS_BY_CODE: Record<string, DealerInfo> = STORE_PROFILES.reduce((acc, profile) => {
+  acc[profile.storeId] = {
+    code: profile.storeId,
+    nickname: profile.nickname,
+    location: profile.location,
+    address: profile.address,
+    city: profile.city,
+    state: profile.state,
+    zip: profile.zip,
+    lat: profile.lat,
+    lon: profile.lon,
+  }
+  return acc
+}, {} as Record<string, DealerInfo>)
 
 let dealerOverrides: Record<string, Partial<Pick<DealerInfo, 'nickname' | 'location'>>> = {}
 
@@ -47,12 +55,19 @@ export function setDealerOverride(store: { store_id: string; dealer_nickname?: s
 export function getDealerInfo(code: string): DealerInfo | null {
   const normalized = code.trim().toUpperCase()
   const base = DEALERS_BY_CODE[normalized]
+  const profile = getStoreProfile(normalized)
   const override = dealerOverrides[normalized]
-  if (!base && !override) return null
+  if (!base && !override && !profile) return null
   return {
     code: normalized,
-    nickname: override?.nickname || base?.nickname || normalized,
-    location: override?.location || base?.location || normalized,
+    nickname: override?.nickname || base?.nickname || profile?.nickname || normalized,
+    location: override?.location || base?.location || profile?.location || normalized,
+    address: profile?.address || base?.address,
+    city: profile?.city || base?.city,
+    state: profile?.state || base?.state,
+    zip: profile?.zip || base?.zip,
+    lat: profile?.lat ?? base?.lat,
+    lon: profile?.lon ?? base?.lon,
   }
 }
 

@@ -18,6 +18,7 @@ import { SyncArea, useSyncStore } from '../../../store/syncStore'
 import { WeatherPage } from '../weather/WeatherPage'
 import { TrafficPage } from '../traffic/TrafficPage'
 import { getDealerInfo } from '../../../lib/dealers'
+import { getStoreProfile } from '../../../config/storeProfiles'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import { WEEKDAY_KEYS, WEEKDAY_LABELS, type StoreHours } from '../../../lib/storeHours'
 import { Section, Row, Segment } from './SettingsLayout'
@@ -685,12 +686,13 @@ function ConfiguredStoresSection() {
 
   const startEditStore = (store: StoreSummary) => {
     const dealer = getDealerInfo(store.store_id)
+    const profile = getStoreProfile(store.store_id)
     setEditingStoreId(store.store_id)
     setEditName(store.company_name || '')
     setEditNumber(store.store_number || '')
     setEditInterval(store.slide_interval || 8)
     setEditNickname(store.dealer_nickname || dealer?.nickname || '')
-    setEditLocation(store.dealer_location || dealer?.location || '')
+    setEditLocation(store.dealer_location || dealer?.location || profile?.location || '')
     setError('')
   }
 
@@ -770,6 +772,7 @@ function ConfiguredStoresSection() {
         {stores.map((store) => {
           const isEditing = editingStoreId === store.store_id
           const dealer = getDealerInfo(store.store_id)
+          const profile = getStoreProfile(store.store_id)
           const nickname = store.dealer_nickname || dealer?.nickname || ''
           const location = store.dealer_location || dealer?.location || ''
           return (
@@ -805,6 +808,11 @@ function ConfiguredStoresSection() {
                     {(nickname || location) && (
                       <div className="text-xs text-[var(--text-secondary)] mt-0.5">
                         {nickname || 'No nickname'}{location ? ` | ${location}` : ''}
+                      </div>
+                    )}
+                    {profile?.address && (
+                      <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                        {profile.address}
                       </div>
                     )}
                   </div>

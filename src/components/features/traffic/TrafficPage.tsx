@@ -1,12 +1,23 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Camera, CarFront, ExternalLink, RefreshCw, TrafficCone } from 'lucide-react'
+import { AlertTriangle, Camera, CarFront, ExternalLink, RefreshCw, TrafficCone, ZoomIn, ZoomOut } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Card } from '../../ui/Card'
 import { Button } from '../../ui/Button'
 import { useWeather } from '../../../hooks/useWeather'
 import { type Theme, useUiStore } from '../../../store/uiStore'
-import { fetchFl511Cameras, fetchFl511TrafficEvents, TRAFFIC_RADIUS_MILES, type Fl511Camera, type Fl511TrafficEvent } from '../../../lib/fl511'
+import {
+  fetchFl511Cameras,
+  fetchTomTomTrafficEvents,
+  fetchTomTomTrafficFlow,
+  hasTomTomTrafficKey,
+  TRAFFIC_POLL_INTERVAL_MS,
+  TRAFFIC_RADIUS_MILES,
+  tomTomFlowTileUrl,
+  type Fl511Camera,
+  type Fl511TrafficEvent,
+  type TomTomTrafficFlow,
+} from '../../../lib/fl511'
 import {
   RADAR_TILE_SIZE,
   clampTileY,
@@ -15,7 +26,12 @@ import {
   wrapTileX,
 } from '../../../lib/radar'
 
-const TRAFFIC_MAP_ZOOM = 10
+const TRAFFIC_MAP_MIN_ZOOM = 10
+const TRAFFIC_MAP_MAX_ZOOM = 17
+
+function clampTrafficZoom(value: number) {
+  return Math.min(TRAFFIC_MAP_MAX_ZOOM, Math.max(TRAFFIC_MAP_MIN_ZOOM, value))
+}
 
 function parseFl511Timestamp(value: string) {
   const timestamp = Date.parse(value)
@@ -51,7 +67,7 @@ function trafficStatus(events: Fl511TrafficEvent[]) {
   return {
     level: 'green' as const,
     label: 'Clear',
-    detail: 'No FL511 incidents in radius',
+    detail: 'No TomTom incidents in radius',
     className: 'bg-emerald-500 text-white border-emerald-400/70',
     softClassName: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   }
@@ -73,7 +89,7 @@ function TrafficSignalGrid({ events, loading }: { events: Fl511TrafficEvent[]; l
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-[var(--text)]">Store Area Traffic</p>
-          <p className="text-xs text-[var(--text-secondary)]">{TRAFFIC_RADIUS_MILES}-mile FL511 incident scan</p>
+          <p className="text-xs text-[var(--text-secondary)]">{TRAFFIC_RADIUS_MILES}-mile TomTom incident scan</p>
         </div>
         <div className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${status.softClassName}`}>
           <span className={`h-2.5 w-2.5 rounded-full ${status.level === 'red' ? 'bg-red-500' : status.level === 'yellow' ? 'bg-amber-400' : 'bg-emerald-500'}`} />
@@ -92,16 +108,34 @@ function TrafficSignalGrid({ events, loading }: { events: Fl511TrafficEvent[]; l
           </div>
         ))}
       </div>
-      <p className="text-xs text-[var(--text-secondary)]">{loading ? 'Pulling FL511 traffic events...' : status.detail}</p>
+      <p className="text-xs text-[var(--text-secondary)]">{loading ? 'Pulling TomTom traffic events...' : status.detail}</p>
     </Card>
   )
 }
 
-function TrafficMap({ cameras, events, lat, lon, theme }: { cameras: Fl511Camera[]; events: Fl511TrafficEvent[]; lat: number; lon: number; theme: Theme }) {
+function TrafficMap({
+  cameras,
+  events,
+  lat,
+  lon,
+  theme,
+  zoom,
+  onZoomChange,
+}: {
+  cameras: Fl511Camera[]
+  events: Fl511TrafficEvent[]
+  lat: number
+  lon: number
+  theme: Theme
+  zoom: number
+  onZoomChange: (zoom: number) => void
+}) {
   const lightMap = theme === 'light' || theme === 'mac'
   const basemapStyle = lightMap ? 'light_all' : 'dark_all'
-  const centerX = lonToTileX(lon, TRAFFIC_MAP_ZOOM)
-  const centerY = latToTileY(lat, TRAFFIC_MAP_ZOOM)
+  const trafficFlowStyle = lightMap ? 'relative0' : 'relative0-dark'
+  const showTrafficFlow = hasTomTomTrafficKey()
+  const centerX = lonToTileX(lon, zoom)
+  const centerY = latToTileY(lat, zoom)
   const baseTileX = Math.floor(centerX)
   const baseTileY = Math.floor(centerY)
   const baseCols = [-2, -1, 0, 1, 2]
@@ -111,8 +145,8 @@ function TrafficMap({ cameras, events, lat, lon, theme }: { cameras: Fl511Camera
     const rawY = baseTileY + dy
     return {
       key: `${rawX}:${rawY}`,
-      x: wrapTileX(rawX, TRAFFIC_MAP_ZOOM),
-      y: clampTileY(rawY, TRAFFIC_MAP_ZOOM),
+      x: wrapTileX(rawX, zoom),
+      y: clampTileY(rawY, zoom),
       left: (rawX - centerX) * RADAR_TILE_SIZE,
       top: (rawY - centerY) * RADAR_TILE_SIZE,
     }
@@ -120,24 +154,32 @@ function TrafficMap({ cameras, events, lat, lon, theme }: { cameras: Fl511Camera
 
   const markers = cameras.slice(0, 24).map((camera) => ({
     ...camera,
-    left: (lonToTileX(camera.lon, TRAFFIC_MAP_ZOOM) - centerX) * RADAR_TILE_SIZE,
-    top: (latToTileY(camera.lat, TRAFFIC_MAP_ZOOM) - centerY) * RADAR_TILE_SIZE,
+    left: (lonToTileX(camera.lon, zoom) - centerX) * RADAR_TILE_SIZE,
+    top: (latToTileY(camera.lat, zoom) - centerY) * RADAR_TILE_SIZE,
   }))
   const eventMarkers = events.slice(0, 3).map((event) => ({
     ...event,
     level: eventLevel(event),
-    left: (lonToTileX(event.lon, TRAFFIC_MAP_ZOOM) - centerX) * RADAR_TILE_SIZE,
-    top: (latToTileY(event.lat, TRAFFIC_MAP_ZOOM) - centerY) * RADAR_TILE_SIZE,
+    left: (lonToTileX(event.lon, zoom) - centerX) * RADAR_TILE_SIZE,
+    top: (latToTileY(event.lat, zoom) - centerY) * RADAR_TILE_SIZE,
   }))
+
+  const changeZoom = (nextZoom: number) => onZoomChange(clampTrafficZoom(nextZoom))
 
   return (
     <Card className="!p-0 overflow-hidden min-h-[320px]">
-      <div className={`relative h-[320px] overflow-hidden ${lightMap ? 'bg-[#eef2f7]' : 'bg-[#09111a]'}`}>
+      <div
+        className={`relative h-[320px] overflow-hidden ${lightMap ? 'bg-[#eef2f7]' : 'bg-[#09111a]'}`}
+        onWheel={(event) => {
+          event.preventDefault()
+          changeZoom(zoom + (event.deltaY > 0 ? -1 : 1))
+        }}
+      >
         {baseTiles.map((tile) => (
           <img
             key={tile.key}
             alt=""
-            src={`https://a.basemaps.cartocdn.com/${basemapStyle}/${TRAFFIC_MAP_ZOOM}/${tile.x}/${tile.y}.png`}
+            src={`https://a.basemaps.cartocdn.com/${basemapStyle}/${zoom}/${tile.x}/${tile.y}.png`}
             className="absolute max-w-none select-none"
             draggable={false}
             style={{
@@ -148,9 +190,24 @@ function TrafficMap({ cameras, events, lat, lon, theme }: { cameras: Fl511Camera
             }}
           />
         ))}
+        {showTrafficFlow && baseTiles.map((tile) => (
+          <img
+            key={`flow:${tile.key}`}
+            alt=""
+            src={tomTomFlowTileUrl(tile.x, tile.y, zoom, trafficFlowStyle)}
+            className="absolute max-w-none select-none opacity-95"
+            draggable={false}
+            style={{
+              left: `calc(50% + ${tile.left}px)`,
+              top: `calc(50% + ${tile.top}px)`,
+              width: RADAR_TILE_SIZE,
+              height: RADAR_TILE_SIZE,
+            }}
+          />
+        ))}
         <div className={lightMap
-          ? 'absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,rgba(255,255,255,0.04)_48%,rgba(226,232,240,0.5)_100%)]'
-          : 'absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0,rgba(7,9,15,0.1)_45%,rgba(7,9,15,0.64)_100%)]'
+          ? 'absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0,rgba(255,255,255,0.04)_48%,rgba(226,232,240,0.38)_100%)]'
+          : 'absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0,rgba(7,9,15,0.05)_45%,rgba(7,9,15,0.52)_100%)]'
         } />
         <div className={`absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full border ${lightMap ? 'border-slate-700/20 bg-white/10' : 'border-white/20 bg-white/5'}`} />
         <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[var(--accent)] shadow-[0_0_0_8px_rgba(226,0,116,0.2),0_0_24px_rgba(226,0,116,0.75)]" />
@@ -171,13 +228,10 @@ function TrafficMap({ cameras, events, lat, lon, theme }: { cameras: Fl511Camera
           </a>
         ))}
         {eventMarkers.map((event, index) => (
-          <a
+          <div
             key={`event:${event.id}`}
-            href="https://fl511.com/list/events/traffic"
-            target="_blank"
-            rel="noreferrer"
             title={`${event.type}: ${event.description}`}
-            className={`absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white text-sm font-black shadow-[0_10px_28px_rgba(0,0,0,0.38)] transition-transform hover:scale-110 ${
+            className={`absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white text-sm font-black shadow-[0_10px_28px_rgba(0,0,0,0.38)] ${
               event.level === 'red' ? 'bg-red-500 text-white' : 'bg-amber-400 text-slate-950'
             }`}
             style={{
@@ -186,7 +240,7 @@ function TrafficMap({ cameras, events, lat, lon, theme }: { cameras: Fl511Camera
             }}
           >
             {index + 1}
-          </a>
+          </div>
         ))}
         <div className={`absolute left-4 top-4 rounded-lg px-3 py-2 shadow-lg ${
           lightMap ? 'border border-slate-200/80 bg-white/80 text-slate-900' : 'border border-white/10 bg-black/45 text-white'
@@ -198,6 +252,80 @@ function TrafficMap({ cameras, events, lat, lon, theme }: { cameras: Fl511Camera
           <div className="mt-1 text-lg font-semibold">{TRAFFIC_RADIUS_MILES} mi radius</div>
           <div className={`text-xs ${lightMap ? 'text-slate-500' : 'text-white/55'}`}>{eventMarkers.length} mapped incidents | {cameras.length} cameras</div>
         </div>
+        <div className={`absolute right-4 top-4 flex flex-col overflow-hidden rounded-lg border shadow-lg ${
+          lightMap ? 'border-slate-200/80 bg-white/85' : 'border-white/10 bg-black/50'
+        }`}>
+          <button
+            type="button"
+            title="Zoom in"
+            aria-label="Zoom in"
+            onClick={() => changeZoom(zoom + 1)}
+            disabled={zoom >= TRAFFIC_MAP_MAX_ZOOM}
+            className={`flex h-9 w-9 items-center justify-center transition-colors disabled:opacity-35 ${
+              lightMap ? 'text-slate-700 hover:bg-slate-100' : 'text-white hover:bg-white/10'
+            }`}
+          >
+            <ZoomIn size={16} />
+          </button>
+          <button
+            type="button"
+            title="Zoom out"
+            aria-label="Zoom out"
+            onClick={() => changeZoom(zoom - 1)}
+            disabled={zoom <= TRAFFIC_MAP_MIN_ZOOM}
+            className={`flex h-9 w-9 items-center justify-center border-t transition-colors disabled:opacity-35 ${
+              lightMap ? 'border-slate-200/80 text-slate-700 hover:bg-slate-100' : 'border-white/10 text-white hover:bg-white/10'
+            }`}
+          >
+            <ZoomOut size={16} />
+          </button>
+        </div>
+        {showTrafficFlow && (
+          <div className={`absolute bottom-4 left-4 rounded-lg px-3 py-2 shadow-lg ${
+            lightMap ? 'border border-slate-200/80 bg-white/85 text-slate-900' : 'border border-white/10 bg-black/50 text-white'
+          }`}>
+            <div className={`mb-1 text-[10px] font-bold uppercase ${lightMap ? 'text-slate-500' : 'text-white/55'}`}>Flow</div>
+            <div className="flex items-center gap-2 text-[10px] font-semibold">
+              <span className="h-2 w-5 rounded-full bg-[#2eab30]" /> Clear
+              <span className="h-2 w-5 rounded-full bg-[#f1bf40]" /> Busy
+              <span className="h-2 w-5 rounded-full bg-[#e70704]" /> Slow
+            </div>
+          </div>
+        )}
+        <div className={`absolute bottom-4 right-4 rounded-md px-2 py-1 text-[10px] ${
+          lightMap ? 'bg-white/75 text-slate-500' : 'bg-black/40 text-white/55'
+        }`}>
+          Flow by TomTom
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function TrafficFlowCard({ flow }: { flow: TomTomTrafficFlow | undefined }) {
+  const label = !flow
+    ? 'Pending'
+    : flow.roadClosure
+      ? 'Closed'
+      : flow.congestionPct >= 35
+        ? 'Slow'
+        : flow.congestionPct >= 15
+          ? 'Busy'
+          : 'Normal'
+
+  const speed = flow ? `${Math.round(flow.currentSpeed)} mph` : '-'
+  const detail = flow ? `${flow.congestionPct}% below free flow` : 'TomTom flow'
+
+  return (
+    <Card>
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400">
+          <CarFront size={17} />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-[var(--text)]">{label} · {speed}</p>
+          <p className="text-xs text-[var(--text-secondary)]">{detail}</p>
+        </div>
       </div>
     </Card>
   )
@@ -205,22 +333,36 @@ function TrafficMap({ cameras, events, lat, lon, theme }: { cameras: Fl511Camera
 
 export function TrafficPage() {
   const theme = useUiStore((state) => state.theme)
+  const [mapZoom, setMapZoom] = useState(TRAFFIC_MAP_MIN_ZOOM)
   const { location } = useWeather(undefined, { useGeolocation: false })
   const { data: cameras = [], isLoading: camerasLoading, isFetching: camerasFetching, refetch: refetchCameras } = useQuery({
     queryKey: ['fl511-cameras', location.lat, location.lon],
     queryFn: () => fetchFl511Cameras({ lat: location.lat, lon: location.lon }),
-    staleTime: 3 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: TRAFFIC_POLL_INTERVAL_MS,
+    refetchInterval: TRAFFIC_POLL_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
     retry: 1,
   })
   const { data: events = [], isLoading: eventsLoading, isError: eventsError, isFetching: eventsFetching, refetch: refetchEvents } = useQuery({
-    queryKey: ['fl511-events', location.lat, location.lon],
-    queryFn: () => fetchFl511TrafficEvents({ lat: location.lat, lon: location.lon }),
-    staleTime: 2 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    queryKey: ['tomtom-events', location.lat, location.lon],
+    queryFn: () => fetchTomTomTrafficEvents({ lat: location.lat, lon: location.lon }),
+    staleTime: TRAFFIC_POLL_INTERVAL_MS,
+    refetchInterval: TRAFFIC_POLL_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
     retry: 1,
   })
-  const isFetching = camerasFetching || eventsFetching
+  const { data: flow, isFetching: flowFetching, refetch: refetchFlow } = useQuery({
+    queryKey: ['tomtom-flow', location.lat, location.lon],
+    queryFn: () => fetchTomTomTrafficFlow({ lat: location.lat, lon: location.lon }),
+    staleTime: TRAFFIC_POLL_INTERVAL_MS,
+    refetchInterval: TRAFFIC_POLL_INTERVAL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  })
+  const isFetching = camerasFetching || eventsFetching || flowFetching
 
   const newestCamera = useMemo(() => {
     return cameras
@@ -239,6 +381,7 @@ export function TrafficPage() {
   const refreshTraffic = () => {
     refetchCameras()
     refetchEvents()
+    refetchFlow()
   }
 
   return (
@@ -264,8 +407,16 @@ export function TrafficPage() {
       <div className="grid flex-1 gap-4 overflow-y-auto p-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
         <div className="space-y-4">
           <TrafficSignalGrid events={events} loading={eventsLoading} />
-          <TrafficMap cameras={cameras} events={events} lat={location.lat} lon={location.lon} theme={theme} />
-          <div className="grid gap-3 sm:grid-cols-3">
+          <TrafficMap
+            cameras={cameras}
+            events={events}
+            lat={location.lat}
+            lon={location.lon}
+            theme={theme}
+            zoom={mapZoom}
+            onZoomChange={setMapZoom}
+          />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400">
@@ -301,6 +452,7 @@ export function TrafficPage() {
                 </div>
               </div>
             </Card>
+            <TrafficFlowCard flow={flow} />
           </div>
         </div>
 
@@ -308,32 +460,32 @@ export function TrafficPage() {
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-[var(--text)]">Nearby Incidents</h2>
-              <p className="text-xs text-[var(--text-secondary)]">FL511 events sorted by severity and distance.</p>
+              <p className="text-xs text-[var(--text-secondary)]">TomTom events sorted by severity and distance.</p>
             </div>
             <a
-              href="https://fl511.com/"
+              href="https://www.tomtom.com/products/traffic-apis/"
               target="_blank"
               rel="noreferrer"
               className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text)]"
             >
-              FL511
+              TomTom
               <ExternalLink size={12} />
             </a>
           </div>
 
           {eventsLoading ? (
-            <div className="flex h-48 items-center justify-center text-sm font-semibold text-[var(--text-secondary)]">Loading FL511...</div>
+            <div className="flex h-48 items-center justify-center text-sm font-semibold text-[var(--text-secondary)]">Loading TomTom...</div>
           ) : eventsError ? (
             <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
               <TrafficCone size={26} className="text-[var(--text-tertiary)]" />
               <p className="text-sm font-semibold text-[var(--text)]">Traffic feed unavailable</p>
-              <p className="max-w-xs text-xs text-[var(--text-secondary)]">FL511 event data could not be loaded right now.</p>
+              <p className="max-w-xs text-xs text-[var(--text-secondary)]">TomTom event data could not be loaded right now.</p>
             </div>
           ) : events.length === 0 ? (
             <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
               <CarFront size={26} className="text-emerald-400" />
               <p className="text-sm font-semibold text-[var(--text)]">No incidents nearby</p>
-              <p className="max-w-xs text-xs text-[var(--text-secondary)]">No FL511 incidents with location data were found inside {TRAFFIC_RADIUS_MILES} miles of this point.</p>
+              <p className="max-w-xs text-xs text-[var(--text-secondary)]">No TomTom incidents with location data were found inside {TRAFFIC_RADIUS_MILES} miles of this point.</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -346,12 +498,9 @@ export function TrafficPage() {
                     ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                     : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                 return (
-                  <a
+                  <div
                     key={event.id}
-                    href="https://fl511.com/list/events/traffic"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2.5 transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-3)]"
+                    className="flex gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2.5"
                   >
                     <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-md border ${levelClass}`}>
                       {level === 'red' ? <AlertTriangle size={18} /> : <TrafficCone size={18} />}
@@ -371,7 +520,7 @@ export function TrafficPage() {
                         </p>
                       )}
                     </div>
-                  </a>
+                  </div>
                 )
               })}
             </div>
