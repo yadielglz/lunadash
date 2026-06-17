@@ -18,7 +18,7 @@ import { Input, Select } from './ui/Input'
 import { APP_META } from '../config/appMeta'
 import { LunaWirelessLogo } from './brand/LunaWirelessLogo'
 
-const DEALER_PLACEHOLDERS = ['693D', 'admin', 'Gateway']
+const DEALER_PLACEHOLDERS = ['693D', 'admin', 'Spartans']
 const LOGIN_BACKDROP_URL = 'https://i.ibb.co/39JLm174/Wall.png'
 const KIOSK_LOGIN_CODE = 'KIOSK'
 const KIOSK_ENROLLMENT_KEY = 'luna-kiosk-enrollment-token'
@@ -255,13 +255,13 @@ export function StoreLaunchScreen() {
             <div className="mx-auto mt-10 max-w-xl text-center">
               <div className="inline-flex items-center gap-2 rounded-md border border-white/[0.14] bg-white/[0.08] px-3 py-1.5 text-xs font-semibold uppercase text-white/[0.68]">
                 <LockKeyhole size={13} />
-                Authorized access
+                Data Dashboard Access
               </div>
               <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-normal text-white">
-                One sign-in for store execution.
+                Orlando Phoenix Dashboard.
               </h1>
               <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-white/[0.68]">
-                Open the right LunaDash workspace for store operations, district performance, or approved display screens.
+                Project by Marcos G © 2025 Glz Tech.
               </p>
             </div>
           </div>
@@ -410,7 +410,7 @@ export function StoreLaunchScreen() {
               ) : (
                 <>
                   <Input
-                    label="Store ID / Login"
+                    label="Store ID / User"
                     autoCapitalize="characters"
                     maxLength={20}
                     value={dealerCode}
