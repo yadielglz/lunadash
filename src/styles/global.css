@@ -520,6 +520,13 @@ body::after {
   }
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .command-traffic-chip,
+  .titlebar-traffic-button {
+    display: none !important;
+  }
+}
+
 .command-icon-button {
   display: inline-flex;
   width: 2.4rem;

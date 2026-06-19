@@ -119,7 +119,7 @@ function TrafficButton() {
   return (
     <button
       onClick={openTrafficSettings}
-      className="flex h-7 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text)]"
+      className="titlebar-traffic-button flex h-7 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text)]"
       title="Open traffic"
     >
       <CarFront size={13} className="text-[var(--accent)]" />
