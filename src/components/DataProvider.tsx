@@ -15,6 +15,7 @@ import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
 import type { Task } from '../store/tasksStore'
 import type { ScheduleException } from '../store/scheduleExceptionsStore'
+import { normalizeStoreId } from '../lib/storeIds'
 
 type StoreScopedRow = { id: string; store_id: string }
 type EmployeeRow = StoreScopedRow & { name: string; role: string; color: string; sort_order?: number | null }
@@ -201,7 +202,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setError(null)
       try {
         const storeIds = isMain
-          ? (await dbGetStores()).map((store) => store.store_id).filter((id) => id && id !== 'main')
+          ? (await dbGetStores()).map((store) => normalizeStoreId(store.store_id)).filter((id) => id && id !== 'main' && id !== 'ADMIN' && id !== 'ADMIN-ADMIN')
           : [storeId || 'DEFAULT']
 
         const goalStoreIds = isMain ? ['main', ...storeIds] : storeIds

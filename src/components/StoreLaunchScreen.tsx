@@ -206,7 +206,11 @@ export function StoreLaunchScreen() {
         }
         const accessStoreId = normalizeStoreId(access.store_id)
         const fallbackStore = { store_id: accessStoreId, company_name: accessStoreId, store_number: '', slide_interval: 8 }
-        const availableStores = stores.length > 0 ? stores : [fallbackStore]
+        const availableStores = (stores.length > 0 ? stores : [fallbackStore])
+          .filter((store) => {
+            const id = normalizeStoreId(store.store_id)
+            return id && id !== 'main' && id !== 'ADMIN' && id !== 'ADMIN-ADMIN'
+          })
         const storesWithAccessStore = accessStoreId && accessStoreId !== 'main' && !availableStores.some((store) => normalizeStoreId(store.store_id) === accessStoreId)
           ? [fallbackStore, ...availableStores]
           : availableStores
@@ -354,9 +358,6 @@ export function StoreLaunchScreen() {
                     value={selectedStoreId}
                     onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setSelectedStoreId(event.target.value)}
                   >
-                    {pendingAccess.access.role === 'admin' && (
-                      <option value="main">Main Dashboard - All configured stores</option>
-                    )}
                     {pendingAccess.stores.map((store) => {
                       const storeName = store.company_name || store.store_id
                       const storeNumber = store.store_number ? ` #${store.store_number}` : ''

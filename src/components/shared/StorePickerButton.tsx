@@ -30,13 +30,17 @@ export function StorePickerButton({
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [storesLoading, setStoresLoading] = useState(false)
   const [storesError, setStoresError] = useState('')
-  const [selectedStoreId, setSelectedStoreId] = useState(storeId === 'main' ? '' : storeId)
+  const [selectedStoreId, setSelectedStoreId] = useState(storeId)
+  const showMainDashboard = !requireSelection
 
   const loadStores = async () => {
     setStoresLoading(true)
     setStoresError('')
     try {
-      setStores((await dbGetStores()).filter((store) => normalizeStoreId(store.store_id) !== 'main'))
+      setStores((await dbGetStores()).filter((store) => {
+        const id = normalizeStoreId(store.store_id)
+        return id && id !== 'main' && id !== 'ADMIN' && id !== 'ADMIN-ADMIN'
+      }))
     } catch (err) {
       setStoresError(err instanceof Error ? err.message : 'Could not load stores')
     } finally {
@@ -51,7 +55,7 @@ export function StorePickerButton({
   }, [autoOpen, canChooseStore])
 
   useEffect(() => {
-    if (storeId !== 'main') setSelectedStoreId(storeId)
+    setSelectedStoreId(storeId)
   }, [storeId])
 
   if (!canChooseStore) {
@@ -82,7 +86,8 @@ export function StorePickerButton({
 
   const applyStore = () => {
     const nextStoreId = normalizeStoreId(selectedStoreId)
-    if (!nextStoreId || nextStoreId === 'main') return
+    if (!nextStoreId) return
+    if (nextStoreId === 'main' && !showMainDashboard) return
     setStoreId(nextStoreId)
     setOpen(false)
   }
@@ -108,6 +113,9 @@ export function StorePickerButton({
             onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setSelectedStoreId(event.target.value)}
           >
             <option value="" disabled>Select a store</option>
+            {showMainDashboard && (
+              <option value="main">Main Dashboard - All configured stores</option>
+            )}
             {stores.map((store) => (
               <option key={store.store_id} value={store.store_id}>
                 {store.company_name || 'Luna Store'}{store.store_number ? ` #${store.store_number}` : ''} ({store.store_id})
