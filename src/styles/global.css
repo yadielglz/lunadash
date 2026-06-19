@@ -6,15 +6,15 @@
    LUNA RETAIL OS TOKENS
    ============================================================ */
 :root {
-  --font-display: 'Google Sans', 'GoogleSans', 'Google Sans Display', 'Google Sans Text', 'Google Sans Flex', 'Product Sans', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
-  --font-text: 'Google Sans', 'GoogleSans', 'Google Sans Text', 'Google Sans Flex', 'Product Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', 'Google Sans', 'Segoe UI Variable Display', system-ui, sans-serif;
+  --font-text: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Google Sans', 'Segoe UI Variable Text', system-ui, sans-serif;
   --app-wallpaper: none;
 
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-light: #dbeafe;
+  --accent: #007aff;
+  --accent-hover: #006ee6;
+  --accent-light: #d8ebff;
   --accent-secondary: #15803d;
-  --accent-glow: rgba(37, 99, 235, 0.14);
+  --accent-glow: rgba(0, 122, 255, 0.2);
   --status-good: #1f8a4c;
   --status-warn: #c98408;
   --status-warn-text: #f2c15b;
@@ -28,16 +28,16 @@
   --console-rail: #0b1220;
   --console-ink: #101827;
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 8px;
-  --radius-xl: 10px;
-  --radius-2xl: 12px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
   --radius-pill: 100px;
 
-  --shadow-card: none;
-  --shadow-float: 0 10px 24px rgba(0, 0, 0, 0.16);
-  --shadow-modal: 0 20px 48px rgba(0, 0, 0, 0.28);
+  --shadow-card: 0 18px 44px rgba(15, 23, 42, 0.08), 0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-float: 0 24px 70px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.08);
+  --shadow-modal: 0 30px 90px rgba(0, 0, 0, 0.30), 0 4px 16px rgba(15, 23, 42, 0.12);
 
   --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
   --transition-normal: 250ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -50,66 +50,72 @@
    DARK THEME (default)
    ============================================================ */
 :root, .dark {
-  --bg: #0d1117;
-  --bg-gradient: linear-gradient(180deg, #111827 0%, #0b1018 100%);
-  --surface: #151b24;
-  --surface-2: #1b2430;
-  --surface-3: #243244;
+  --bg: #08090d;
+  --bg-gradient:
+    radial-gradient(circle at 18% 8%, rgba(0, 122, 255, 0.2), transparent 30%),
+    radial-gradient(circle at 82% 18%, rgba(52, 199, 89, 0.12), transparent 28%),
+    linear-gradient(180deg, #17191f 0%, #0b0c10 58%, #050609 100%);
+  --surface: rgba(28, 30, 36, 0.72);
+  --surface-2: rgba(44, 46, 54, 0.62);
+  --surface-3: rgba(66, 70, 80, 0.62);
   --surface-solid: #151b24;
   --surface-2-solid: #1b2430;
-  --sidebar-bg: #0f1622;
-  --command-bg: rgba(17, 24, 39, 0.92);
-  --border: rgba(226, 232, 240, 0.10);
-  --border-strong: rgba(226, 232, 240, 0.18);
+  --sidebar-bg: rgba(18, 20, 27, 0.74);
+  --command-bg: rgba(20, 22, 28, 0.72);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.2);
   --text: rgba(255,255,255,0.94);
   --text-secondary: rgba(232,240,248,0.68);
   --text-tertiary: rgba(232,240,248,0.44);
   --acrylic: #151b24;
   --mica: #111821;
-  --taskbar-bg: #0b1119;
-  --titlebar-bg: #0b1119;
-  --reveal-bg: rgba(232,240,248,0.06);
-  --reveal-border: rgba(255,255,255,0.10);
-  --input-bg: #0e141c;
+  --taskbar-bg: rgba(18, 20, 27, 0.74);
+  --titlebar-bg: rgba(18, 20, 27, 0.74);
+  --reveal-bg: rgba(255, 255, 255, 0.08);
+  --reveal-border: rgba(255, 255, 255, 0.12);
+  --input-bg: rgba(17, 19, 24, 0.72);
   --scrollbar-track: rgba(255,255,255,0.04);
   --scrollbar-thumb: rgba(255,255,255,0.15);
   --scrollbar-thumb-hover: rgba(255,255,255,0.25);
   --wallpaper-opacity: 0;
-  --wallpaper-overlay: rgba(15, 20, 27, 0.92);
+  --wallpaper-overlay: rgba(9, 10, 14, 0.78);
 }
 
 /* ============================================================
    LIGHT THEME
    ============================================================ */
 .light {
-  --bg: #f3f5f8;
-  --bg-gradient: linear-gradient(180deg, #f8fafc 0%, #edf1f6 100%);
-  --surface: #ffffff;
-  --surface-2: #f7f9fc;
-  --surface-3: #eef3f8;
+  --bg: #f2f2f7;
+  --bg-gradient:
+    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.95), transparent 30%),
+    radial-gradient(circle at 82% 10%, rgba(0, 122, 255, 0.12), transparent 30%),
+    linear-gradient(180deg, #fbfbfd 0%, #f2f2f7 52%, #e9e9ef 100%);
+  --surface: rgba(255, 255, 255, 0.76);
+  --surface-2: rgba(255, 255, 255, 0.58);
+  --surface-3: rgba(242, 242, 247, 0.86);
   --surface-solid: #ffffff;
   --surface-2-solid: #ffffff;
-  --sidebar-bg: #ffffff;
-  --command-bg: rgba(255, 255, 255, 0.92);
+  --sidebar-bg: rgba(255, 255, 255, 0.68);
+  --command-bg: rgba(255, 255, 255, 0.66);
   --border: rgba(15,23,42,0.10);
   --border-strong: rgba(15,23,42,0.18);
-  --text: #111827;
-  --text-secondary: #536173;
-  --text-tertiary: #8190a1;
-  --acrylic: #ffffff;
-  --mica: #ffffff;
-  --taskbar-bg: #f8fafc;
-  --titlebar-bg: #f8fafc;
-  --reveal-bg: rgba(15,23,42,0.045);
-  --reveal-border: rgba(15,23,42,0.08);
-  --input-bg: #f7f9fb;
+  --text: #111114;
+  --text-secondary: rgba(17, 17, 20, 0.68);
+  --text-tertiary: rgba(17, 17, 20, 0.44);
+  --acrylic: rgba(255, 255, 255, 0.72);
+  --mica: rgba(255, 255, 255, 0.64);
+  --taskbar-bg: rgba(255, 255, 255, 0.72);
+  --titlebar-bg: rgba(255, 255, 255, 0.72);
+  --reveal-bg: rgba(0, 0, 0, 0.045);
+  --reveal-border: rgba(0, 0, 0, 0.07);
+  --input-bg: rgba(255, 255, 255, 0.82);
   --scrollbar-track: rgba(0,0,0,0.04);
   --scrollbar-thumb: rgba(0,0,0,0.15);
   --scrollbar-thumb-hover: rgba(0,0,0,0.25);
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-light: #dbeafe;
-  --accent-glow: rgba(37, 99, 235, 0.14);
+  --accent: #007aff;
+  --accent-hover: #006ee6;
+  --accent-light: #d8ebff;
+  --accent-glow: rgba(0, 122, 255, 0.18);
   --status-warn-text: #8a5800;
   --status-warn-bg: rgba(201, 132, 8, 0.14);
   --status-warn-border: rgba(154, 100, 6, 0.32);
@@ -160,30 +166,30 @@
    MAC INSPIRED THEME
    ============================================================ */
 .mac {
-  --bg: #eef2f7;
+  --bg: #f2f2f7;
   --bg-gradient:
-    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.92), transparent 28%),
-    radial-gradient(circle at 76% 10%, rgba(216, 180, 254, 0.34), transparent 26%),
-    radial-gradient(circle at 80% 86%, rgba(125, 211, 252, 0.34), transparent 30%),
-    linear-gradient(180deg, #f8fafc 0%, #e6edf7 48%, #d7e2ee 100%);
-  --surface: rgba(255, 255, 255, 0.72);
+    radial-gradient(circle at 14% 10%, rgba(255, 255, 255, 0.96), transparent 30%),
+    radial-gradient(circle at 84% 8%, rgba(0, 122, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 78% 86%, rgba(52, 199, 89, 0.11), transparent 30%),
+    linear-gradient(180deg, #fbfbfd 0%, #f2f2f7 48%, #e7e8ee 100%);
+  --surface: rgba(255, 255, 255, 0.74);
   --surface-2: rgba(255, 255, 255, 0.58);
-  --surface-3: rgba(248, 250, 252, 0.82);
+  --surface-3: rgba(242, 242, 247, 0.82);
   --surface-solid: #ffffff;
   --surface-2-solid: #f8fafc;
-  --sidebar-bg: rgba(248, 250, 252, 0.76);
-  --command-bg: rgba(248, 250, 252, 0.78);
-  --border: rgba(61, 75, 96, 0.16);
-  --border-strong: rgba(61, 75, 96, 0.28);
-  --text: #172033;
-  --text-secondary: #536175;
-  --text-tertiary: #8490a1;
+  --sidebar-bg: rgba(255, 255, 255, 0.66);
+  --command-bg: rgba(255, 255, 255, 0.68);
+  --border: rgba(60, 60, 67, 0.15);
+  --border-strong: rgba(60, 60, 67, 0.26);
+  --text: #111114;
+  --text-secondary: rgba(17, 17, 20, 0.68);
+  --text-tertiary: rgba(17, 17, 20, 0.45);
   --acrylic: rgba(255, 255, 255, 0.72);
-  --mica: rgba(248, 250, 252, 0.68);
-  --taskbar-bg: rgba(245, 248, 252, 0.72);
-  --titlebar-bg: rgba(248, 250, 252, 0.76);
-  --reveal-bg: rgba(15, 23, 42, 0.055);
-  --reveal-border: rgba(15, 23, 42, 0.08);
+  --mica: rgba(255, 255, 255, 0.64);
+  --taskbar-bg: rgba(255, 255, 255, 0.7);
+  --titlebar-bg: rgba(255, 255, 255, 0.7);
+  --reveal-bg: rgba(0, 0, 0, 0.045);
+  --reveal-border: rgba(0, 0, 0, 0.07);
   --input-bg: rgba(255, 255, 255, 0.78);
   --scrollbar-track: rgba(15, 23, 42, 0.04);
   --scrollbar-thumb: rgba(15, 23, 42, 0.16);
@@ -192,8 +198,8 @@
   --accent-hover: #0067d6;
   --accent-light: #dbeafe;
   --accent-glow: rgba(0, 122, 255, 0.18);
-  --wallpaper-opacity: 0.18;
-  --wallpaper-overlay: rgba(248, 250, 252, 0.68);
+  --wallpaper-opacity: 0.08;
+  --wallpaper-overlay: rgba(244, 244, 249, 0.62);
 }
 
 .vista,
@@ -276,11 +282,8 @@ body::before {
 body::after {
   z-index: 0;
   background:
-    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255,255,255,0.018) 1px, transparent 1px),
     linear-gradient(180deg, var(--wallpaper-overlay), var(--wallpaper-overlay)),
     var(--bg-gradient);
-  background-size: 24px 24px, 24px 24px, auto, auto;
 }
 
 #root {
@@ -393,8 +396,8 @@ body::after {
    ============================================================ */
 .glass {
   background: var(--surface);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid var(--border);
 }
 
@@ -404,11 +407,12 @@ body::after {
   min-height: 0;
   overflow: hidden;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--bg) 92%, white 8%), var(--bg));
+    radial-gradient(circle at 50% -12%, var(--accent-glow), transparent 38%),
+    var(--bg-gradient);
 }
 
 .command-bar {
-  min-height: 4rem;
+  min-height: 4.25rem;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -416,44 +420,47 @@ body::after {
   gap: 1rem;
   border-bottom: 1px solid var(--border);
   background: var(--command-bg);
-  padding: 0.75rem 1rem;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  padding: 0.75rem 1.1rem;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   position: relative;
   z-index: 40;
+  box-shadow: inset 0 -1px rgba(255, 255, 255, 0.08);
 }
 
 .command-chip {
   display: inline-flex;
-  min-height: 2.25rem;
+  min-height: 2.4rem;
   max-width: 13rem;
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border);
-  background: var(--surface-2);
-  padding: 0 0.65rem;
+  background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+  padding: 0 0.8rem;
   color: var(--text-secondary);
   font-size: 0.78rem;
   line-height: 1;
   white-space: nowrap;
-  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.16);
+  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .command-chip:hover {
   border-color: var(--border-strong);
   background: var(--surface-3);
   color: var(--text);
+  transform: translateY(-1px);
 }
 
 .command-icon-button {
   display: inline-flex;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.4rem;
+  height: 2.4rem;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   border: 1px solid transparent;
   color: var(--text-secondary);
   transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
@@ -467,10 +474,10 @@ body::after {
 
 .luna-logo-badge {
   flex-shrink: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-strong);
   background: var(--surface);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 1px 2px rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.18), var(--shadow-card);
 }
 
 .dark .luna-logo-badge,
@@ -503,9 +510,9 @@ body::after {
   align-items: center;
   justify-content: flex-start;
   gap: 0.45rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
   padding: 0 0.65rem;
   color: var(--text-secondary);
   font-size: 0.74rem;
@@ -524,9 +531,9 @@ body::after {
   width: 100%;
   align-items: center;
   gap: 0.75rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border: 1px solid transparent;
-  padding: 0.68rem 0.7rem;
+  padding: 0.72rem 0.72rem;
   color: var(--text-secondary);
   transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
@@ -541,25 +548,27 @@ body::after {
   border-color: var(--border);
   background: var(--reveal-bg);
   color: var(--text);
+  transform: translateX(1px);
 }
 
 .command-nav-item-active {
   border-color: color-mix(in srgb, var(--accent) 35%, transparent);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent 80%),
-    var(--surface-2);
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 88%),
+    color-mix(in srgb, var(--surface-2) 86%, transparent);
   color: var(--text);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.14), 0 10px 28px rgba(0, 122, 255, 0.08);
 }
 
 .command-nav-icon {
   display: flex;
-  width: 2.1rem;
-  height: 2.1rem;
+  width: 2.2rem;
+  height: 2.2rem;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
   color: var(--text-secondary);
 }
 
@@ -582,17 +591,20 @@ body::after {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
-  border-bottom: 1px solid var(--border);
-  padding: 0.5rem 0 1.25rem;
+  padding: 0.5rem 0 1.1rem;
 }
 
 .today-hero-card {
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+    radial-gradient(circle at 0 0, color-mix(in srgb, var(--accent) 18%, transparent), transparent 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, white 8%), var(--surface)),
     var(--surface);
   padding: 1rem;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(24px) saturate(155%);
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
 }
 
 .today-grid {
@@ -609,9 +621,11 @@ body::after {
 .today-metric {
   min-height: 8.8rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 86%, white 14%), var(--surface-2));
   padding: 0.9rem;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.12);
 }
 
 @media (min-width: 1024px) {
@@ -632,24 +646,29 @@ body::after {
 .ops-surface {
   border: 1px solid var(--border);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, white 6%), var(--surface));
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, white 12%), var(--surface));
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(24px) saturate(155%);
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
 }
 
 .ops-panel {
   border: 1px solid var(--border);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 92%, white 8%), var(--surface-2));
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 88%, white 12%), var(--surface-2));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.12);
 }
 
 .ops-strip {
   border: 1px solid var(--border);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 56%),
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
     var(--surface-2);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.12);
 }
 
 .ops-kicker {
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: var(--text-tertiary);
 }
@@ -774,14 +793,14 @@ body::after {
 }
 .glass-strong {
   background: var(--surface-2);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
   border: 1px solid var(--border-strong);
 }
 .mica {
   background: var(--mica);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: blur(24px) saturate(155%);
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
 }
 .vista .glass,
 .vista .glass-strong,
@@ -797,7 +816,7 @@ body::after {
 .mac .chrome-bar {
   box-shadow:
     inset 0 1px rgba(255,255,255,0.82),
-    0 1px 12px rgba(15, 23, 42, 0.06);
+    0 12px 36px rgba(15, 23, 42, 0.08);
 }
 .login-card {
   border: 1px solid rgba(255,255,255,0.35);

@@ -5,8 +5,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['GoogleSans', '"Google Sans"', '"Google Sans Text"', '"Google Sans Flex"', '"Product Sans"', '"Segoe UI Variable"', '"Segoe UI"', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['GoogleSans', '"Google Sans"', '"Google Sans Text"', '"Google Sans Flex"', '"Product Sans"', '"Segoe UI Variable Display"', '"Segoe UI"', 'system-ui', 'sans-serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"Google Sans"', '"Segoe UI Variable"', 'system-ui', 'sans-serif'],
+        display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', '"Google Sans"', '"Segoe UI Variable Display"', 'system-ui', 'sans-serif'],
       },
       colors: {
         accent: {
@@ -21,11 +21,11 @@ export default {
         },
       },
       borderRadius: {
-        sm: '4px',
-        DEFAULT: '8px',
-        lg: '12px',
-        xl: '16px',
-        '2xl': '20px',
+        sm: '8px',
+        DEFAULT: '12px',
+        lg: '16px',
+        xl: '20px',
+        '2xl': '24px',
         pill: '100px',
       },
       boxShadow: {

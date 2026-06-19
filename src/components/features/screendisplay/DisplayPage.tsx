@@ -9,7 +9,7 @@ import { useTempDisplay } from '../../../hooks/useTempDisplay'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { isAnnouncementActive, useDisplayStore } from '../../../store/displayStore'
 import { useUiStore } from '../../../store/uiStore'
-import { getWeatherInfo } from '../../../lib/openMeteo'
+import { getWeatherInfo, getWindDirection } from '../../../lib/openMeteo'
 import { formatShiftTime, hexToRgba } from '../../../lib/utils'
 import { fetchPerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
 import { dealerInfoForRow } from '../../../lib/dealers'
@@ -29,15 +29,14 @@ import {
   type RadarFrame,
 } from '../../../lib/radar'
 
-// T-Mobile magenta palette
-const MG  = '#E20074'       // primary magenta
-const MG2 = '#FF0084'       // bright magenta for glows
-const CYAN = '#36D1DC'
-const GREEN = '#35D07F'
-const GOLD = '#F8C14A'
-const PANEL = 'rgba(255,255,255,0.075)'
-const PANEL_STRONG = 'rgba(255,255,255,0.12)'
-const LINE = 'rgba(255,255,255,0.14)'
+const MG  = '#007AFF'
+const MG2 = '#5AC8FA'
+const CYAN = '#64D2FF'
+const GREEN = '#30D158'
+const GOLD = '#FFD60A'
+const PANEL = 'rgba(255,255,255,0.085)'
+const PANEL_STRONG = 'rgba(255,255,255,0.16)'
+const LINE = 'rgba(255,255,255,0.16)'
 const STORE_LOGOS: Record<string, { url: string; alt: string; label?: string }> = {}
 
 type SlideAvailability = {
@@ -137,6 +136,31 @@ function performanceRows(rows: PerformanceRow[]) {
   return rows.filter((row) => row.store.toLowerCase() !== 'total')
 }
 
+function normalizeStoreCode(value: string) {
+  return value.replace(/\D/g, '').trim()
+}
+
+function selectedPerformanceRow(data: Awaited<ReturnType<typeof fetchPerformanceData>> | undefined, identifiers: string[], isMain: boolean) {
+  if (!data) return null
+  if (isMain) return data.total
+
+  const candidates = new Set(identifiers.map(normalizeStoreCode).filter(Boolean))
+  return data.rows.find((row) => candidates.has(normalizeStoreCode(row.storeCode))) ?? null
+}
+
+function apparentTemperatureC(tempC: number, windMph: number) {
+  const tempF = (tempC * 9 / 5) + 32
+  let feelsF = tempF
+
+  if (tempF <= 50 && windMph > 3) {
+    feelsF = 35.74 + (0.6215 * tempF) - (35.75 * windMph ** 0.16) + (0.4275 * tempF * windMph ** 0.16)
+  } else if (tempF >= 82) {
+    feelsF = tempF + (tempF >= 92 ? 4 : 2)
+  }
+
+  return (feelsF - 32) * 5 / 9
+}
+
 function goalState(progress?: number) {
   if (progress === undefined) return null
   if (progress >= 100) return { label: 'Goal met', color: GREEN }
@@ -148,13 +172,13 @@ function SlideHeader({ eyebrow, title, detail }: { eyebrow: string; title: strin
   return (
     <div className="flex w-full flex-shrink-0 items-end justify-between gap-[2vw]">
       <div className="min-w-0">
-        <div className="mb-[0.7vh] text-[0.9vw] font-bold uppercase tracking-[0.28em]" style={{ color: CYAN }}>
+        <div className="mb-[0.7vh] text-[0.9vw] font-bold uppercase tracking-[0.16em]" style={{ color: CYAN }}>
           {eyebrow}
         </div>
-        <h2 className="truncate text-[3vw] font-black leading-none text-white">{title}</h2>
+        <h2 className="truncate text-[3vw] font-black leading-none text-white drop-shadow-[0_1.2vh_2.5vh_rgba(0,0,0,0.28)]">{title}</h2>
       </div>
       {detail && (
-        <div className="rounded-full border px-[1vw] py-[0.55vh] text-[0.95vw] font-semibold text-white/70" style={{ borderColor: LINE, background: 'rgba(0,0,0,0.22)' }}>
+        <div className="rounded-full border px-[1vw] py-[0.55vh] text-[0.95vw] font-semibold text-white/[0.70] shadow-[inset_0_1px_rgba(255,255,255,0.14)] backdrop-blur-2xl" style={{ borderColor: LINE, background: 'rgba(255,255,255,0.08)' }}>
           {detail}
         </div>
       )}
@@ -164,8 +188,8 @@ function SlideHeader({ eyebrow, title, detail }: { eyebrow: string; title: strin
 
 function StatTile({ label, value, accent = CYAN }: { label: string; value: string; accent?: string }) {
   return (
-    <div className="rounded-xl border px-[1.1vw] py-[1vh]" style={{ background: 'rgba(0,0,0,0.24)', borderColor: LINE }}>
-      <div className="text-[0.78vw] font-bold uppercase tracking-[0.2em] text-white/40">{label}</div>
+    <div className="rounded-[1vw] border px-[1.1vw] py-[1vh] shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl" style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}>
+      <div className="text-[0.78vw] font-bold uppercase tracking-[0.14em] text-white/[0.40]">{label}</div>
       <div className="mt-[0.35vh] text-[1.45vw] font-black tabular-nums text-white" style={{ color: accent }}>{value}</div>
     </div>
   )
@@ -178,6 +202,184 @@ function ProgressBar({ value, accent }: { value: number; accent: string }) {
         className="h-full rounded-full"
         style={{ width: `${Math.min(Math.max(value, 0), 100)}%`, background: accent }}
       />
+    </div>
+  )
+}
+
+// ── Slide: Store Pulse ────────────────────────────────────────────────────────
+function StorePulseSlide() {
+  const { companyName, storeNumber, storeHours, announcements } = useDisplayStore()
+  const { getShiftsForDate, employees } = useScheduleStore()
+  const { data: weatherData } = useWeather()
+  const { fmt, unit } = useTempDisplay()
+  const { dealerCode, storeId } = useUiStore()
+  const [now, setNow] = useState(new Date())
+  const todayStr = format(now, 'yyyy-MM-dd')
+  const shifts = [...getShiftsForDate(todayStr)].sort((a, b) => a.startTime.localeCompare(b.startTime))
+  const activeAnnouncements = announcements.filter((announcement) => isAnnouncementActive(announcement))
+  const storeStatus = storeStatusFor(now, storeHours)
+  const currentWeather = weatherData?.current_weather
+  const weather = currentWeather ? getWeatherInfo(currentWeather.weathercode, currentWeather.is_day) : null
+  const apparentTemp = currentWeather ? apparentTemperatureC(currentWeather.temperature, currentWeather.windspeed) : null
+  const todayPrecip = weatherData?.daily.precipitation_probability_max[0]
+  const todayHigh = weatherData?.daily.temperature_2m_max[0]
+  const todayLow = weatherData?.daily.temperature_2m_min[0]
+  const performanceQuery = useQuery({
+    queryKey: ['display-pulse-performance'],
+    queryFn: fetchPerformanceData,
+    staleTime: 55_000,
+    refetchInterval: 60_000,
+  })
+  const performanceRow = selectedPerformanceRow(performanceQuery.data, [dealerCode, storeNumber, storeId], normalizeStoreCode(storeId) === 'main')
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const coverage = shifts
+    .map((shift) => ({ shift, employee: employees.find((employee) => employee.id === shift.employeeId) }))
+    .filter((entry): entry is { shift: typeof shifts[number]; employee: typeof employees[number] } => Boolean(entry.employee))
+  const metricCards = performanceRow ? [
+    {
+      label: 'NR',
+      current: formatMoney(performanceRow.netRevenue),
+      goal: formatMoney(performanceRow.netRevenueGoal),
+      gap: formatMoney(Math.max(performanceRow.netRevenueGoal - performanceRow.netRevenue, 0)),
+      progress: performanceRow.netRevenuePct,
+      accent: MG,
+    },
+    {
+      label: 'Accessories',
+      current: formatMoney(performanceRow.accessoryRevenue),
+      goal: formatMoney(performanceRow.accessoryGoal),
+      gap: formatMoney(Math.max(performanceRow.accessoryGoal - performanceRow.accessoryRevenue, 0)),
+      progress: performanceRow.accessoryPct,
+      accent: GOLD,
+    },
+    {
+      label: 'PPs',
+      current: formatNumber(performanceRow.totalPp),
+      goal: formatNumber(performanceRow.dortGoal),
+      gap: formatNumber(Math.max(performanceRow.dortGoal - performanceRow.totalPp, 0)),
+      progress: performanceRow.ppPct,
+      accent: GREEN,
+    },
+  ] : []
+
+  return (
+    <div className="flex h-full flex-col px-[5vw] pb-[4vh] pt-[5vh] gap-[2.6vh] select-none">
+      <SlideHeader eyebrow="Store pulse" title={companyName || 'Luna Store'} detail={storeNumber ? `Store #${storeNumber}` : format(now, 'EEEE, MMM d')} />
+
+      <div className="grid flex-1 grid-cols-[1.05fr_0.95fr] gap-[2vw] overflow-hidden">
+        <div className="relative flex min-w-0 flex-col overflow-hidden rounded-[1.8vw] border p-[2.25vw] shadow-[0_3vh_8vh_rgba(0,0,0,0.26)] backdrop-blur-2xl" style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.055))', borderColor: LINE }}>
+          <div className="absolute right-[-5vw] top-[-8vh] h-[28vw] w-[28vw] rounded-full opacity-30 blur-[5vw]" style={{ background: MG }} />
+          <div className="relative flex flex-col items-center text-center">
+            <div className="text-[9.8vw] font-black leading-none tabular-nums text-white">
+              {format(now, 'h:mm')}
+              <span className="ml-[0.8vw] text-[2.2vw] text-white/[0.40]">{format(now, 'a')}</span>
+            </div>
+            <div className="mt-[1.3vh] flex items-center gap-[0.8vw] rounded-full border px-[1.1vw] py-[0.8vh] shadow-[inset_0_1px_rgba(255,255,255,0.12)]" style={{ background: `${storeStatus.accent}16`, borderColor: `${storeStatus.accent}45` }}>
+              <span className="h-[0.7vw] w-[0.7vw] rounded-full" style={{ background: storeStatus.accent, boxShadow: `0 0 1.1vw ${storeStatus.accent}` }} />
+              <span className="text-[1.2vw] font-black uppercase tracking-[0.12em]" style={{ color: storeStatus.accent }}>{storeStatus.label}</span>
+              <span className="text-[1.1vw] font-semibold text-white/[0.55]">{storeStatus.detail}</span>
+            </div>
+          </div>
+
+          <div className="relative mt-[2.4vh]">
+            <div className="mb-[1vh] flex items-center justify-between">
+              <div className="text-[0.85vw] font-bold uppercase tracking-[0.14em] text-white/[0.42]">Current store stat</div>
+              <div className="text-[0.8vw] font-semibold text-white/[0.34]">{performanceQuery.isFetching ? 'Updating' : performanceRow ? 'Source live' : 'No Source row'}</div>
+            </div>
+            <div className="grid grid-cols-3 gap-[0.9vw]">
+              {metricCards.length > 0 ? metricCards.map((metric) => (
+                <div key={metric.label} className="rounded-[1.1vw] border p-[1vw] shadow-[inset_0_1px_rgba(255,255,255,0.12)]" style={{ background: 'rgba(0,0,0,0.18)', borderColor: `${metric.accent}38` }}>
+                  <div className="flex items-center justify-between gap-[0.5vw]">
+                    <div className="text-[0.82vw] font-black uppercase tracking-[0.12em]" style={{ color: metric.accent }}>{metric.label}</div>
+                    <div className="text-[0.82vw] font-black tabular-nums text-white/[0.55]">{formatPercent(metric.progress)}</div>
+                  </div>
+                  <div className="mt-[0.75vh] space-y-[0.45vh] text-[0.82vw] font-semibold text-white/[0.48]">
+                    <div className="flex justify-between gap-[0.5vw]"><span>Current</span><span className="text-white">{metric.current}</span></div>
+                    <div className="flex justify-between gap-[0.5vw]"><span>Goal</span><span className="text-white/[0.72]">{metric.goal}</span></div>
+                    <div className="flex justify-between gap-[0.5vw]"><span>Gap</span><span style={{ color: metric.accent }}>{metric.gap}</span></div>
+                  </div>
+                  <div className="mt-[0.9vh]">
+                    <ProgressBar value={metric.progress} accent={metric.accent} />
+                  </div>
+                </div>
+              )) : (
+                <div className="col-span-3 rounded-[1.1vw] border p-[1.2vw] text-[1.1vw] font-semibold text-white/[0.42]" style={{ background: 'rgba(0,0,0,0.18)', borderColor: LINE }}>
+                  Performance stats are not mapped for this store yet.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid min-w-0 grid-rows-3 gap-[1.2vh]">
+          <div className="rounded-[1.4vw] border p-[1.5vw] shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl" style={{ background: PANEL, borderColor: LINE }}>
+            <div className="flex items-center justify-between gap-[1vw]">
+              <div>
+                <div className="text-[0.85vw] font-bold uppercase tracking-[0.14em] text-white/[0.40]">Weather now</div>
+                <div className="mt-[0.6vh] text-[2vw] font-black text-white">{weather?.label ?? 'Weather loading'}</div>
+              </div>
+              <div className="flex items-center gap-[0.8vw]">
+                <span className="text-[4vw] leading-none">{weather?.icon ?? '•'}</span>
+                <span className="text-[3.4vw] font-black tabular-nums text-white">
+                  {currentWeather ? `${fmt(currentWeather.temperature)}${unit}` : '--'}
+                </span>
+              </div>
+            </div>
+            <div className="mt-[1.2vh] grid grid-cols-4 gap-[0.7vw]">
+              <StatTile label="Feels like" value={apparentTemp !== null ? `${fmt(apparentTemp)}${unit}` : '--'} accent={MG2} />
+              <StatTile label="Wind" value={currentWeather ? `${Math.round(currentWeather.windspeed)} mph` : '--'} accent={CYAN} />
+              <StatTile label="Direction" value={currentWeather ? getWindDirection(currentWeather.winddirection) : '--'} accent={GREEN} />
+              <StatTile label="Rain" value={todayPrecip !== undefined ? `${todayPrecip}%` : '--'} accent={GOLD} />
+            </div>
+            <div className="mt-[0.9vh] grid grid-cols-2 gap-[0.7vw]">
+              <StatTile label="High" value={todayHigh !== undefined ? `${fmt(todayHigh)}${unit}` : '--'} accent="#FF453A" />
+              <StatTile label="Low" value={todayLow !== undefined ? `${fmt(todayLow)}${unit}` : '--'} accent={CYAN} />
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-[1.4vw] border p-[1.5vw] shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl" style={{ background: PANEL, borderColor: LINE }}>
+            <div className="flex items-center justify-between gap-[1vw]">
+              <div className="text-[0.85vw] font-bold uppercase tracking-[0.14em] text-white/[0.40]">Current coverage</div>
+              <div className="text-[0.9vw] font-semibold text-white/[0.36]">{coverage.length} scheduled</div>
+            </div>
+            {coverage.length > 0 ? (
+              <div className="mt-[0.9vh] grid max-h-[24vh] gap-[0.65vh] overflow-hidden">
+                {coverage.slice(0, 5).map(({ shift, employee }) => {
+                  const initials = employee.name.split(' ').map((part) => part[0]).join('').slice(0, 2)
+                  return (
+                    <div key={shift.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[0.75vw] rounded-[0.9vw] border px-[0.75vw] py-[0.55vh]" style={{ background: hexToRgba(employee.color, 0.10), borderColor: hexToRgba(employee.color, 0.22) }}>
+                      <div className="flex h-[2.2vw] w-[2.2vw] items-center justify-center rounded-[0.65vw] text-[0.72vw] font-black text-white" style={{ background: employee.color }}>{initials}</div>
+                      <div className="min-w-0">
+                        <div className="truncate text-[1.05vw] font-black text-white">{employee.name}</div>
+                        <div className="truncate text-[0.72vw] font-semibold text-white/[0.42]">{employee.role} | {shift.type}</div>
+                      </div>
+                      <div className="text-right text-[0.85vw] font-black tabular-nums text-white">{formatShiftTime(shift.startTime, shift.endTime)}</div>
+                    </div>
+                  )
+                })}
+                {coverage.length > 5 && <div className="text-[0.78vw] font-semibold text-white/[0.36]">+{coverage.length - 5} more on schedule</div>}
+              </div>
+            ) : (
+              <div className="mt-[1vh] text-[1.6vw] font-semibold text-white/[0.45]">No shifts scheduled today</div>
+            )}
+          </div>
+
+          <div className="rounded-[1.4vw] border p-[1.5vw] shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl" style={{ background: PANEL, borderColor: LINE }}>
+            <div className="flex items-center justify-between gap-[1vw]">
+              <div className="text-[0.85vw] font-bold uppercase tracking-[0.14em] text-white/[0.40]">Priority note</div>
+              <div className="text-[0.9vw] font-semibold text-white/[0.36]">{activeAnnouncements.length} active</div>
+            </div>
+            <div className="mt-[0.8vh] line-clamp-3 text-[1.45vw] font-semibold leading-tight text-white">
+              {activeAnnouncements[0]?.text ?? 'No active announcements right now.'}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -209,7 +411,7 @@ function ClockSlide() {
         <h1 className="mt-[0.9vh] max-w-[72vw] text-[3.2vw] font-black leading-none text-white">
           {companyName}
         </h1>
-        {storeNumber && <div className="mt-[0.8vh] text-[1.05vw] font-semibold text-white/50">Store #{storeNumber}</div>}
+        {storeNumber && <div className="mt-[0.8vh] text-[1.05vw] font-semibold text-white/[0.50]">Store #{storeNumber}</div>}
       </header>
 
       <div className={`mt-[3vh] grid flex-1 items-center gap-[4.2vw] overflow-hidden ${storeLogo ? 'grid-cols-[0.9fr_1.1fr]' : 'place-items-center'}`}>
@@ -242,7 +444,7 @@ function ClockSlide() {
 
           <div className={`mt-[4vh] flex items-end gap-[1vw] tabular-nums leading-none ${storeLogo ? 'justify-end' : 'justify-center'}`}>
             <span className="text-[12.8vw] font-black text-white">{hours}:{minutes}</span>
-            <span className="pb-[1.35vw] text-[2.8vw] font-semibold text-white/40">:{seconds}</span>
+            <span className="pb-[1.35vw] text-[2.8vw] font-semibold text-white/[0.40]">:{seconds}</span>
           </div>
           <div className="mt-[1.4vh] h-[0.7vh] overflow-hidden rounded-full bg-white/10">
             <motion.div
@@ -274,7 +476,7 @@ function ClockSlide() {
             {hours}:{minutes}
           </span>
           <div className="flex flex-col items-start pb-[2.5vw] gap-1">
-            <span className="text-[3.5vw] font-thin text-white/40">:{seconds}</span>
+            <span className="text-[3.5vw] font-thin text-white/[0.40]">:{seconds}</span>
             {ampm && (
               <span
                 className="text-[2vw] font-bold tracking-widest uppercase px-2 py-0.5 rounded-md"
@@ -288,7 +490,7 @@ function ClockSlide() {
       </div>
 
       {/* Date */}
-      <div className="text-[2.8vw] font-light text-white/60 tracking-wide">
+      <div className="text-[2.8vw] font-light text-white/[0.60] tracking-wide">
         {format(now, 'EEEE, MMMM d, yyyy')}
       </div>
 
@@ -301,11 +503,11 @@ function ClockSlide() {
           className="w-2 h-2 rounded-full"
           style={{ background: MG, boxShadow: `0 0 8px ${MG}` }}
         />
-        <span className="text-white/70">{companyName}</span>
+        <span className="text-white/[0.70]">{companyName}</span>
         {storeNumber && (
           <>
-            <span className="text-white/20">·</span>
-            <span className="text-white/50">Store #{storeNumber}</span>
+            <span className="text-white/[0.20]">·</span>
+            <span className="text-white/[0.50]">Store #{storeNumber}</span>
           </>
         )}
       </div>
@@ -321,7 +523,7 @@ function WeatherSlide() {
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="flex flex-col items-center gap-4 text-white/30">
+        <div className="flex flex-col items-center gap-4 text-white/[0.30]">
           <div className="w-16 h-16 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
           <span className="text-xl">Loading weather…</span>
         </div>
@@ -343,7 +545,7 @@ function WeatherSlide() {
         <div className="flex min-w-0 flex-col justify-between rounded-[1.3vw] border p-[2vw]" style={{ background: 'linear-gradient(135deg, rgba(54,209,220,0.18), rgba(255,255,255,0.045))', borderColor: `${CYAN}55` }}>
           <div className="flex items-start justify-between gap-[2vw]">
             <div>
-              <div className="text-[1vw] font-bold uppercase tracking-[0.24em] text-white/50">Now</div>
+              <div className="text-[1vw] font-bold uppercase tracking-[0.24em] text-white/[0.50]">Now</div>
               <div className="mt-[1vh] text-[2.4vw] font-black text-white">{weather.label}</div>
             </div>
             <span className="text-[7vw] leading-none">{weather.icon}</span>
@@ -351,7 +553,7 @@ function WeatherSlide() {
 
           <div>
             <div className="text-[10vw] font-black leading-none tabular-nums text-white">
-              {fmt(cw.temperature)}<span className="text-[4vw] text-white/50">{unit}</span>
+              {fmt(cw.temperature)}<span className="text-[4vw] text-white/[0.50]">{unit}</span>
             </div>
             <div className="mt-[2vh] grid grid-cols-2 gap-[1vw]">
               <StatTile label="High" value={`${fmt(dailyHigh)}${unit}`} accent={MG2} />
@@ -375,11 +577,11 @@ function WeatherSlide() {
                 <div className="text-[2.5vw] leading-none">{getWeatherInfo(weatherData.daily.weathercode[i]).icon}</div>
                 <div className="min-w-0">
                   <div className="truncate text-[1.35vw] font-black text-white">{isToday ? 'Today' : format(new Date(d + 'T12:00'), 'EEEE')}</div>
-                  <div className="text-[0.9vw] font-semibold text-white/40">{format(new Date(d + 'T12:00'), 'MMM d')}</div>
+                  <div className="text-[0.9vw] font-semibold text-white/[0.40]">{format(new Date(d + 'T12:00'), 'MMM d')}</div>
                 </div>
                 <div className="text-right tabular-nums">
                   <div className="text-[1.35vw] font-black text-white">{fmt(weatherData.daily.temperature_2m_max[i])}{unit}</div>
-                  <div className="text-[0.9vw] font-semibold text-white/40">{fmt(weatherData.daily.temperature_2m_min[i])}{unit}</div>
+                  <div className="text-[0.9vw] font-semibold text-white/[0.40]">{fmt(weatherData.daily.temperature_2m_min[i])}{unit}</div>
                 </div>
               </div>
             )
@@ -396,12 +598,12 @@ function WeatherSlide() {
         <span className="text-[14vw] leading-none drop-shadow-2xl">{weather.icon}</span>
         <div className="flex flex-col gap-1">
           <div className="text-[10vw] font-black text-white leading-none tabular-nums">
-            {fmt(cw.temperature)}<span className="text-[5vw] text-white/50">{unit}</span>
+            {fmt(cw.temperature)}<span className="text-[5vw] text-white/[0.50]">{unit}</span>
           </div>
-          <div className="text-[2.2vw] font-medium text-white/60">{weather.label}</div>
+          <div className="text-[2.2vw] font-medium text-white/[0.60]">{weather.label}</div>
           <div className="flex items-center gap-4 text-[1.5vw] mt-1">
             <span style={{ color: MG2 }}>↑ {fmt(dailyHigh)}{unit}</span>
-            <span className="text-white/40">↓ {fmt(dailyLow)}{unit}</span>
+            <span className="text-white/[0.40]">↓ {fmt(dailyLow)}{unit}</span>
           </div>
         </div>
       </div>
@@ -422,14 +624,14 @@ function WeatherSlide() {
                 border: isToday ? `1px solid ${MG}40` : '1px solid rgba(255,255,255,0.06)',
               }}
             >
-              <span className={`text-[1.3vw] font-semibold ${isToday ? '' : 'text-white/50'}`} style={isToday ? { color: MG } : {}}>
+              <span className={`text-[1.3vw] font-semibold ${isToday ? '' : 'text-white/[0.50]'}`} style={isToday ? { color: MG } : {}}>
                 {isToday ? 'Today' : format(new Date(d + 'T12:00'), 'EEE')}
               </span>
               <span className="text-[2.5vw] leading-none">{getWeatherInfo(weatherData.daily.weathercode[i]).icon}</span>
               <span className="text-[1.4vw] text-white font-medium">
                 {fmt(weatherData.daily.temperature_2m_max[i])}{unit}
               </span>
-              <span className="text-[1vw] text-white/40">
+              <span className="text-[1vw] text-white/[0.40]">
                 {fmt(weatherData.daily.temperature_2m_min[i])}{unit}
               </span>
             </div>
@@ -511,7 +713,7 @@ function RadarTileGrid({ lat, lon, frame, host, transitionMs }: { lat: number; l
       </AnimatePresence>
       <div className="absolute left-1/2 top-1/2 h-[1.2vw] w-[1.2vw] -translate-x-1/2 -translate-y-1/2 rounded-full border-[0.22vw] border-white bg-[var(--accent)] shadow-[0_0_0_0.45vw_rgba(226,0,116,0.22),0_0_2vw_rgba(226,0,116,0.85)]" />
       <div className="absolute left-1/2 top-1/2 h-[5vw] w-[5vw] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20" />
-      <div className="absolute bottom-3 right-4 rounded-md bg-black/40 px-2 py-1 text-[0.62vw] font-semibold text-white/50">
+      <div className="absolute bottom-3 right-4 rounded-md bg-black/40 px-2 py-1 text-[0.62vw] font-semibold text-white/[0.50]">
         Radar: RainViewer | Map: CARTO
       </div>
     </div>
@@ -584,11 +786,11 @@ function RadarSlide() {
       <div className="grid flex-1 grid-cols-[minmax(0,1fr)_21vw] gap-[2vw] overflow-hidden">
         <div className="relative min-w-0 overflow-hidden rounded-[1.4vw] border" style={{ background: 'rgba(0,0,0,0.24)', borderColor: `${CYAN}45` }}>
           {isLoading ? (
-            <div className="flex h-full items-center justify-center text-[1.4vw] font-semibold text-white/40">Loading radar...</div>
+            <div className="flex h-full items-center justify-center text-[1.4vw] font-semibold text-white/[0.40]">Loading radar...</div>
           ) : isError || !data?.host || !frame ? (
             <div className="flex h-full flex-col items-center justify-center gap-[1vh] text-center">
-              <div className="text-[1.6vw] font-black text-white/75">Radar unavailable</div>
-              <div className="max-w-[34vw] text-[1vw] font-semibold text-white/40">RainViewer map data could not be loaded right now.</div>
+              <div className="text-[1.6vw] font-black text-white/[0.75]">Radar unavailable</div>
+              <div className="max-w-[34vw] text-[1vw] font-semibold text-white/[0.40]">RainViewer map data could not be loaded right now.</div>
             </div>
           ) : (
             <RadarTileGrid lat={location.lat} lon={location.lon} frame={frame} host={data.host} transitionMs={frameTransitionMs} />
@@ -597,14 +799,14 @@ function RadarSlide() {
 
         <aside className="flex min-w-0 flex-col gap-[1vh]">
           <div className="rounded-[1.1vw] border p-[1.35vw]" style={{ background: `linear-gradient(135deg, ${MG}18, rgba(255,255,255,0.045))`, borderColor: `${MG}4d` }}>
-            <div className="text-[0.78vw] font-bold uppercase tracking-[0.22em] text-white/40">Centered on</div>
+            <div className="text-[0.78vw] font-bold uppercase tracking-[0.22em] text-white/[0.40]">Centered on</div>
             <div className="mt-[0.8vh] text-[1.65vw] font-black leading-tight text-white">{companyName}</div>
-            <div className="mt-[0.5vh] text-[0.9vw] font-semibold text-white/50">{location.name}</div>
+            <div className="mt-[0.5vh] text-[0.9vw] font-semibold text-white/[0.50]">{location.name}</div>
           </div>
           <StatTile label="Current Date" value={format(now, 'MMM d')} accent={CYAN} />
           <StatTile label="Time Clock" value={format(now, clockFormat)} accent={GOLD} />
           <StatTile label="Local View" value="Central Florida" accent={MG2} />
-          <div className="mt-auto rounded-[1.1vw] border p-[1.1vw] text-[0.85vw] font-semibold leading-relaxed text-white/40" style={{ background: PANEL, borderColor: LINE }}>
+          <div className="mt-auto rounded-[1.1vw] border p-[1.1vw] text-[0.85vw] font-semibold leading-relaxed text-white/[0.40]" style={{ background: PANEL, borderColor: LINE }}>
             Shows recent RainViewer radar imagery around the store area. The store marker stays fixed at center while the radar timeline loops.
           </div>
         </aside>
@@ -634,16 +836,16 @@ function ScheduleSlide() {
       <SlideHeader eyebrow="Team coverage" title="Today's Schedule" detail={format(new Date(), 'EEEE, MMMM d')} />
 
       {sorted.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center rounded-[1.2vw] border text-[2vw] font-semibold text-white/40" style={{ borderColor: LINE, background: PANEL }}>
+        <div className="flex flex-1 items-center justify-center rounded-[1.2vw] border text-[2vw] font-semibold text-white/[0.40]" style={{ borderColor: LINE, background: PANEL }}>
           No shifts scheduled today
         </div>
       ) : (
         <div className="grid flex-1 grid-cols-[0.35fr_0.65fr] gap-[2vw] overflow-hidden">
           <div className="flex flex-col justify-between rounded-[1.2vw] border p-[1.5vw]" style={{ background: 'linear-gradient(135deg, rgba(226,0,116,0.16), rgba(255,255,255,0.045))', borderColor: `${MG}45` }}>
             <div>
-              <div className="text-[0.9vw] font-bold uppercase tracking-[0.24em] text-white/40">Coverage</div>
+              <div className="text-[0.9vw] font-bold uppercase tracking-[0.24em] text-white/[0.40]">Coverage</div>
               <div className="mt-[1vh] text-[6vw] font-black leading-none tabular-nums text-white">{sorted.length}</div>
-              <div className="mt-[0.6vh] text-[1.2vw] font-semibold text-white/50">scheduled shifts</div>
+              <div className="mt-[0.6vh] text-[1.2vw] font-semibold text-white/[0.50]">scheduled shifts</div>
             </div>
             <div className="grid gap-[1vh]">
               <StatTile label="First in" value={sorted[0]?.startTime ?? '--'} accent={GREEN} />
@@ -674,9 +876,9 @@ function ScheduleSlide() {
                   </div>
                   <div className="min-w-0">
                     <div className="truncate text-[1.55vw] font-black text-white">{emp.name}</div>
-                    <div className="mt-[0.2vh] flex items-center gap-[0.7vw] text-[0.9vw] font-semibold text-white/50">
+                    <div className="mt-[0.2vh] flex items-center gap-[0.7vw] text-[0.9vw] font-semibold text-white/[0.50]">
                       <span>{emp.role}</span>
-                      <span className="text-white/20">|</span>
+                      <span className="text-white/[0.20]">|</span>
                       <span>{s.type}</span>
                     </div>
                   </div>
@@ -711,7 +913,7 @@ function ScheduleSlide() {
       </div>
 
       {sorted.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 text-white/30">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 text-white/[0.30]">
           <span style={{ fontSize: '6vw' }}>📅</span>
           <span style={{ fontSize: '2vw' }}>No shifts scheduled today</span>
         </div>
@@ -757,7 +959,7 @@ function ScheduleSlide() {
                     {emp.name}
                   </div>
                   <div
-                    className="text-white/50 whitespace-nowrap"
+                    className="text-white/[0.50] whitespace-nowrap"
                     style={{ fontSize: `${scale * 1.1}vw` }}
                   >
                     {emp.role}
@@ -818,22 +1020,18 @@ function ScheduleOutlookSlide() {
   })
 
   return (
-    <div className="flex flex-col h-full pt-[4vh] pb-[3vh] px-[4vw] gap-4 select-none">
-      {/* Header */}
-      <div className="flex flex-col items-center gap-1 flex-shrink-0">
-        <h2 className="text-[2.8vw] font-black text-white tracking-tight">Schedule Outlook</h2>
-        <p className="text-[1.2vw]" style={{ color: MG }}>Next 4 Days</p>
-      </div>
+    <div className="flex h-full flex-col px-[4.5vw] pb-[3.5vh] pt-[5vh] gap-[2.2vh] select-none">
+      <SlideHeader eyebrow="Staffing outlook" title="Schedule Outlook" detail="Next 4 days" />
 
       {/* 4-column grid */}
       <div className="flex-1 grid grid-cols-4 gap-[1.5vw] overflow-hidden">
         {days.map(({ label, sublabel, forecast, shifts }, i) => (
           <div
             key={i}
-            className="flex flex-col gap-[1vh] rounded-2xl p-[1.2vw]"
+            className="flex flex-col gap-[1vh] rounded-[1.4vw] p-[1.2vw] shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl"
             style={{
-              background: i === 0 ? `${MG}10` : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${i === 0 ? `${MG}30` : 'rgba(255,255,255,0.08)'}`,
+              background: i === 0 ? `linear-gradient(180deg, ${MG}18, rgba(255,255,255,0.07))` : PANEL,
+              border: `1px solid ${i === 0 ? `${MG}45` : LINE}`,
             }}
           >
             {/* Day header */}
@@ -841,14 +1039,14 @@ function ScheduleOutlookSlide() {
               className="flex-shrink-0 border-b pb-[0.8vh]"
               style={{ borderColor: i === 0 ? `${MG}30` : 'rgba(255,255,255,0.08)' }}
             >
-              <div className="font-bold text-[1.6vw]" style={{ color: i === 0 ? MG : 'white' }}>
+              <div className="font-black text-[1.6vw]" style={{ color: i === 0 ? CYAN : 'white' }}>
                 {label}
               </div>
-              <div className="flex items-center gap-[0.45vw] text-[1vw] text-white/40">
+              <div className="flex items-center gap-[0.45vw] text-[1vw] text-white/[0.40]">
                 <span>{sublabel}</span>
                 {forecast && (
                   <>
-                    <span className="text-white/20">·</span>
+                    <span className="text-white/[0.20]">·</span>
                     <span className="text-[1.05vw] leading-none">{forecast.icon}</span>
                     <span className="tabular-nums">{forecast.high}{unit}</span>
                   </>
@@ -859,7 +1057,7 @@ function ScheduleOutlookSlide() {
             {/* Shifts */}
             {shifts.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
-                <span className="text-[1.1vw] text-white/20">No shifts</span>
+                <span className="text-[1.1vw] text-white/[0.25]">No shifts</span>
               </div>
             ) : (
               <div className="flex flex-col gap-[0.6vh] overflow-hidden flex-1">
@@ -870,9 +1068,10 @@ function ScheduleOutlookSlide() {
                   return (
                     <div
                       key={s.id}
-                      className="flex items-center gap-[0.6vw] rounded-xl px-[0.8vw] py-[0.5vh]"
+                      className="flex items-center gap-[0.6vw] rounded-[0.9vw] px-[0.8vw] py-[0.5vh]"
                       style={{
                         background: hexToRgba(emp.color, 0.10),
+                        border: `1px solid ${hexToRgba(emp.color, 0.18)}`,
                         borderLeft: `3px solid ${emp.color}`,
                       }}
                     >
@@ -890,7 +1089,7 @@ function ScheduleOutlookSlide() {
                         <div className="text-white font-semibold truncate" style={{ fontSize: '0.95vw' }}>
                           {emp.name}
                         </div>
-                        <div className="text-white/40 tabular-nums" style={{ fontSize: '0.8vw' }}>
+                        <div className="text-white/[0.40] tabular-nums" style={{ fontSize: '0.8vw' }}>
                           {formatShiftTime(s.startTime, s.endTime)}
                         </div>
                       </div>
@@ -924,9 +1123,9 @@ function DistrictOutlookSlide() {
 
       <div className="flex-1 w-full max-w-6xl overflow-hidden">
         {isLoading ? (
-          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">Loading outlook…</div>
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/[0.30]">Loading outlook…</div>
         ) : rows.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">No Source rows available</div>
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/[0.30]">No Source rows available</div>
         ) : (
           <div className="grid h-full grid-rows-5 gap-[1vh]">
             {rows.map((row, index) => {
@@ -949,7 +1148,7 @@ function DistrictOutlookSlide() {
                   </div>
                   <div className="min-w-0">
                     <div className="truncate text-[1.55vw] font-black text-white">{dealer.nickname}</div>
-                    <div className="text-[0.95vw] text-white/40">{dealer.location} | {dealer.code}</div>
+                    <div className="text-[0.95vw] text-white/[0.40]">{dealer.location} | {dealer.code}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-[1.5vw] font-black text-white tabular-nums">{formatMoney(row.netRevenue)}</div>
@@ -959,15 +1158,15 @@ function DistrictOutlookSlide() {
                   </div>
                   <div className="grid min-w-[14vw] grid-cols-3 gap-[0.5vw] text-center">
                     <div className="rounded-md px-[0.6vw] py-[0.45vh]" style={{ background: 'rgba(0,0,0,0.22)' }}>
-                      <div className="text-[0.7vw] uppercase text-white/30">ACC</div>
+                      <div className="text-[0.7vw] uppercase text-white/[0.30]">ACC</div>
                       <div className="text-[0.95vw] font-bold text-white">{formatMoney(row.accessoryRevenue)}</div>
                     </div>
                     <div className="rounded-md px-[0.6vw] py-[0.45vh]" style={{ background: 'rgba(0,0,0,0.22)' }}>
-                      <div className="text-[0.7vw] uppercase text-white/30">PP</div>
+                      <div className="text-[0.7vw] uppercase text-white/[0.30]">PP</div>
                       <div className="text-[0.95vw] font-bold text-white">{formatNumber(row.totalPp)}</div>
                     </div>
                     <div className="rounded-md px-[0.6vw] py-[0.45vh]" style={{ background: 'rgba(0,0,0,0.22)' }}>
-                      <div className="text-[0.7vw] uppercase text-white/30">Traffic</div>
+                      <div className="text-[0.7vw] uppercase text-white/[0.30]">Traffic</div>
                       <div className="text-[0.95vw] font-bold text-white">{formatNumber(row.traffic)}</div>
                     </div>
                   </div>
@@ -1017,19 +1216,19 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
 
       <div className="flex-1 overflow-hidden">
         {isLoading ? (
-          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">Loading leaderboard...</div>
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/[0.30]">Loading leaderboard...</div>
         ) : !leader || !leaderDealer ? (
-          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">No Source rows available</div>
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/[0.30]">No Source rows available</div>
         ) : (
           <div className="grid h-full grid-cols-[1.08fr_0.92fr] gap-[2vw]">
             <div className="relative flex min-w-0 flex-col justify-between overflow-hidden rounded-[1.4vw] border p-[2vw]" style={{ background: `linear-gradient(135deg, ${accent}26, rgba(255,255,255,0.055))`, borderColor: `${accent}66` }}>
               <div className="absolute right-[-2vw] top-[-3vh] text-[14vw] font-black leading-none text-white/[0.035]">01</div>
               <div className="relative">
-                <div className="inline-flex rounded-md px-[0.8vw] py-[0.42vh] text-[0.9vw] font-black uppercase tracking-[0.2em] text-black" style={{ background: accent }}>
+                <div className="inline-flex rounded-full border px-[0.8vw] py-[0.42vh] text-[0.9vw] font-black uppercase tracking-[0.14em] text-white shadow-[inset_0_1px_rgba(255,255,255,0.14)]" style={{ background: `${accent}26`, borderColor: `${accent}66`, color: accent }}>
                   Current leader
                 </div>
                 <div className="mt-[2vh] text-[4.7vw] font-black leading-[0.92] text-white">{leaderDealer.nickname}</div>
-                <div className="mt-[1vh] text-[1.25vw] font-semibold text-white/50">{leaderDealer.location} | {leaderDealer.code}</div>
+                <div className="mt-[1vh] text-[1.25vw] font-semibold text-white/[0.50]">{leaderDealer.location} | {leaderDealer.code}</div>
               </div>
 
               <div className="relative">
@@ -1065,7 +1264,7 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
                     </div>
                     <div className="min-w-0">
                       <div className="truncate text-[1.35vw] font-black text-white">{dealer.nickname}</div>
-                      <div className="mt-[0.2vh] truncate text-[0.82vw] font-semibold text-white/40">{metric.detail?.(row) ?? dealer.code}</div>
+                      <div className="mt-[0.2vh] truncate text-[0.82vw] font-semibold text-white/[0.40]">{metric.detail?.(row) ?? dealer.code}</div>
                     </div>
                     <div className="min-w-[10vw] text-right">
                       <div className="text-[1.55vw] font-black tabular-nums text-white">{metric.formatValue(metric.value(row))}</div>
@@ -1087,9 +1286,9 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
 
       <div className="flex-1 w-full max-w-6xl overflow-hidden">
         {isLoading ? (
-          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">Loading leaderboard...</div>
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/[0.30]">Loading leaderboard...</div>
         ) : rows.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/30">No Source rows available</div>
+          <div className="flex h-full items-center justify-center text-[1.5vw] text-white/[0.30]">No Source rows available</div>
         ) : (
           <div className="grid h-full grid-rows-5 gap-[1vh]">
             {rows.map((row, index) => {
@@ -1114,11 +1313,11 @@ function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) 
                   </div>
                   <div className="min-w-0">
                     <div className="truncate text-[1.7vw] font-black text-white">{dealer.nickname}</div>
-                    <div className="mt-[0.25vh] flex items-center gap-[0.7vw] text-[0.95vw] text-white/50">
+                    <div className="mt-[0.25vh] flex items-center gap-[0.7vw] text-[0.95vw] text-white/[0.50]">
                       <span>{dealer.location}</span>
-                      <span className="text-white/20">|</span>
+                      <span className="text-white/[0.20]">|</span>
                       <span>{dealer.code}</span>
-                      <span className="text-white/20">|</span>
+                      <span className="text-white/[0.20]">|</span>
                       <span>{metric.detail?.(row) ?? `Traffic ${formatNumber(row.traffic)}`}</span>
                     </div>
                   </div>
@@ -1205,23 +1404,17 @@ function AccessoriesLeaderboardSlide() {
 function AnnouncementsSlide() {
   const { announcements } = useDisplayStore()
   const activeAnnouncements = announcements.filter((announcement) => isAnnouncementActive(announcement))
-  const PCOLS = { normal: MG, important: '#FF8C00', urgent: '#FF3B3B' }
+  const PCOLS = { normal: MG, important: GOLD, urgent: '#FF453A' }
 
   return (
-    <div className="flex flex-col items-center h-full pt-[5vh] px-[6vw] gap-6 select-none">
-      <div className="flex flex-col items-center gap-1 flex-shrink-0">
-        <h2 className="text-[3vw] font-black text-white tracking-tight">Announcements</h2>
-        <div
-          className="w-12 h-0.5 rounded-full"
-          style={{ background: `linear-gradient(90deg, transparent, ${MG}, transparent)` }}
-        />
-      </div>
+    <div className="flex h-full flex-col px-[5vw] pb-[4vh] pt-[5vh] gap-[2.4vh] select-none">
+      <SlideHeader eyebrow="Store messages" title="Announcements" detail={`${activeAnnouncements.length} active`} />
 
-      <div className="flex flex-col gap-3 w-full max-w-4xl overflow-y-auto no-scrollbar">
+      <div className="flex flex-1 flex-col gap-[1.2vh] overflow-y-auto no-scrollbar">
         {activeAnnouncements.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-8 text-white/30">
-            <span className="text-5xl">📢</span>
-            <span className="text-xl">No announcements</span>
+          <div className="flex flex-1 flex-col items-center justify-center gap-[1vh] rounded-[1.6vw] border text-white/[0.30] backdrop-blur-2xl" style={{ background: PANEL, borderColor: LINE }}>
+            <span className="text-[4vw]">•</span>
+            <span className="text-[1.7vw] font-semibold">No announcements</span>
           </div>
         ) : (
           activeAnnouncements.map((a, i) => (
@@ -1230,19 +1423,20 @@ function AnnouncementsSlide() {
               initial={{ opacity: 0, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.08 }}
-              className="flex items-start gap-4 px-6 py-4 rounded-2xl"
+              className="flex items-start gap-[1.1vw] rounded-[1.4vw] border px-[1.6vw] py-[1.7vh] shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl"
               style={{
-                background: `${PCOLS[a.priority]}10`,
-                borderLeft: `4px solid ${PCOLS[a.priority]}`,
-                border: `1px solid ${PCOLS[a.priority]}25`,
-                borderLeftWidth: '4px',
+                background: `linear-gradient(90deg, ${PCOLS[a.priority]}18, rgba(255,255,255,0.075))`,
+                borderColor: `${PCOLS[a.priority]}40`,
               }}
             >
               <div
-                className="w-2.5 h-2.5 rounded-full mt-[0.9vw] flex-shrink-0"
+                className="mt-[0.45vw] h-[1.1vw] w-[1.1vw] flex-shrink-0 rounded-full"
                 style={{ background: PCOLS[a.priority], boxShadow: `0 0 10px ${PCOLS[a.priority]}80` }}
               />
-              <p className="text-[2vw] text-white leading-relaxed">{a.text}</p>
+              <div className="min-w-0">
+                <div className="mb-[0.45vh] text-[0.78vw] font-black uppercase tracking-[0.14em]" style={{ color: PCOLS[a.priority] }}>{a.priority}</div>
+                <p className="text-[2vw] text-white leading-snug">{a.text}</p>
+              </div>
             </motion.div>
           ))
         )}
@@ -1254,6 +1448,7 @@ function AnnouncementsSlide() {
 // ── Slide registry ────────────────────────────────────────────────────────────
 const SLIDES: DisplaySlideConfig[] = [
   { key: 'clock',    label: 'Clock',         component: ClockSlide },
+  { key: 'pulse',    label: 'Pulse',         component: StorePulseSlide },
   { key: 'weather',  label: 'Weather',        component: WeatherSlide },
   { key: 'radar',    label: 'Radar',          component: RadarSlide },
   { key: 'sched',    label: 'Schedule',       component: ScheduleSlide, shouldShow: ({ hasTodaySchedule }) => hasTodaySchedule },
@@ -1347,7 +1542,7 @@ export function DisplayPage() {
   return (
     <div
       className="relative w-screen h-screen overflow-hidden cursor-none"
-      style={{ background: '#07090F' }}
+      style={{ background: '#05060A' }}
       onMouseMove={resetHideTimer}
     >
       {/* Broadcast backdrop */}
@@ -1356,17 +1551,18 @@ export function DisplayPage() {
           className="absolute inset-0"
           style={{
             background: [
-              'linear-gradient(135deg, rgba(226,0,116,0.18), transparent 34%)',
-              'linear-gradient(315deg, rgba(54,209,220,0.14), transparent 36%)',
-              'linear-gradient(180deg, rgba(255,255,255,0.035), transparent 42%)',
+              'radial-gradient(circle at 18% 12%, rgba(0,122,255,0.32), transparent 30%)',
+              'radial-gradient(circle at 82% 18%, rgba(48,209,88,0.16), transparent 30%)',
+              'radial-gradient(circle at 52% 105%, rgba(100,210,255,0.18), transparent 42%)',
+              'linear-gradient(180deg, rgba(255,255,255,0.045), transparent 46%)',
             ].join(', '),
           }}
         />
         <div
-          className="absolute inset-x-[-10%] bottom-[-28%] h-[58%] rotate-[-5deg]"
-          style={{ background: 'linear-gradient(90deg, rgba(226,0,116,0.11), rgba(54,209,220,0.08), transparent)', filter: 'blur(38px)' }}
+          className="absolute inset-x-[-10%] bottom-[-30%] h-[60%] rotate-[-4deg]"
+          style={{ background: 'linear-gradient(90deg, rgba(0,122,255,0.15), rgba(100,210,255,0.1), transparent)', filter: 'blur(44px)' }}
         />
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.72) 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.76) 100%)' }} />
       </div>
 
       {/* Thin top line accent */}
@@ -1400,21 +1596,21 @@ export function DisplayPage() {
             transition={{ duration: 0.2 }}
           >
             {/* Top bar */}
-            <div className="absolute top-2 left-0 right-0 flex items-center justify-between px-5 pointer-events-auto">
+            <div className="absolute top-3 left-0 right-0 flex items-center justify-between px-5 pointer-events-auto">
               {/* Brand */}
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 rounded-full border px-3 py-2 shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl" style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}>
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-black"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-black"
                   style={{ background: `linear-gradient(135deg, ${MG}, ${CYAN})` }}
                 >
-                  T
+                  L
                 </div>
                 <div className="flex flex-col leading-none">
                   <span className="text-white text-xs font-semibold">
                     {companyName}
-                    {storeNumber && <span className="text-white/40 font-normal"> · #{storeNumber}</span>}
+                    {storeNumber && <span className="text-white/[0.40] font-normal"> · #{storeNumber}</span>}
                   </span>
-                  <span className="text-[10px]" style={{ color: MG }}>Live Display</span>
+                  <span className="text-[10px]" style={{ color: CYAN }}>Live Display</span>
                 </div>
               </div>
 
@@ -1422,23 +1618,23 @@ export function DisplayPage() {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setPaused((p) => !p)}
-                  className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-white/70 text-xs transition-colors hover:text-white cursor-auto"
-                  style={{ background: 'rgba(0,0,0,0.28)', borderColor: LINE }}
+                  className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-white/[0.70] text-xs transition-colors hover:text-white cursor-auto backdrop-blur-2xl"
+                  style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
                 >
                   {paused ? <Play size={11} /> : <Pause size={11} />}
                   {paused ? 'Resume' : 'Pause'}
                 </button>
                 <button
                   onClick={() => isFullscreen ? exitFs() : enterFs()}
-                  className="p-2 rounded-md border text-white/70 hover:text-white transition-colors cursor-auto"
-                  style={{ background: 'rgba(0,0,0,0.28)', borderColor: LINE }}
+                  className="p-2 rounded-full border text-white/[0.70] hover:text-white transition-colors cursor-auto backdrop-blur-2xl"
+                  style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
                 >
                   {isFullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
                 </button>
                 <button
                   onClick={restartDisplay}
-                  className="p-2 rounded-md border text-white/70 hover:text-white transition-colors cursor-auto"
-                  style={{ background: 'rgba(0,0,0,0.28)', borderColor: LINE }}
+                  className="p-2 rounded-full border text-white/[0.70] hover:text-white transition-colors cursor-auto backdrop-blur-2xl"
+                  style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
                   title={accessMode === 'display' ? 'Reload display' : 'Exit display'}
                 >
                   <X size={13} />
@@ -1446,8 +1642,8 @@ export function DisplayPage() {
                 {accessMode === 'display' && (
                   <button
                     onClick={logoutDisplay}
-                    className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-white/70 text-xs transition-colors hover:text-white cursor-auto"
-                    style={{ background: 'rgba(0,0,0,0.28)', borderColor: LINE }}
+                    className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-white/[0.70] text-xs transition-colors hover:text-white cursor-auto backdrop-blur-2xl"
+                    style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
                     title="Log out"
                   >
                     <LogOut size={11} />
@@ -1460,15 +1656,15 @@ export function DisplayPage() {
             {/* Side nav arrows */}
             <button
               onClick={prev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-lg border p-2.5 text-white/60 hover:text-white transition-all cursor-auto"
-              style={{ background: 'rgba(0,0,0,0.25)', borderColor: LINE }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border p-2.5 text-white/[0.60] hover:text-white transition-all cursor-auto backdrop-blur-2xl"
+              style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
             >
               <ChevronLeft size={22} />
             </button>
             <button
               onClick={next}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg border p-2.5 text-white/60 hover:text-white transition-all cursor-auto"
-              style={{ background: 'rgba(0,0,0,0.25)', borderColor: LINE }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border p-2.5 text-white/[0.60] hover:text-white transition-all cursor-auto backdrop-blur-2xl"
+              style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
             >
               <ChevronRight size={22} />
             </button>
@@ -1519,7 +1715,7 @@ export function DisplayPage() {
                   )
                 })}
               </div>
-              <p className="text-[9px] text-white/20 tracking-widest uppercase">
+              <p className="text-[9px] text-white/[0.20] tracking-widest uppercase">
                 ← → navigate · Space pause · Esc exit
               </p>
             </div>

@@ -11,7 +11,7 @@ interface CardProps extends HTMLMotionProps<'div'> {
 }
 
 export function Card({ children, className, variant = 'default', interactive = false, noPadding = false, ...rest }: CardProps) {
-  const base = 'rounded-lg border transition-colors duration-150'
+  const base = 'rounded-xl border transition-all duration-200'
   const variants = {
     default: 'ops-surface',
     elevated: 'ops-surface border-[var(--border-strong)] shadow-[var(--shadow-float)]',
@@ -19,7 +19,7 @@ export function Card({ children, className, variant = 'default', interactive = f
     accent: 'ops-strip border-[var(--accent)]/25',
   }
   const interactiveClass = interactive
-    ? 'cursor-pointer hover:border-[var(--accent)]/35 hover:bg-[var(--surface-3)] active:scale-[0.99]'
+    ? 'cursor-pointer hover:-translate-y-0.5 hover:border-[var(--accent)]/35 hover:bg-[var(--surface-3)] active:scale-[0.99]'
     : ''
 
   return (

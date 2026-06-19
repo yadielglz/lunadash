@@ -103,10 +103,7 @@ interface UiState {
 }
 
 function getSystemTheme(): Theme {
-  if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches) {
-    return 'light'
-  }
-  return 'dark'
+  return 'mac'
 }
 
 function persistedPreferences(persisted: unknown) {

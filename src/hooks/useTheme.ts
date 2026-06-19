@@ -9,13 +9,9 @@ export function useTheme() {
   }, [theme])
 
   useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const stored = localStorage.getItem('luna-ui')
     if (stored) return // user has a preference stored
-    setTheme(mq.matches ? 'dark' : 'light')
-    const handler = (e: MediaQueryListEvent) => setTheme(e.matches ? 'dark' : 'light')
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
+    setTheme('mac')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

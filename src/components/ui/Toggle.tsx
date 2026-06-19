@@ -20,16 +20,16 @@ export function Toggle({ checked, onChange, label, size = 'md' }: ToggleProps) {
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className="relative flex-shrink-0 rounded-pill border-2 transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2"
+        className="relative flex-shrink-0 rounded-pill border transition-all duration-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2"
         style={{
           width: d.w,
           height: d.h,
           background: checked ? 'var(--accent)' : 'var(--surface-3)',
-          borderColor: checked ? 'var(--accent)' : 'var(--border-strong)',
+          borderColor: checked ? 'var(--accent)' : 'var(--border)',
         }}
       >
         <motion.span
-          className="absolute top-0 bottom-0 my-auto rounded-full bg-white"
+          className="absolute top-0 bottom-0 my-auto rounded-full bg-white shadow-[0_2px_7px_rgba(0,0,0,0.24)]"
           style={{ width: d.dot, height: d.dot }}
           animate={{ left: checked ? d.tx - 2 : 2 }}
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}

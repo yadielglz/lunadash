@@ -264,7 +264,7 @@ function MobileNavOverlay({ open, onClose }: { open: boolean; onClose: () => voi
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className="h-full w-[min(21rem,88vw)] border-r border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-modal)]"
+            className="h-full w-[min(21rem,88vw)] border-r border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-modal)] backdrop-blur-2xl"
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
@@ -323,7 +323,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
         }}
       >
         <aside className={cn(
-          'hidden min-h-0 flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-3 transition-[width] duration-200 lg:block',
+          'chrome-bar hidden min-h-0 flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-3 transition-[width] duration-200 lg:block',
           railCollapsed ? 'w-[5rem]' : 'w-[17rem]'
         )}>
           <NavigationRail collapsed={railCollapsed} onToggleCollapse={toggleRailCollapsed} />
