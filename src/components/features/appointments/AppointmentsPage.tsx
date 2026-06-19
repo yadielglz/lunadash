@@ -136,7 +136,7 @@ export function AppointmentsPage() {
               Appointments
             </h1>
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              Add appointments to the current store tab in the district Google Sheet.
+              Add appointments to the current store tab through Google Cloud Services.
             </p>
           </div>
           <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={loadTracker} loading={loading}>

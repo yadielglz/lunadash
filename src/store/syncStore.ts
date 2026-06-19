@@ -30,8 +30,8 @@ export const useSyncStore = create<SyncStore>()((set) => ({
       [area]: {
         state,
         message: message ?? (
-          state === 'synced' ? 'Confirmed in Supabase'
-          : state === 'saving' ? 'Saving to Supabase'
+          state === 'synced' ? 'Confirmed in Supabase Database Sync'
+          : state === 'saving' ? 'Saving to Supabase Database Sync'
           : state === 'error' ? 'Sync failed'
           : 'Not checked yet'
         ),

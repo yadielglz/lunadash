@@ -162,7 +162,7 @@ function parseCsv(text: string): PerformanceData {
 export async function fetchPerformanceData(): Promise<PerformanceData> {
   const res = await fetch(PERFORMANCE_SHEET_CSV_URL)
   if (!res.ok) {
-    throw new Error(`Failed to fetch performance Source (${res.status}). Check the published Google Sheet CSV access and network connection.`)
+    throw new Error(`Failed to fetch performance Source (${res.status}). Check Google Cloud Services access and network connection.`)
   }
   return parseCsv(await res.text())
 }

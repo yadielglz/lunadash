@@ -279,7 +279,7 @@ export function PerformanceUpdatePage() {
       setSaleRowsOpen(false)
       await loadData()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update the Google Sheet')
+      setError(err instanceof Error ? err.message : 'Could not update Google Cloud Services')
     } finally {
       setSaving(false)
     }
@@ -320,7 +320,7 @@ export function PerformanceUpdatePage() {
       setMessage(result.message || `Updated ${selectedRow.storeCode}`)
       await loadData()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update the Google Sheet')
+      setError(err instanceof Error ? err.message : 'Could not update Google Cloud Services')
     } finally {
       setSaving(false)
     }
@@ -436,7 +436,7 @@ export function PerformanceUpdatePage() {
                     Net Revenue Calculator
                   </div>
                   <div className="mt-0.5 text-xs text-[var(--text-tertiary)]">
-                    Adds calculator totals directly to the selected store in Google Sheets.
+                    Adds calculator totals directly to the selected store through Google Cloud Services.
                   </div>
                 </div>
                 <ChevronDown size={15} className={`text-[var(--text-tertiary)] transition-transform ${calculatorOpen ? 'rotate-180' : ''}`} />
@@ -459,7 +459,7 @@ export function PerformanceUpdatePage() {
                       disabled={!selectedRow}
                       onClick={applyCalculatorTotals}
                     >
-                      Add to Google Sheet
+                      Add to Google Cloud Services
                     </Button>
                   </div>
 
@@ -602,7 +602,7 @@ export function PerformanceUpdatePage() {
                   )}
                 </div>
                 <Button icon={<UploadCloud size={13} />} loading={saving} onClick={save} disabled={!selectedRow}>
-                  Update Google Sheet
+                  Update Google Cloud Services
                 </Button>
               </div>
             </Card>

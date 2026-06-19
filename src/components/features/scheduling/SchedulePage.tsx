@@ -498,7 +498,7 @@ export function SchedulePage() {
     try {
       await dbSaveScheduleSnapshot(currentStoreId(), employees, shifts)
       setSaveState('saved')
-      setSaveMessage('Schedule confirmed in Supabase.')
+      setSaveMessage('Schedule confirmed in Supabase Database Sync.')
     } catch (err) {
       setSaveState('error')
       setSaveMessage(err instanceof Error ? err.message : 'Schedule save could not be confirmed.')

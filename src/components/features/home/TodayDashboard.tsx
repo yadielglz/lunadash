@@ -12,8 +12,8 @@ import {
   Sparkles,
   Trophy,
   RadioTower,
-  TrendingUp,
   Users,
+  Wifi,
 } from 'lucide-react'
 import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
@@ -54,6 +54,44 @@ function metricTone(percent: number) {
   if (percent >= 100) return '#1f8a4c'
   if (percent >= 80) return '#c98408'
   return '#c94040'
+}
+
+function formatUpdatedAt(value: string | null | undefined) {
+  if (!value) return 'Not updated yet'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Not updated yet'
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function latestUpdatedAt(values: Array<string | null>) {
+  return values.reduce<string | null>((latest, value) => {
+    if (!value) return latest
+    if (!latest) return value
+    return new Date(value).getTime() > new Date(latest).getTime() ? value : latest
+  }, null)
+}
+
+function ConnectivityTile({
+  label,
+  status,
+  detail,
+  tone,
+}: {
+  label: string
+  status: string
+  detail: string
+  tone: string
+}) {
+  return (
+    <div className="rounded-lg border px-3 py-3" style={{ borderColor: `${tone}55`, background: `${tone}16` }}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-xs font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
+        <span className="h-2.5 w-2.5 rounded-full" style={{ background: tone, boxShadow: `0 0 0.75rem ${tone}` }} />
+      </div>
+      <div className="mt-2 text-xl font-semibold tabular-nums text-[var(--text)]">{status}</div>
+      <div className="mt-1 text-xs text-[var(--text-secondary)]">{detail}</div>
+    </div>
+  )
 }
 
 function selectedPerformanceRow(data: Awaited<ReturnType<typeof fetchPerformanceData>> | undefined, identifiers: string[], isMain: boolean) {
@@ -169,25 +207,20 @@ function SmartBriefCard({
   const tone = metricTone(brief.focusValue)
 
   return (
-    <Card className="today-panel" noPadding>
-      <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+    <Card className="today-panel px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-            <Sparkles size={16} className="text-[var(--accent)]" />
-            Smart Daily Brief
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase text-[var(--text-tertiary)]">
+              <Sparkles size={14} className="text-[var(--accent)]" />
+              Smart Daily Brief
+            </span>
+            <Badge size="sm" color={tone}>{brief.focusLabel}</Badge>
           </div>
-          <p className="mt-1 text-xs text-[var(--text-tertiary)]">{brief.headline}</p>
+          <p className="mt-1 truncate text-sm font-medium text-[var(--text)]">{brief.headline}</p>
         </div>
-        <Badge color={tone}>{brief.focusLabel}</Badge>
-      </div>
-      <div className="space-y-2 p-4">
-        {brief.lines.map((line) => (
-          <div key={line} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--text-secondary)]">
-            {line}
-          </div>
-        ))}
-        <Button size="sm" variant="accent" onClick={onOpenDistrict} icon={<BarChart3 size={13} />}>
-          Open District Outlook
+        <Button size="sm" variant="ghost" onClick={onOpenDistrict} icon={<BarChart3 size={13} />}>
+          Open
         </Button>
       </div>
     </Card>
@@ -301,6 +334,11 @@ export function TodayDashboard() {
   const wins = districtWins(performanceQuery.data)
   const syncProblems = Object.entries(syncEntries).filter(([, entry]) => entry.state === 'error')
   const savingAreas = Object.entries(syncEntries).filter(([, entry]) => entry.state === 'saving')
+  const supabaseUpdatedAt = latestUpdatedAt(Object.values(syncEntries).map((entry) => entry.updatedAt))
+  const googleStatus = performanceQuery.isError ? 'Issue' : performanceQuery.data ? 'Live' : 'Online'
+  const googleTone = performanceQuery.isError ? '#c94040' : performanceQuery.data ? '#1f8a4c' : '#0876c9'
+  const supabaseStatus = syncProblems.length ? 'Issue' : savingAreas.length ? 'Syncing' : 'Live'
+  const supabaseTone = syncProblems.length ? '#c94040' : savingAreas.length ? '#c98408' : '#1f8a4c'
   const dashboardTitle = isMain
     ? 'District overview: All stores'
     : `Today at ${companyName || 'Luna Store'}`
@@ -455,17 +493,31 @@ export function TodayDashboard() {
           </Card>
 
           <Card className="today-panel">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-              <TrendingUp size={17} className="text-[var(--accent)]" />
-              Live Data
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              {Object.entries(syncEntries).map(([area, entry]) => (
-                <div key={area} className="rounded-md border border-[var(--border)] bg-[var(--surface-2)] p-2">
-                  <div className="font-semibold capitalize text-[var(--text)]">{area}</div>
-                  <div className="mt-0.5 truncate text-[var(--text-tertiary)]">{entry.state}</div>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+                  <Wifi size={17} className="text-[var(--accent)]" />
+                  Connectivity
                 </div>
-              ))}
+                <p className="mt-1 text-xs text-[var(--text-tertiary)]">Google Cloud Services and Supabase Database Sync status</p>
+              </div>
+              <Badge color={syncProblems.length || performanceQuery.isError ? '#c94040' : '#1f8a4c'}>
+                {syncProblems.length || performanceQuery.isError ? 'Check' : 'Online'}
+              </Badge>
+            </div>
+            <div className="mt-3 space-y-2">
+              <ConnectivityTile
+                label="Google Cloud Services"
+                status={googleStatus}
+                tone={googleTone}
+                detail={performanceQuery.isError ? 'Service unavailable' : performanceQuery.data ? 'Service connected' : 'Checking service'}
+              />
+              <ConnectivityTile
+                label="Supabase Database Sync"
+                status={supabaseStatus}
+                tone={supabaseTone}
+                detail={`Last updated ${formatUpdatedAt(supabaseUpdatedAt)}`}
+              />
             </div>
           </Card>
         </aside>

@@ -6,8 +6,8 @@
    LUNA RETAIL OS TOKENS
    ============================================================ */
 :root {
-  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', 'Google Sans', 'Segoe UI Variable Display', system-ui, sans-serif;
-  --font-text: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Google Sans', 'Segoe UI Variable Text', system-ui, sans-serif;
+  --font-display: 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --font-text: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
   --app-wallpaper: none;
 
   --accent: #007aff;
@@ -494,13 +494,25 @@ body::after {
 }
 
 .command-nav {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
   color: var(--text-secondary);
 }
 
 .command-nav-mobile {
+  flex: 1;
   height: auto;
+}
+
+.command-nav-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
 }
 
 .command-nav-toggle {

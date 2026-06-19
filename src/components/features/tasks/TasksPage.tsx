@@ -244,7 +244,7 @@ export function TasksPage() {
     try {
       await dbSaveTasksSnapshot(currentStoreId(), tasks)
       setSaveState('saved')
-      setSaveMessage('Tasks confirmed in Supabase.')
+      setSaveMessage('Tasks confirmed in Supabase Database Sync.')
     } catch (err) {
       setSaveState('error')
       setSaveMessage(err instanceof Error ? err.message : 'Task save could not be confirmed.')

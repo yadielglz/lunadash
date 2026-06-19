@@ -56,7 +56,6 @@
     }
   },
   "dependencies": {
-    "@fontsource/google-sans": "^5.2.1",
     "@supabase/supabase-js": "^2.100.1",
     "@tanstack/react-query": "^5.95.2",
     "autoprefixer": "^10.4.27",

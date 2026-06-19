@@ -20,7 +20,7 @@ export function accessRoleLabel(role: AccessRole | null) {
   return 'None'
 }
 
-const DEFAULT_SESSION_TIMEOUT: SessionTimeout = '2m'
+const DEFAULT_SESSION_TIMEOUT: SessionTimeout = '15m'
 const SESSION_TIMEOUT_MS: Record<Exclude<SessionTimeout, 'never'>, number> = {
   '2m': 2 * 60 * 1000,
   '15m': 15 * 60 * 1000,
@@ -28,7 +28,6 @@ const SESSION_TIMEOUT_MS: Record<Exclude<SessionTimeout, 'never'>, number> = {
   '4h': 4 * 60 * 60 * 1000,
 }
 const THEME_CLASSES: Theme[] = ['dark', 'light', 'vista', 'mac']
-const SESSION_TIMEOUTS: SessionTimeout[] = ['2m', '15m', '1h', '4h', 'never']
 const BRAND_ACCENTS: Record<Exclude<Brand, 'default'>, {
   accent: string
   hover: string
@@ -115,7 +114,7 @@ function persistedPreferences(persisted: unknown) {
     tempUnit: state?.tempUnit ?? 'F',
     timeFormat: state?.timeFormat ?? '12',
     uiScale: state?.uiScale === '120' ? '120' : '100',
-    sessionTimeout: state?.sessionTimeout && SESSION_TIMEOUTS.includes(state.sessionTimeout) ? state.sessionTimeout : DEFAULT_SESSION_TIMEOUT,
+    sessionTimeout: DEFAULT_SESSION_TIMEOUT,
     settingsSection: state?.settingsSection ?? 'general',
   } satisfies Partial<UiState>
 }
@@ -146,9 +145,9 @@ export const useUiStore = create<UiState>()(
       toggleTempUnit: () => set((s) => ({ tempUnit: s.tempUnit === 'C' ? 'F' : 'C' })),
       setTimeFormat: (fmt) => set({ timeFormat: fmt }),
       setUiScale: (scale) => set({ uiScale: scale }),
-      setSessionTimeout: (sessionTimeout) => set((s) => ({
-        sessionTimeout,
-        sessionExpiresAt: s.storeId ? sessionExpiresAtFor(sessionTimeout) : null,
+      setSessionTimeout: () => set((s) => ({
+        sessionTimeout: DEFAULT_SESSION_TIMEOUT,
+        sessionExpiresAt: s.storeId ? sessionExpiresAtFor(DEFAULT_SESSION_TIMEOUT) : null,
       })),
       setStoreId: (id) => {
         const storeId = normalizeStoreId(id)
@@ -190,7 +189,7 @@ export const useUiStore = create<UiState>()(
     {
       name: 'luna-ui',
       version: 2,
-      partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, uiScale: s.uiScale, sessionTimeout: s.sessionTimeout, activeTab: s.activeTab, settingsSection: s.settingsSection }),
+      partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, uiScale: s.uiScale, activeTab: s.activeTab, settingsSection: s.settingsSection }),
       migrate: (persisted) => persistedPreferences(persisted),
       merge: (persisted, current) => ({
         ...current,

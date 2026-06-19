@@ -1,9 +1,13 @@
-const CACHE_NAME = 'lunadash-shell-v1'
+const CACHE_NAME = 'lunadash-shell-v2'
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/luna.svg',
+  '/icons/favicon-32.png',
+  '/icons/apple-touch-icon.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ]
 
 self.addEventListener('install', (event) => {

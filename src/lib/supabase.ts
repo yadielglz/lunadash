@@ -234,7 +234,7 @@ function logOptionalTasksWarning(action: string, error: unknown) {
   if (!isMissingTableError(error)) return false
   if (!optionalTasksWarningShown) {
     optionalTasksWarningShown = true
-    console.warn(`Tasks table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
+    console.warn(`Tasks table is not available in this Supabase Database Sync project; ${action} will stay local until schema.sql is applied.`)
   }
   return true
 }
@@ -243,7 +243,7 @@ function logOptionalScheduleBlocksWarning(action: string, error: unknown) {
   if (!isMissingTableError(error)) return false
   if (!optionalScheduleBlocksWarningShown) {
     optionalScheduleBlocksWarningShown = true
-    console.warn(`Schedule blocks table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
+    console.warn(`Schedule blocks table is not available in this Supabase Database Sync project; ${action} will stay local until schema.sql is applied.`)
   }
   return true
 }
@@ -252,7 +252,7 @@ function logOptionalScheduleTemplatesWarning(action: string, error: unknown) {
   if (!isMissingTableError(error)) return false
   if (!optionalScheduleTemplatesWarningShown) {
     optionalScheduleTemplatesWarningShown = true
-    console.warn(`Schedule templates table is not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
+    console.warn(`Schedule templates table is not available in this Supabase Database Sync project; ${action} will stay local until schema.sql is applied.`)
   }
   return true
 }
@@ -261,7 +261,7 @@ function logOptionalEmployeeInsightsWarning(action: string, error: unknown) {
   if (!isMissingTableError(error)) return false
   if (!optionalEmployeeInsightsWarningShown) {
     optionalEmployeeInsightsWarningShown = true
-    console.warn(`Employee insights tables are not available in this Supabase project; ${action} will stay local until schema.sql is applied.`)
+    console.warn(`Employee insights tables are not available in this Supabase Database Sync project; ${action} will stay local until schema.sql is applied.`)
   }
   return true
 }
@@ -943,7 +943,7 @@ function logOptionalScheduleExceptionsWarning(action: string, error: unknown) {
   if (!isMissingTableError(error)) return false
   if (!optionalScheduleExceptionsWarningShown) {
     optionalScheduleExceptionsWarningShown = true
-    console.warn(`Schedule exceptions table is not available in this Supabase project; ${action} will stay local until migration is applied.`)
+    console.warn(`Schedule exceptions table is not available in this Supabase Database Sync project; ${action} will stay local until migration is applied.`)
   }
   return true
 }
@@ -1258,8 +1258,8 @@ export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSe
   const normalizedPatch = patch.store_hours !== undefined ? { ...patch, store_hours: normalizeStoreHours(patch.store_hours) } : patch
   const { error } = await supabase.from('app_settings').upsert({ store_id: sid, ...normalizedPatch })
   if (error && isMissingStoreHoursColumnError(error)) {
-    useSyncStore.getState().setSync('settings', 'error', 'Store hours column is missing in Supabase')
-    throw new Error('Supabase is missing the app_settings.store_hours column. Run the latest schema.sql migration.')
+    useSyncStore.getState().setSync('settings', 'error', 'Store hours column is missing in Supabase Database Sync')
+    throw new Error('Supabase Database Sync is missing the app_settings.store_hours column. Run the latest schema.sql migration.')
   }
   if (error && isSupabaseError(error) && /dealer_(nickname|location)|schema cache/i.test(error.message ?? '')) {
     const legacyPatch = { ...normalizedPatch }
@@ -1267,14 +1267,14 @@ export async function dbUpdateSettings(storeId: string, patch: Partial<Omit<DbSe
     delete legacyPatch.dealer_location
     const legacy = await supabase.from('app_settings').upsert({ store_id: sid, ...legacyPatch })
     if (!legacy.error) {
-      useSyncStore.getState().setSync('settings', 'error', 'Store nickname/location columns are missing in Supabase')
-      throw new Error('Supabase is missing dealer_nickname and dealer_location columns. Run the app_settings store label migration.')
+      useSyncStore.getState().setSync('settings', 'error', 'Store nickname/location columns are missing in Supabase Database Sync')
+      throw new Error('Supabase Database Sync is missing dealer_nickname and dealer_location columns. Run the app_settings store label migration.')
     }
   }
   if (error) useSyncStore.getState().setSync('settings', 'error', isSupabaseError(error) ? error.message ?? 'Settings sync failed' : 'Settings sync failed')
   throwIfError(error, 'Could not save app settings')
   setDealerOverride({ store_id: sid, dealer_nickname: patch.dealer_nickname, dealer_location: patch.dealer_location })
-  useSyncStore.getState().setSync('settings', 'synced', 'Settings confirmed in Supabase')
+  useSyncStore.getState().setSync('settings', 'synced', 'Settings confirmed in Supabase Database Sync')
 }
 
 // ── Kiosk enrollment ──────────────────────────────────────────────────────────
@@ -1406,7 +1406,7 @@ export async function dbIssueKioskCommand(id: string, command: KioskRemoteComman
     })
   } catch (error) {
     if (isMissingKioskCommandColumnError(error)) {
-      throw new Error('Remote command columns are missing in Supabase. Run migration 20260615001000_kiosk_remote_commands.sql, then retry after the schema cache refreshes.')
+      throw new Error('Remote command columns are missing in Supabase Database Sync. Run migration 20260615001000_kiosk_remote_commands.sql, then retry after the schema cache refreshes.')
     }
     throw error
   }
@@ -1470,7 +1470,7 @@ export async function dbSaveTasksSnapshot(storeId: string, tasks: Task[]) {
   if (tasks.length > 0) {
     const { error } = await supabase.from('tasks').upsert(tasks.map((t) => taskToDb(t, t.storeId ?? sid)))
     if (logOptionalTasksWarning('tasks', error)) {
-      throw new Error('Tasks table is not available in this Supabase project')
+      throw new Error('Tasks table is not available in this Supabase Database Sync project')
     }
     throwIfError(error, 'Could not save tasks')
   }
@@ -1481,7 +1481,7 @@ export async function dbSaveTasksSnapshot(storeId: string, tasks: Task[]) {
 
   if (missingTasks.length > 0) {
     useSyncStore.getState().setSync('tasks', 'error', 'Task validation failed')
-    throw new Error(`Task validation failed: ${missingTasks.length} tasks were not confirmed in Supabase`)
+    throw new Error(`Task validation failed: ${missingTasks.length} tasks were not confirmed in Supabase Database Sync`)
   }
   useSyncStore.getState().setSync('tasks', 'synced', `${tasks.length} tasks confirmed`)
 }

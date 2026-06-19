@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles, CarFront, MonitorCheck
 } from 'lucide-react'
-import { type SessionTimeout, Theme, useUiStore } from '../../../store/uiStore'
+import { Theme, useUiStore } from '../../../store/uiStore'
 
 import { isAnnouncementActive, useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
@@ -71,7 +71,7 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
 
 // ── General section ──────────────────────────────────────────────────────────
 function GeneralSection() {
-  const { theme, setTheme, brand, setBrand, timeFormat, setTimeFormat, tempUnit, toggleTempUnit, uiScale, setUiScale, sessionTimeout, setSessionTimeout } = useUiStore()
+  const { theme, setTheme, brand, setBrand, timeFormat, setTimeFormat, tempUnit, toggleTempUnit, uiScale, setUiScale } = useUiStore()
   return (
     <Section icon={<Clock size={14} />} title="General">
       <Row label="Theme" description="Choose the dashboard appearance">
@@ -105,17 +105,9 @@ function GeneralSection() {
         />
       </Row>
       <Row label="Session Timeout" description="How long store access stays open after activity">
-        <Segment<SessionTimeout>
-          options={[
-            { value: '2m', label: '2 min' },
-            { value: '15m', label: '15 min' },
-            { value: '1h', label: '1 hr' },
-            { value: '4h', label: '4 hr' },
-            { value: 'never', label: 'Stay logged in' },
-          ]}
-          value={sessionTimeout}
-          onChange={setSessionTimeout}
-        />
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium text-[var(--text)]">
+          15 minutes
+        </div>
       </Row>
       <Row label="Temperature Unit" description="Used in weather and display slides">
         <Segment
@@ -223,7 +215,7 @@ function StoreSection() {
           <div>
             <p className="text-sm font-semibold text-[var(--text)]">Store Selection</p>
             <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-              Select a store already configured in Supabase, or add one by Store Data ID.
+              Select a store already configured in Supabase Database Sync, or add one by Store Data ID.
             </p>
           </div>
           <Button variant="ghost" size="sm" icon={<RefreshCw size={12} />} onClick={loadStores} loading={storesLoading}>
@@ -836,7 +828,7 @@ function ConfiguredStoresSection() {
         })}
 
         {stores.length === 0 && !loading && (
-          <p className="text-xs text-[var(--text-tertiary)] text-center py-4">No configured stores found in Supabase.</p>
+          <p className="text-xs text-[var(--text-tertiary)] text-center py-4">No configured stores found in Supabase Database Sync.</p>
         )}
         {error && <p className="text-xs text-red-400 text-center py-2">{error}</p>}
       </div>
@@ -948,7 +940,7 @@ function ReportSection() {
           <title>${escapeHtml(monthLabel(selectedMonth))} Performance Snapshot</title>
           <style>
             * { box-sizing: border-box; }
-            body { margin: 0; color: #111827; font-family: "Google Sans", GoogleSans, "Google Sans Text", "Google Sans Flex", "Product Sans", "Segoe UI", system-ui, sans-serif; background: #f7f8fb; }
+            body { margin: 0; color: #111827; font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", system-ui, sans-serif; background: #f7f8fb; }
             main { width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.55in; background: white; }
             header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 18px; }
             h1 { margin: 0; font-size: 26px; letter-spacing: 0; }
@@ -1132,9 +1124,9 @@ function AboutSection() {
   }, [])
 
   const remaining = Math.max(0, Math.ceil(((sessionExpiresAt ?? now) - now) / 1000))
-  const remainingLabel = sessionTimeout === 'never'
-    ? 'Stay logged in'
-    : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`
+  const remainingLabel = sessionExpiresAt
+    ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`
+    : 'No active timer'
 
   const forceUpdateRestart = async () => {
     setRefreshing(true)
@@ -1168,6 +1160,15 @@ function AboutSection() {
   return (
     <Section icon={<Info size={14} />} title="About">
       <div className="px-4 py-5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
+        <div className="flex justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+          <img
+            src="/brand/glz-tech-banner.png"
+            alt="GLZ Tech"
+            className="h-auto w-full max-w-[18rem] object-contain sm:max-w-[22rem]"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
         <div>
           <h3 className="text-lg font-semibold text-[var(--text)]">LunaDash</h3>
           <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver {APP_META.version} | Build {APP_META.build}</p>
@@ -1204,12 +1205,12 @@ function AboutSection() {
             <div>
               <p className="text-xs font-medium text-[var(--text)]">Store Session</p>
               <p className="text-[10px] text-[var(--text-tertiary)]">
-                {sessionTimeout === 'never' ? 'This device keeps the store session open.' : 'Timer resets with activity. Display and Performance stay open.'}
+                {sessionTimeout === 'never' ? 'This device keeps the store session open.' : 'Timer resets with activity.'}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm text-[var(--accent)]">{remainingLabel}</span>
-              {sessionTimeout !== 'never' && <Button size="sm" variant="ghost" onClick={extendStoreSession}>Extend</Button>}
+              {sessionExpiresAt && <Button size="sm" variant="ghost" onClick={extendStoreSession}>Extend</Button>}
             </div>
           </div>
         </div>
@@ -1254,7 +1255,7 @@ function SyncStatusSection() {
     try {
       setSchema(await dbCheckSchemaHealth())
     } catch (err) {
-      setSchemaError(err instanceof Error ? err.message : 'Could not check Supabase schema')
+      setSchemaError(err instanceof Error ? err.message : 'Could not check Supabase Database Sync schema')
     } finally {
       setChecking(false)
     }

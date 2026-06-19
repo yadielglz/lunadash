@@ -8,7 +8,7 @@ const today = () => new Date().toISOString().split('T')[0]
 function trackTaskSync(action: string, operation: Promise<void>) {
   useSyncStore.getState().setSync('tasks', 'saving', action)
   operation
-    .then(() => useSyncStore.getState().setSync('tasks', 'synced', 'Checklist confirmed in Supabase'))
+    .then(() => useSyncStore.getState().setSync('tasks', 'synced', 'Checklist confirmed in Supabase Database Sync'))
     .catch((err) => {
       useSyncStore.getState().setSync('tasks', 'error', err instanceof Error ? err.message : 'Checklist sync failed')
     })

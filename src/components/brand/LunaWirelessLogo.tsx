@@ -1,7 +1,7 @@
 import { useUiStore } from '../../store/uiStore'
 
-const COLORED_LOGO_URL = 'https://i.ibb.co/0VV31yHP/lunawirelesslight.png'
-const WHITE_LOGO_URL = 'https://i.ibb.co/3yM10KZS/lwirelessdark.png'
+const COLORED_LOGO_URL = '/brand/lunawireless-logo-color.png'
+const WHITE_LOGO_URL = '/brand/lunawireless-logo-white.png'
 
 type LogoTone = 'auto' | 'light-surface' | 'dark-surface'
 

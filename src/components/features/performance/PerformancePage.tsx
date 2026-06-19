@@ -847,7 +847,7 @@ export function PerformancePage() {
               Performance Source could not load
             </div>
             <p className="mt-1 text-xs text-red-200/85">{error}</p>
-            <p className="mt-1 text-xs text-red-200/75">Confirm the Google Sheet CSV is published, this device has internet access, and ad blockers are not blocking docs.google.com.</p>
+            <p className="mt-1 text-xs text-red-200/75">Confirm Google Cloud Services are reachable, this device has internet access, and ad blockers are not blocking the data source.</p>
           </div>
         )}
 
