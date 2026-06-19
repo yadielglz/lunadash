@@ -44,6 +44,19 @@ const NAV_ITEMS: { id: Tab; icon: React.ReactNode; label: string; helper: string
   { id: 'settings', icon: <Settings size={18} />, label: 'Settings', helper: 'System setup' },
 ]
 
+const MOBILE_NAV_LABELS: Partial<Record<Tab, string>> = {
+  home: 'Today',
+  district: 'District',
+  schedule: 'Schedule',
+  appointments: 'Appts',
+  tasks: 'Tasks',
+  goals: 'Goals',
+  employees: 'Team',
+  updates: 'Update',
+  display: 'Display',
+  settings: 'Settings',
+}
+
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0 },
@@ -117,6 +130,7 @@ function TopCommandBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
     storeId,
   } = useUiStore()
   const activeLabel = NAV_ITEMS.find((item) => item.id === activeTab)?.label ?? 'LunaDash'
+  const mobileActiveLabel = MOBILE_NAV_LABELS[activeTab] ?? activeLabel
   const time = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
   const date = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 
@@ -139,9 +153,12 @@ function TopCommandBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
         >
           <LunaWirelessLogo className="h-8 w-8" />
         </button>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-[var(--text)]">{activeLabel}</div>
-          <div className="truncate text-xs text-[var(--text-tertiary)]">
+        <div className="command-page-title min-w-0">
+          <div className="truncate text-sm font-semibold text-[var(--text)]">
+            <span className="hidden sm:inline">{activeLabel}</span>
+            <span className="sm:hidden">{mobileActiveLabel}</span>
+          </div>
+          <div className="command-page-subtitle truncate text-xs text-[var(--text-tertiary)]">
             {storeId === 'main' ? 'All stores' : `Store ${storeId}`} · {accessRoleLabel(accessRole)}
           </div>
         </div>

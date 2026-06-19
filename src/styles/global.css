@@ -443,6 +443,10 @@ body::after {
   gap: 0.5rem;
 }
 
+.command-page-title {
+  max-width: 15rem;
+}
+
 .command-chip {
   display: inline-flex;
   min-height: 2.4rem;
@@ -478,7 +482,16 @@ body::after {
 
   .command-bar-title {
     flex: 1 1 auto;
+    max-width: min(48vw, 10rem);
     gap: 0.55rem;
+  }
+
+  .command-page-title {
+    max-width: 5.75rem;
+  }
+
+  .command-page-subtitle {
+    display: none;
   }
 
   .command-bar-actions {
