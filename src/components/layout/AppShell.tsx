@@ -111,7 +111,7 @@ function TrafficChip() {
   }
 
   return (
-    <button className="command-chip hidden md:inline-flex" onClick={openTraffic} title="Open traffic">
+    <button className="command-chip hidden lg:inline-flex" onClick={openTraffic} title="Open traffic">
       <CarFront size={14} className="text-[var(--accent)]" />
       <span>Traffic</span>
     </button>
