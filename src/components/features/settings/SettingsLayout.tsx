@@ -26,12 +26,12 @@ export function Row({ label, description, children }: { label: string; descripti
 
 export function Segment<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
   return (
-    <div className="flex flex-wrap gap-0.5 rounded-lg border border-[var(--border)] overflow-hidden p-0.5 bg-[var(--surface-2)]">
+    <div className="flex w-full flex-wrap gap-1 rounded-lg border border-[var(--border)] overflow-hidden p-0.5 bg-[var(--surface-2)] sm:w-auto">
       {options.map((o) => (
         <button
           key={o.value}
           onClick={() => onChange(o.value)}
-          className={`px-3 py-1.5 text-xs font-medium transition-all rounded-md ${value === o.value ? 'bg-[var(--accent)] text-white shadow-sm' : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'}`}
+          className={`min-w-[4.5rem] flex-1 px-3 py-1.5 text-xs font-medium transition-all rounded-md sm:flex-none ${value === o.value ? 'bg-[var(--accent)] text-white shadow-sm' : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'}`}
         >
           {o.label}
         </button>

@@ -1323,6 +1323,22 @@ const SECTIONS = [
 ] as const
 
 type SectionId = typeof SECTIONS[number]['id']
+const MOBILE_SECTION_LABELS: Partial<Record<SectionId, string>> = {
+  general: 'General',
+  weather: 'Weather',
+  traffic: 'Traffic',
+  display: 'Display',
+  remote: 'Remote',
+  store: 'Store',
+  configuredStores: 'Stores',
+  reports: 'Reports',
+  announcements: 'News',
+  scheduling: 'Schedule',
+  scheduleBlocks: 'Blocks',
+  access: 'Access',
+  sync: 'Sync',
+  about: 'About',
+}
 const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'traffic']
 const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores', 'remote']
 const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store']
@@ -1382,7 +1398,7 @@ export function SettingsPage() {
   return (
     <div className="flex flex-col sm:flex-row h-full overflow-hidden">
       {/* Sidebar */}
-      <div className="sm:w-48 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-[var(--border)] flex sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto px-3 py-2 sm:px-0 sm:py-3">
+      <div className="settings-section-nav sm:w-48 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-[var(--border)] flex sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto px-3 py-2 sm:px-0 sm:py-3">
         {visibleSections.map((s) => (
           <button
             key={s.id}
@@ -1390,7 +1406,7 @@ export function SettingsPage() {
               setActive(s.id)
               setSettingsSection(s.id)
             }}
-            className={`relative flex items-center gap-2.5 sm:mx-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left whitespace-nowrap ${
+            className={`settings-section-tab relative flex items-center gap-2.5 sm:mx-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left whitespace-nowrap ${
               activeSection === s.id
                 ? 'text-[var(--accent)]'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'
@@ -1403,9 +1419,10 @@ export function SettingsPage() {
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
               />
             )}
-            <span className="relative z-10 flex items-center gap-2.5 flex-1">
-              {s.icon}
-              {s.label}
+            <span className="relative z-10 flex min-w-0 items-center gap-2.5 flex-1">
+              <span className="settings-section-icon">{s.icon}</span>
+              <span className="settings-section-label-full">{s.label}</span>
+              <span className="settings-section-label-mobile">{MOBILE_SECTION_LABELS[s.id] ?? s.label}</span>
             </span>
             {active === s.id && <ChevronRight size={12} className="relative z-10 ml-auto opacity-60 hidden sm:block" />}
           </button>

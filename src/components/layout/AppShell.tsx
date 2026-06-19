@@ -122,7 +122,7 @@ function TopCommandBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
 
   return (
     <header className="command-bar">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="command-bar-title">
         <button
           type="button"
           onClick={onOpenMobileNav}
@@ -147,8 +147,8 @@ function TopCommandBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
         </div>
       </div>
 
-      <div className="flex min-w-0 items-center justify-end gap-2">
-        <button className="command-chip" onClick={() => setTab('schedule')} title={date}>
+      <div className="command-bar-actions">
+        <button className="command-chip command-chip-time" onClick={() => setTab('schedule')} title={date}>
           <span className="hidden sm:inline">{date}</span>
           <span className="tabular-nums text-[var(--text)]">{time}</span>
         </button>
@@ -164,7 +164,7 @@ function TopCommandBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
         <button
           type="button"
           onClick={toggleTheme}
-          className="command-icon-button"
+          className="command-icon-button command-theme-button"
           title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
@@ -173,7 +173,7 @@ function TopCommandBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
         <button
           type="button"
           onClick={clearStoreSession}
-          className="command-icon-button hidden sm:inline-flex"
+          className="command-icon-button command-logout-button hidden sm:inline-flex"
           title="Log out"
           aria-label="Log out"
         >
