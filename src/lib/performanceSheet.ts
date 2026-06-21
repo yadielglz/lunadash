@@ -73,6 +73,10 @@ function splitStoreName(value: string) {
   }
 }
 
+function isValidStoreCode(value: string) {
+  return /^[A-Z0-9]{4}$/i.test(value.trim())
+}
+
 function rowFromCsv(row: RawCsvRow): PerformanceRow {
   const store = cell(row, 1)
   const { storeCode, teamName } = splitStoreName(store)
@@ -119,6 +123,10 @@ function parseSummary(row: RawCsvRow): PerformanceSummary | null {
 }
 
 function parseCsv(text: string): PerformanceData {
+  if (/<html|<!doctype|docs-sheet|waffle/i.test(text)) {
+    throw new Error('Performance Source returned an HTML page instead of CSV. Snapshot was not saved.')
+  }
+
   const parsed = Papa.parse<RawCsvRow>(text, {
     header: false,
     skipEmptyLines: false,
@@ -129,6 +137,10 @@ function parseCsv(text: string): PerformanceData {
     row.some((value) => value.trim() === 'Traffic')
     && row.some((value) => value.trim() === 'Net Rev')
   ))
+  if (headerIndex < 0) {
+    throw new Error('Performance Source CSV did not include the expected Traffic and Net Rev headers.')
+  }
+
   const dataRows = headerIndex >= 0 ? rows.slice(headerIndex + 1) : rows
   const performanceRows: PerformanceRow[] = []
   let total: PerformanceRow | null = null
@@ -148,7 +160,9 @@ function parseCsv(text: string): PerformanceData {
       continue
     }
 
-    performanceRows.push(rowFromCsv(row))
+    const liveRow = rowFromCsv(row)
+    if (!isValidStoreCode(liveRow.storeCode)) continue
+    performanceRows.push(liveRow)
   }
 
   return {

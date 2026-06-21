@@ -83,6 +83,10 @@ function splitStoreName(value: string) {
   }
 }
 
+function isValidStoreCode(value: string) {
+  return /^[A-Z0-9]{4}$/i.test(value.trim())
+}
+
 function rowFromCsv(row: CsvRow): SnapshotRow {
   const store = cell(row, 1)
   const { storeCode, teamName } = splitStoreName(store)
@@ -121,7 +125,12 @@ async function fetchSnapshotRows() {
   const res = await fetch(sheetUrl)
   if (!res.ok) throw new Error(`Failed to fetch performance sheet: ${res.status} ${res.statusText}`)
 
-  const parsed = Papa.parse<CsvRow>(await res.text(), {
+  const csvText = await res.text()
+  if (/<html|<!doctype|docs-sheet|waffle/i.test(csvText)) {
+    throw new Error('Performance sheet returned an HTML page instead of CSV. Snapshot was not saved.')
+  }
+
+  const parsed = Papa.parse<CsvRow>(csvText, {
     header: false,
     skipEmptyLines: false,
   })
@@ -130,6 +139,10 @@ async function fetchSnapshotRows() {
     row.some((value) => typeof value === 'string' && value.trim() === 'Traffic')
     && row.some((value) => typeof value === 'string' && value.trim() === 'Net Rev')
   ))
+  if (headerIndex < 0) {
+    throw new Error('Performance sheet CSV did not include the expected Traffic and Net Rev headers.')
+  }
+
   const dataRows = headerIndex >= 0 ? rows.slice(headerIndex + 1) : rows
   const liveRows: SnapshotRow[] = []
   let liveTotal: SnapshotRow | null = null
@@ -142,7 +155,8 @@ async function fetchSnapshotRows() {
     if (normalizedStore === 'total') {
       liveTotal = rowFromCsv(row)
     } else if (normalizedStore !== 'phoenix') {
-      liveRows.push(rowFromCsv(row))
+      const liveRow = rowFromCsv(row)
+      if (isValidStoreCode(liveRow.storeCode)) liveRows.push(liveRow)
     }
   }
 
