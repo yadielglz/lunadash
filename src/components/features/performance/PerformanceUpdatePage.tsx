@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Calculator, CheckCircle2, ChevronDown, Copy, Plus, RefreshCw, Search, Trash2, UploadCloud } from 'lucide-react'
+import { AlertCircle, Calculator, CheckCircle2, ChevronDown, Plus, RefreshCw, Search, Trash2, UploadCloud } from 'lucide-react'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Select } from '../../ui/Input'
@@ -146,49 +146,6 @@ function countType(entries: SaleEntry[], type: SaleType) {
   return entries.filter((entry) => entry.type === type).length
 }
 
-function formatEodDate(date = new Date()) {
-  const month = date.toLocaleDateString('en-US', { month: 'short' })
-  const day = date.toLocaleDateString('en-US', { day: '2-digit' })
-  const year = date.toLocaleDateString('en-US', { year: '2-digit' })
-  return `${month} ${day} '${year}`
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-function eodCopyContent(row: PerformanceRow) {
-  const dateLabel = formatEodDate()
-  const metricLines = [
-    `Voice Lines : ${formatNumber(row.vl)}`,
-    `BTS: ${formatNumber(row.bts)}`,
-    `HSI: ${formatNumber(row.hsi)}`,
-    `Net Revenue: ${formatMoney(row.netRevenue)}`,
-    `Accessories: ${formatMoney(row.accessoryRevenue)}`,
-    ...(row.visa > 0 ? [`VISA: ${formatNumber(row.visa)}`] : []),
-    `Store Traffic: ${formatNumber(row.traffic)}`,
-  ]
-  const plainText = [
-    `**${row.storeCode} EOD**`,
-    `*${dateLabel}*`,
-    '',
-    ...metricLines,
-  ].join('\n')
-  const html = [
-    `<div><strong>${escapeHtml(row.storeCode)} EOD</strong></div>`,
-    `<div><em>${escapeHtml(dateLabel)}</em></div>`,
-    '<br>',
-    ...metricLines.map((line) => `<div>${escapeHtml(line)}</div>`),
-  ].join('')
-
-  return { plainText, html }
-}
-
 export function PerformanceUpdatePage() {
   const { accessId, accessRole, storeId } = useUiStore()
   const [rows, setRows] = useState<PerformanceRow[]>([])
@@ -325,32 +282,6 @@ export function PerformanceUpdatePage() {
       setError(err instanceof Error ? err.message : 'Could not update Google Cloud Services')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const copyEod = async () => {
-    if (!selectedRow) {
-      setError('Select a store before copying EOD.')
-      return
-    }
-
-    const { plainText, html } = eodCopyContent(selectedRow)
-    setError('')
-    setMessage('')
-    try {
-      if (navigator.clipboard.write && typeof ClipboardItem !== 'undefined') {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([html], { type: 'text/html' }),
-            'text/plain': new Blob([plainText], { type: 'text/plain' }),
-          }),
-        ])
-      } else {
-        await navigator.clipboard.writeText(plainText)
-      }
-      setMessage(`Copied ${selectedRow.storeCode} EOD.`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not copy EOD.')
     }
   }
 
@@ -623,9 +554,6 @@ export function PerformanceUpdatePage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {loading && <RefreshCw size={14} className="animate-spin text-[var(--accent)]" />}
-                    <Button size="sm" variant="ghost" icon={<Copy size={13} />} onClick={copyEod} disabled={!selectedRow}>
-                      Copy EOD
-                    </Button>
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">

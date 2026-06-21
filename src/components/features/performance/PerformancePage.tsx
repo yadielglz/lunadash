@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { toPng } from 'html-to-image'
-import { AlertCircle, ArrowDown, ArrowUp, BarChart3, Camera, CheckCircle2, ChevronRight, Clock, Columns3, Filter, LocateFixed, MessageSquarePlus, Package, Pin, RefreshCw, RotateCcw, Search, Trash2, X } from 'lucide-react'
+import { AlertCircle, ArrowDown, ArrowUp, BarChart3, Camera, CheckCircle2, ChevronRight, Clock, Columns3, Copy, Filter, LocateFixed, MessageSquarePlus, Package, Pin, RefreshCw, RotateCcw, Search, Trash2, X } from 'lucide-react'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Textarea } from '../../ui/Input'
 import { useUiStore } from '../../../store/uiStore'
-import { useDistrictCoachingStore } from '../../../store/districtCoachingStore'
+import { useDistrictCoachingStore, type CoachingNote } from '../../../store/districtCoachingStore'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import {
   fetchPerformanceData,
@@ -18,6 +18,7 @@ import {
   PerformanceRow,
 } from '../../../lib/performanceSheet'
 import { dealerInfoForRow } from '../../../lib/dealers'
+import { copyEodToClipboard } from '../../../lib/eodCopy'
 
 type SortKey = 'overallScore' | 'goalGapScore' | 'netRevenue' | 'netRevenuePct' | 'accessoryRevenue' | 'accessoryPct' | 'totalPp' | 'ppPct' | 'traffic'
 type OptionalColumn = 'traffic' | 'postConv' | 'goals' | 'products'
@@ -53,6 +54,7 @@ const SORT_STORAGE_KEY = 'lunadash-performance-sort'
 const COLUMN_STORAGE_KEY = 'lunadash-performance-columns'
 const RANK_SNAPSHOT_KEY = 'lunadash-performance-rank-snapshot'
 const PINNED_METRICS_KEY = 'lunadash-performance-pinned-metrics'
+const STORE_NUMBERS_CAPTURE_SIZE = 720
 const DEFAULT_COLUMNS: Record<OptionalColumn, boolean> = {
   traffic: true,
   postConv: true,
@@ -287,6 +289,129 @@ function MetricPanel({ label, value, helper, percent }: { label: string; value: 
   )
 }
 
+function CompactStoreNumbersCapture({
+  row,
+  updated,
+  districtAverage,
+  notes,
+}: {
+  row: RankedRow
+  updated: string
+  districtAverage: { netRevenuePct: number; accessoryPct: number; ppPct: number; overallScore: number } | null
+  notes: CoachingNote[]
+}) {
+  const dealer = dealerInfoForRow(row)
+  const metrics = [
+    ['NR', row.netRevenuePct],
+    ['ACC', row.accessoryPct],
+    ['PP', row.ppPct],
+  ] as const
+  const strongest = [...metrics].sort((a, b) => b[1] - a[1])[0]
+  const weakest = [...metrics].sort((a, b) => a[1] - b[1])[0]
+  const netLeft = row.netRevenueGoal - row.netRevenue
+  const accLeft = row.accessoryGoal - row.accessoryRevenue
+  const ppLeft = row.dortGoal - row.totalPp
+  const storeNotes = notes.filter((note) => normalizeStoreId(note.storeId) === normalizeStoreId(row.storeCode))
+  const openNotes = storeNotes.filter((note) => note.status === 'open')
+  const notePreview = storeNotes.slice(0, 2)
+  const primaryMetrics = [
+    ['Net Revenue', formatMoney(row.netRevenue), formatMoney(row.netRevenueGoal), row.netRevenuePct, netLeft],
+    ['Accessories', formatMoney(row.accessoryRevenue), formatMoney(row.accessoryGoal), row.accessoryPct, accLeft],
+    ['Total PP', formatNumber(row.totalPp), formatNumber(row.dortGoal), row.ppPct, ppLeft],
+  ] as const
+  const detailMetrics = [
+    ['Traffic', formatNumber(row.traffic), 'Store visits'],
+    ['Post Conv', formatPercent(row.postConv), 'Conversion'],
+    ['VL', formatNumber(row.vl), 'Voice lines'],
+    ['BTS', formatNumber(row.bts), 'Products'],
+    ['HSI', formatNumber(row.hsi), 'Internet'],
+    ['VISA', formatNumber(row.visa), 'Cards'],
+  ] as const
+
+  return (
+    <div className="flex h-full w-full flex-col overflow-hidden bg-[var(--surface)] p-8 text-[var(--text)]">
+      <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-5">
+        <div className="min-w-0">
+          <div className="text-3xl font-black tracking-normal text-[var(--text)]">{dealer?.nickname || row.store}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--text-secondary)]">
+            <span className="rounded-md bg-[var(--accent)] px-2.5 py-1 font-bold text-white">{row.storeCode}</span>
+            <span className="truncate">{dealer?.location || row.store}</span>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[11px] font-semibold uppercase text-[var(--text-tertiary)]">Overall</div>
+          <div className="text-4xl font-black tabular-nums text-[var(--text)]">{formatPercent(row.overallScore)}</div>
+          <div className="mt-1 text-xs text-[var(--text-tertiary)]">Rank #{row.overallRank} · {updated || 'just now'}</div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        {primaryMetrics.map(([label, value, goal, percent, left]) => (
+          <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
+            <div className="text-[11px] font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
+            <div className="mt-2 text-2xl font-black tabular-nums text-[var(--text)]">{value}</div>
+            <div className="mt-1 text-xs text-[var(--text-secondary)]">Goal {goal}</div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--border)]">
+              <div className="h-full rounded-full" style={{ width: `${Math.min(Math.max(percent, 0), 100)}%`, background: metricColor(percent) }} />
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+              <span className="font-semibold tabular-nums" style={{ color: metricColor(percent) }}>{formatPercent(percent)}</span>
+              <span className="tabular-nums text-[var(--text-tertiary)]">{left <= 0 ? 'Over' : `${label === 'Total PP' ? formatNumber(left) : formatMoney(left)} left`}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid grid-cols-6 gap-2">
+        {detailMetrics.map(([label, value, helper]) => (
+          <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-3 text-center">
+            <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
+            <div className="mt-1 text-xl font-black tabular-nums text-[var(--text)]">{value}</div>
+            <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">{helper}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Strongest</div>
+          <div className="mt-1 text-xl font-black text-[var(--text)]">{strongest[0]}</div>
+          <div className="text-xs tabular-nums text-[var(--text-secondary)]">{formatPercent(strongest[1])}</div>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Opportunity</div>
+          <div className="mt-1 text-xl font-black text-[var(--text)]">{weakest[0]}</div>
+          <div className="text-xs tabular-nums text-[var(--text-secondary)]">{formatPercent(weakest[1])}</div>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Vs District</div>
+          <div className="mt-1 text-xl font-black tabular-nums text-[var(--text)]">
+            {districtAverage ? `${row.overallScore >= districtAverage.overallScore ? '+' : ''}${formatPercent(row.overallScore - districtAverage.overallScore)}` : '-'}
+          </div>
+          <div className="text-xs text-[var(--text-secondary)]">overall score</div>
+        </div>
+      </div>
+
+      <div className="mt-4 min-h-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-bold text-[var(--text)]">Coaching Notes</div>
+          <div className="text-xs font-semibold text-[var(--text-tertiary)]">{openNotes.length} open · {storeNotes.length} total</div>
+        </div>
+        <div className="mt-3 space-y-2">
+          {notePreview.length ? notePreview.map((note) => (
+            <div key={note.id} className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+              <div className="line-clamp-1 text-xs font-medium text-[var(--text)]">{note.text}</div>
+              <div className="mt-1 text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{note.status} · {new Date(note.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</div>
+            </div>
+          )) : (
+            <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-xs text-[var(--text-secondary)]">No coaching notes yet.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function StoreDetailDrawer({
   row,
   updated,
@@ -298,8 +423,9 @@ function StoreDetailDrawer({
   districtAverage: { netRevenuePct: number; accessoryPct: number; ppPct: number; overallScore: number } | null
   onClose: () => void
 }) {
-  const captureRef = useRef<HTMLElement | null>(null)
+  const captureRef = useRef<HTMLDivElement | null>(null)
   const [capturing, setCapturing] = useState(false)
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const [noteText, setNoteText] = useState('')
   const notes = useDistrictCoachingStore((s) => s.notes)
   const addNote = useDistrictCoachingStore((s) => s.addNote)
@@ -328,34 +454,48 @@ function StoreDetailDrawer({
     setNoteText('')
   }
 
+  const copyEod = async () => {
+    if (!row) return
+
+    try {
+      await copyEodToClipboard(row)
+      setCopyState('copied')
+    } catch {
+      setCopyState('error')
+    } finally {
+      window.setTimeout(() => setCopyState('idle'), 1800)
+    }
+  }
+
   const handleCapture = async () => {
     if (!captureRef.current || !row || capturing) return
     setCapturing(true)
     const captureNode = captureRef.current
-    const scrollNode = captureNode.querySelector<HTMLElement>('[data-capture-scroll="true"]')
     const previousCaptureStyle = captureNode.getAttribute('style')
-    const previousScrollStyle = scrollNode?.getAttribute('style') ?? null
     try {
-      captureNode.style.height = 'auto'
-      captureNode.style.minHeight = '0'
-      captureNode.style.maxHeight = 'none'
-      captureNode.style.overflow = 'visible'
-      if (scrollNode) {
-        scrollNode.style.flex = 'none'
-        scrollNode.style.height = 'auto'
-        scrollNode.style.maxHeight = 'none'
-        scrollNode.style.overflow = 'visible'
-      }
+      Object.assign(captureNode.style, {
+        backgroundColor: 'var(--surface)',
+        height: `${STORE_NUMBERS_CAPTURE_SIZE}px`,
+        left: '0',
+        opacity: '1',
+        overflow: 'hidden',
+        pointerEvents: 'none',
+        position: 'fixed',
+        top: '0',
+        width: `${STORE_NUMBERS_CAPTURE_SIZE}px`,
+        zIndex: '10000',
+      })
 
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
       await new Promise((resolve) => window.requestAnimationFrame(resolve))
 
       const dataUrl = await toPng(captureNode, {
         cacheBust: true,
         filter: (node) => !(node instanceof HTMLElement && node.dataset.captureExclude === 'true'),
-        height: captureNode.scrollHeight,
+        height: STORE_NUMBERS_CAPTURE_SIZE,
         pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
-        width: captureNode.scrollWidth,
-        backgroundColor: getComputedStyle(captureNode).backgroundColor,
+        width: STORE_NUMBERS_CAPTURE_SIZE,
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || getComputedStyle(captureNode).backgroundColor,
       })
       const response = await fetch(dataUrl)
       const blob = await response.blob()
@@ -381,13 +521,6 @@ function StoreDetailDrawer({
       } else {
         captureNode.setAttribute('style', previousCaptureStyle)
       }
-      if (scrollNode) {
-        if (previousScrollStyle === null) {
-          scrollNode.removeAttribute('style')
-        } else {
-          scrollNode.setAttribute('style', previousScrollStyle)
-        }
-      }
       setCapturing(false)
     }
   }
@@ -400,11 +533,18 @@ function StoreDetailDrawer({
         onClick={onClose}
       />
       <aside
-        ref={captureRef}
         className={`absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-modal)] transition-transform duration-200 ${row ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {row && (
           <>
+            <div
+              ref={captureRef}
+              className="fixed left-[-10000px] top-0 overflow-hidden bg-[var(--surface)]"
+              style={{ width: STORE_NUMBERS_CAPTURE_SIZE, height: STORE_NUMBERS_CAPTURE_SIZE }}
+              aria-hidden="true"
+            >
+              <CompactStoreNumbersCapture row={row} updated={updated} districtAverage={districtAverage} notes={notes} />
+            </div>
             <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
               <div className="min-w-0">
                 <div className="truncate text-base font-semibold text-[var(--text)]">{captureTitle}</div>
@@ -414,6 +554,15 @@ function StoreDetailDrawer({
                 </div>
               </div>
               <div className="flex items-center gap-1" data-capture-exclude="true">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={copyEod}
+                  aria-label="Copy EOD"
+                  title={copyState === 'copied' ? 'Copied EOD' : copyState === 'error' ? 'Could not copy EOD' : 'Copy EOD'}
+                >
+                  {copyState === 'copied' ? <CheckCircle2 size={16} /> : copyState === 'error' ? <AlertCircle size={16} /> : <Copy size={16} />}
+                </Button>
                 <Button size="icon" variant="ghost" onClick={handleCapture} loading={capturing} aria-label="Capture store numbers">
                   <Camera size={16} />
                 </Button>
