@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Clock, GripVertical, LayoutGrid, Users, Trash2, Edit2, Save, Store, SlidersHorizontal } from 'lucide-react'
+import { addDays, format, startOfWeek } from 'date-fns'
+import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Camera, ChevronLeft, ChevronRight, Clock, GripVertical, LayoutGrid, Users, Trash2, Edit2, Save, Store, SlidersHorizontal } from 'lucide-react'
+import { toPng } from 'html-to-image'
 import { WeeklyGrid } from './WeeklyGrid'
 import { MonthlyCalendar } from './MonthlyCalendar'
 import { Modal } from '../../ui/Modal'
@@ -16,7 +18,7 @@ import { useDisplayStore } from '../../../store/displayStore'
 import { WEEKDAY_KEYS, WEEKDAY_LABELS, type StoreHours } from '../../../lib/storeHours'
 import { useScheduleExceptionsStore, type ScheduleExceptionType } from '../../../store/scheduleExceptionsStore'
 import { StorePickerButton } from '../../shared/StorePickerButton'
-import { formatDate, formatShiftTime, timeToMinutes } from '../../../lib/utils'
+import { formatShiftTime, timeToMinutes } from '../../../lib/utils'
 
 const COLORS = ['#0078d4','#7c5ff5','#e74856','#16c60c','#f7630c','#00b7c3','#e3008c','#8764b8','#10893e']
 const EXCEPTION_LABELS: Record<ScheduleExceptionType, string> = {
@@ -349,116 +351,277 @@ function todayKey() {
   ].join('-')
 }
 
-function MobileScheduleToday({ canChooseScheduleStore }: { canChooseScheduleStore: boolean }) {
+function dayKey(date: Date) {
+  return format(date, 'yyyy-MM-dd')
+}
+
+function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore: boolean }) {
+  const captureRef = useRef<HTMLDivElement>(null)
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [capturing, setCapturing] = useState(false)
+  const [captureMessage, setCaptureMessage] = useState('')
   const { employees, shifts } = useScheduleStore()
   const exceptions = useScheduleExceptionsStore((s) => s.exceptions)
   const storeId = useUiStore((s) => s.storeId)
+  const { companyName, storeNumber } = useDisplayStore()
+  const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
   const today = todayKey()
   const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
+  const weekStart = addDays(startOfWeek(new Date(), { weekStartsOn }), weekOffset * 7)
+  const weekEnd = addDays(weekStart, 6)
+  const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
+  const dates = days.map(dayKey)
   const employeeById = new Map(employees.map((employee) => [employee.id, employee]))
-  const todayShifts = shifts
-    .filter((shift) => shift.date === today)
+  const weekShifts = shifts
+    .filter((shift) => dates.includes(shift.date))
     .filter((shift) => employeeById.has(shift.employeeId))
-    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
-  const todayExceptions = exceptions.filter((exception) => exception.date === today)
+  const weekExceptions = exceptions.filter((exception) => dates.includes(exception.date))
+  const captureTitle = `${companyName || 'Luna Store'} Schedule ${format(weekStart, 'MMM d')}-${format(weekEnd, 'MMM d, yyyy')}`
+  const fileName = `${captureTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
+
+  const captureSchedule = async () => {
+    const captureNode = captureRef.current
+    if (!captureNode || capturing) return
+
+    setCapturing(true)
+    setCaptureMessage('')
+    try {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+
+      const dataUrl = await toPng(captureNode, {
+        cacheBust: true,
+        filter: (node) => !(node instanceof HTMLElement && node.dataset.captureExclude === 'true'),
+        width: captureNode.scrollWidth,
+        height: captureNode.scrollHeight,
+        pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#ffffff',
+      })
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
+      const file = new File([blob], fileName, { type: 'image/png' })
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: captureTitle,
+          text: `${captureTitle} captured from LunaDash.`,
+        })
+        setCaptureMessage('Schedule image shared.')
+        return
+      }
+
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = fileName
+      link.click()
+      setCaptureMessage('Schedule image saved.')
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      setCaptureMessage('Schedule image could not be captured.')
+    } finally {
+      setCapturing(false)
+      window.setTimeout(() => setCaptureMessage(''), 2400)
+    }
+  }
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-[var(--bg)] sm:hidden">
-      <div className="border-b border-[var(--border)] px-4 py-4">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
-          <Calendar size={18} className="text-[var(--accent)]" />
-          Today&apos;s Schedule
-        </h1>
-        <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{formatDate(new Date(today + 'T12:00:00'))}</p>
-      </div>
-
-      <div className="space-y-4 p-4">
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-          <div className="flex items-start gap-3">
-            <Clock size={16} className="mt-0.5 text-[var(--accent)]" />
+      <div ref={captureRef} className="bg-[var(--bg)]">
+        <div className="border-b border-[var(--border)] px-4 py-4">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-[var(--text)]">Schedule editing is desktop only.</p>
-              <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-                Mobile shows who is working today. Add shifts, edit employees, hours, and exceptions from the desktop version.
+              <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
+                <Calendar size={18} className="text-[var(--accent)]" />
+                Schedule
+              </h1>
+              <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                {storeNumber ? `Store ${storeNumber} · ` : ''}
+                {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
               </p>
             </div>
-          </div>
-        </div>
-
-        {storeId === 'main' && (
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-            <p className="text-sm font-semibold text-[var(--text)]">Choose a store</p>
-            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-              {canChooseScheduleStore ? 'Use the store button in the top bar to view one location.' : 'A single store is required for mobile schedule coverage.'}
-            </p>
-          </div>
-        )}
-
-        {storeId !== 'main' && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Working Today</div>
-              <div className="text-xs tabular-nums text-[var(--text-secondary)]">{todayShifts.length} shift{todayShifts.length === 1 ? '' : 's'}</div>
-            </div>
-
-            {todayShifts.map((shift) => {
-              const employee = employeeById.get(shift.employeeId)
-              const start = timeToMinutes(shift.startTime)
-              const end = timeToMinutes(shift.endTime)
-              const onNow = Number.isFinite(start) && Number.isFinite(end) && nowMinutes >= start && nowMinutes < end
-
-              return (
-                <div key={shift.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: employee?.color ?? 'var(--accent)' }} />
-                        <p className="truncate text-base font-semibold text-[var(--text)]">{employee?.name ?? 'Open shift'}</p>
-                      </div>
-                      <p className="mt-1 text-xs text-[var(--text-tertiary)]">{employee?.role ?? shift.type}</p>
-                    </div>
-                    {onNow && (
-                      <span className="rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase text-[var(--accent)]">
-                        On now
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-3 flex items-center gap-2 text-sm font-medium text-[var(--text)]">
-                    <Clock size={14} className="text-[var(--text-tertiary)]" />
-                    {formatShiftTime(shift.startTime, shift.endTime)}
-                  </div>
-                  {shift.note && <p className="mt-2 text-xs text-[var(--text-secondary)]">{shift.note}</p>}
-                </div>
-              )
-            })}
-
-            {todayShifts.length === 0 && (
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-8 text-center">
-                <Users size={22} className="mx-auto text-[var(--text-tertiary)]" />
-                <p className="mt-3 text-sm font-semibold text-[var(--text)]">No one is scheduled today.</p>
-                <p className="mt-1 text-xs text-[var(--text-tertiary)]">Open LunaDash on desktop to add coverage.</p>
-              </div>
+            {storeId !== 'main' && (
+              <Button
+                className="flex-shrink-0"
+                size="sm"
+                variant="secondary"
+                icon={<Camera size={13} />}
+                loading={capturing}
+                onClick={captureSchedule}
+                data-capture-exclude="true"
+              >
+                Capture
+              </Button>
             )}
           </div>
-        )}
+          {captureMessage && (
+            <p className={`mt-2 text-xs ${captureMessage.includes('could not') ? 'text-red-400' : 'text-[var(--accent)]'}`}>
+              {captureMessage}
+            </p>
+          )}
+          {storeId !== 'main' && (
+            <div className="mt-3 flex items-center gap-2" data-capture-exclude="true">
+              <button
+                onClick={() => setWeekOffset((current) => current - 1)}
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)]"
+                aria-label="Previous week"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                onClick={() => setWeekOffset(0)}
+                className={`h-8 flex-1 rounded-lg border px-3 text-xs font-semibold transition-colors ${
+                  weekOffset === 0
+                    ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                    : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)]'
+                }`}
+              >
+                This Week
+              </button>
+              <button
+                onClick={() => setWeekOffset(1)}
+                className={`h-8 flex-1 rounded-lg border px-3 text-xs font-semibold transition-colors ${
+                  weekOffset === 1
+                    ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                    : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)]'
+                }`}
+              >
+                Next Week
+              </button>
+              <button
+                onClick={() => setWeekOffset((current) => current + 1)}
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)]"
+                aria-label="Next week"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+        </div>
 
-        {storeId !== 'main' && todayExceptions.length > 0 && (
-          <div className="space-y-2">
-            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Today&apos;s Exceptions</div>
-            {todayExceptions.map((exception) => {
-              const employee = exception.employeeId ? employeeById.get(exception.employeeId) : null
-              return (
-                <div key={exception.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-[var(--text)]">{EXCEPTION_LABELS[exception.type]}</span>
-                    <span className="text-xs text-[var(--text-tertiary)]">{employee?.name ?? 'Store'}</span>
-                  </div>
-                  {exception.note && <p className="mt-1 text-xs text-[var(--text-secondary)]">{exception.note}</p>}
-                </div>
-              )
-            })}
+        <div className="space-y-4 p-4">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3" data-capture-exclude="true">
+            <div className="flex items-start gap-3">
+              <Clock size={16} className="mt-0.5 text-[var(--accent)]" />
+              <div>
+                <p className="text-sm font-semibold text-[var(--text)]">Schedule editing is desktop only.</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
+                  Mobile shows who is working today. Add shifts, edit employees, hours, and exceptions from the desktop version.
+                </p>
+              </div>
+            </div>
           </div>
-        )}
+
+          {storeId === 'main' && (
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+              <p className="text-sm font-semibold text-[var(--text)]">Choose a store</p>
+              <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                {canChooseScheduleStore ? 'Use the store button in the top bar to view one location.' : 'A single store is required for mobile schedule coverage.'}
+              </p>
+            </div>
+          )}
+
+          {storeId !== 'main' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">Week Coverage</div>
+                <div className="text-xs tabular-nums text-[var(--text-secondary)]">{weekShifts.length} shift{weekShifts.length === 1 ? '' : 's'}</div>
+              </div>
+
+              {days.map((day) => {
+                const date = dayKey(day)
+                const dayShifts = weekShifts
+                  .filter((shift) => shift.date === date)
+                  .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
+                const dayExceptions = weekExceptions.filter((exception) => exception.date === date)
+                const isCurrentDay = date === today
+
+                return (
+                  <section key={date} className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+                    <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+                      <div>
+                        <h2 className="text-sm font-semibold text-[var(--text)]">{format(day, 'EEEE')}</h2>
+                        <p className="text-xs text-[var(--text-tertiary)]">{format(day, 'MMM d')}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isCurrentDay && (
+                          <span className="rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase text-[var(--accent)]">
+                            Today
+                          </span>
+                        )}
+                        <span className="text-xs tabular-nums text-[var(--text-secondary)]">{dayShifts.length}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 px-4 py-3">
+                      {dayShifts.map((shift) => {
+                        const employee = employeeById.get(shift.employeeId)
+                        const start = timeToMinutes(shift.startTime)
+                        const end = timeToMinutes(shift.endTime)
+                        const onNow = isCurrentDay && Number.isFinite(start) && Number.isFinite(end) && nowMinutes >= start && nowMinutes < end
+
+                        return (
+                          <div key={shift.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: employee?.color ?? 'var(--accent)' }} />
+                                  <p className="truncate text-sm font-semibold text-[var(--text)]">{employee?.name ?? 'Open shift'}</p>
+                                </div>
+                                <p className="mt-1 text-xs text-[var(--text-tertiary)]">{employee?.role ?? shift.type}</p>
+                              </div>
+                              {onNow && (
+                                <span className="rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase text-[var(--accent)]">
+                                  On now
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-2 flex items-center gap-2 text-sm font-medium text-[var(--text)]">
+                              <Clock size={14} className="text-[var(--text-tertiary)]" />
+                              {formatShiftTime(shift.startTime, shift.endTime)}
+                            </div>
+                            {shift.note && <p className="mt-2 text-xs text-[var(--text-secondary)]">{shift.note}</p>}
+                          </div>
+                        )
+                      })}
+
+                      {dayShifts.length === 0 && (
+                        <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] px-3 py-4 text-center">
+                          <p className="text-xs font-medium text-[var(--text-tertiary)]">No shifts scheduled</p>
+                        </div>
+                      )}
+
+                      {dayExceptions.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          {dayExceptions.map((exception) => {
+                            const employee = exception.employeeId ? employeeById.get(exception.employeeId) : null
+                            return (
+                              <div key={exception.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-semibold text-[var(--text)]">{EXCEPTION_LABELS[exception.type]}</span>
+                                  <span className="text-xs text-[var(--text-tertiary)]">{employee?.name ?? 'Store'}</span>
+                                </div>
+                                {exception.note && <p className="mt-1 text-xs text-[var(--text-secondary)]">{exception.note}</p>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )
+              })}
+
+              {weekShifts.length === 0 && (
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-8 text-center">
+                  <Users size={22} className="mx-auto text-[var(--text-tertiary)]" />
+                  <p className="mt-3 text-sm font-semibold text-[var(--text)]">No one is scheduled this week.</p>
+                  <p className="mt-1 text-xs text-[var(--text-tertiary)]">Open LunaDash on desktop to add coverage.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -507,7 +670,7 @@ export function SchedulePage() {
 
   return (
     <>
-    <MobileScheduleToday canChooseScheduleStore={canChooseScheduleStore} />
+    <MobileScheduleWeek canChooseScheduleStore={canChooseScheduleStore} />
     <div className="hidden h-full flex-col sm:flex">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

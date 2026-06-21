@@ -1,5 +1,7 @@
+import { useRef, useState } from 'react'
 import { addDays, format } from 'date-fns'
-import { Printer } from 'lucide-react'
+import { Camera, Printer } from 'lucide-react'
+import { toPng } from 'html-to-image'
 import { Modal } from '../../ui/Modal'
 import { Button } from '../../ui/Button'
 import { useDisplayStore } from '../../../store/displayStore'
@@ -37,6 +39,9 @@ function escapeHtml(value: string) {
 }
 
 export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableScheduleModalProps) {
+  const captureRef = useRef<HTMLDivElement>(null)
+  const [capturing, setCapturing] = useState(false)
+  const [captureMessage, setCaptureMessage] = useState('')
   const { companyName, storeNumber } = useDisplayStore()
   const { employees, shifts } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
@@ -56,9 +61,10 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
   const shiftHourValues = weekShifts.map(shiftHours)
   const canShowHours = shiftHourValues.every((hours) => hours !== null)
   const totalHours = canShowHours ? shiftHourValues.reduce((sum, hours) => sum + (hours ?? 0), 0) : null
+  const scheduleTitle = `${companyName || 'Luna Store'} Schedule ${format(weekStart, 'MMM d')}-${format(addDays(weekStart, 6), 'MMM d, yyyy')}`
+  const fileName = `${scheduleTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
 
   const print = () => {
-    const title = `${companyName || 'Luna Store'} Schedule ${format(weekStart, 'MMM d')}-${format(addDays(weekStart, 6), 'MMM d, yyyy')}`
     const header = `
       <div class="schedule-header">
         <div>
@@ -123,7 +129,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
       <!doctype html>
       <html>
         <head>
-          <title>${escapeHtml(title)}</title>
+          <title>${escapeHtml(scheduleTitle)}</title>
           <style>
             @page { size: landscape; margin: 0.35in; }
             * { box-sizing: border-box; }
@@ -244,20 +250,75 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
     }, 300)
   }
 
+  const capture = async () => {
+    const captureNode = captureRef.current
+    if (!captureNode || capturing) return
+
+    setCapturing(true)
+    setCaptureMessage('')
+    try {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+
+      const dataUrl = await toPng(captureNode, {
+        cacheBust: true,
+        width: captureNode.scrollWidth,
+        height: captureNode.scrollHeight,
+        pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
+        backgroundColor: '#ffffff',
+      })
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
+      const file = new File([blob], fileName, { type: 'image/png' })
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: scheduleTitle,
+          text: `${scheduleTitle} captured from LunaDash.`,
+        })
+        setCaptureMessage('Schedule image shared.')
+        return
+      }
+
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = fileName
+      link.click()
+      setCaptureMessage('Schedule image saved.')
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      setCaptureMessage('Schedule image could not be captured.')
+    } finally {
+      setCapturing(false)
+      window.setTimeout(() => setCaptureMessage(''), 2400)
+    }
+  }
+
   return (
     <Modal open={open} onClose={onClose} title="Print Schedule" size="full">
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3 print:hidden">
+        <div className="flex flex-col gap-3 print:hidden sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-[var(--text-secondary)]">
             Preview for {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d, yyyy')}
           </p>
-          <Button variant="primary" icon={<Printer size={14} />} onClick={print}>
-            Print / Save PDF
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {captureMessage && (
+              <span className={`text-xs ${captureMessage.includes('could not') ? 'text-red-400' : 'text-[var(--accent)]'}`}>
+                {captureMessage}
+              </span>
+            )}
+            <Button variant="secondary" icon={<Camera size={14} />} loading={capturing} onClick={capture}>
+              Capture PNG
+            </Button>
+            <Button variant="primary" icon={<Printer size={14} />} onClick={print}>
+              Print / Save PDF
+            </Button>
+          </div>
         </div>
 
         <div className="print-schedule-area overflow-auto rounded-xl border border-[var(--border)] bg-white text-slate-950">
-          <div className="print-schedule-page min-w-[980px] p-6">
+          <div ref={captureRef} className="print-schedule-page min-w-[980px] bg-white p-6">
             <div className="flex items-start justify-between gap-6 border-b border-slate-200 pb-4">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Weekly Schedule</div>
