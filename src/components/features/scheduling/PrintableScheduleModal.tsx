@@ -16,6 +16,8 @@ interface PrintableScheduleModalProps {
   weekStart: Date
 }
 
+const DESKTOP_SCHEDULE_CAPTURE_WIDTH = 980
+
 function shiftHours(shift: Shift) {
   const start = timeToMinutes(shift.startTime)
   const end = timeToMinutes(shift.endTime)
@@ -279,14 +281,37 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
 
     setCapturing(true)
     setCaptureMessage('')
+    const captureWidth = Math.max(captureNode.scrollWidth, DESKTOP_SCHEDULE_CAPTURE_WIDTH)
+    const stagedNode = captureNode.cloneNode(true) as HTMLDivElement
+    const stagingFrame = document.createElement('div')
     try {
+      Object.assign(stagedNode.style, {
+        backgroundColor: '#ffffff',
+        boxSizing: 'border-box',
+        maxWidth: 'none',
+        minWidth: `${DESKTOP_SCHEDULE_CAPTURE_WIDTH}px`,
+        width: `${captureWidth}px`,
+      })
+      Object.assign(stagingFrame.style, {
+        backgroundColor: '#ffffff',
+        left: '0',
+        pointerEvents: 'none',
+        position: 'fixed',
+        top: '0',
+        width: `${captureWidth}px`,
+        zIndex: '-1',
+      })
+      stagingFrame.appendChild(stagedNode)
+      document.body.appendChild(stagingFrame)
+
+      await document.fonts?.ready
       await new Promise((resolve) => window.requestAnimationFrame(resolve))
       await new Promise((resolve) => window.requestAnimationFrame(resolve))
 
-      const dataUrl = await toPng(captureNode, {
+      const dataUrl = await toPng(stagedNode, {
         cacheBust: true,
-        width: captureNode.scrollWidth,
-        height: captureNode.scrollHeight,
+        width: captureWidth,
+        height: stagedNode.scrollHeight,
         pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
         backgroundColor: '#ffffff',
       })
@@ -313,6 +338,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
       if (err instanceof DOMException && err.name === 'AbortError') return
       setCaptureMessage('Schedule image could not be captured.')
     } finally {
+      stagingFrame.remove()
       setCapturing(false)
       window.setTimeout(() => setCaptureMessage(''), 2400)
     }
@@ -332,7 +358,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
               </span>
             )}
             <Button variant="secondary" icon={<Camera size={14} />} loading={capturing} onClick={capture}>
-              Capture PNG
+              Full Week Capture
             </Button>
             <Button variant="primary" icon={<Printer size={14} />} onClick={print}>
               Print / Save PDF

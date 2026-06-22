@@ -10,6 +10,7 @@ import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
 import { Toggle } from '../../ui/Toggle'
 import { useScheduleStore } from '../../../store/scheduleStore'
+import { useScheduleBlocksStore } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore } from '../../../store/schedulePreferencesStore'
 import { dbSaveScheduleSnapshot } from '../../../lib/supabase'
 import { currentStoreId } from '../../../store/currentStoreId'
@@ -18,9 +19,10 @@ import { useDisplayStore } from '../../../store/displayStore'
 import { WEEKDAY_KEYS, WEEKDAY_LABELS, type StoreHours } from '../../../lib/storeHours'
 import { useScheduleExceptionsStore, type ScheduleExceptionType } from '../../../store/scheduleExceptionsStore'
 import { StorePickerButton } from '../../shared/StorePickerButton'
-import { formatShiftTime, timeToMinutes } from '../../../lib/utils'
+import { formatShiftTime, hexToRgba, timeToMinutes } from '../../../lib/utils'
 
 const COLORS = ['#0078d4','#7c5ff5','#e74856','#16c60c','#f7630c','#00b7c3','#e3008c','#8764b8','#10893e']
+const DESKTOP_SCHEDULE_CAPTURE_WIDTH = 980
 const EXCEPTION_LABELS: Record<ScheduleExceptionType, string> = {
   call_out: 'Call Out',
   no_show: 'No Show',
@@ -355,16 +357,34 @@ function dayKey(date: Date) {
   return format(date, 'yyyy-MM-dd')
 }
 
+function shiftHours(shift: { startTime: string; endTime: string }) {
+  const start = timeToMinutes(shift.startTime)
+  const end = timeToMinutes(shift.endTime)
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null
+  const minutes = end >= start ? end - start : (24 * 60 - start) + end
+  if (minutes <= 0 || minutes > 14 * 60) return null
+  return minutes / 60
+}
+
+function formatHours(hours: number) {
+  return hours.toFixed(hours % 1 === 0 ? 0 : 1)
+}
+
 function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore: boolean }) {
-  const captureRef = useRef<HTMLDivElement>(null)
+  const desktopCaptureRef = useRef<HTMLDivElement>(null)
   const [weekOffset, setWeekOffset] = useState(0)
   const [capturing, setCapturing] = useState(false)
   const [captureMessage, setCaptureMessage] = useState('')
   const { employees, shifts } = useScheduleStore()
+  const blocks = useScheduleBlocksStore((s) => s.blocks)
   const exceptions = useScheduleExceptionsStore((s) => s.exceptions)
   const storeId = useUiStore((s) => s.storeId)
   const { companyName, storeNumber } = useDisplayStore()
   const weekStartsOn = useSchedulePreferencesStore((s) => s.weekStartsOn)
+  const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
+  const showShiftNotes = useSchedulePreferencesStore((s) => s.showShiftNotes)
+  const showEmployeeRoles = useSchedulePreferencesStore((s) => s.showEmployeeRoles)
+  const compactSchedule = useSchedulePreferencesStore((s) => s.compactSchedule)
   const today = todayKey()
   const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
   const weekStart = addDays(startOfWeek(new Date(), { weekStartsOn }), weekOffset * 7)
@@ -376,11 +396,19 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
     .filter((shift) => dates.includes(shift.date))
     .filter((shift) => employeeById.has(shift.employeeId))
   const weekExceptions = exceptions.filter((exception) => dates.includes(exception.date))
+  const blockColors = new Map(blocks.map((block) => [block.name, block.color]))
+  const scheduledEmployees = employees.filter((employee) =>
+    weekShifts.some((shift) => shift.employeeId === employee.id)
+  )
+  const displayedEmployees = scheduledEmployees.length > 0 ? scheduledEmployees : employees
+  const shiftHourValues = weekShifts.map(shiftHours)
+  const canShowHours = shiftHourValues.every((hours) => hours !== null)
+  const totalHours = canShowHours ? shiftHourValues.reduce((sum, hours) => sum + (hours ?? 0), 0) : null
   const captureTitle = `${companyName || 'Luna Store'} Schedule ${format(weekStart, 'MMM d')}-${format(weekEnd, 'MMM d, yyyy')}`
   const fileName = `${captureTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
 
   const captureSchedule = async () => {
-    const captureNode = captureRef.current
+    const captureNode = desktopCaptureRef.current
     if (!captureNode || capturing) return
 
     setCapturing(true)
@@ -392,10 +420,10 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
       const dataUrl = await toPng(captureNode, {
         cacheBust: true,
         filter: (node) => !(node instanceof HTMLElement && node.dataset.captureExclude === 'true'),
-        width: captureNode.scrollWidth,
+        width: DESKTOP_SCHEDULE_CAPTURE_WIDTH,
         height: captureNode.scrollHeight,
         pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
-        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#ffffff',
+        backgroundColor: '#ffffff',
       })
       const response = await fetch(dataUrl)
       const blob = await response.blob()
@@ -427,7 +455,7 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-[var(--bg)] sm:hidden">
-      <div ref={captureRef} className="bg-[var(--bg)]">
+      <div className="bg-[var(--bg)]">
         <div className="border-b border-[var(--border)] px-4 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -498,6 +526,103 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
             </div>
           )}
         </div>
+
+        {storeId !== 'main' && (
+          <div
+            aria-hidden="true"
+            className="fixed top-0 z-0 bg-white text-slate-950"
+            data-capture-exclude="true"
+            style={{ left: -10000, width: DESKTOP_SCHEDULE_CAPTURE_WIDTH, pointerEvents: 'none' }}
+          >
+            <div ref={desktopCaptureRef} className="bg-white p-6" style={{ width: DESKTOP_SCHEDULE_CAPTURE_WIDTH }}>
+              <div className="flex items-start justify-between gap-6 border-b border-slate-200 pb-4">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Weekly Schedule</div>
+                  <h1 className="mt-1 text-2xl font-bold text-slate-950">{companyName || 'Luna Store'}</h1>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {storeNumber ? `Store ${storeNumber} · ` : ''}
+                    {format(weekStart, 'MMMM d')} - {format(weekEnd, 'MMMM d, yyyy')}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-semibold text-slate-950">{weekShifts.length} shifts</div>
+                  {canShowHours && totalHours !== null && <div className="text-sm text-slate-500">{formatHours(totalHours)} scheduled hours</div>}
+                  <div className="mt-2 text-[11px] text-slate-400">Printed {format(new Date(), 'MMM d, yyyy h:mm a')}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid border border-slate-200" style={{ gridTemplateColumns: '210px repeat(7, minmax(110px, 1fr))' }}>
+                <div className="bg-slate-100 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600">Team</div>
+                {days.map((day) => (
+                  <div key={day.toISOString()} className="border-l border-slate-200 bg-slate-100 px-3 py-2 text-center">
+                    <div className="text-xs font-bold uppercase tracking-wide text-slate-600">{format(day, 'EEE')}</div>
+                    <div className="text-lg font-bold leading-tight text-slate-950">{format(day, 'd')}</div>
+                  </div>
+                ))}
+
+                {displayedEmployees.map((employee) => {
+                  const employeeShifts = weekShifts.filter((shift) => shift.employeeId === employee.id)
+                  const employeeHours = canShowHours ? employeeShifts.reduce((sum, shift) => sum + (shiftHours(shift) ?? 0), 0) : null
+
+                  return (
+                    <div key={employee.id} className="contents">
+                      <div className="border-t border-slate-200 px-3 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: employee.color }} />
+                          <div className="min-w-0">
+                            <div className="break-words text-sm font-bold leading-snug text-slate-950">{employee.name}</div>
+                            {showEmployeeRoles && <div className="break-words text-[11px] leading-snug text-slate-500">{employee.role}</div>}
+                          </div>
+                        </div>
+                        {employeeHours !== null && (
+                          <div className="mt-2 text-[11px] font-semibold text-slate-500">
+                            {formatHours(employeeHours)} hrs
+                          </div>
+                        )}
+                      </div>
+
+                      {days.map((day) => {
+                        const date = dayKey(day)
+                        const dayShifts = employeeShifts.filter((shift) => shift.date === date)
+
+                        return (
+                          <div key={`${employee.id}-${date}`} className={`${compactSchedule ? 'min-h-[64px] p-1.5' : 'min-h-[86px] p-2'} border-l border-t border-slate-200`}>
+                            {dayShifts.length === 0 ? (
+                              <div className="flex h-full items-center justify-center text-xs font-medium text-slate-300">Off</div>
+                            ) : (
+                              <div className="space-y-1.5">
+                                {dayShifts.map((shift) => {
+                                  const color = blockColors.get(shift.type) ?? employee.color
+                                  return (
+                                    <div
+                                      key={shift.id}
+                                      className="rounded-md border px-2 py-1.5"
+                                      style={{ background: hexToRgba(color, 0.1), borderColor: hexToRgba(color, 0.28) }}
+                                    >
+                                      {showShiftNames && <div className="text-xs font-bold" style={{ color }}>{shift.type}</div>}
+                                      <div className="text-[11px] font-semibold text-slate-700">{formatShiftTime(shift.startTime, shift.endTime)}</div>
+                                      {showShiftNotes && shift.note && <div className="mt-0.5 text-[10px] text-slate-500">{shift.note}</div>}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {displayedEmployees.length === 0 && (
+                <div className="mt-10 rounded-lg border border-dashed border-slate-300 py-10 text-center text-sm text-slate-500">
+                  No employees or shifts are scheduled for this week.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4 p-4">
           <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3" data-capture-exclude="true">
