@@ -202,8 +202,171 @@
   --wallpaper-overlay: rgba(244, 244, 249, 0.62);
 }
 
+/* ============================================================
+   CARBON THEME
+   ============================================================ */
+.carbon {
+  --bg: #090b0b;
+  --bg-gradient:
+    radial-gradient(circle at 14% 12%, rgba(26, 188, 156, 0.16), transparent 30%),
+    radial-gradient(circle at 82% 16%, rgba(245, 158, 11, 0.1), transparent 28%),
+    linear-gradient(180deg, #151818 0%, #0b0d0d 60%, #050606 100%);
+  --surface: rgba(28, 32, 31, 0.76);
+  --surface-2: rgba(39, 45, 43, 0.66);
+  --surface-3: rgba(54, 62, 59, 0.7);
+  --surface-solid: #151a19;
+  --surface-2-solid: #1d2422;
+  --sidebar-bg: rgba(18, 22, 21, 0.78);
+  --command-bg: rgba(19, 23, 22, 0.76);
+  --border: rgba(226, 241, 237, 0.13);
+  --border-strong: rgba(226, 241, 237, 0.22);
+  --text: rgba(246, 252, 250, 0.94);
+  --text-secondary: rgba(222, 238, 234, 0.68);
+  --text-tertiary: rgba(222, 238, 234, 0.44);
+  --acrylic: #151a19;
+  --mica: #111615;
+  --taskbar-bg: rgba(18, 22, 21, 0.78);
+  --titlebar-bg: rgba(18, 22, 21, 0.78);
+  --reveal-bg: rgba(255, 255, 255, 0.08);
+  --reveal-border: rgba(255, 255, 255, 0.12);
+  --input-bg: rgba(13, 16, 16, 0.72);
+  --scrollbar-track: rgba(255,255,255,0.04);
+  --scrollbar-thumb: rgba(255,255,255,0.15);
+  --scrollbar-thumb-hover: rgba(255,255,255,0.25);
+  --accent: #2dd4bf;
+  --accent-hover: #14b8a6;
+  --accent-light: #ccfbf1;
+  --accent-secondary: #f59e0b;
+  --accent-glow: rgba(45, 212, 191, 0.2);
+  --wallpaper-opacity: 0;
+  --wallpaper-overlay: rgba(6, 8, 8, 0.7);
+}
+
+/* ============================================================
+   MINT THEME
+   ============================================================ */
+.mint {
+  --bg: #f2fbf7;
+  --bg-gradient:
+    radial-gradient(circle at 12% 10%, rgba(45, 212, 191, 0.18), transparent 30%),
+    radial-gradient(circle at 86% 14%, rgba(244, 114, 182, 0.12), transparent 30%),
+    linear-gradient(180deg, #fbfffd 0%, #effbf6 52%, #e1f4ed 100%);
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-2: rgba(246, 255, 251, 0.68);
+  --surface-3: rgba(222, 247, 239, 0.76);
+  --surface-solid: #ffffff;
+  --surface-2-solid: #f5fffb;
+  --sidebar-bg: rgba(250, 255, 253, 0.72);
+  --command-bg: rgba(250, 255, 253, 0.74);
+  --border: rgba(20, 83, 65, 0.12);
+  --border-strong: rgba(20, 83, 65, 0.22);
+  --text: #10201b;
+  --text-secondary: rgba(16, 32, 27, 0.68);
+  --text-tertiary: rgba(16, 32, 27, 0.44);
+  --acrylic: rgba(255, 255, 255, 0.72);
+  --mica: rgba(245, 255, 251, 0.66);
+  --taskbar-bg: rgba(250, 255, 253, 0.76);
+  --titlebar-bg: rgba(250, 255, 253, 0.76);
+  --reveal-bg: rgba(20, 83, 65, 0.055);
+  --reveal-border: rgba(20, 83, 65, 0.08);
+  --input-bg: rgba(255, 255, 255, 0.84);
+  --scrollbar-track: rgba(20, 83, 65, 0.04);
+  --scrollbar-thumb: rgba(20, 83, 65, 0.16);
+  --scrollbar-thumb-hover: rgba(20, 83, 65, 0.26);
+  --accent: #0f766e;
+  --accent-hover: #115e59;
+  --accent-light: #ccfbf1;
+  --accent-secondary: #db2777;
+  --accent-glow: rgba(15, 118, 110, 0.18);
+  --wallpaper-opacity: 0.05;
+  --wallpaper-overlay: rgba(242, 251, 247, 0.62);
+}
+
+/* ============================================================
+   CORAL THEME
+   ============================================================ */
+.coral {
+  --bg: #fff6f5;
+  --bg-gradient:
+    radial-gradient(circle at 13% 10%, rgba(244, 63, 94, 0.14), transparent 30%),
+    radial-gradient(circle at 84% 12%, rgba(20, 184, 166, 0.12), transparent 30%),
+    linear-gradient(180deg, #fffafa 0%, #fff1f2 48%, #eefaf8 100%);
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-2: rgba(255, 250, 250, 0.66);
+  --surface-3: rgba(255, 228, 230, 0.66);
+  --surface-solid: #ffffff;
+  --surface-2-solid: #fffafa;
+  --sidebar-bg: rgba(255, 250, 250, 0.74);
+  --command-bg: rgba(255, 250, 250, 0.76);
+  --border: rgba(136, 19, 55, 0.12);
+  --border-strong: rgba(136, 19, 55, 0.22);
+  --text: #251316;
+  --text-secondary: rgba(37, 19, 22, 0.68);
+  --text-tertiary: rgba(37, 19, 22, 0.44);
+  --acrylic: rgba(255, 255, 255, 0.72);
+  --mica: rgba(255, 250, 250, 0.66);
+  --taskbar-bg: rgba(255, 250, 250, 0.76);
+  --titlebar-bg: rgba(255, 250, 250, 0.76);
+  --reveal-bg: rgba(136, 19, 55, 0.05);
+  --reveal-border: rgba(136, 19, 55, 0.08);
+  --input-bg: rgba(255, 255, 255, 0.84);
+  --scrollbar-track: rgba(136, 19, 55, 0.04);
+  --scrollbar-thumb: rgba(136, 19, 55, 0.16);
+  --scrollbar-thumb-hover: rgba(136, 19, 55, 0.26);
+  --accent: #e11d48;
+  --accent-hover: #be123c;
+  --accent-light: #ffe4e6;
+  --accent-secondary: #0f766e;
+  --accent-glow: rgba(225, 29, 72, 0.17);
+  --wallpaper-opacity: 0.05;
+  --wallpaper-overlay: rgba(255, 246, 245, 0.62);
+}
+
+/* ============================================================
+   IRIS THEME
+   ============================================================ */
+.iris {
+  --bg: #f8f7ff;
+  --bg-gradient:
+    radial-gradient(circle at 12% 8%, rgba(124, 58, 237, 0.14), transparent 28%),
+    radial-gradient(circle at 86% 10%, rgba(6, 182, 212, 0.12), transparent 30%),
+    linear-gradient(180deg, #fcfbff 0%, #f4f1ff 48%, #edf8fb 100%);
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-2: rgba(250, 249, 255, 0.66);
+  --surface-3: rgba(237, 233, 254, 0.72);
+  --surface-solid: #ffffff;
+  --surface-2-solid: #fbfaff;
+  --sidebar-bg: rgba(250, 249, 255, 0.74);
+  --command-bg: rgba(250, 249, 255, 0.76);
+  --border: rgba(76, 29, 149, 0.12);
+  --border-strong: rgba(76, 29, 149, 0.22);
+  --text: #1d1830;
+  --text-secondary: rgba(29, 24, 48, 0.68);
+  --text-tertiary: rgba(29, 24, 48, 0.44);
+  --acrylic: rgba(255, 255, 255, 0.72);
+  --mica: rgba(250, 249, 255, 0.66);
+  --taskbar-bg: rgba(250, 249, 255, 0.76);
+  --titlebar-bg: rgba(250, 249, 255, 0.76);
+  --reveal-bg: rgba(76, 29, 149, 0.05);
+  --reveal-border: rgba(76, 29, 149, 0.08);
+  --input-bg: rgba(255, 255, 255, 0.84);
+  --scrollbar-track: rgba(76, 29, 149, 0.04);
+  --scrollbar-thumb: rgba(76, 29, 149, 0.16);
+  --scrollbar-thumb-hover: rgba(76, 29, 149, 0.26);
+  --accent: #6d28d9;
+  --accent-hover: #5b21b6;
+  --accent-light: #ede9fe;
+  --accent-secondary: #0891b2;
+  --accent-glow: rgba(109, 40, 217, 0.17);
+  --wallpaper-opacity: 0.05;
+  --wallpaper-overlay: rgba(248, 247, 255, 0.62);
+}
+
 .vista,
-.mac {
+.mac,
+.mint,
+.coral,
+.iris {
   --status-warn-text: #7a4b00;
   --status-warn-bg: rgba(201, 132, 8, 0.14);
   --status-warn-border: rgba(154, 100, 6, 0.32);
@@ -948,39 +1111,9 @@ body::after {
     0 12px 36px rgba(15, 23, 42, 0.08);
 }
 .login-card {
-  border: 1px solid rgba(255,255,255,0.35);
-}
-.login-card-light {
-  --surface: rgba(238,247,255,0.9);
-  --surface-2: rgba(255,255,255,0.45);
-  --surface-3: #eff6ff;
-  --surface-solid: #ffffff;
-  --border: rgba(15,23,42,0.14);
-  --text: #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary: #64748b;
-  --input-bg: rgba(255,255,255,0.92);
+  border: 1px solid var(--border);
   background: var(--surface);
-}
-.login-card-dark {
-  --surface: rgba(13, 37, 64, 0.82);
-  --surface-2: rgba(255,255,255,0.08);
-  --surface-3: rgba(255,255,255,0.16);
-  --surface-solid: rgba(255,255,255,0.10);
-  --border: rgba(255,255,255,0.18);
-  --text: rgba(255,255,255,0.95);
-  --text-secondary: rgba(255,255,255,0.74);
-  --text-tertiary: rgba(255,255,255,0.58);
-  --input-bg: rgba(6, 14, 26, 0.88);
-  background: var(--surface);
-}
-.login-card-dark .login-card-header {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.14);
-}
-.login-card-light .login-card-header {
-  background: rgba(255,255,255,0.42);
-  border-color: rgba(15,23,42,0.12);
+  color: var(--text);
 }
 .dashboard-loader {
   display: flex;

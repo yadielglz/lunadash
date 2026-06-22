@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 
 export type Tab = 'home' | 'devices' | 'employees' | 'schedule' | 'appointments' | 'district' | 'goals' | 'updates' | 'weather' | 'display' | 'tasks' | 'settings'
-export type Theme = 'dark' | 'light' | 'vista' | 'mac'
+export type Theme = 'dark' | 'light' | 'vista' | 'mac' | 'carbon' | 'mint' | 'coral' | 'iris'
 export type Brand = 'default' | 'tmobile' | 'green' | 'black' | 'yellow'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
@@ -27,7 +27,7 @@ const SESSION_TIMEOUT_MS: Record<Exclude<SessionTimeout, 'never'>, number> = {
   '1h': 60 * 60 * 1000,
   '4h': 4 * 60 * 60 * 1000,
 }
-const THEME_CLASSES: Theme[] = ['dark', 'light', 'vista', 'mac']
+const THEME_CLASSES: Theme[] = ['dark', 'light', 'vista', 'mac', 'carbon', 'mint', 'coral', 'iris']
 const BRAND_ACCENTS: Record<Exclude<Brand, 'default'>, {
   accent: string
   hover: string

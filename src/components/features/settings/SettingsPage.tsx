@@ -31,10 +31,14 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
     { value: 'light', label: 'Light', icon: <Sun size={14} />, preview: 'bg-[#f4f6f8]' },
     { value: 'vista', label: 'Vista', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#162b4d,#5c7fb5_55%,#d8ecff)]' },
     { value: 'mac', label: 'Mac', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#f8fafc,#dbeafe_45%,#f5d0fe)]' },
+    { value: 'carbon', label: 'Carbon', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#090b0b,#1f2d2a_55%,#2dd4bf)]' },
+    { value: 'mint', label: 'Mint', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#fbfffd,#ccfbf1_52%,#fbcfe8)]' },
+    { value: 'coral', label: 'Coral', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#fffafa,#ffe4e6_52%,#99f6e4)]' },
+    { value: 'iris', label: 'Iris', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#fcfbff,#ede9fe_52%,#cffafe)]' },
   ]
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-[36rem] max-w-full">
+    <div className="grid grid-cols-2 gap-2 w-full max-w-full sm:grid-cols-4 sm:w-[44rem]">
       {choices.map((choice) => {
         const selected = value === choice.value
         return (
@@ -74,7 +78,7 @@ function GeneralSection() {
   const { theme, setTheme, brand, setBrand, timeFormat, setTimeFormat, tempUnit, toggleTempUnit, uiScale, setUiScale } = useUiStore()
   return (
     <Section icon={<Clock size={14} />} title="General">
-      <Row label="Theme" description="Choose the dashboard appearance">
+      <Row label="Global Theme" description="Applies to login, navigation, dashboards, settings, and tools">
         <ThemePicker value={theme} onChange={setTheme} />
       </Row>
       <Row label="Accent Color" description="Match the dashboard to your brand">

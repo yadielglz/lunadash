@@ -15,5 +15,5 @@ export function useTheme() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { theme, toggleTheme, isDark: theme === 'dark' }
+  return { theme, toggleTheme, isDark: theme === 'dark' || theme === 'carbon' }
 }

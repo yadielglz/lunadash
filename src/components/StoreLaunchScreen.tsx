@@ -19,7 +19,6 @@ import { APP_META } from '../config/appMeta'
 import { LunaWirelessLogo } from './brand/LunaWirelessLogo'
 
 const DEALER_PLACEHOLDERS = ['693D', 'admin', 'Spartans']
-const LOGIN_BACKDROP_URL = 'https://i.ibb.co/39JLm174/Wall.png'
 const KIOSK_LOGIN_CODE = 'KIOSK'
 const KIOSK_ENROLLMENT_KEY = 'luna-kiosk-enrollment-token'
 
@@ -34,22 +33,22 @@ function isValidLoginCode(value: string) {
 
 function AccessStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/[0.14] bg-white/[0.08] px-3 py-2.5">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase text-white/[0.58]">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase text-[var(--text-tertiary)]">
         {icon}
         {label}
       </div>
-      <div className="mt-1 text-sm font-semibold text-white">{value}</div>
+      <div className="mt-1 text-sm font-semibold text-[var(--text)]">{value}</div>
     </div>
   )
 }
 
 function LoginNotice({ children, tone = 'info' }: { children: ReactNode; tone?: 'info' | 'warning' | 'error' }) {
   const toneClass = tone === 'error'
-    ? 'border-red-500/25 bg-red-500/10 text-red-100'
+    ? 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
     : tone === 'warning'
-      ? 'border-amber-500/25 bg-amber-500/10 text-amber-100'
-      : 'border-white/[0.12] bg-white/[0.08] text-white/[0.72]'
+      ? 'border-[var(--status-warn-border)] bg-[var(--status-warn-bg)] text-[var(--status-warn-text)]'
+      : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)]'
 
   return (
     <div className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs ${toneClass}`}>
@@ -255,31 +254,26 @@ export function StoreLaunchScreen() {
 
   return (
     <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[#07111f] p-4 text-white sm:p-6"
-      style={{
-        backgroundImage: `url(${LOGIN_BACKDROP_URL})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
+      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[var(--bg)] p-4 text-[var(--text)] sm:p-6"
     >
-      <div className="absolute inset-0 bg-[#07111f]/[0.86]" />
-      <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(7,17,31,0.95)_0%,rgba(7,17,31,0.82)_48%,rgba(7,17,31,0.68)_100%)]" />
+      <div className="absolute inset-0" style={{ background: 'var(--bg-gradient)' }} />
+      <div className="absolute inset-0 bg-[var(--wallpaper-overlay)]" />
 
-      <main className="relative grid max-h-[calc(100vh-32px)] w-full max-w-6xl overflow-hidden rounded-lg border border-white/[0.16] bg-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
-        <section className="hidden min-h-[640px] flex-col justify-between border-r border-white/[0.12] bg-black/[0.18] p-8 lg:flex">
+      <main className="relative grid max-h-[calc(100vh-32px)] w-full max-w-6xl overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-modal)] backdrop-blur-xl lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+        <section className="hidden min-h-[640px] flex-col justify-between border-r border-[var(--border)] bg-[var(--surface-2)] p-8 lg:flex">
           <div>
             <div className="flex justify-center pt-6">
-              <LunaWirelessLogo className="h-28 w-72" tone="dark-surface" />
+              <LunaWirelessLogo className="h-28 w-72" />
             </div>
             <div className="mx-auto mt-10 max-w-xl text-center">
-              <div className="inline-flex items-center gap-2 rounded-md border border-white/[0.14] bg-white/[0.08] px-3 py-1.5 text-xs font-semibold uppercase text-white/[0.68]">
+              <div className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-3)] px-3 py-1.5 text-xs font-semibold uppercase text-[var(--text-secondary)]">
                 <LockKeyhole size={13} />
                 Data Dashboard Access
               </div>
-              <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-normal text-white">
+              <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-normal text-[var(--text)]">
                 {heroTitle}
               </h1>
-              <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-white/[0.68]">
+              <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-[var(--text-secondary)]">
                 {heroSubtitle}
               </p>
             </div>
@@ -292,10 +286,10 @@ export function StoreLaunchScreen() {
           </div>
         </section>
 
-        <section className={`login-card login-card-dark flex min-h-0 flex-col ${compactLogin ? 'lg:min-h-[560px]' : 'lg:min-h-[640px]'}`}>
+        <section className={`login-card flex min-h-0 flex-col ${compactLogin ? 'lg:min-h-[560px]' : 'lg:min-h-[640px]'}`}>
           <div className="border-b border-[var(--border)] px-5 py-5 sm:px-7 lg:hidden">
             <div className="flex justify-center">
-              <LunaWirelessLogo className="h-20 w-56" tone="dark-surface" />
+              <LunaWirelessLogo className="h-20 w-56" />
             </div>
           </div>
 

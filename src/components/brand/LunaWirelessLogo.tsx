@@ -11,7 +11,7 @@ export function LunaWirelessLogo({ className = '', tone = 'auto' }: { className?
     ? COLORED_LOGO_URL
     : tone === 'dark-surface'
       ? WHITE_LOGO_URL
-      : theme === 'dark' || theme === 'vista'
+      : theme === 'dark' || theme === 'carbon'
         ? WHITE_LOGO_URL
         : COLORED_LOGO_URL
 
