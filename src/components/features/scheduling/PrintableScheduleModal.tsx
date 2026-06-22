@@ -38,6 +38,10 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#039;')
 }
 
+function isMobilePrintSurface() {
+  return window.matchMedia('(max-width: 767px)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+}
+
 export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableScheduleModalProps) {
   const captureRef = useRef<HTMLDivElement>(null)
   const [capturing, setCapturing] = useState(false)
@@ -65,6 +69,11 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
   const fileName = `${scheduleTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
 
   const print = () => {
+    if (isMobilePrintSurface()) {
+      window.print()
+      return
+    }
+
     const header = `
       <div class="schedule-header">
         <div>
@@ -244,10 +253,24 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
     printWindow.document.open()
     printWindow.document.write(html)
     printWindow.document.close()
-    window.setTimeout(() => {
+
+    const printAfterLayout = () => {
       printWindow.focus()
-      printWindow.print()
-    }, 300)
+      const fontsReady = printWindow.document.fonts?.ready ?? Promise.resolve()
+      fontsReady.finally(() => {
+        printWindow.requestAnimationFrame(() => {
+          printWindow.requestAnimationFrame(() => {
+            printWindow.print()
+          })
+        })
+      })
+    }
+
+    if (printWindow.document.readyState === 'complete') {
+      printAfterLayout()
+    } else {
+      printWindow.addEventListener('load', printAfterLayout, { once: true })
+    }
   }
 
   const capture = async () => {
