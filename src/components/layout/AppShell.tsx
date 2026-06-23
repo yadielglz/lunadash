@@ -281,7 +281,7 @@ function MobileNavOverlay({ open, onClose }: { open: boolean; onClose: () => voi
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className="flex h-full min-h-0 w-[min(21rem,88vw)] flex-col border-r border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-modal)] backdrop-blur-2xl"
+            className="command-mobile-drawer flex h-full min-h-0 w-[min(21rem,88vw)] flex-col border-r border-[var(--border)] bg-[var(--surface)] px-3 shadow-[var(--shadow-modal)] backdrop-blur-2xl"
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}

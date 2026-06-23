@@ -575,7 +575,7 @@ body::after {
 }
 
 .command-bar {
-  min-height: 4.25rem;
+  min-height: calc(4.25rem + max(var(--safe-area-top), 0px));
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -583,7 +583,7 @@ body::after {
   gap: 1rem;
   border-bottom: 1px solid var(--border);
   background: var(--command-bg);
-  padding: 0.75rem 1.1rem;
+  padding: calc(0.75rem + max(var(--safe-area-top), 0px)) 1.1rem 0.75rem;
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
   position: relative;
@@ -638,9 +638,9 @@ body::after {
 
 @media (max-width: 639px) {
   .command-bar {
-    min-height: 3.85rem;
+    min-height: calc(3.85rem + max(var(--safe-area-top), 0px));
     gap: 0.5rem;
-    padding: 0.55rem 0.65rem;
+    padding: calc(0.55rem + max(var(--safe-area-top), 0px)) 0.65rem 0.55rem;
   }
 
   .command-bar-title {
@@ -681,6 +681,11 @@ body::after {
   .command-theme-button {
     display: none;
   }
+}
+
+.command-mobile-drawer {
+  padding-top: calc(0.75rem + max(var(--safe-area-top), 0px));
+  padding-bottom: calc(0.75rem + max(var(--safe-area-bottom), 0px));
 }
 
 @media (hover: none) and (pointer: coarse) {
