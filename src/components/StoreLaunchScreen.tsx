@@ -281,7 +281,7 @@ export function StoreLaunchScreen() {
 
           <div className="grid grid-cols-3 gap-3">
             <AccessStat icon={<Tag size={13} />} label="Version" value={APP_META.version} />
-            <AccessStat icon={<Wifi size={13} />} label="Status" value={limitedBrowserContext ? 'LAN dev' : 'Secure context'} />
+            <AccessStat icon={<Wifi size={13} />} label="Status" value={limitedBrowserContext ? 'LAN dev' : 'Secure Connect'} />
             <AccessStat icon={<Building2 size={13} />} label="Build" value={APP_META.build} />
           </div>
         </section>
