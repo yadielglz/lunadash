@@ -886,22 +886,55 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#039;')
 }
 
+function isReportStoreId(storeId: string) {
+  return storeId === 'main' || /^[A-Z0-9]{4}$/.test(storeId)
+}
+
+function storeReportLabel(storeId: string) {
+  if (storeId === 'main') return 'District'
+  const profile = getStoreProfile(storeId)
+  return profile ? `${profile.nickname} | ${storeId}` : storeId
+}
+
+function reportGoalFor(goals: Goal[], metricKey: string, storeId?: string) {
+  return goals.find((goal) => (
+    snapshotKey(goal) === metricKey
+    && (!storeId || normalizeStoreId(goal.storeId ?? '') === normalizeStoreId(storeId))
+  ))
+}
+
+function monthSnapshotTotal(goal: Goal | undefined, month: string) {
+  return Object.entries(goal?.dailyLog ?? {}).reduce((sum, [day, value]) => (
+    day.startsWith(month) ? sum + (Number(value) || 0) : sum
+  ), 0)
+}
+
+function dailyValue(goal: Goal | undefined, date: string) {
+  return Number(goal?.dailyLog?.[date]) || 0
+}
+
 function ReportSection() {
   const { goals, _init: goalsInit } = useGoalsStore()
   const { companyName, storeNumber } = useDisplayStore()
   const { storeId } = useUiStore()
   const [snapshotRunning, setSnapshotRunning] = useState(false)
+  const [reportRunning, setReportRunning] = useState(false)
   const [snapshotMessage, setSnapshotMessage] = useState('')
   const [snapshotError, setSnapshotError] = useState('')
   const [reportError, setReportError] = useState('')
   const reportStoreId = normalizeStoreId(storeId || 'main')
+  const allSnapshotGoals = goals.filter((goal) => (
+    goal.category === SNAPSHOT_CATEGORY
+    && snapshotKey(goal)
+    && isReportStoreId(normalizeStoreId(goal.storeId ?? ''))
+  ))
   const snapshotGoals = goals.filter((goal) => (
     goal.category === SNAPSHOT_CATEGORY
     && snapshotKey(goal)
     && normalizeStoreId(goal.storeId ?? '') === reportStoreId
   ))
   const months = Array.from(new Set(
-    snapshotGoals.flatMap((goal) => Object.keys(goal.dailyLog ?? {}).map((day) => day.slice(0, 7)))
+    allSnapshotGoals.flatMap((goal) => Object.keys(goal.dailyLog ?? {}).map((day) => day.slice(0, 7)))
   ))
     .sort()
     .reverse()
@@ -912,16 +945,23 @@ function ReportSection() {
     if (selectedMonth && months.length > 0 && !months.includes(selectedMonth)) setSelectedMonth(months[0])
   }, [months, selectedMonth])
 
-  const printReport = () => {
+  const openPrintableReport = (html: string) => {
+    const blob = new Blob([html], { type: 'text/html' })
+    const reportUrl = URL.createObjectURL(blob)
+    const reportWindow = window.open(reportUrl, '_blank')
+    window.setTimeout(() => URL.revokeObjectURL(reportUrl), 60_000)
+    if (!reportWindow) {
+      setReportError('Report popup was blocked. Allow popups for LunaDash and try again.')
+    }
+  }
+
+  const printStoreReport = () => {
     setReportError('')
     if (!selectedMonth) return
 
     const rows = Object.entries(REPORT_METRICS).map(([key, meta]) => {
-      const goal = snapshotGoals.find((item) => snapshotKey(item) === key)
-      const total = Object.entries(goal?.dailyLog ?? {}).reduce((sum, [day, value]) => (
-        day.startsWith(selectedMonth) ? sum + (Number(value) || 0) : sum
-      ), 0)
-      return { ...meta, total }
+      const goal = reportGoalFor(snapshotGoals, key)
+      return { ...meta, total: monthSnapshotTotal(goal, selectedMonth) }
     })
     const metricKeys = Object.keys(REPORT_METRICS)
     const dailyDates = Array.from(new Set(
@@ -929,8 +969,8 @@ function ReportSection() {
     )).sort()
     const dailyRows = dailyDates.map((date) => {
       const values = Object.fromEntries(metricKeys.map((key) => {
-        const goal = snapshotGoals.find((item) => snapshotKey(item) === key)
-        return [key, goal?.dailyLog?.[date] ?? 0]
+        const goal = reportGoalFor(snapshotGoals, key)
+        return [key, dailyValue(goal, date)]
       }))
       return { date, values }
     })
@@ -1003,7 +1043,7 @@ function ReportSection() {
                 `).join('')}
               </tbody>
             </table>
-            <h2>Daily Records</h2>
+            <h2>EOD MTD Records</h2>
             <table>
               <thead>
                 <tr>
@@ -1021,7 +1061,7 @@ function ReportSection() {
               </tbody>
             </table>
             <footer>
-              MTD totals and daily records are calculated from saved daily snapshots.
+              MTD totals are calculated from saved daily Source snapshots.
             </footer>
           </main>
           <script>
@@ -1034,12 +1074,182 @@ function ReportSection() {
       </html>
     `
 
-    const blob = new Blob([html], { type: 'text/html' })
-    const reportUrl = URL.createObjectURL(blob)
-    const reportWindow = window.open(reportUrl, '_blank')
-    window.setTimeout(() => URL.revokeObjectURL(reportUrl), 60_000)
-    if (!reportWindow) {
-      setReportError('Report popup was blocked. Allow popups for LunaDash and try again.')
+    openPrintableReport(html)
+  }
+
+  const loadDistrictSnapshotGoals = async () => {
+    const currentDistrictGoals = allSnapshotGoals.filter((goal) => {
+      const sid = normalizeStoreId(goal.storeId ?? '')
+      return sid === 'main' || /^[A-Z0-9]{4}$/.test(sid)
+    })
+    const storeIds = Array.from(new Set(currentDistrictGoals.map((goal) => normalizeStoreId(goal.storeId ?? '')).filter(Boolean)))
+    if (storeIds.includes('main') && storeIds.filter((id) => id !== 'main').length >= 2) return currentDistrictGoals
+
+    const stores = await dbGetStores()
+    const goalSets = await Promise.all([
+      dbGetGoals('main'),
+      ...stores
+        .map((store) => normalizeStoreId(store.store_id))
+        .filter((id) => /^[A-Z0-9]{4}$/.test(id))
+        .map((id) => dbGetGoals(id)),
+    ])
+    const loadedGoals = goalSets.flat()
+    const merged = [
+      ...goals.filter((goal) => goal.category !== SNAPSHOT_CATEGORY),
+      ...loadedGoals,
+    ]
+    goalsInit(merged)
+    return loadedGoals.filter((goal) => (
+      goal.category === SNAPSHOT_CATEGORY
+      && snapshotKey(goal)
+      && isReportStoreId(normalizeStoreId(goal.storeId ?? ''))
+    ))
+  }
+
+  const printDistrictReport = async () => {
+    setReportError('')
+    if (!selectedMonth) return
+
+    setReportRunning(true)
+    try {
+      const districtGoals = await loadDistrictSnapshotGoals()
+      const storeIds = Array.from(new Set(
+        districtGoals
+          .map((goal) => normalizeStoreId(goal.storeId ?? ''))
+          .filter((id) => /^[A-Z0-9]{4}$/.test(id))
+      )).sort()
+      const mainGoals = districtGoals.filter((goal) => normalizeStoreId(goal.storeId ?? '') === 'main')
+      const storeGoals = districtGoals.filter((goal) => storeIds.includes(normalizeStoreId(goal.storeId ?? '')))
+
+      const rows = Object.entries(REPORT_METRICS).map(([key, meta]) => {
+        const mainGoal = reportGoalFor(mainGoals, key, 'main')
+        const total = mainGoal
+          ? monthSnapshotTotal(mainGoal, selectedMonth)
+          : storeIds.reduce((sum, sid) => sum + monthSnapshotTotal(reportGoalFor(storeGoals, key, sid), selectedMonth), 0)
+        return { key, ...meta, total }
+      })
+      const leaderboardRows = storeIds
+        .map((sid) => ({
+          storeId: sid,
+          netRevenue: monthSnapshotTotal(reportGoalFor(storeGoals, 'netRevenue', sid), selectedMonth),
+          accessories: monthSnapshotTotal(reportGoalFor(storeGoals, 'accessoryRevenue', sid), selectedMonth),
+          totalPp: monthSnapshotTotal(reportGoalFor(storeGoals, 'totalPp', sid), selectedMonth),
+        }))
+        .sort((a, b) => b.netRevenue - a.netRevenue)
+
+      const generatedAt = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+      const html = `
+        <!doctype html>
+        <html>
+          <head>
+            <title>${escapeHtml(monthLabel(selectedMonth))} District Performance Snapshot</title>
+            <style>
+              * { box-sizing: border-box; }
+              body { margin: 0; color: #111827; font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", system-ui, sans-serif; background: #f7f8fb; }
+              main { width: 11in; min-height: 8.5in; margin: 0 auto; padding: 0.45in; background: white; }
+              header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 16px; }
+              h1 { margin: 0; font-size: 25px; letter-spacing: 0; }
+              h2 { margin: 24px 0 0; font-size: 15px; }
+              .subtle { color: #64748b; font-size: 12px; }
+              .meta { text-align: right; line-height: 1.5; }
+              .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
+              .tile { border: 1px solid #d8dee8; border-radius: 8px; padding: 12px; min-height: 82px; }
+              .label { color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+              .value { margin-top: 8px; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+              table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+              th { text-align: left; color: #64748b; font-size: 9px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; padding: 8px 6px; }
+              td { border-bottom: 1px solid #e5e7eb; padding: 9px 6px; font-size: 11px; }
+              td:not(:first-child), th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+              .rank { width: 34px; color: #64748b; }
+              .store { text-align: left !important; font-weight: 700; color: #111827; }
+              footer { margin-top: 22px; color: #64748b; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+              @media print {
+                @page { size: landscape; }
+                body { background: white; }
+                main { width: auto; min-height: auto; margin: 0; padding: 0.35in; }
+                .no-print { display: none; }
+              }
+            </style>
+          </head>
+          <body>
+            <main>
+              <header>
+                <div>
+                  <h1>District Performance Snapshot</h1>
+                  <div class="subtle">${escapeHtml(monthLabel(selectedMonth))}</div>
+                </div>
+                <div class="meta subtle">
+                  <div>Full District</div>
+                  <div>${storeIds.length} stores</div>
+                  <div>Generated ${escapeHtml(generatedAt)}</div>
+                </div>
+              </header>
+              <section class="summary">
+                ${rows.slice(0, 4).map((row) => `
+                  <div class="tile">
+                    <div class="label">${escapeHtml(row.label)}</div>
+                    <div class="value">${escapeHtml(formatReportValue(row.total, row.kind))}</div>
+                  </div>
+                `).join('')}
+              </section>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>District MTD Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows.map((row) => `
+                    <tr>
+                      <td class="store">${escapeHtml(row.label)}</td>
+                      <td>${escapeHtml(formatReportValue(row.total, row.kind))}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+              <h2>Store Leaderboard - MTD</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th class="rank">Rank</th>
+                    <th class="store">Store</th>
+                    <th>Net Revenue</th>
+                    <th>Accessories</th>
+                    <th>Total PP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${leaderboardRows.map((row, index) => `
+                    <tr>
+                      <td class="rank">${index + 1}</td>
+                      <td class="store">${escapeHtml(storeReportLabel(row.storeId))}</td>
+                      <td>${escapeHtml(formatReportValue(row.netRevenue, 'money'))}</td>
+                      <td>${escapeHtml(formatReportValue(row.accessories, 'money'))}</td>
+                      <td>${escapeHtml(formatReportValue(row.totalPp, 'number'))}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+              <footer>
+                District totals and leaderboard values are calculated from saved daily Source snapshots in the selected month.
+              </footer>
+            </main>
+            <script>
+              window.addEventListener('load', () => {
+                window.focus();
+                window.print();
+              });
+            </script>
+          </body>
+        </html>
+      `
+
+      openPrintableReport(html)
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'Could not build district report')
+    } finally {
+      setReportRunning(false)
     }
   }
 
@@ -1070,10 +1280,10 @@ function ReportSection() {
         <div>
           <p className="text-sm font-semibold text-[var(--text)]">Performance Snapshot Report</p>
           <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-            Select a month and open a print-ready report with MTD totals and daily records.
+            Select a month and open a print-ready report with MTD totals from saved daily snapshots.
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
           <Select
             label="Month"
             value={selectedMonth}
@@ -1086,8 +1296,11 @@ function ReportSection() {
               <option key={month} value={month}>{monthLabel(month)}</option>
             ))}
           </Select>
-          <Button size="sm" icon={<Printer size={13} />} disabled={!selectedMonth} onClick={printReport}>
-            Print / PDF
+          <Button size="sm" icon={<Printer size={13} />} disabled={!selectedMonth || reportRunning} onClick={printStoreReport}>
+            Store PDF
+          </Button>
+          <Button size="sm" icon={<Printer size={13} />} loading={reportRunning} disabled={!selectedMonth} onClick={printDistrictReport}>
+            District PDF
           </Button>
         </div>
         <p className="text-[10px] text-[var(--text-tertiary)]">

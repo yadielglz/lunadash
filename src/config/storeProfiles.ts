@@ -68,7 +68,7 @@ export const STORE_PROFILES: StoreProfile[] = [
   },
   {
     storeId: '693D',
-    nickname: 'GateWay',
+    nickname: 'Spartans',
     location: 'Champions Gate',
     address: '8286 Champions Gate Blvd, Davenport, FL 33896',
     city: 'Davenport',
