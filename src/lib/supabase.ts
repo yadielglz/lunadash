@@ -19,6 +19,8 @@ export const supabase = createClient(
   'sb_publishable_NzT-BI3Yy3ahV_WNx4X-_A_bhVz4l1X'
 )
 
+const SUPABASE_FUNCTIONS_URL = 'https://vzbuboclkpdthztfprgg.supabase.co/functions/v1'
+
 export const GLOBAL_ANNOUNCEMENT_STORE_ID = 'ALL'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -28,6 +30,20 @@ type DbGoal = {
   target: number; current_val: number; unit: string; deadline: string
   color: string; daily_target: number; daily_log: Record<string, number>
   milestones: Goal['milestones']; created_at: string
+}
+
+export type EodSnapshotStatus = {
+  day: string
+  saved: number
+  expected: number
+  complete: boolean
+}
+
+export type EodSnapshotFunctionResult = {
+  message: string
+  updated?: number
+  forced?: boolean
+  skipped?: boolean
 }
 
 type DbSettings = {
@@ -1093,6 +1109,71 @@ function metricKeyFromSnapshotGoal(goal: Pick<Goal, 'description'>) {
   return goal.description.startsWith(SNAPSHOT_PREFIX)
     ? goal.description.slice(SNAPSHOT_PREFIX.length)
     : ''
+}
+
+function validSnapshotStoreId(storeId: string) {
+  return storeId === 'main' || /^[A-Z0-9]{4}$/.test(storeId)
+}
+
+export async function dbGetEodSnapshotStatus(day = todayKey()): Promise<EodSnapshotStatus> {
+  const source = await fetchPerformanceData()
+  const expectedStores = new Set([
+    ...(source.total ? ['main'] : []),
+    ...source.rows.map((row) => normalizeStoreId(row.storeCode)),
+  ])
+  const expectedMetrics = new Set(SNAPSHOT_METRICS.map((metric) => metric.key))
+  const expected = expectedStores.size * expectedMetrics.size
+
+  const { data, error } = await supabase
+    .from('goals')
+    .select('store_id,description,daily_log')
+    .eq('category', SNAPSHOT_CATEGORY)
+  throwIfError(error, 'Could not verify EOD snapshot status')
+
+  const savedKeys = new Set<string>()
+  for (const row of (data ?? []) as Pick<DbGoal, 'store_id' | 'description' | 'daily_log'>[]) {
+    const storeId = normalizeStoreId(row.store_id)
+    const metricKey = row.description.startsWith(SNAPSHOT_PREFIX)
+      ? row.description.slice(SNAPSHOT_PREFIX.length)
+      : ''
+
+    if (!validSnapshotStoreId(storeId)) continue
+    if (!expectedStores.has(storeId)) continue
+    if (!expectedMetrics.has(metricKey as (typeof SNAPSHOT_METRICS)[number]['key'])) continue
+    if (!Object.prototype.hasOwnProperty.call(row.daily_log ?? {}, day)) continue
+
+    savedKeys.add(`${storeId}:${metricKey}`)
+  }
+
+  return {
+    day,
+    saved: savedKeys.size,
+    expected,
+    complete: expected > 0 && savedKeys.size >= expected,
+  }
+}
+
+export async function dbTriggerSupabaseEodSnapshot(force = true): Promise<EodSnapshotFunctionResult> {
+  const url = new URL(`${SUPABASE_FUNCTIONS_URL}/snapshot-eod`)
+  if (force) url.searchParams.set('force', 'true')
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ force }),
+  })
+  const result = await res.json().catch(() => ({})) as Partial<EodSnapshotFunctionResult> & { error?: string }
+
+  if (!res.ok || result.error) {
+    throw new Error(result.error || `Supabase EOD snapshot failed with HTTP ${res.status}`)
+  }
+
+  return {
+    message: result.message ?? 'Supabase EOD snapshot finished',
+    updated: result.updated,
+    forced: result.forced,
+    skipped: result.skipped,
+  }
 }
 
 export async function dbForceEodSnapshot(): Promise<{ message: string; updated: number; forced?: boolean }> {
