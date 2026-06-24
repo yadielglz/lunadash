@@ -1,5 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Calculator, CheckCircle2, ChevronDown, Plus, RefreshCw, Search, Trash2, UploadCloud } from 'lucide-react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import {
+  AlertCircle,
+  Calculator,
+  CheckCircle2,
+  DollarSign,
+  Plus,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  Store,
+  Trash2,
+  UploadCloud,
+} from 'lucide-react'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Select } from '../../ui/Input'
@@ -60,7 +72,7 @@ const PLAN_GROUPS: { label: string; prices: PlanOption[] }[] = [
     ],
   },
   {
-    label: 'Value/55+ Plans',
+    label: 'Value / 55+ Plans',
     prices: [
       { key: 'experienceBeyond55', label: 'Experience Beyond 55+', value: 130 },
       { key: 'experienceMore55', label: 'Experience More 55+', value: 100 },
@@ -70,7 +82,7 @@ const PLAN_GROUPS: { label: string; prices: PlanOption[] }[] = [
   {
     label: 'Add-a-line / Other',
     prices: [
-      { key: 'voiceAal', label: 'Voice/AAL', value: 65 },
+      { key: 'voiceAal', label: 'Voice / AAL', value: 65 },
       { key: 'btsLine', label: 'BTS', value: 20 },
       { key: 'hsiLine', label: 'HSI', value: 15 },
     ],
@@ -117,17 +129,6 @@ function metricInputValue(value: string) {
   return value.replace(/[^\d.]/g, '')
 }
 
-function CurrentMetric({ label, value, money = false }: { label: string; value: number; money?: boolean }) {
-  return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
-      <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
-      <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--text)]">
-        {money ? formatMoney(value) : formatNumber(value)}
-      </div>
-    </div>
-  )
-}
-
 function sumPlanRevenue(counts: PlanCounts) {
   return PLAN_GROUPS.flatMap((group) => group.prices).reduce((sum, plan) => (
     sum + safeDraftNumber(counts[plan.key]) * plan.value
@@ -146,6 +147,50 @@ function countType(entries: SaleEntry[], type: SaleType) {
   return entries.filter((entry) => entry.type === type).length
 }
 
+function MetricTile({
+  label,
+  value,
+  helper,
+  money = false,
+}: {
+  label: string
+  value: number
+  helper?: string
+  money?: boolean
+}) {
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+      <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
+      <div className="mt-1 text-lg font-semibold tabular-nums text-[var(--text)]">
+        {money ? formatMoney(value) : formatNumber(value)}
+      </div>
+      {helper && <div className="mt-1 truncate text-[10px] text-[var(--text-tertiary)]">{helper}</div>}
+    </div>
+  )
+}
+
+function SectionTitle({
+  icon,
+  title,
+  detail,
+}: {
+  icon: ReactNode
+  title: string
+  detail: string
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-2">
+      <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--accent)]/10 text-[var(--accent)]">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-[var(--text)]">{title}</div>
+        <div className="mt-0.5 text-xs text-[var(--text-tertiary)]">{detail}</div>
+      </div>
+    </div>
+  )
+}
+
 export function PerformanceUpdatePage() {
   const { accessId, accessRole, storeId } = useUiStore()
   const [rows, setRows] = useState<PerformanceRow[]>([])
@@ -158,8 +203,6 @@ export function PerformanceUpdatePage() {
   const [message, setMessage] = useState('')
   const [planCounts, setPlanCounts] = useState<PlanCounts>(EMPTY_PLAN_COUNTS)
   const [sales, setSales] = useState<SaleEntry[]>([])
-  const [calculatorOpen, setCalculatorOpen] = useState(false)
-  const [saleRowsOpen, setSaleRowsOpen] = useState(false)
 
   const canChooseStore = accessRole === 'admin' || accessRole === 'district_manager'
   const canUpdate = accessRole === 'admin' || accessRole === 'district_manager' || accessRole === 'manager'
@@ -198,6 +241,20 @@ export function PerformanceUpdatePage() {
       hsi: countType(sales, 'hsi'),
     }
   }, [planCounts, sales])
+
+  const nextTotals = selectedRow ? {
+    netRevenue: selectedRow.netRevenue + Math.round(calculatorTotals.netRevenue),
+    accessoryRevenue: selectedRow.accessoryRevenue + Math.round(calculatorTotals.accessoryRevenue),
+    vl: selectedRow.vl + calculatorTotals.vl,
+    bts: selectedRow.bts + calculatorTotals.bts,
+    hsi: selectedRow.hsi + calculatorTotals.hsi,
+  } : null
+
+  const hasCalculatorValues = calculatorTotals.netRevenue > 0
+    || calculatorTotals.accessoryRevenue > 0
+    || calculatorTotals.vl > 0
+    || calculatorTotals.bts > 0
+    || calculatorTotals.hsi > 0
 
   const loadData = async () => {
     setLoading(true)
@@ -247,13 +304,7 @@ export function PerformanceUpdatePage() {
       setError('Select a store before applying calculator totals.')
       return
     }
-    if (
-      calculatorTotals.netRevenue === 0
-      && calculatorTotals.accessoryRevenue === 0
-      && calculatorTotals.vl === 0
-      && calculatorTotals.bts === 0
-      && calculatorTotals.hsi === 0
-    ) {
+    if (!hasCalculatorValues) {
       setError('Enter calculator values before applying totals.')
       return
     }
@@ -267,16 +318,15 @@ export function PerformanceUpdatePage() {
         accessRole: accessRole ?? '',
         storeCode: selectedRow.storeCode,
         traffic: selectedRow.traffic,
-        netRevenue: selectedRow.netRevenue + Math.round(calculatorTotals.netRevenue),
-        accessoryRevenue: selectedRow.accessoryRevenue + Math.round(calculatorTotals.accessoryRevenue),
-        vl: selectedRow.vl + calculatorTotals.vl,
-        bts: selectedRow.bts + calculatorTotals.bts,
-        hsi: selectedRow.hsi + calculatorTotals.hsi,
+        netRevenue: nextTotals?.netRevenue ?? selectedRow.netRevenue,
+        accessoryRevenue: nextTotals?.accessoryRevenue ?? selectedRow.accessoryRevenue,
+        vl: nextTotals?.vl ?? selectedRow.vl,
+        bts: nextTotals?.bts ?? selectedRow.bts,
+        hsi: nextTotals?.hsi ?? selectedRow.hsi,
       })
       setMessage(result.message || `Added calculator totals to ${selectedRow.storeCode}`)
       setPlanCounts(EMPTY_PLAN_COUNTS)
       setSales([])
-      setSaleRowsOpen(false)
       await loadData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update Google Cloud Services')
@@ -336,6 +386,8 @@ export function PerformanceUpdatePage() {
     )
   }
 
+  const selectedDealer = selectedRow ? dealerInfoForRow(selectedRow) : null
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="border-b border-[var(--border)] px-4 py-4">
@@ -346,7 +398,7 @@ export function PerformanceUpdatePage() {
               Performance Update
             </h1>
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              Update Traffic, Net Revenue, Accessories, VL, BTS, and HSI for the selected store.
+              Add sales activity or make a controlled tracker adjustment for the selected store.
             </p>
           </div>
           <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={loadData} loading={loading}>
@@ -356,7 +408,7 @@ export function PerformanceUpdatePage() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)]">
           <Card noPadding className="overflow-hidden">
             <div className="border-b border-[var(--border)] p-3">
               <div className="relative">
@@ -364,7 +416,7 @@ export function PerformanceUpdatePage() {
                 <Input className="pl-8" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search stores" />
               </div>
             </div>
-            <div className="max-h-[520px] overflow-y-auto">
+            <div className="max-h-[calc(100vh-15rem)] overflow-y-auto">
               {visibleRows.map((row) => {
                 const dealer = dealerInfoForRow(row)
                 const selected = normalizeStoreId(row.storeCode) === normalizeStoreId(selectedStoreCode)
@@ -373,7 +425,7 @@ export function PerformanceUpdatePage() {
                     key={row.store}
                     type="button"
                     onClick={() => setSelectedStoreCode(normalizeStoreId(row.storeCode))}
-                    className={`block w-full border-b border-[var(--border)] px-3 py-2.5 text-left transition-colors ${
+                    className={`block w-full border-b border-[var(--border)] px-3 py-3 text-left transition-colors ${
                       selected ? 'bg-[var(--accent)]/10' : 'hover:bg-[var(--reveal-bg)]'
                     }`}
                   >
@@ -382,6 +434,11 @@ export function PerformanceUpdatePage() {
                       <span className="text-xs text-[var(--text-tertiary)]">{dealer.code}</span>
                     </div>
                     <div className="mt-0.5 truncate text-xs text-[var(--text-tertiary)]">{dealer.location}</div>
+                    <div className="mt-2 grid grid-cols-3 gap-1 text-[10px] text-[var(--text-secondary)]">
+                      <span className="rounded-md bg-[var(--surface-2)] px-2 py-1 tabular-nums">{formatMoney(row.netRevenue)}</span>
+                      <span className="rounded-md bg-[var(--surface-2)] px-2 py-1 tabular-nums">VL {formatNumber(row.vl)}</span>
+                      <span className="rounded-md bg-[var(--surface-2)] px-2 py-1 tabular-nums">BTS {formatNumber(row.bts)}</span>
+                    </div>
                   </button>
                 )
               })}
@@ -395,24 +452,18 @@ export function PerformanceUpdatePage() {
 
           <div className="space-y-4">
             <Card>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <div className="text-xs font-medium uppercase text-[var(--text-tertiary)]">Selected Store</div>
-                  <div className="mt-1 text-lg font-semibold text-[var(--text)]">
-                    {selectedRow ? dealerInfoForRow(selectedRow).nickname : 'No store selected'}
-                  </div>
-                  {selectedRow && (
-                    <div className="mt-1 text-xs text-[var(--text-secondary)]">
-                      {selectedRow.storeCode} · Current ACC {formatMoney(selectedRow.accessoryRevenue)} · Traffic {formatNumber(selectedRow.traffic)}
-                    </div>
-                  )}
-                </div>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <SectionTitle
+                  icon={<Store size={16} />}
+                  title={selectedDealer ? selectedDealer.nickname : 'No store selected'}
+                  detail={selectedRow ? `${selectedRow.storeCode} - ${selectedDealer?.location || selectedRow.teamName || 'Store tracker'}` : 'Choose a store to begin'}
+                />
                 {canChooseStore && (
                   <Select
                     label="Store"
                     value={selectedStoreCode}
                     onChange={(event) => setSelectedStoreCode(normalizeStoreId(event.target.value))}
-                    className="sm:w-56"
+                    className="lg:w-64"
                   >
                     {rows.map((row) => (
                       <option key={row.store} value={normalizeStoreId(row.storeCode)}>
@@ -422,151 +473,128 @@ export function PerformanceUpdatePage() {
                   </Select>
                 )}
               </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+                <MetricTile label="Traffic" value={selectedRow?.traffic ?? 0} />
+                <MetricTile label="Net Revenue" value={selectedRow?.netRevenue ?? 0} money helper={selectedRow ? `${formatMoney(Math.max(selectedRow.netRevenueGoal - selectedRow.netRevenue, 0))} left` : 'No store'} />
+                <MetricTile label="Accessories" value={selectedRow?.accessoryRevenue ?? 0} money helper={selectedRow ? `${formatMoney(Math.max(selectedRow.accessoryGoal - selectedRow.accessoryRevenue, 0))} left` : 'No store'} />
+                <MetricTile label="Total PP" value={selectedRow?.totalPp ?? 0} helper={selectedRow ? `${formatNumber(Math.max(selectedRow.dortGoal - selectedRow.totalPp, 0))} left` : 'No store'} />
+                <MetricTile label="BTS" value={selectedRow?.bts ?? 0} />
+                <MetricTile label="HSI" value={selectedRow?.hsi ?? 0} />
+              </div>
             </Card>
 
             <Card>
-              <button
-                type="button"
-                onClick={() => setCalculatorOpen((open) => !open)}
-                className="flex w-full items-center justify-between gap-3 text-left"
-              >
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
-                    <Calculator size={15} className="text-[var(--accent)]" />
-                    Net Revenue Calculator
-                  </div>
-                  <div className="mt-0.5 text-xs text-[var(--text-tertiary)]">
-                    Adds calculator totals directly to the selected store through Google Cloud Services.
-                  </div>
-                </div>
-                <ChevronDown size={15} className={`text-[var(--text-tertiary)] transition-transform ${calculatorOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {calculatorOpen && (
-                <div className="mt-4">
-                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:flex-1">
-                      <CurrentMetric label="Plan Revenue" value={calculatorTotals.planRevenue} money />
-                      <CurrentMetric label="Sales Revenue" value={calculatorTotals.salesRevenue} money />
-                      <CurrentMetric label="Net Revenue Add" value={calculatorTotals.netRevenue} money />
-                      <CurrentMetric label="Accessories Add" value={calculatorTotals.accessoryRevenue} money />
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="accent"
-                      icon={<CheckCircle2 size={13} />}
-                      loading={saving}
-                      disabled={!selectedRow}
-                      onClick={applyCalculatorTotals}
-                    >
-                      Add to Google Cloud Services
-                    </Button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {PLAN_GROUPS.map((group) => (
-                      <div key={group.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                        <div className="mb-2 text-xs font-semibold text-[var(--text)]">{group.label}</div>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                          {group.prices.map((plan) => (
-                            <Input
-                              key={plan.key}
-                              label={`${plan.label} (${formatMoney(plan.value)})`}
-                              inputMode="decimal"
-                              value={planCounts[plan.key]}
-                              onChange={(event) => setPlanCounts((counts) => ({ ...counts, [plan.key]: metricInputValue(event.target.value) }))}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]">
-                    <button
-                      type="button"
-                      onClick={() => setSaleRowsOpen((open) => !open)}
-                      className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
-                    >
-                      <div>
-                        <div className="text-xs font-semibold text-[var(--text)]">Sale Record</div>
-                        <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
-                          {sales.length ? `${sales.length} sale ${sales.length === 1 ? 'row' : 'rows'} included in totals` : 'Use only when you want rep-level detail.'}
-                        </div>
-                      </div>
-                      <ChevronDown size={15} className={`text-[var(--text-tertiary)] transition-transform ${saleRowsOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {saleRowsOpen && (
-                      <div className="space-y-2 border-t border-[var(--border)] p-3">
-                        <div className="flex items-center justify-end">
-                          <Button size="sm" variant="ghost" icon={<Plus size={12} />} onClick={() => setSales((entries) => [...entries, newSaleEntry()])}>
-                            Add Sale
-                          </Button>
-                        </div>
-                        {sales.length === 0 && (
-                          <div className="rounded-md border border-dashed border-[var(--border)] px-3 py-4 text-center text-xs text-[var(--text-tertiary)]">
-                            No sale rows added.
-                          </div>
-                        )}
-                        {sales.map((entry, index) => (
-                          <div key={entry.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                              <span className="text-xs font-medium text-[var(--text-secondary)]">Sale {index + 1}</span>
-                              <button
-                                type="button"
-                                onClick={() => removeSale(entry.id)}
-                                className="rounded-md p-1 text-[var(--text-tertiary)] transition-colors hover:bg-red-500/10 hover:text-red-400"
-                                title="Remove sale"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                              <Input label="Rep" value={entry.rep} onChange={(event) => updateSale(entry.id, { rep: event.target.value })} />
-                              <Input label="Sale Revenue" inputMode="decimal" value={entry.revenue} onChange={(event) => updateSale(entry.id, { revenue: metricInputValue(event.target.value) })} />
-                              <Select label="Type" value={entry.type} onChange={(event) => updateSale(entry.id, { type: event.target.value as SaleType })}>
-                                <option value="voice">Voice / AAL</option>
-                                <option value="bts">BTS</option>
-                                <option value="hsi">HSI</option>
-                                <option value="other">Other</option>
-                              </Select>
-                              <Input label="Feature $" inputMode="decimal" value={entry.feature} onChange={(event) => updateSale(entry.id, { feature: metricInputValue(event.target.value) })} />
-                              <Input label="ACC $" inputMode="decimal" value={entry.accessory} onChange={(event) => updateSale(entry.id, { accessory: metricInputValue(event.target.value) })} />
-                              <Input label="# Phones" inputMode="decimal" value={entry.phones} onChange={(event) => updateSale(entry.id, { phones: metricInputValue(event.target.value) })} />
-                              <Input label="# P360" inputMode="decimal" value={entry.p360} onChange={(event) => updateSale(entry.id, { p360: metricInputValue(event.target.value) })} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            <Card>
-              <div className="mb-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-[var(--text)]">Current Numbers</div>
-                    <div className="mt-0.5 text-xs text-[var(--text-tertiary)]">Numbers as of right now.</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {loading && <RefreshCw size={14} className="animate-spin text-[var(--accent)]" />}
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-                  <CurrentMetric label="Traffic" value={selectedRow?.traffic ?? 0} />
-                  <CurrentMetric label="Net Revenue" value={selectedRow?.netRevenue ?? 0} money />
-                  <CurrentMetric label="Accessories" value={selectedRow?.accessoryRevenue ?? 0} money />
-                  <CurrentMetric label="VL" value={selectedRow?.vl ?? 0} />
-                  <CurrentMetric label="BTS" value={selectedRow?.bts ?? 0} />
-                  <CurrentMetric label="HSI" value={selectedRow?.hsi ?? 0} />
-                </div>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <SectionTitle
+                  icon={<CalculatorIcon />}
+                  title="Add Sales Activity"
+                  detail="Enter quantities or sale rows, review the preview, then post the totals."
+                />
+                <Button
+                  size="sm"
+                  variant="accent"
+                  icon={<CheckCircle2 size={13} />}
+                  loading={saving}
+                  disabled={!selectedRow || !hasCalculatorValues}
+                  onClick={applyCalculatorTotals}
+                >
+                  Post Totals
+                </Button>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                <MetricTile label="Plan Revenue" value={calculatorTotals.planRevenue} money />
+                <MetricTile label="Sale Revenue" value={calculatorTotals.salesRevenue} money />
+                <MetricTile label="NR Add" value={calculatorTotals.netRevenue} money helper={nextTotals ? `New ${formatMoney(nextTotals.netRevenue)}` : undefined} />
+                <MetricTile label="ACC Add" value={calculatorTotals.accessoryRevenue} money helper={nextTotals ? `New ${formatMoney(nextTotals.accessoryRevenue)}` : undefined} />
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-3">
+                {PLAN_GROUPS.map((group) => (
+                  <div key={group.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                    <div className="mb-3 text-xs font-semibold text-[var(--text)]">{group.label}</div>
+                    <div className="space-y-2">
+                      {group.prices.map((plan) => (
+                        <Input
+                          key={plan.key}
+                          label={`${plan.label} (${formatMoney(plan.value)})`}
+                          inputMode="decimal"
+                          value={planCounts[plan.key]}
+                          onChange={(event) => setPlanCounts((counts) => ({ ...counts, [plan.key]: metricInputValue(event.target.value) }))}
+                          placeholder="0"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]">
+                <div className="flex flex-col gap-2 border-b border-[var(--border)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-[var(--text)]">Sale Detail Rows</div>
+                    <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
+                      {sales.length ? `${sales.length} row${sales.length === 1 ? '' : 's'} included in preview` : 'Optional detail for rep-level sales and accessories.'}
+                    </div>
+                  </div>
+                  <Button size="sm" variant="ghost" icon={<Plus size={12} />} onClick={() => setSales((entries) => [...entries, newSaleEntry()])}>
+                    Add Row
+                  </Button>
+                </div>
+
+                <div className="space-y-2 p-3">
+                  {sales.length === 0 && (
+                    <div className="rounded-md border border-dashed border-[var(--border)] px-3 py-5 text-center text-xs text-[var(--text-tertiary)]">
+                      No sale rows added.
+                    </div>
+                  )}
+                  {sales.map((entry, index) => (
+                    <div key={entry.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-[var(--text-secondary)]">Sale {index + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeSale(entry.id)}
+                          className="rounded-md p-1 text-[var(--text-tertiary)] transition-colors hover:bg-red-500/10 hover:text-red-400"
+                          title="Remove sale"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        <Input label="Rep" value={entry.rep} onChange={(event) => updateSale(entry.id, { rep: event.target.value })} />
+                        <Input label="Sale Revenue" inputMode="decimal" value={entry.revenue} onChange={(event) => updateSale(entry.id, { revenue: metricInputValue(event.target.value) })} />
+                        <Select label="Type" value={entry.type} onChange={(event) => updateSale(entry.id, { type: event.target.value as SaleType })}>
+                          <option value="voice">Voice / AAL</option>
+                          <option value="bts">BTS</option>
+                          <option value="hsi">HSI</option>
+                          <option value="other">Other</option>
+                        </Select>
+                        <Input label="Feature $" inputMode="decimal" value={entry.feature} onChange={(event) => updateSale(entry.id, { feature: metricInputValue(event.target.value) })} />
+                        <Input label="ACC $" inputMode="decimal" value={entry.accessory} onChange={(event) => updateSale(entry.id, { accessory: metricInputValue(event.target.value) })} />
+                        <Input label="# Phones" inputMode="decimal" value={entry.phones} onChange={(event) => updateSale(entry.id, { phones: metricInputValue(event.target.value) })} />
+                        <Input label="# P360" inputMode="decimal" value={entry.p360} onChange={(event) => updateSale(entry.id, { p360: metricInputValue(event.target.value) })} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <SectionTitle
+                  icon={<SlidersHorizontal size={16} />}
+                  title="Manual Tracker Adjustment"
+                  detail="Use this when you need to overwrite the current tracker values directly."
+                />
+                <Button icon={<UploadCloud size={13} />} loading={saving} onClick={save} disabled={!selectedRow}>
+                  Save Adjustment
+                </Button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <div>
                   <Input label="Traffic" inputMode="decimal" value={draft.traffic} onChange={(e) => setDraft((d) => ({ ...d, traffic: metricInputValue(e.target.value) }))} />
                   <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatNumber(selectedRow?.traffic ?? 0)}</p>
@@ -588,29 +616,35 @@ export function PerformanceUpdatePage() {
                   <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatNumber(selectedRow?.hsi ?? 0)}</p>
                 </div>
               </div>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-h-5">
-                  {error && (
-                    <p className="flex items-center gap-1.5 text-xs text-red-400">
-                      <AlertCircle size={13} />
-                      {error}
-                    </p>
-                  )}
-                  {message && (
-                    <p className="flex items-center gap-1.5 text-xs text-green-400">
-                      <CheckCircle2 size={13} />
-                      {message}
-                    </p>
-                  )}
-                </div>
-                <Button icon={<UploadCloud size={13} />} loading={saving} onClick={save} disabled={!selectedRow}>
-                  Update Google Cloud Services
-                </Button>
-              </div>
             </Card>
+
+            {(error || message) && (
+              <div className={`rounded-lg border px-3 py-2 text-sm ${error ? 'border-red-500/25 bg-red-500/10 text-red-300' : 'border-green-500/25 bg-green-500/10 text-green-300'}`}>
+                {error ? (
+                  <p className="flex items-center gap-1.5">
+                    <AlertCircle size={13} />
+                    {error}
+                  </p>
+                ) : (
+                  <p className="flex items-center gap-1.5">
+                    <CheckCircle2 size={13} />
+                    {message}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+function CalculatorIcon() {
+  return (
+    <span className="relative flex h-4 w-4 items-center justify-center">
+      <Calculator size={16} />
+      <DollarSign size={8} className="absolute -right-1 -top-1 rounded-full bg-[var(--surface)] text-[var(--accent)]" />
+    </span>
   )
 }
