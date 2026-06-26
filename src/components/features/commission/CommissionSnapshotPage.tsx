@@ -261,8 +261,6 @@ export function CommissionSnapshotPage() {
   ), [selectedDate, storeSnapshots])
 
   const totals = useMemo(() => {
-    const totalCommission = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.commission, 0)
-    const totalCommissionGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.commissionOpportunity, 0)
     const totalAccessories = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.accessories, 0)
     const totalAccessoryGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.accessoryGoal, 0)
     const totalVoiceLines = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.voiceLines, 0)
@@ -271,11 +269,11 @@ export function CommissionSnapshotPage() {
     const totalBtsGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.btsGoal, 0)
     const totalRevenue = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.revenue, 0)
     const totalRevenueGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.revenueGoal, 0)
+    const averageRevenue = visibleSnapshots.length ? totalRevenue / visibleSnapshots.length : 0
     const totalVaf = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.vaf, 0)
     const totalVafGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.vafGoal, 0)
+    const averageVaf = visibleSnapshots.length ? totalVaf / visibleSnapshots.length : 0
     return {
-      totalCommission,
-      totalCommissionGoal,
       totalAccessories,
       totalAccessoryGoal,
       totalVoiceLines,
@@ -284,8 +282,10 @@ export function CommissionSnapshotPage() {
       totalBtsGoal,
       totalRevenue,
       totalRevenueGoal,
+      averageRevenue,
       totalVaf,
       totalVafGoal,
+      averageVaf,
     }
   }, [visibleSnapshots])
 
@@ -296,7 +296,6 @@ export function CommissionSnapshotPage() {
       && snapshot.snapshotDate <= selectedDate
     ))
     return {
-      commission: monthSnapshots.reduce((sum, snapshot) => sum + snapshot.commission, 0),
       accessories: monthSnapshots.reduce((sum, snapshot) => sum + snapshot.accessories, 0),
       revenue: monthSnapshots.reduce((sum, snapshot) => sum + snapshot.revenue, 0),
       vaf: monthSnapshots.reduce((sum, snapshot) => sum + snapshot.vaf, 0),
@@ -392,14 +391,6 @@ export function CommissionSnapshotPage() {
       <div className="flex-1 overflow-y-auto p-4">
         <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           <MetricSummary
-            icon={<DollarSign size={17} />}
-            label="Commission"
-            value={formatMoney(totals.totalCommission)}
-            status={goalPercent(totals.totalCommission, totals.totalCommissionGoal)}
-            eomGap={eomDailyNeed(mtdTotals.commission, totals.totalCommissionGoal, selectedDate)}
-            money
-          />
-          <MetricSummary
             icon={<TrendingUp size={17} />}
             label="Accessory"
             value={formatMoney(totals.totalAccessories)}
@@ -408,9 +399,9 @@ export function CommissionSnapshotPage() {
             money
           />
           <MetricSummary
-            icon={<TrendingUp size={17} />}
-            label="Revenue"
-            value={formatMoney(totals.totalRevenue)}
+            icon={<DollarSign size={17} />}
+            label="Revenue Avg"
+            value={formatMoney(totals.averageRevenue)}
             status={goalPercent(totals.totalRevenue, totals.totalRevenueGoal)}
             eomGap={eomDailyNeed(mtdTotals.revenue, totals.totalRevenueGoal, selectedDate)}
             money
@@ -424,11 +415,18 @@ export function CommissionSnapshotPage() {
           />
           <MetricSummary
             icon={<Target size={17} />}
-            label="VAF"
-            value={formatMoney(totals.totalVaf)}
+            label="VAF Avg"
+            value={formatMoney(totals.averageVaf)}
             status={goalPercent(totals.totalVaf, totals.totalVafGoal)}
             eomGap={eomDailyNeed(mtdTotals.vaf, totals.totalVafGoal, selectedDate)}
             money
+          />
+          <MetricSummary
+            icon={<Target size={17} />}
+            label="BTS"
+            value={formatDecimal(totals.totalBts)}
+            status={goalPercent(totals.totalBts, totals.totalBtsGoal)}
+            eomGap={eomDailyNeed(mtdTotals.bts, totals.totalBtsGoal, selectedDate)}
           />
         </div>
 
