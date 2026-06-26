@@ -97,8 +97,7 @@ function monthKey(dateKey: string) {
   return dateKey.slice(0, 7)
 }
 
-function eomDailyNeed(mtdActual: number, dailyGoal: number, dateKey: string) {
-  const monthGoal = dailyGoal * daysInSelectedMonth(dateKey)
+function eomDailyNeed(mtdActual: number, monthGoal: number, dateKey: string) {
   const daysLeft = Math.max(1, daysInSelectedMonth(dateKey) - selectedDayOfMonth(dateKey))
   return Math.max(0, monthGoal - mtdActual) / daysLeft
 }
