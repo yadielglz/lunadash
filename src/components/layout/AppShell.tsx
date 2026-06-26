@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   BarChart3,
+  BadgeDollarSign,
   Calendar,
   CalendarPlus,
   CarFront,
@@ -38,6 +39,7 @@ const NAV_ITEMS: { id: Tab; icon: React.ReactNode; label: string; helper: string
   { id: 'appointments', icon: <CalendarPlus size={18} />, label: 'Appointments', helper: 'Customer flow' },
   { id: 'tasks', icon: <CheckSquare size={18} />, label: 'Checklist', helper: 'Open and close' },
   { id: 'goals', icon: <BarChart3 size={18} />, label: 'Goals', helper: 'Targets and snapshots' },
+  { id: 'commission', icon: <BadgeDollarSign size={18} />, label: 'Commissions', helper: 'Locked snapshot' },
   { id: 'employees', icon: <Users size={18} />, label: 'Employees', helper: 'Team records' },
   { id: 'updates', icon: <UploadCloud size={18} />, label: 'Updates', helper: 'Report numbers' },
   { id: 'display', icon: <Monitor size={18} />, label: 'Display', helper: 'Store screen' },
@@ -51,6 +53,7 @@ const MOBILE_NAV_LABELS: Partial<Record<Tab, string>> = {
   appointments: 'Appts',
   tasks: 'Tasks',
   goals: 'Goals',
+  commission: 'Comm',
   employees: 'Team',
   updates: 'Update',
   display: 'Display',

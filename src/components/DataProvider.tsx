@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle } from 'lucide-react'
-import { supabase, dbGetEmployees, dbGetShifts, dbGetScheduleExceptions, dbGetScheduleBlocks, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetStores, dbGetTasks, GLOBAL_ANNOUNCEMENT_STORE_ID } from '../lib/supabase'
+import { supabase, dbGetEmployees, dbGetShifts, dbGetScheduleExceptions, dbGetScheduleBlocks, dbGetGoals, dbGetAnnouncements, dbGetSettings, dbGetStores, dbGetTasks, dbGetCommissionSnapshots, dbToCommissionSnapshot, GLOBAL_ANNOUNCEMENT_STORE_ID } from '../lib/supabase'
 import { useScheduleStore } from '../store/scheduleStore'
 import { useScheduleBlocksStore } from '../store/scheduleBlocksStore'
 import { useGoalsStore } from '../store/goalsStore'
@@ -8,6 +8,7 @@ import { useDisplayStore } from '../store/displayStore'
 import { useUiStore } from '../store/uiStore'
 import { useTasksStore } from '../store/tasksStore'
 import { useScheduleExceptionsStore } from '../store/scheduleExceptionsStore'
+import { useCommissionSnapshotStore, type CommissionSnapshot } from '../store/commissionSnapshotStore'
 import { DashboardLoader } from './ui/DashboardLoader'
 import type { Employee, Shift } from '../store/scheduleStore'
 import type { ScheduleBlock } from '../store/scheduleBlocksStore'
@@ -76,6 +77,27 @@ type TaskRow = StoreScopedRow & {
   category: Task['category']
   sort_order: number
   completed_date?: string | null
+  created_at: string
+}
+type CommissionSnapshotRow = StoreScopedRow & {
+  snapshot_date: string
+  employee_name: string
+  commission: number
+  commission_opportunity: number
+  accessories: number
+  accessory_goal: number
+  revenue: number
+  revenue_goal: number
+  vaf: number
+  vaf_goal: number
+  voice_lines: number
+  voice_lines_goal: number
+  bts: number
+  bts_goal: number
+  notes: string | null
+  sort_order: number | null
+  updated_by: string | null
+  updated_at: string
   created_at: string
 }
 
@@ -179,6 +201,14 @@ const taskFromRow = (r: TaskRow): Task => ({
   createdAt: r.created_at,
 })
 
+function sortCommissionSnapshots(snapshots: CommissionSnapshot[]) {
+  return [...snapshots].sort((a, b) => {
+    if (a.snapshotDate !== b.snapshotDate) return b.snapshotDate.localeCompare(a.snapshotDate)
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder
+    return a.employeeName.localeCompare(b.employeeName)
+  })
+}
+
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const storeId      = useUiStore((s) => s.storeId)
   const scheduleInit = useScheduleStore((s) => s._init)
@@ -187,6 +217,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const goalsInit    = useGoalsStore((s) => s._init)
   const displayInit  = useDisplayStore((s) => s._init)
   const tasksInit    = useTasksStore((s) => s._init)
+  const commissionInit = useCommissionSnapshotStore((s) => s._init)
   const channelRef   = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -207,7 +238,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         const goalStoreIds = isMain ? ['main', ...storeIds] : storeIds
 
-        const [employeeSets, shiftSets, exceptionSets, blockSets, goalSets, announcementSets, settings, taskSets] = await Promise.all([
+        const [employeeSets, shiftSets, exceptionSets, blockSets, goalSets, announcementSets, settings, taskSets, commissionSets] = await Promise.all([
           Promise.all(storeIds.map(dbGetEmployees)),
           Promise.all(storeIds.map(dbGetShifts)),
           Promise.all(storeIds.map(dbGetScheduleExceptions)),
@@ -216,6 +247,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           Promise.all(storeIds.map(dbGetAnnouncements)),
           isMain ? Promise.resolve({ company_name: 'Main Dashboard', store_number: 'All Stores', slide_interval: 8 }) : dbGetSettings(storeIds[0]),
           Promise.all(storeIds.map(dbGetTasks)),
+          Promise.all(storeIds.map(dbGetCommissionSnapshots)),
         ])
         if (cancelled) return
         scheduleInit(sortEmployees(employeeSets.flat()), shiftSets.flat())
@@ -227,6 +259,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           settings ?? { company_name: 'Luna Store', store_number: '', slide_interval: 8 }
         )
         tasksInit(taskSets.flat())
+        commissionInit(sortCommissionSnapshots(commissionSets.flat()))
       } catch (err) {
         if (cancelled) return
         setError(err instanceof Error ? err.message : 'Could not load dashboard data')
@@ -356,6 +389,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       useTasksStore.setState((s) => ({ tasks: s.tasks.filter((t) => t.id !== old.id) }))
     })
 
+    // Commission snapshots
+    channel = channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'commission_snapshots', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+      const snapshot = dbToCommissionSnapshot(p.new as CommissionSnapshotRow)
+      useCommissionSnapshotStore.setState((s) => ({ snapshots: sortCommissionSnapshots([...s.snapshots.filter((item) => item.id !== snapshot.id), snapshot]) }))
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'commission_snapshots', ...(isMain ? {} : { filter: `store_id=eq.${storeId}` }) }, (p) => {
+      const snapshot = dbToCommissionSnapshot(p.new as CommissionSnapshotRow)
+      useCommissionSnapshotStore.setState((s) => ({ snapshots: sortCommissionSnapshots(s.snapshots.map((item) => item.id === snapshot.id ? snapshot : item)) }))
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'commission_snapshots' }, (p) => {
+      const old = p.old as StoreScopedRow
+      if (!isMain && old.store_id !== storeId) return
+      useCommissionSnapshotStore.setState((s) => ({ snapshots: s.snapshots.filter((item) => item.id !== old.id) }))
+    })
+
     channel.subscribe()
 
     channelRef.current = channel
@@ -363,7 +411,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       cancelled = true
       supabase.removeChannel(channel)
     }
-  }, [storeId, retryKey, scheduleInit, scheduleExceptionsInit, scheduleBlocksInit, goalsInit, displayInit, tasksInit])
+  }, [storeId, retryKey, scheduleInit, scheduleExceptionsInit, scheduleBlocksInit, goalsInit, displayInit, tasksInit, commissionInit])
 
   if (isLoading) {
     return <DashboardLoader label="Syncing store data" />

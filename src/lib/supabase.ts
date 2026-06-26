@@ -7,6 +7,7 @@ import type { Goal } from '../store/goalsStore'
 import type { Announcement } from '../store/displayStore'
 import type { Task, TaskCategory } from '../store/tasksStore'
 import type { ScheduleException } from '../store/scheduleExceptionsStore'
+import type { CommissionSnapshot } from '../store/commissionSnapshotStore'
 import { useSyncStore } from '../store/syncStore'
 import type { AccessRole } from '../store/uiStore'
 import { fetchPerformanceData, type PerformanceRow } from './performanceSheet'
@@ -136,6 +137,52 @@ type DbTaskPatch = Partial<{
   completed_date: string | null
 }>
 
+type DbCommissionSnapshot = {
+  id: string
+  store_id: string
+  snapshot_date: string
+  employee_name: string
+  commission: number
+  commission_opportunity: number
+  accessories: number
+  accessory_goal: number
+  revenue: number
+  revenue_goal: number
+  vaf: number
+  vaf_goal: number
+  voice_lines: number
+  voice_lines_goal: number
+  bts: number
+  bts_goal: number
+  notes: string | null
+  sort_order: number | null
+  updated_by: string | null
+  updated_at: string
+  created_at: string
+}
+
+type DbCommissionSnapshotPatch = Partial<{
+  store_id: string
+  snapshot_date: string
+  employee_name: string
+  commission: number
+  commission_opportunity: number
+  accessories: number
+  accessory_goal: number
+  revenue: number
+  revenue_goal: number
+  vaf: number
+  vaf_goal: number
+  voice_lines: number
+  voice_lines_goal: number
+  bts: number
+  bts_goal: number
+  notes: string
+  sort_order: number
+  updated_by: string
+  updated_at: string
+}>
+
 type DbAnnouncementPatch = Partial<{
   text: string
   priority: Announcement['priority']
@@ -245,6 +292,7 @@ let optionalScheduleBlocksWarningShown = false
 let optionalScheduleTemplatesWarningShown = false
 let optionalScheduleExceptionsWarningShown = false
 let optionalEmployeeInsightsWarningShown = false
+let optionalCommissionSnapshotsWarningShown = false
 
 function logOptionalTasksWarning(action: string, error: unknown) {
   if (!isMissingTableError(error)) return false
@@ -278,6 +326,15 @@ function logOptionalEmployeeInsightsWarning(action: string, error: unknown) {
   if (!optionalEmployeeInsightsWarningShown) {
     optionalEmployeeInsightsWarningShown = true
     console.warn(`Employee insights tables are not available in this Supabase Database Sync project; ${action} will stay local until schema.sql is applied.`)
+  }
+  return true
+}
+
+function logOptionalCommissionSnapshotsWarning(action: string, error: unknown) {
+  if (!isMissingTableError(error)) return false
+  if (!optionalCommissionSnapshotsWarningShown) {
+    optionalCommissionSnapshotsWarningShown = true
+    console.warn(`Commission snapshots table is not available in this Supabase Database Sync project; ${action} will stay local until schema.sql is applied.`)
   }
   return true
 }
@@ -474,7 +531,7 @@ export async function dbResetAccessOnboarding(id: string) {
 }
 
 export async function dbCheckSchemaHealth() {
-  const tables = ['employees', 'employee_schedule_preferences', 'employee_sales', 'shifts', 'schedule_exceptions', 'schedule_blocks', 'schedule_templates', 'goals', 'announcements', 'app_settings', 'tasks', 'store_access_codes', 'kiosk_enrollments']
+  const tables = ['employees', 'employee_schedule_preferences', 'employee_sales', 'shifts', 'schedule_exceptions', 'schedule_blocks', 'schedule_templates', 'goals', 'announcements', 'app_settings', 'tasks', 'commission_snapshots', 'store_access_codes', 'kiosk_enrollments']
   const results = await Promise.all(tables.map(async (table) => {
     const { error } = await supabase.from(table).select('*', { head: true, count: 'exact' })
     return {
@@ -1565,4 +1622,115 @@ export async function dbSaveTasksSnapshot(storeId: string, tasks: Task[]) {
     throw new Error(`Task validation failed: ${missingTasks.length} tasks were not confirmed in Supabase Database Sync`)
   }
   useSyncStore.getState().setSync('tasks', 'synced', `${tasks.length} tasks confirmed`)
+}
+
+// ── Commission snapshots ─────────────────────────────────────────────────────
+
+function commissionSnapshotToDb(snapshot: CommissionSnapshot, storeId: string): DbCommissionSnapshotPatch & { id: string } {
+  return {
+    id: snapshot.id,
+    store_id: normalizeStoreId(storeId),
+    snapshot_date: snapshot.snapshotDate,
+    employee_name: snapshot.employeeName,
+    commission: snapshot.commission,
+    commission_opportunity: snapshot.commissionOpportunity,
+    accessories: snapshot.accessories,
+    accessory_goal: snapshot.accessoryGoal,
+    revenue: snapshot.revenue,
+    revenue_goal: snapshot.revenueGoal,
+    vaf: snapshot.vaf,
+    vaf_goal: snapshot.vafGoal,
+    voice_lines: snapshot.voiceLines,
+    voice_lines_goal: snapshot.voiceLinesGoal,
+    bts: snapshot.bts,
+    bts_goal: snapshot.btsGoal,
+    notes: snapshot.notes,
+    sort_order: snapshot.sortOrder,
+    updated_by: snapshot.updatedBy ?? '',
+    updated_at: snapshot.updatedAt ?? new Date().toISOString(),
+  }
+}
+
+export function dbToCommissionSnapshot(row: DbCommissionSnapshot): CommissionSnapshot {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    snapshotDate: row.snapshot_date,
+    employeeName: row.employee_name,
+    commission: row.commission ?? 0,
+    commissionOpportunity: row.commission_opportunity ?? 0,
+    accessories: row.accessories ?? 0,
+    accessoryGoal: row.accessory_goal ?? 0,
+    revenue: row.revenue ?? 0,
+    revenueGoal: row.revenue_goal ?? 0,
+    vaf: row.vaf ?? 0,
+    vafGoal: row.vaf_goal ?? 0,
+    voiceLines: row.voice_lines ?? 0,
+    voiceLinesGoal: row.voice_lines_goal ?? 0,
+    bts: row.bts ?? 0,
+    btsGoal: row.bts_goal ?? 0,
+    notes: row.notes ?? '',
+    sortOrder: row.sort_order ?? 0,
+    updatedBy: row.updated_by ?? '',
+    updatedAt: row.updated_at,
+    createdAt: row.created_at,
+  }
+}
+
+export async function dbGetCommissionSnapshots(storeId: string): Promise<CommissionSnapshot[]> {
+  const sid = normalizeStoreId(storeId)
+  const { data, error } = await supabase
+    .from('commission_snapshots')
+    .select('*')
+    .eq('store_id', sid)
+    .order('snapshot_date', { ascending: false })
+    .order('sort_order')
+    .order('created_at')
+  if (logOptionalCommissionSnapshotsWarning('commission snapshot data', error)) return []
+  throwIfError(error, 'Could not load commission snapshots')
+  return ((data ?? []) as DbCommissionSnapshot[]).map(dbToCommissionSnapshot)
+}
+
+export async function dbUpsertCommissionSnapshot(snapshot: Partial<CommissionSnapshot> & { id: string }, storeId?: string) {
+  const dbPatch: DbCommissionSnapshotPatch = { updated_at: new Date().toISOString() }
+  if (snapshot.storeId !== undefined || storeId !== undefined) dbPatch.store_id = normalizeStoreId(snapshot.storeId ?? storeId ?? '')
+  if (snapshot.snapshotDate !== undefined) dbPatch.snapshot_date = snapshot.snapshotDate
+  if (snapshot.employeeName !== undefined) dbPatch.employee_name = snapshot.employeeName
+  if (snapshot.commission !== undefined) dbPatch.commission = snapshot.commission
+  if (snapshot.commissionOpportunity !== undefined) dbPatch.commission_opportunity = snapshot.commissionOpportunity
+  if (snapshot.accessories !== undefined) dbPatch.accessories = snapshot.accessories
+  if (snapshot.accessoryGoal !== undefined) dbPatch.accessory_goal = snapshot.accessoryGoal
+  if (snapshot.revenue !== undefined) dbPatch.revenue = snapshot.revenue
+  if (snapshot.revenueGoal !== undefined) dbPatch.revenue_goal = snapshot.revenueGoal
+  if (snapshot.vaf !== undefined) dbPatch.vaf = snapshot.vaf
+  if (snapshot.vafGoal !== undefined) dbPatch.vaf_goal = snapshot.vafGoal
+  if (snapshot.voiceLines !== undefined) dbPatch.voice_lines = snapshot.voiceLines
+  if (snapshot.voiceLinesGoal !== undefined) dbPatch.voice_lines_goal = snapshot.voiceLinesGoal
+  if (snapshot.bts !== undefined) dbPatch.bts = snapshot.bts
+  if (snapshot.btsGoal !== undefined) dbPatch.bts_goal = snapshot.btsGoal
+  if (snapshot.notes !== undefined) dbPatch.notes = snapshot.notes
+  if (snapshot.sortOrder !== undefined) dbPatch.sort_order = snapshot.sortOrder
+  if (snapshot.updatedBy !== undefined) dbPatch.updated_by = snapshot.updatedBy
+
+  const isInsert = Boolean(
+    dbPatch.store_id
+    && dbPatch.snapshot_date
+    && dbPatch.employee_name !== undefined
+    && snapshot.createdAt !== undefined
+  )
+
+  const request = isInsert
+    ? supabase.from('commission_snapshots').upsert(commissionSnapshotToDb(snapshot as CommissionSnapshot, dbPatch.store_id ?? storeId ?? ''))
+    : supabase.from('commission_snapshots').update(dbPatch).eq('id', snapshot.id)
+  const { error } = await request
+  if (!logOptionalCommissionSnapshotsWarning('commission snapshot updates', error)) {
+    throwIfError(error, 'Could not save commission snapshot')
+  }
+}
+
+export async function dbDeleteCommissionSnapshot(id: string) {
+  const { error } = await supabase.from('commission_snapshots').delete().eq('id', id)
+  if (!logOptionalCommissionSnapshotsWarning('commission snapshot deletion', error)) {
+    throwIfError(error, 'Could not delete commission snapshot')
+  }
 }

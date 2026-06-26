@@ -8,6 +8,7 @@ drop table if exists announcements cascade;
 drop table if exists goals         cascade;
 drop table if exists employee_sales cascade;
 drop table if exists employee_schedule_preferences cascade;
+drop table if exists commission_snapshots cascade;
 drop table if exists schedule_templates cascade;
 drop table if exists schedule_exceptions cascade;
 drop table if exists schedule_blocks cascade;
@@ -237,6 +238,41 @@ create index if not exists tasks_store_idx on tasks(store_id);
 alter table tasks enable row level security;
 create policy "public" on tasks for all using (true) with check (true);
 alter publication supabase_realtime add table tasks;
+
+-- ── Commission snapshots ──────────────────────────────────────
+create table if not exists commission_snapshots (
+  id               text primary key,
+  store_id         text not null default 'default',
+  snapshot_date    text not null,
+  employee_name    text not null default '',
+  commission       numeric not null default 0,
+  commission_opportunity numeric not null default 0,
+  accessories      numeric not null default 0,
+  accessory_goal   numeric not null default 0,
+  revenue          numeric not null default 0,
+  revenue_goal     numeric not null default 0,
+  vaf              numeric not null default 0,
+  vaf_goal         numeric not null default 0,
+  voice_lines      integer not null default 0,
+  voice_lines_goal integer not null default 0,
+  bts              integer not null default 0,
+  bts_goal         integer not null default 0,
+  notes            text default '',
+  sort_order       integer default 0,
+  updated_by       text default '',
+  updated_at       timestamptz not null default now(),
+  created_at       timestamptz not null default now()
+);
+create index if not exists commission_snapshots_store_date_idx on commission_snapshots(store_id, snapshot_date desc);
+create index if not exists commission_snapshots_store_sort_idx on commission_snapshots(store_id, snapshot_date, sort_order);
+alter table commission_snapshots enable row level security;
+create policy "public" on commission_snapshots for all using (true) with check (true);
+do $$
+begin
+  alter publication supabase_realtime add table commission_snapshots;
+exception
+  when duplicate_object then null;
+end $$;
 
 -- ── Store access codes ─────────────────────────────────────────
 create table if not exists store_access_codes (

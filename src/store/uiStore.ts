@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 
-export type Tab = 'home' | 'devices' | 'employees' | 'schedule' | 'appointments' | 'district' | 'goals' | 'updates' | 'weather' | 'display' | 'tasks' | 'settings'
+export type Tab = 'home' | 'devices' | 'employees' | 'schedule' | 'appointments' | 'district' | 'goals' | 'commission' | 'updates' | 'weather' | 'display' | 'tasks' | 'settings'
 export type Theme = 'dark' | 'light' | 'vista' | 'mac' | 'carbon' | 'mint' | 'coral' | 'iris'
 export type Brand = 'default' | 'tmobile' | 'green' | 'black' | 'yellow'
 export type TempUnit = 'C' | 'F'
