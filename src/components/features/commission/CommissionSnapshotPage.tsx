@@ -15,10 +15,8 @@ import { Card } from '../../ui/Card'
 import { Input, Select } from '../../ui/Input'
 import { useCommissionSnapshotStore, type CommissionSnapshot } from '../../../store/commissionSnapshotStore'
 import { useUiStore } from '../../../store/uiStore'
-import { useDisplayStore } from '../../../store/displayStore'
 import { useScheduleStore, type Employee } from '../../../store/scheduleStore'
 import { normalizeStoreId } from '../../../lib/storeIds'
-import { getDealerInfo } from '../../../lib/dealers'
 
 const todayKey = () => {
   const now = new Date()
@@ -60,10 +58,11 @@ const BOARD_METRICS: Array<{
 ]
 
 function formatMoney(value: number) {
-  return Math.round(value).toLocaleString('en-US', {
+  return value.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   })
 }
 
@@ -75,15 +74,33 @@ function formatMetricValue(value: number, money?: boolean) {
   return money ? formatMoney(value) : formatDecimal(value)
 }
 
-function gapPercent(actual: number, goal: number) {
+function goalPercent(actual: number, goal: number) {
   if (!goal) return null
-  return ((actual - goal) / goal) * 100
+  return (actual / goal) * 100
 }
 
-function formatGap(value: number | null) {
+function formatGoalPercent(value: number | null) {
   if (value === null) return '-'
-  const sign = value > 0 ? '+' : ''
-  return `${sign}${value.toFixed(0)}%`
+  return `${value.toFixed(0)}%`
+}
+
+function daysInSelectedMonth(dateKey: string) {
+  const [year, month] = dateKey.split('-').map(Number)
+  return new Date(year, month, 0).getDate()
+}
+
+function selectedDayOfMonth(dateKey: string) {
+  return Number(dateKey.slice(8, 10)) || 1
+}
+
+function monthKey(dateKey: string) {
+  return dateKey.slice(0, 7)
+}
+
+function eomDailyNeed(mtdActual: number, dailyGoal: number, dateKey: string) {
+  const monthGoal = dailyGoal * daysInSelectedMonth(dateKey)
+  const daysLeft = Math.max(1, daysInSelectedMonth(dateKey) - selectedDayOfMonth(dateKey))
+  return Math.max(0, monthGoal - mtdActual) / daysLeft
 }
 
 function parseMetric(value: string) {
@@ -91,32 +108,37 @@ function parseMetric(value: string) {
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0
 }
 
-function storeLabel(storeId: string, fallbackName: string, fallbackNumber: string) {
-  const dealer = getDealerInfo(storeId)
-  if (dealer) return `${dealer.nickname} | ${dealer.location}`
-  if (fallbackName && fallbackName !== 'Luna Store') return fallbackName
-  if (fallbackNumber) return `Store ${fallbackNumber}`
-  return storeId === 'main' ? 'All Stores' : `Store ${storeId}`
-}
-
 function MetricSummary({
   icon,
   label,
   value,
-  helper,
+  status,
+  eomGap,
+  money,
 }: {
   icon: React.ReactNode
   label: string
   value: string
-  helper?: string
+  status: number | null
+  eomGap: number
+  money?: boolean
 }) {
+  const statusTone = status === null
+    ? 'text-[var(--text-tertiary)]'
+    : status >= 100
+      ? 'text-emerald-500'
+      : 'text-red-500'
+
   return (
-    <Card className="!p-4">
+    <Card className="!p-3.5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
-          <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{value}</div>
-          {helper && <div className="mt-1 text-xs text-[var(--text-tertiary)]">{helper}</div>}
+          <div className="mt-0.5 text-3xl font-semibold tabular-nums text-[var(--text)]">{value}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+            <span className={`font-semibold tabular-nums ${statusTone}`}>{formatGoalPercent(status)} to goal</span>
+            <span className="text-[var(--text-tertiary)]">EOM {formatMetricValue(eomGap, money)}/day</span>
+          </div>
         </div>
         <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--accent)]/10 text-[var(--accent)]">
           {icon}
@@ -144,23 +166,23 @@ function MetricCell({
 }) {
   const actual = snapshot[metric.key]
   const goal = snapshot[metric.goalKey]
-  const gap = gapPercent(actual, goal)
-  const gapTone = gap === null
+  const percentToGoal = goalPercent(actual, goal)
+  const percentTone = percentToGoal === null
     ? 'text-[var(--text-tertiary)]'
-    : gap >= 0
+    : percentToGoal >= 100
       ? 'text-emerald-400'
       : 'text-red-400'
 
   return (
-    <div className="relative min-h-[118px] rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] p-3">
+    <div className="relative min-h-[104px] rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] p-2.5">
       <div className="flex items-start justify-between gap-2">
-        <div className={`text-[11px] font-semibold tabular-nums ${gapTone}`}>{formatGap(gap)}</div>
+        <div className={`text-[11px] font-semibold tabular-nums ${percentTone}`}>{formatGoalPercent(percentToGoal)}</div>
         <div className="text-right text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
           Goal {goal ? formatMetricValue(goal, metric.money) : '-'}
         </div>
       </div>
 
-      <div className="mt-3 text-center">
+      <div className="mt-2 text-center">
         <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{metric.label}</div>
         {canEdit ? (
           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -190,7 +212,7 @@ function MetricCell({
             />
           </div>
         ) : (
-          <div className="mt-2 text-2xl font-semibold tabular-nums text-[var(--text)]">
+          <div className="mt-1.5 text-3xl font-semibold tabular-nums text-[var(--text)]">
             {formatMetricValue(actual, metric.money)}
           </div>
         )}
@@ -209,7 +231,6 @@ export function CommissionSnapshotPage() {
   const { snapshots, addSnapshot, updateSnapshot, removeSnapshot } = useCommissionSnapshotStore()
   const employees = useScheduleStore((s) => s.employees)
   const { accessLabel, accessRole, storeId } = useUiStore()
-  const { companyName, storeNumber } = useDisplayStore()
   const [selectedDate, setSelectedDate] = useState(todayKey())
   const canEdit = accessRole === 'admin' || accessRole === 'district_manager'
   const normalizedStoreId = normalizeStoreId(storeId)
@@ -242,13 +263,48 @@ export function CommissionSnapshotPage() {
 
   const totals = useMemo(() => {
     const totalCommission = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.commission, 0)
+    const totalCommissionGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.commissionOpportunity, 0)
     const totalAccessories = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.accessories, 0)
+    const totalAccessoryGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.accessoryGoal, 0)
     const totalVoiceLines = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.voiceLines, 0)
+    const totalVoiceLinesGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.voiceLinesGoal, 0)
     const totalBts = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.bts, 0)
+    const totalBtsGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.btsGoal, 0)
     const totalRevenue = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.revenue, 0)
+    const totalRevenueGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.revenueGoal, 0)
     const totalVaf = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.vaf, 0)
-    return { totalCommission, totalAccessories, totalVoiceLines, totalBts, totalRevenue, totalVaf }
+    const totalVafGoal = visibleSnapshots.reduce((sum, snapshot) => sum + snapshot.vafGoal, 0)
+    return {
+      totalCommission,
+      totalCommissionGoal,
+      totalAccessories,
+      totalAccessoryGoal,
+      totalVoiceLines,
+      totalVoiceLinesGoal,
+      totalBts,
+      totalBtsGoal,
+      totalRevenue,
+      totalRevenueGoal,
+      totalVaf,
+      totalVafGoal,
+    }
   }, [visibleSnapshots])
+
+  const mtdTotals = useMemo(() => {
+    const month = monthKey(selectedDate)
+    const monthSnapshots = storeSnapshots.filter((snapshot) => (
+      snapshot.snapshotDate.startsWith(month)
+      && snapshot.snapshotDate <= selectedDate
+    ))
+    return {
+      commission: monthSnapshots.reduce((sum, snapshot) => sum + snapshot.commission, 0),
+      accessories: monthSnapshots.reduce((sum, snapshot) => sum + snapshot.accessories, 0),
+      revenue: monthSnapshots.reduce((sum, snapshot) => sum + snapshot.revenue, 0),
+      vaf: monthSnapshots.reduce((sum, snapshot) => sum + snapshot.vaf, 0),
+      voiceLines: monthSnapshots.reduce((sum, snapshot) => sum + snapshot.voiceLines, 0),
+      bts: monthSnapshots.reduce((sum, snapshot) => sum + snapshot.bts, 0),
+    }
+  }, [selectedDate, storeSnapshots])
 
   const addRow = () => {
     const assignedNames = new Set(visibleSnapshots.map((snapshot) => snapshot.employeeName.trim().toLowerCase()).filter(Boolean))
@@ -284,8 +340,6 @@ export function CommissionSnapshotPage() {
       updatedBy: accessLabel,
     } as Partial<CommissionSnapshot>)
   }
-
-  const storeDisplay = storeLabel(normalizedStoreId, companyName, storeNumber)
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -337,11 +391,46 @@ export function CommissionSnapshotPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <MetricSummary icon={<DollarSign size={17} />} label="Commission" value={formatMoney(totals.totalCommission)} helper={storeDisplay} />
-          <MetricSummary icon={<TrendingUp size={17} />} label="Revenue" value={formatMoney(totals.totalRevenue)} helper={`${formatMoney(totals.totalAccessories)} accessories`} />
-          <MetricSummary icon={<Users size={17} />} label="Voice Lines" value={formatDecimal(totals.totalVoiceLines)} helper={`${formatDecimal(totals.totalBts)} BTS`} />
-          <MetricSummary icon={<Target size={17} />} label="VAF" value={formatMoney(totals.totalVaf)} helper={`${visibleSnapshots.length} reps tracked`} />
+        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <MetricSummary
+            icon={<DollarSign size={17} />}
+            label="Commission"
+            value={formatMoney(totals.totalCommission)}
+            status={goalPercent(totals.totalCommission, totals.totalCommissionGoal)}
+            eomGap={eomDailyNeed(mtdTotals.commission, totals.totalCommissionGoal, selectedDate)}
+            money
+          />
+          <MetricSummary
+            icon={<TrendingUp size={17} />}
+            label="Accessory"
+            value={formatMoney(totals.totalAccessories)}
+            status={goalPercent(totals.totalAccessories, totals.totalAccessoryGoal)}
+            eomGap={eomDailyNeed(mtdTotals.accessories, totals.totalAccessoryGoal, selectedDate)}
+            money
+          />
+          <MetricSummary
+            icon={<TrendingUp size={17} />}
+            label="Revenue"
+            value={formatMoney(totals.totalRevenue)}
+            status={goalPercent(totals.totalRevenue, totals.totalRevenueGoal)}
+            eomGap={eomDailyNeed(mtdTotals.revenue, totals.totalRevenueGoal, selectedDate)}
+            money
+          />
+          <MetricSummary
+            icon={<Users size={17} />}
+            label="Voice Lines"
+            value={formatDecimal(totals.totalVoiceLines)}
+            status={goalPercent(totals.totalVoiceLines, totals.totalVoiceLinesGoal)}
+            eomGap={eomDailyNeed(mtdTotals.voiceLines, totals.totalVoiceLinesGoal, selectedDate)}
+          />
+          <MetricSummary
+            icon={<Target size={17} />}
+            label="VAF"
+            value={formatMoney(totals.totalVaf)}
+            status={goalPercent(totals.totalVaf, totals.totalVafGoal)}
+            eomGap={eomDailyNeed(mtdTotals.vaf, totals.totalVafGoal, selectedDate)}
+            money
+          />
         </div>
 
         {!canEdit && (
@@ -358,13 +447,13 @@ export function CommissionSnapshotPage() {
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {visibleSnapshots.map((snapshot) => (
-            <div key={snapshot.id} className="overflow-hidden overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-              <div className="grid min-w-[1080px] grid-cols-[220px_repeat(5,minmax(150px,1fr))_44px] gap-3">
-                <div className="min-h-[118px] rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] p-3">
+            <div key={snapshot.id} className="overflow-hidden overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
+              <div className="grid min-w-[1020px] grid-cols-[210px_repeat(5,minmax(136px,1fr))_40px] gap-2">
+                <div className="min-h-[104px] rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] p-2.5">
                   <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Rep</div>
-                  <div className="mt-2">
+                  <div className="mt-1.5">
                     {canEdit ? (
                       <Select
                         aria-label="Rep name"
@@ -385,7 +474,7 @@ export function CommissionSnapshotPage() {
                       <span className="font-semibold">{snapshot.employeeName || '-'}</span>
                     )}
                   </div>
-                  <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--surface-2)] p-2">
+                  <div className="mt-2.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] p-2">
                     <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Commission</div>
                     {canEdit ? (
                       <div className="mt-2 grid grid-cols-2 gap-2">
@@ -416,7 +505,7 @@ export function CommissionSnapshotPage() {
                       </div>
                     ) : (
                       <div>
-                        <div className="mt-1 text-2xl font-semibold tabular-nums text-[var(--text)]">{formatMoney(snapshot.commission)}</div>
+                        <div className="mt-0.5 text-3xl font-semibold tabular-nums text-[var(--text)]">{formatMoney(snapshot.commission)}</div>
                         <div className="mt-0.5 text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Opp {snapshot.commissionOpportunity ? formatMoney(snapshot.commissionOpportunity) : '-'}</div>
                       </div>
                     )}
