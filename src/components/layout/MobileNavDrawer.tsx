@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Calendar, CalendarPlus, CheckSquare, LayoutGrid, Radar, Settings, Target, UploadCloud, Users, X } from 'lucide-react'
+import { Calendar, CalendarPlus, CheckSquare, FileText, LayoutGrid, Radar, Settings, Target, UploadCloud, Users, X } from 'lucide-react'
 import { useUiStore, type Tab } from '../../store/uiStore'
 import { canAccessTab } from '../../lib/accessControl'
 import { fetchPerformanceData, type PerformanceRow } from '../../lib/performanceSheet'
@@ -15,6 +15,7 @@ const NAV_ITEMS: { id: Tab; icon: ReactNode; label: string; employee?: boolean }
   { id: 'appointments', icon: <CalendarPlus size={17} />, label: 'Appointments' },
   { id: 'tasks', icon: <CheckSquare size={17} />, label: 'Checklist' },
   { id: 'goals', icon: <Target size={17} />, label: 'Goals' },
+  { id: 'reports', icon: <FileText size={17} />, label: 'Reports' },
   { id: 'employees', icon: <Users size={17} />, label: 'Employees', employee: true },
   { id: 'updates', icon: <UploadCloud size={17} />, label: 'Update' },
   { id: 'settings', icon: <Settings size={17} />, label: 'Settings' },

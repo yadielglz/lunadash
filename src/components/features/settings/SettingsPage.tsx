@@ -1388,7 +1388,7 @@ function AboutSection() {
         </div>
         <div>
           <h3 className="text-lg font-semibold text-[var(--text)]">LunaDash</h3>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver {APP_META.version} | Build {APP_META.build}</p>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">ver {APP_META.version} | {APP_META.codename} | Build {APP_META.build}</p>
         </div>
         <div className="text-sm text-[var(--text-secondary)] space-y-1">
           <p>{APP_META.copyright}</p>
@@ -1559,6 +1559,7 @@ const MOBILE_SECTION_LABELS: Partial<Record<SectionId, string>> = {
 const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'traffic']
 const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores', 'remote']
 const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store']
+const STANDALONE_SETTINGS_SECTIONS: SectionId[] = ['reports']
 
 function isSectionId(value: string): value is SectionId {
   return SECTIONS.some((section) => section.id === value)
@@ -1577,7 +1578,7 @@ export function SettingsPage() {
         : accessRole === 'district_manager'
           ? SECTIONS.filter((section) => !DISTRICT_HIDDEN_SECTIONS.includes(section.id))
       : SECTIONS
-  ), [accessRole])
+  ).filter((section) => !STANDALONE_SETTINGS_SECTIONS.includes(section.id)), [accessRole])
   const fallbackSection = visibleSections[0]?.id ?? 'weather'
   const [active, setActive] = useState<SectionId>(
     isSectionId(requestedSection) && visibleSections.some((section) => section.id === requestedSection)

@@ -8,6 +8,7 @@ import {
   CarFront,
   CheckSquare,
   ChevronLeft,
+  FileText,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -33,17 +34,18 @@ import { LunaWirelessLogo } from '../brand/LunaWirelessLogo'
 import { StorePickerButton } from '../shared/StorePickerButton'
 
 const NAV_ITEMS: { id: Tab; icon: React.ReactNode; label: string; helper: string }[] = [
-  { id: 'home', icon: <LayoutDashboard size={18} />, label: 'Today', helper: 'Daily command' },
-  { id: 'district', icon: <Radar size={18} />, label: 'District Outlook', helper: 'Store rankings' },
-  { id: 'schedule', icon: <Calendar size={18} />, label: 'Schedule', helper: 'Staff coverage' },
-  { id: 'appointments', icon: <CalendarPlus size={18} />, label: 'Appointments', helper: 'Customer flow' },
+  { id: 'home', icon: <LayoutDashboard size={18} />, label: 'Today', helper: 'Store Home' },
+  { id: 'district', icon: <Radar size={18} />, label: 'District Outlook', helper: 'Region Rank' },
+  { id: 'schedule', icon: <Calendar size={18} />, label: 'Schedule', helper: 'Store Coverage' },
+  { id: 'appointments', icon: <CalendarPlus size={18} />, label: 'Appointments', helper: 'Customer Intake / CAD' },
   { id: 'tasks', icon: <CheckSquare size={18} />, label: 'Checklist', helper: 'Open and close' },
-  { id: 'goals', icon: <BarChart3 size={18} />, label: 'Goals', helper: 'Targets and snapshots' },
-  { id: 'commission', icon: <BadgeDollarSign size={18} />, label: 'Commissions', helper: 'Locked snapshot' },
-  { id: 'employees', icon: <Users size={18} />, label: 'Employees', helper: 'Team records' },
-  { id: 'updates', icon: <UploadCloud size={18} />, label: 'Updates', helper: 'Report numbers' },
+  { id: 'goals', icon: <BarChart3 size={18} />, label: 'Goals', helper: 'Currently Around Region' },
+  { id: 'commission', icon: <BadgeDollarSign size={18} />, label: 'Commissions', helper: 'Most Recent Earnings Report' },
+  { id: 'reports', icon: <FileText size={18} />, label: 'Reports', helper: 'Preview and print' },
+  { id: 'employees', icon: <Users size={18} />, label: 'Employees', helper: 'Your Team Info' },
+  { id: 'updates', icon: <UploadCloud size={18} />, label: 'Updates', helper: 'Update Tracker Here!' },
   { id: 'display', icon: <Monitor size={18} />, label: 'Display', helper: 'Store screen' },
-  { id: 'settings', icon: <Settings size={18} />, label: 'Settings', helper: 'System setup' },
+  { id: 'settings', icon: <Settings size={18} />, label: 'Settings', helper: 'Options and More' },
 ]
 
 const MOBILE_NAV_LABELS: Partial<Record<Tab, string>> = {
@@ -53,7 +55,8 @@ const MOBILE_NAV_LABELS: Partial<Record<Tab, string>> = {
   appointments: 'Appts',
   tasks: 'Tasks',
   goals: 'Goals',
-  commission: 'Comm',
+  commission: 'Earnings',
+  reports: 'Reports',
   employees: 'Team',
   updates: 'Update',
   display: 'Display',

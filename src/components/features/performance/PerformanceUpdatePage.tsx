@@ -20,6 +20,8 @@ import { updatePerformanceSheet } from '../../../lib/performanceUpdate'
 import { useUiStore } from '../../../store/uiStore'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import { dealerInfoForRow } from '../../../lib/dealers'
+import { useScheduleStore } from '../../../store/scheduleStore'
+import { estimateNetRevenue, useEmployeeInsightsStore, type EmployeeSaleCategory } from '../../../store/employeeInsightsStore'
 
 type Draft = {
   traffic: string
@@ -147,6 +149,13 @@ function countType(entries: SaleEntry[], type: SaleType) {
   return entries.filter((entry) => entry.type === type).length
 }
 
+function saleCategoryForType(type: SaleType): EmployeeSaleCategory {
+  if (type === 'voice') return 'voice'
+  if (type === 'bts') return 'bts'
+  if (type === 'hsi') return 'hsi'
+  return 'other'
+}
+
 function MetricTile({
   label,
   value,
@@ -193,6 +202,8 @@ function SectionTitle({
 
 export function PerformanceUpdatePage() {
   const { accessId, accessRole, storeId } = useUiStore()
+  const employees = useScheduleStore((state) => state.employees)
+  const addEmployeeSale = useEmployeeInsightsStore((state) => state.addSale)
   const [rows, setRows] = useState<PerformanceRow[]>([])
   const [selectedStoreCode, setSelectedStoreCode] = useState(normalizeStoreId(storeId) === 'main' ? '' : normalizeStoreId(storeId))
   const [draft, setDraft] = useState<Draft>(toDraft(null))
@@ -324,6 +335,37 @@ export function PerformanceUpdatePage() {
         bts: nextTotals?.bts ?? selectedRow.bts,
         hsi: nextTotals?.hsi ?? selectedRow.hsi,
       })
+      const selectedStoreId = normalizeStoreId(selectedRow.storeCode)
+      const storeEmployees = employees.filter((employee) => normalizeStoreId(employee.storeId ?? selectedStoreId) === selectedStoreId)
+      const employeeByName = new Map(storeEmployees.map((employee) => [employee.name.trim().toLowerCase(), employee]))
+      await Promise.all(sales.map(async (entry) => {
+        const employee = employeeByName.get(entry.rep.trim().toLowerCase())
+        if (!employee) return
+        const grossRevenue = safeDraftNumber(entry.revenue) + safeDraftNumber(entry.feature)
+        const accessoryRevenue = safeDraftNumber(entry.accessory)
+        const protectionCount = Math.round(safeDraftNumber(entry.p360))
+        const estimatedNetRevenue = estimateNetRevenue({
+          grossRevenue,
+          accessoryRevenue,
+          protectionCount,
+        })
+        if (estimatedNetRevenue <= 0) return
+        await addEmployeeSale({
+          employeeId: employee.id,
+          storeId: selectedStoreId,
+          saleDate: new Date().toISOString().slice(0, 10),
+          category: saleCategoryForType(entry.type),
+          grossRevenue,
+          accessoryRevenue,
+          protectionCount,
+          estimatedNetRevenue,
+          note: [
+            'Performance Update',
+            entry.phones ? `${entry.phones} phones` : '',
+            entry.p360 ? `${entry.p360} P360` : '',
+          ].filter(Boolean).join(' · '),
+        })
+      }))
       setMessage(result.message || `Added calculator totals to ${selectedRow.storeCode}`)
       setPlanCounts(EMPTY_PLAN_COUNTS)
       setSales([])

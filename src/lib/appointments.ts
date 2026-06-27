@@ -38,6 +38,7 @@ export const APPOINTMENT_COLUMNS = [
 ] as const
 
 export type AppointmentRow = {
+  rowNumber?: number
   week: string
   employeeName: string
   appointmentDate: string
@@ -66,6 +67,7 @@ export type AppointmentSheetUpdate = {
   customerName: string
   selling: string
   outcome: string
+  rowNumber?: number
 }
 
 function gvizUrl(sheetTitle: string) {
@@ -104,7 +106,8 @@ export async function fetchAppointmentTrackerData(storeCode: string): Promise<Ap
   if (!res.ok) throw new Error(`Failed to fetch appointments: ${res.statusText}`)
   const data = parseGviz(await res.text())
   const rows = (data.table?.rows ?? [])
-    .map((row) => ({
+    .map((row, index) => ({
+      rowNumber: index + 1,
       week: cell(row, 0),
       employeeName: cell(row, 1),
       appointmentDate: cell(row, 2),

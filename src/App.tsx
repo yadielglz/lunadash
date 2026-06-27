@@ -25,6 +25,7 @@ const TasksPage = lazy(() => import('./components/features/tasks/TasksPage').the
 const PerformancePage = lazy(() => import('./components/features/performance/PerformancePage').then((m) => ({ default: m.PerformancePage })))
 const GoalsPage = lazy(() => import('./components/features/goals/GoalsPage').then((m) => ({ default: m.GoalsPage })))
 const CommissionSnapshotPage = lazy(() => import('./components/features/commission/CommissionSnapshotPage').then((m) => ({ default: m.CommissionSnapshotPage })))
+const ReportsPage = lazy(() => import('./components/features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })))
 const PerformanceUpdatePage = lazy(() => import('./components/features/performance/PerformanceUpdatePage').then((m) => ({ default: m.PerformanceUpdatePage })))
 const DisplayPage = lazy(() => import('./components/features/screendisplay/DisplayPage').then((m) => ({ default: m.DisplayPage })))
 const SettingsPage = lazy(() => import('./components/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
@@ -293,6 +294,7 @@ export default function App() {
     district: <PerformancePage />,
     goals:    <GoalsPage />,
     commission: <CommissionSnapshotPage />,
+    reports: <ReportsPage />,
     updates:  <PerformanceUpdatePage />,
     settings: <SettingsPage />,
   }

@@ -32,6 +32,7 @@ type UpdatePayload = {
   customerName?: string
   selling?: string
   outcome?: string
+  rowNumber?: number
 }
 
 function json(body: unknown, status = 200) {
@@ -156,6 +157,18 @@ function firstOpenRow(values: string[][], week: string) {
   throw new Error(`Could not find ${week} rows in the appointment sheet.`)
 }
 
+function targetRowNumber(values: string[][], payload: UpdatePayload, week: string) {
+  const rowNumber = Number(payload.rowNumber)
+  if (!Number.isInteger(rowNumber) || rowNumber < 1) return firstOpenRow(values, week)
+
+  const row = values[rowNumber - 1]
+  if (!row) throw new Error('Could not find the appointment row to edit.')
+  if (!/^week [1-5]$/.test(normalizeLabel(row[0] ?? ''))) {
+    throw new Error('Selected row is not an appointment row.')
+  }
+  return rowNumber
+}
+
 async function validateAccess(payload: UpdatePayload) {
   if (!ALLOWED_ROLES.has(payload.accessRole ?? '')) {
     throw new Error('Appointment updates require an active store access session.')
@@ -211,7 +224,7 @@ Deno.serve(async (req: Request) => {
     const spreadsheetId = Deno.env.get('APPOINTMENT_SPREADSHEET_ID') ?? DEFAULT_SPREADSHEET_ID
     const accessToken = await getGoogleAccessToken()
     const rows = await getValues(accessToken, spreadsheetId, sheetTitle)
-    const rowNumber = firstOpenRow(rows, week)
+    const rowNumber = targetRowNumber(rows, payload, week)
     const escapedTitle = sheetTitle.replace(/'/g, "''")
     const range = `'${escapedTitle}'!A${rowNumber}:H${rowNumber}`
 
@@ -227,7 +240,7 @@ Deno.serve(async (req: Request) => {
     if (!updateRes.ok) throw new Error(updateResult.error?.message ?? 'Google Sheets update failed.')
 
     return json({
-      message: `Added appointment to ${sheetTitle} (${week}).`,
+      message: `${payload.rowNumber ? 'Updated' : 'Added'} appointment to ${sheetTitle} (${week}).`,
       storeCode,
       sheetTitle,
       updatedRange: updateResult.updatedRange,
