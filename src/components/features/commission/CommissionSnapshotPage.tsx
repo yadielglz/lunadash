@@ -141,12 +141,26 @@ function selectedDayOfMonth(dateKey: string) {
   return Number(dateKey.slice(8, 10)) || 1
 }
 
+function remainingSellingDaysInMonth(dateKey: string) {
+  const [year, month] = dateKey.split('-').map(Number)
+  const daysInMonth = daysInSelectedMonth(dateKey)
+  const selectedDay = selectedDayOfMonth(dateKey)
+  let sellingDays = 0
+
+  for (let day = selectedDay + 1; day <= daysInMonth; day += 1) {
+    const date = new Date(year, month - 1, day, 12)
+    if (date.getDay() !== 0) sellingDays += 1
+  }
+
+  return Math.max(1, sellingDays)
+}
+
 function monthKey(dateKey: string) {
   return dateKey.slice(0, 7)
 }
 
 function eomDailyNeed(mtdActual: number, monthGoal: number, dateKey: string) {
-  const daysLeft = Math.max(1, daysInSelectedMonth(dateKey) - selectedDayOfMonth(dateKey))
+  const daysLeft = remainingSellingDaysInMonth(dateKey)
   return Math.max(0, monthGoal - mtdActual) / daysLeft
 }
 
@@ -237,7 +251,7 @@ function StatusPill({ value, label }: { value: number | null; label: string }) {
 
   return (
     <span className={cn(
-      'inline-flex h-6 items-center rounded-md border px-2 text-[11px] font-semibold tabular-nums',
+      'inline-flex h-6 max-w-full shrink-0 items-center rounded-md border px-2 text-[11px] font-semibold tabular-nums',
       value === null
         ? 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-tertiary)]'
         : value >= 100
@@ -246,8 +260,8 @@ function StatusPill({ value, label }: { value: number | null; label: string }) {
             ? 'border-amber-500/20 bg-amber-500/10 text-amber-500'
             : 'border-red-500/20 bg-red-500/10 text-red-500'
     )}>
-      <span className={tone.text}>{formatGoalPercent(value)}</span>
-      <span className="ml-1 text-[var(--text-tertiary)]">{label}</span>
+      <span className={cn('shrink-0', tone.text)}>{formatGoalPercent(value)}</span>
+      <span className="ml-1 min-w-0 truncate text-[var(--text-tertiary)]">{label}</span>
     </span>
   )
 }
@@ -327,10 +341,10 @@ function MetricCell({
   return (
     <MetricCardFrame status={percentToGoal}>
       <div>
-        <div className="flex items-start justify-between gap-2">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+          <div className="min-w-0">
             <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{metric.label}</div>
-            <div className="mt-0.5 text-xl font-semibold tabular-nums text-[var(--text)]">
+            <div className="mt-0.5 truncate text-xl font-semibold tabular-nums text-[var(--text)]">
               {formatMetricValue(actual, metric.money)}
             </div>
           </div>
@@ -401,12 +415,12 @@ function CommissionCell({
   return (
     <MetricCardFrame status={capture} featured>
       <div>
-        <div className="flex items-start justify-between gap-2">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+          <div className="min-w-0">
             <div className="text-[10px] font-semibold uppercase text-[var(--accent)]">Commission</div>
-            <div className="mt-0.5 text-xl font-semibold tabular-nums text-[var(--text)]">{formatMoney(snapshot.commission)}</div>
+            <div className="mt-0.5 truncate text-xl font-semibold tabular-nums text-[var(--text)]">{formatMoney(snapshot.commission)}</div>
           </div>
-          <StatusPill value={capture} label="capture" />
+          <StatusPill value={capture} label="cap" />
         </div>
         <ProgressBar value={capture} />
       </div>
@@ -561,7 +575,11 @@ function RepHeader({
 function isCommissionableEmployee(employee: Employee, storeId: string) {
   const employeeStoreId = normalizeStoreId(employee.storeId ?? storeId)
   const role = employee.role.trim().toLowerCase().replace(/\s+/g, ' ')
-  return employeeStoreId === storeId && role !== 'store manager'
+  const isManagerRole = role === 'store manager'
+    || role.includes('store manager')
+    || role === 'retail store manager'
+    || role === 'rsm'
+  return employeeStoreId === storeId && !isManagerRole
 }
 
 export function CommissionSnapshotPage() {
@@ -951,7 +969,7 @@ export function CommissionSnapshotPage() {
         {canEdit && commissionableEmployees.length === 0 && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--status-warn-border)] bg-[var(--status-warn-bg)] px-3 py-2 text-xs text-[var(--status-warn-text)]">
             <Users size={14} />
-            Add store employees first. Employees with the Store Manager role are excluded from commission snapshots.
+            Add store employees first. Store Manager and Retail Store Manager roles are excluded from commission snapshots.
           </div>
         )}
 

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Maximize, Minimize, X, ChevronLeft, ChevronRight, Pause, Play, LogOut } from 'lucide-react'
+import { BadgeDollarSign, ChevronLeft, ChevronRight, LogOut, Maximize, Minimize, Pause, Play, Target, X } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { format, addDays } from 'date-fns'
 import { useFullscreen } from '../../../hooks/useFullscreen'
 import { useWeather } from '../../../hooks/useWeather'
 import { useTempDisplay } from '../../../hooks/useTempDisplay'
 import { useScheduleStore } from '../../../store/scheduleStore'
+import { useCommissionSnapshotStore, type CommissionSnapshot } from '../../../store/commissionSnapshotStore'
 import { isAnnouncementActive, useDisplayStore } from '../../../store/displayStore'
 import { useUiStore } from '../../../store/uiStore'
 import { getWeatherInfo, getWindDirection } from '../../../lib/openMeteo'
@@ -14,6 +15,7 @@ import { formatShiftTime, hexToRgba } from '../../../lib/utils'
 import { fetchPerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
 import { dealerInfoForRow } from '../../../lib/dealers'
 import { weekdayKeyForDate, type StoreHours } from '../../../lib/storeHours'
+import { normalizeStoreId } from '../../../lib/storeIds'
 import {
   RADAR_BASEMAP_ZOOM,
   RADAR_RADIUS_MILES,
@@ -43,6 +45,7 @@ type SlideAvailability = {
   hasTodaySchedule: boolean
   hasScheduleOutlook: boolean
   hasAnnouncements: boolean
+  hasCommissionSnapshot: boolean
 }
 
 type DisplaySlideConfig = {
@@ -62,6 +65,25 @@ function formatNumber(value: number) {
 
 function formatPercent(value: number) {
   return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`
+}
+
+function ratioPercent(value: number, goal: number) {
+  if (!goal) return 0
+  return (value / goal) * 100
+}
+
+function latestCommissionRows(snapshots: CommissionSnapshot[], storeId: string) {
+  const normalizedStoreId = normalizeStoreId(storeId)
+  const storeRows = snapshots.filter((snapshot) => normalizeStoreId(snapshot.storeId ?? '') === normalizedStoreId)
+  const latestDate = storeRows
+    .map((snapshot) => snapshot.snapshotDate)
+    .filter(Boolean)
+    .sort((a, b) => b.localeCompare(a))[0]
+
+  if (!latestDate) return []
+  return storeRows
+    .filter((snapshot) => snapshot.snapshotDate === latestDate)
+    .sort((a, b) => b.commission - a.commission || a.sortOrder - b.sortOrder || a.employeeName.localeCompare(b.employeeName))
 }
 
 function minutesFromTime(value: string) {
@@ -1401,6 +1423,156 @@ function AccessoriesLeaderboardSlide() {
   )
 }
 
+function CommissionSnapshotSlide() {
+  const { storeId } = useUiStore()
+  const snapshots = useCommissionSnapshotStore((s) => s.snapshots)
+  const rows = latestCommissionRows(snapshots, storeId)
+  const snapshotDate = rows[0]?.snapshotDate
+
+  const totals = rows.reduce((acc, row) => ({
+    commission: acc.commission + row.commission,
+    opportunity: acc.opportunity + row.commissionOpportunity,
+    accessories: acc.accessories + row.accessories,
+    accessoryGoal: acc.accessoryGoal + row.accessoryGoal,
+    revenue: acc.revenue + row.revenue,
+    revenueGoal: acc.revenueGoal + row.revenueGoal,
+    voiceLines: acc.voiceLines + row.voiceLines,
+    voiceLinesGoal: acc.voiceLinesGoal + row.voiceLinesGoal,
+    bts: acc.bts + row.bts,
+    btsGoal: acc.btsGoal + row.btsGoal,
+    vaf: acc.vaf + row.vaf,
+    vafGoal: acc.vafGoal + row.vafGoal,
+  }), {
+    commission: 0,
+    opportunity: 0,
+    accessories: 0,
+    accessoryGoal: 0,
+    revenue: 0,
+    revenueGoal: 0,
+    voiceLines: 0,
+    voiceLinesGoal: 0,
+    bts: 0,
+    btsGoal: 0,
+    vaf: 0,
+    vafGoal: 0,
+  })
+
+  const capture = ratioPercent(totals.commission, totals.opportunity)
+  const openOpportunity = Math.max(totals.opportunity - totals.commission, 0)
+  const topRows = rows.slice(0, 5)
+  const goalTiles = [
+    { label: 'Accessory', value: formatMoney(totals.accessories), progress: ratioPercent(totals.accessories, totals.accessoryGoal), accent: GOLD },
+    { label: 'Revenue', value: formatMoney(totals.revenue), progress: ratioPercent(totals.revenue, totals.revenueGoal), accent: CYAN },
+    { label: 'Voice', value: formatNumber(totals.voiceLines), progress: ratioPercent(totals.voiceLines, totals.voiceLinesGoal), accent: GREEN },
+    { label: 'BTS', value: formatNumber(totals.bts), progress: ratioPercent(totals.bts, totals.btsGoal), accent: MG2 },
+  ]
+
+  return (
+    <div className="flex h-full flex-col gap-[2.4vh] px-[5vw] pb-[4vh] pt-[5vh] select-none">
+      <SlideHeader
+        eyebrow="Commission snapshot"
+        title="Team Earnings Board"
+        detail={snapshotDate ? format(new Date(`${snapshotDate}T12:00:00`), 'MMM d, yyyy') : 'Latest snapshot'}
+      />
+
+      <div className="grid flex-1 grid-cols-[0.95fr_1.05fr] gap-[2vw] overflow-hidden">
+        <div className="relative flex min-w-0 flex-col overflow-hidden rounded-[1.8vw] border p-[2.25vw] shadow-[0_3vh_8vh_rgba(0,0,0,0.30)] backdrop-blur-2xl" style={{ background: 'linear-gradient(145deg, rgba(0,122,255,0.26), rgba(255,255,255,0.075))', borderColor: 'rgba(100,210,255,0.28)' }}>
+          <div className="absolute right-[-7vw] top-[-10vh] h-[30vw] w-[30vw] rounded-full opacity-35 blur-[5vw]" style={{ background: CYAN }} />
+          <div className="absolute bottom-[-12vh] left-[-8vw] h-[25vw] w-[25vw] rounded-full opacity-25 blur-[5vw]" style={{ background: GREEN }} />
+
+          <div className="relative flex items-center gap-[1vw]">
+            <div className="flex h-[4.2vw] w-[4.2vw] items-center justify-center rounded-[1.2vw] border text-white shadow-[inset_0_1px_rgba(255,255,255,0.18)]" style={{ background: 'rgba(255,255,255,0.13)', borderColor: LINE }}>
+              <BadgeDollarSign size="2.25vw" strokeWidth={2.25} />
+            </div>
+            <div>
+              <div className="text-[0.85vw] font-black uppercase tracking-[0.16em] text-white/[0.48]">Team commission</div>
+              <div className="text-[1.1vw] font-semibold text-white/[0.58]">{rows.length} reps on latest snapshot</div>
+            </div>
+          </div>
+
+          <div className="relative mt-[4vh]">
+            <div className="text-[7vw] font-black leading-none tabular-nums text-white drop-shadow-[0_1.6vh_3vh_rgba(0,0,0,0.24)]">
+              {formatMoney(totals.commission)}
+            </div>
+            <div className="mt-[1.4vh] grid grid-cols-2 gap-[1vw]">
+              <div className="rounded-[1.2vw] border p-[1.2vw]" style={{ background: 'rgba(0,0,0,0.18)', borderColor: 'rgba(255,255,255,0.14)' }}>
+                <div className="text-[0.82vw] font-black uppercase tracking-[0.14em] text-white/[0.38]">Capture</div>
+                <div className="mt-[0.45vh] text-[2.2vw] font-black tabular-nums" style={{ color: capture >= 100 ? GREEN : GOLD }}>{formatPercent(capture)}</div>
+                <div className="mt-[0.8vh]"><ProgressBar value={capture} accent={capture >= 100 ? GREEN : GOLD} /></div>
+              </div>
+              <div className="rounded-[1.2vw] border p-[1.2vw]" style={{ background: 'rgba(0,0,0,0.18)', borderColor: 'rgba(255,255,255,0.14)' }}>
+                <div className="text-[0.82vw] font-black uppercase tracking-[0.14em] text-white/[0.38]">Open opp</div>
+                <div className="mt-[0.45vh] text-[2.2vw] font-black tabular-nums text-white">{formatMoney(openOpportunity)}</div>
+                <div className="mt-[0.8vh] text-[0.9vw] font-semibold text-white/[0.44]">Opportunity {formatMoney(totals.opportunity)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative mt-auto grid grid-cols-2 gap-[0.85vw]">
+            {goalTiles.map((tile) => (
+              <div key={tile.label} className="rounded-[1vw] border px-[1vw] py-[1vh]" style={{ background: 'rgba(255,255,255,0.075)', borderColor: `${tile.accent}38` }}>
+                <div className="flex items-center justify-between gap-[0.6vw]">
+                  <div className="text-[0.78vw] font-black uppercase tracking-[0.12em] text-white/[0.42]">{tile.label}</div>
+                  <div className="text-[0.86vw] font-black tabular-nums" style={{ color: tile.accent }}>{formatPercent(tile.progress)}</div>
+                </div>
+                <div className="mt-[0.4vh] text-[1.25vw] font-black tabular-nums text-white">{tile.value}</div>
+                <div className="mt-[0.65vh]"><ProgressBar value={tile.progress} accent={tile.accent} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex min-w-0 flex-col overflow-hidden rounded-[1.8vw] border p-[1.6vw] shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl" style={{ background: PANEL, borderColor: LINE }}>
+          <div className="mb-[1.4vh] flex items-center justify-between gap-[1vw]">
+            <div>
+              <div className="text-[0.9vw] font-black uppercase tracking-[0.16em]" style={{ color: CYAN }}>Top earners</div>
+              <div className="mt-[0.4vh] text-[1vw] font-semibold text-white/[0.45]">Ranked by current commission</div>
+            </div>
+            <div className="flex items-center gap-[0.55vw] rounded-full border px-[1vw] py-[0.65vh] text-[0.9vw] font-black text-white/[0.70]" style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}>
+              <Target size="1vw" />
+              Live snapshot
+            </div>
+          </div>
+
+          <div className="grid flex-1 gap-[1vh] overflow-hidden">
+            {topRows.map((row, index) => {
+              const rowCapture = ratioPercent(row.commission, row.commissionOpportunity)
+              const accent = index === 0 ? GOLD : index === 1 ? CYAN : index === 2 ? GREEN : MG2
+              return (
+                <motion.div
+                  key={row.id}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.07 }}
+                  className="grid min-h-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-[1vw] rounded-[1.25vw] border px-[1.2vw] py-[1.15vh] shadow-[inset_0_1px_rgba(255,255,255,0.10)]"
+                  style={{ background: `linear-gradient(90deg, ${accent}18, rgba(255,255,255,0.07))`, borderColor: `${accent}38` }}
+                >
+                  <div className="flex h-[3vw] w-[3vw] items-center justify-center rounded-[0.85vw] text-[1.2vw] font-black text-white" style={{ background: `${accent}55`, boxShadow: `0 0 1.2vw ${accent}25` }}>
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-[1.75vw] font-black leading-tight text-white">{row.employeeName}</div>
+                    <div className="mt-[0.45vh] flex items-center gap-[0.8vw] text-[0.86vw] font-semibold text-white/[0.45]">
+                      <span>Capture {formatPercent(rowCapture)}</span>
+                      <span className="text-white/[0.18]">|</span>
+                      <span>Open {formatMoney(Math.max(row.commissionOpportunity - row.commission, 0))}</span>
+                    </div>
+                    <div className="mt-[0.65vh]"><ProgressBar value={rowCapture} accent={accent} /></div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[2vw] font-black tabular-nums text-white">{formatMoney(row.commission)}</div>
+                    <div className="mt-[0.35vh] text-[0.82vw] font-black uppercase tracking-[0.12em]" style={{ color: accent }}>Commission</div>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AnnouncementsSlide() {
   const { announcements } = useDisplayStore()
   const activeAnnouncements = announcements.filter((announcement) => isAnnouncementActive(announcement))
@@ -1450,6 +1622,7 @@ const SLIDES: DisplaySlideConfig[] = [
   { key: 'clock',    label: 'Clock',         component: ClockSlide },
   { key: 'pulse',    label: 'Pulse',         component: StorePulseSlide },
   { key: 'weather',  label: 'Weather',        component: WeatherSlide },
+  { key: 'commission', label: 'Commission',    component: CommissionSnapshotSlide, shouldShow: ({ hasCommissionSnapshot }) => hasCommissionSnapshot },
   { key: 'radar',    label: 'Radar',          component: RadarSlide },
   { key: 'sched',    label: 'Schedule',       component: ScheduleSlide, shouldShow: ({ hasTodaySchedule }) => hasTodaySchedule },
   { key: 'outlook',  label: 'Outlook',        component: ScheduleOutlookSlide, shouldShow: ({ hasScheduleOutlook }) => hasScheduleOutlook },
@@ -1466,7 +1639,9 @@ export function DisplayPage() {
   const { isFullscreen, enter: enterFs, exit: exitFs } = useFullscreen()
   const { slideInterval, companyName, storeNumber } = useDisplayStore()
   const shifts = useScheduleStore((s) => s.shifts)
+  const snapshots = useCommissionSnapshotStore((s) => s.snapshots)
   const announcements = useDisplayStore((s) => s.announcements)
+  const storeId = useUiStore((s) => s.storeId)
   const [slideIdx, setSlideIdx] = useState(0)
   const [paused, setPaused] = useState(false)
   const [showControls, setShowControls] = useState(true)
@@ -1478,8 +1653,9 @@ export function DisplayPage() {
       hasTodaySchedule: shifts.some((shift) => shift.date === today),
       hasScheduleOutlook: shifts.some((shift) => outlookDates.has(shift.date)),
       hasAnnouncements: announcements.some((announcement) => isAnnouncementActive(announcement)),
+      hasCommissionSnapshot: latestCommissionRows(snapshots, storeId).length > 0,
     }
-  }, [announcements, shifts])
+  }, [announcements, shifts, snapshots, storeId])
   const visibleSlides = useMemo(() => (
     SLIDES.filter((slide) => slide.shouldShow?.(slideAvailability) ?? true)
   ), [slideAvailability])
