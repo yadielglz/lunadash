@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BadgeDollarSign,
   CalendarDays,
@@ -593,6 +593,7 @@ export function CommissionSnapshotPage() {
   const [goalDraft, setGoalDraft] = useState<StoreGoalDefaults>(() => readStoreGoalDefaults(storeId))
   const [goalModalOpen, setGoalModalOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const latestSeenUpdateRef = useRef('')
   const canEdit = accessRole === 'admin' || accessRole === 'district_manager'
   const normalizedStoreId = normalizeStoreId(storeId)
 
@@ -618,6 +619,29 @@ export function CommissionSnapshotPage() {
       .filter((snapshot) => normalizeStoreId(snapshot.storeId ?? '') === normalizedStoreId)
       .sort((a, b) => a.sortOrder - b.sortOrder || a.employeeName.localeCompare(b.employeeName))
   ), [normalizedStoreId, snapshots])
+
+  const latestSnapshot = useMemo(() => (
+    storeSnapshots.reduce<CommissionSnapshot | null>((latest, snapshot) => {
+      if (!latest) return snapshot
+      if (snapshot.updatedAt !== latest.updatedAt) return snapshot.updatedAt > latest.updatedAt ? snapshot : latest
+      if (snapshot.snapshotDate !== latest.snapshotDate) return snapshot.snapshotDate > latest.snapshotDate ? snapshot : latest
+      return snapshot
+    }, null)
+  ), [storeSnapshots])
+
+  useEffect(() => {
+    if (!latestSnapshot) return
+    const latestUpdate = latestSnapshot.updatedAt || latestSnapshot.createdAt || ''
+    if (!latestSeenUpdateRef.current) {
+      latestSeenUpdateRef.current = latestUpdate
+      setSelectedDate(latestSnapshot.snapshotDate)
+      return
+    }
+    if (latestUpdate > latestSeenUpdateRef.current) {
+      latestSeenUpdateRef.current = latestUpdate
+      setSelectedDate(latestSnapshot.snapshotDate)
+    }
+  }, [latestSnapshot])
 
   const dates = useMemo(() => {
     const uniqueDates = Array.from(new Set([todayKey(), selectedDate, ...storeSnapshots.map((snapshot) => snapshot.snapshotDate)]))

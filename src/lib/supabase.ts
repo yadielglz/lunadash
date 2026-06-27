@@ -230,7 +230,7 @@ export type StoreAccessCode = {
   onboarded_at: string | null
 }
 
-type DbStoreAccessCode = StoreAccessCode & {
+type DbStoreAccessCode = Omit<StoreAccessCode, 'assigned_store_ids'> & {
   pin_hash: string
 }
 
@@ -469,12 +469,15 @@ export async function dbCreateAccessCode(code: {
   const dealerCode = code.dealer_code.trim().toLowerCase() === 'admin'
     ? 'admin'
     : normalizeAccessCode(code.dealer_code)
-  const { data, error } = await supabase.from('store_access_codes').insert({
-    ...code,
+  const accessCodeRow: Partial<DbStoreAccessCode> = {
     dealer_code: dealerCode,
     store_id: normalizeStoreId(code.store_id),
+    pin_hash: code.pin_hash,
+    role: code.role,
+    label: code.label,
     is_active: true,
-  } satisfies Partial<DbStoreAccessCode>).select('id').single()
+  }
+  const { data, error } = await supabase.from('store_access_codes').insert(accessCodeRow).select('id').single()
   throwIfError(error, 'Could not create access code')
 
   if (data?.id) await dbSetAccessAssignments(String(data.id), code.assigned_store_ids?.length ? code.assigned_store_ids : [code.store_id])
