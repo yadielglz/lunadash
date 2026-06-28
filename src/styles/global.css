@@ -931,6 +931,11 @@ body::after {
   padding-bottom: calc(0.75rem + max(var(--safe-area-bottom), 0px));
 }
 
+.store-detail-drawer {
+  top: max(var(--safe-area-top), 0px);
+  height: calc(100% - max(var(--safe-area-top), 0px));
+}
+
 @media (hover: none) and (pointer: coarse) {
   .command-traffic-chip,
   .titlebar-traffic-button {

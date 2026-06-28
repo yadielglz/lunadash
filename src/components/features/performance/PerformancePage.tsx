@@ -7,7 +7,7 @@ import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Textarea } from '../../ui/Input'
 import { useUiStore } from '../../../store/uiStore'
-import { useDistrictCoachingStore, type CoachingNote } from '../../../store/districtCoachingStore'
+import { useDistrictCoachingStore } from '../../../store/districtCoachingStore'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import {
   fetchPerformanceData,
@@ -293,12 +293,10 @@ function CompactStoreNumbersCapture({
   row,
   updated,
   districtAverage,
-  notes,
 }: {
   row: RankedRow
   updated: string
   districtAverage: { netRevenuePct: number; accessoryPct: number; ppPct: number; overallScore: number } | null
-  notes: CoachingNote[]
 }) {
   const dealer = dealerInfoForRow(row)
   const metrics = [
@@ -311,9 +309,6 @@ function CompactStoreNumbersCapture({
   const netLeft = row.netRevenueGoal - row.netRevenue
   const accLeft = row.accessoryGoal - row.accessoryRevenue
   const ppLeft = row.dortGoal - row.totalPp
-  const storeNotes = notes.filter((note) => normalizeStoreId(note.storeId) === normalizeStoreId(row.storeCode))
-  const openNotes = storeNotes.filter((note) => note.status === 'open')
-  const notePreview = storeNotes.slice(0, 2)
   const primaryMetrics = [
     ['Net Revenue', formatMoney(row.netRevenue), formatMoney(row.netRevenueGoal), row.netRevenuePct, netLeft],
     ['Accessories', formatMoney(row.accessoryRevenue), formatMoney(row.accessoryGoal), row.accessoryPct, accLeft],
@@ -389,23 +384,6 @@ function CompactStoreNumbersCapture({
             {districtAverage ? `${row.overallScore >= districtAverage.overallScore ? '+' : ''}${formatPercent(row.overallScore - districtAverage.overallScore)}` : '-'}
           </div>
           <div className="text-xs text-[var(--text-secondary)]">overall score</div>
-        </div>
-      </div>
-
-      <div className="mt-4 min-h-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-sm font-bold text-[var(--text)]">Coaching Notes</div>
-          <div className="text-xs font-semibold text-[var(--text-tertiary)]">{openNotes.length} open · {storeNotes.length} total</div>
-        </div>
-        <div className="mt-3 space-y-2">
-          {notePreview.length ? notePreview.map((note) => (
-            <div key={note.id} className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
-              <div className="line-clamp-1 text-xs font-medium text-[var(--text)]">{note.text}</div>
-              <div className="mt-1 text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{note.status} · {new Date(note.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</div>
-            </div>
-          )) : (
-            <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-xs text-[var(--text-secondary)]">No coaching notes yet.</div>
-          )}
         </div>
       </div>
     </div>
@@ -533,7 +511,7 @@ function StoreDetailDrawer({
         onClick={onClose}
       />
       <aside
-        className={`absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-modal)] transition-transform duration-200 ${row ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`store-detail-drawer absolute right-0 flex w-full max-w-[520px] flex-col border-l border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-modal)] transition-transform duration-200 ${row ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {row && (
           <>
@@ -543,7 +521,7 @@ function StoreDetailDrawer({
               style={{ width: STORE_NUMBERS_CAPTURE_SIZE, height: STORE_NUMBERS_CAPTURE_SIZE }}
               aria-hidden="true"
             >
-              <CompactStoreNumbersCapture row={row} updated={updated} districtAverage={districtAverage} notes={notes} />
+              <CompactStoreNumbersCapture row={row} updated={updated} districtAverage={districtAverage} />
             </div>
             <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
               <div className="min-w-0">
