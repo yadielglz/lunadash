@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
-import { useUiStore } from '../store/uiStore'
+import { type Theme, useUiStore } from '../store/uiStore'
+
+const DARK_THEMES: Theme[] = ['dark', 'carbon', 'graphite', 'aurora', 'rosewood']
 
 export function useTheme() {
   const { theme, toggleTheme, setTheme } = useUiStore()
@@ -15,5 +17,5 @@ export function useTheme() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { theme, toggleTheme, isDark: theme === 'dark' || theme === 'carbon' }
+  return { theme, toggleTheme, isDark: DARK_THEMES.includes(theme) }
 }

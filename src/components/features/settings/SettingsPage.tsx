@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles, CarFront, MonitorCheck
+  Clock, Store, Megaphone, Calendar, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles, CarFront, MonitorCheck, Waves, Mountain, Flame, Leaf, Gem, CircleDot
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
@@ -26,19 +26,25 @@ import { AccessSection } from './AccessSection'
 import { RemoteSection } from './RemoteSection'
 
 function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Theme) => void }) {
-  const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string }[] = [
-    { value: 'dark', label: 'Dark', icon: <Moon size={14} />, preview: 'bg-[#111318]' },
-    { value: 'light', label: 'Light', icon: <Sun size={14} />, preview: 'bg-[#f4f6f8]' },
-    { value: 'vista', label: 'Vista', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#162b4d,#5c7fb5_55%,#d8ecff)]' },
-    { value: 'mac', label: 'Mac', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#f8fafc,#dbeafe_45%,#f5d0fe)]' },
-    { value: 'carbon', label: 'Carbon', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#090b0b,#1f2d2a_55%,#2dd4bf)]' },
-    { value: 'mint', label: 'Mint', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#fbfffd,#ccfbf1_52%,#fbcfe8)]' },
-    { value: 'coral', label: 'Coral', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#fffafa,#ffe4e6_52%,#99f6e4)]' },
-    { value: 'iris', label: 'Iris', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#fcfbff,#ede9fe_52%,#cffafe)]' },
+  const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string; accents: string[] }[] = [
+    { value: 'dark', label: 'Luna Dark', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#08090d,#17191f_58%,#007aff)]', accents: ['#007aff', '#34c759'] },
+    { value: 'light', label: 'Luna Light', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#fbfbfd,#f2f2f7_55%,#007aff)]', accents: ['#007aff', '#15803d'] },
+    { value: 'mac', label: 'Mac Glass', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#f8fafc,#dbeafe_45%,#f5d0fe)]', accents: ['#007aff', '#34c759'] },
+    { value: 'vista', label: 'Vista Aero', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#162b4d,#5c7fb5_55%,#d8ecff)]', accents: ['#0a64ad', '#5c7fb5'] },
+    { value: 'carbon', label: 'Carbon Teal', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#090b0b,#1f2d2a_55%,#2dd4bf)]', accents: ['#2dd4bf', '#f59e0b'] },
+    { value: 'graphite', label: 'Graphite', icon: <CircleDot size={14} />, preview: 'bg-[linear-gradient(135deg,#0c0d10,#24272f_56%,#38bdf8)]', accents: ['#38bdf8', '#f97316'] },
+    { value: 'aurora', label: 'Aurora', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#0b1020,#123b3b_48%,#a3e635)]', accents: ['#a3e635', '#22d3ee'] },
+    { value: 'tide', label: 'Tide', icon: <Waves size={14} />, preview: 'bg-[linear-gradient(135deg,#f7fbff,#d7f3f5_52%,#0284c7)]', accents: ['#0284c7', '#0d9488'] },
+    { value: 'citrus', label: 'Citrus', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#fffdf2,#fef3c7_54%,#65a30d)]', accents: ['#65a30d', '#f59e0b'] },
+    { value: 'rosewood', label: 'Rosewood', icon: <Flame size={14} />, preview: 'bg-[linear-gradient(135deg,#171012,#3b1d24_55%,#fb7185)]', accents: ['#fb7185', '#f59e0b'] },
+    { value: 'highland', label: 'Highland', icon: <Mountain size={14} />, preview: 'bg-[linear-gradient(135deg,#f7faf5,#dcebd7_52%,#2f7d57)]', accents: ['#2f7d57', '#b45309'] },
+    { value: 'mint', label: 'Mint Bloom', icon: <Leaf size={14} />, preview: 'bg-[linear-gradient(135deg,#fbfffd,#ccfbf1_52%,#fbcfe8)]', accents: ['#0f766e', '#db2777'] },
+    { value: 'coral', label: 'Coral', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#fffafa,#ffe4e6_52%,#99f6e4)]', accents: ['#e11d48', '#0f766e'] },
+    { value: 'iris', label: 'Iris', icon: <Gem size={14} />, preview: 'bg-[linear-gradient(135deg,#fcfbff,#ede9fe_52%,#cffafe)]', accents: ['#6d28d9', '#0891b2'] },
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-2 w-full max-w-full sm:grid-cols-4 sm:w-[44rem]">
+    <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
       {choices.map((choice) => {
         const selected = value === choice.value
         return (
@@ -52,18 +58,25 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
                 : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]'
             }`}
           >
-            <div className={`h-12 rounded-md border border-[var(--border)] ${choice.preview} overflow-hidden`}>
+            <div className={`h-16 overflow-hidden rounded-md border border-[var(--border)] ${choice.preview}`}>
               <div className="h-3 border-b border-white/10 bg-white/10" />
               <div className="p-1.5 space-y-1">
-                <div className="h-2 w-10 rounded bg-[var(--accent)]" />
+                <div className="h-2 w-10 rounded" style={{ background: choice.accents[0] }} />
                 <div className="h-1.5 w-14 rounded bg-slate-400/45" />
               </div>
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
-              <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--text)]">
-                {choice.icon}
-                {choice.label}
-              </span>
+              <div className="min-w-0">
+                <span className="flex items-center gap-1.5 truncate text-xs font-medium text-[var(--text)]">
+                  {choice.icon}
+                  {choice.label}
+                </span>
+                <div className="mt-1 flex items-center gap-1">
+                  {choice.accents.map((accent) => (
+                    <span key={accent} className="h-2.5 w-2.5 rounded-full border border-white/30" style={{ background: accent }} />
+                  ))}
+                </div>
+              </div>
               {selected && <Check size={13} className="text-[var(--accent)]" />}
             </div>
           </button>
@@ -75,24 +88,11 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
 
 // ── General section ──────────────────────────────────────────────────────────
 function GeneralSection() {
-  const { theme, setTheme, brand, setBrand, timeFormat, setTimeFormat, tempUnit, toggleTempUnit, uiScale, setUiScale } = useUiStore()
+  const { theme, setTheme, timeFormat, setTimeFormat, tempUnit, toggleTempUnit, uiScale, setUiScale } = useUiStore()
   return (
     <Section icon={<Clock size={14} />} title="General">
-      <Row label="Global Theme" description="Applies to login, navigation, dashboards, settings, and tools">
+      <Row label="Theme & Accent" description="Each theme includes its own accent colors across the app">
         <ThemePicker value={theme} onChange={setTheme} />
-      </Row>
-      <Row label="Accent Color" description="Match the dashboard to your brand">
-        <Segment
-          options={[
-            { value: 'default', label: 'Luna Blue' },
-            { value: 'tmobile', label: 'T-Mobile' },
-            { value: 'green', label: 'Green' },
-            { value: 'black', label: 'Black' },
-            { value: 'yellow', label: 'Yellow' },
-          ]}
-          value={brand}
-          onChange={setBrand}
-        />
       </Row>
       <Row label="App Zoom" description="Increase dashboard size on larger displays">
         <Segment

@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 
 export type Tab = 'home' | 'devices' | 'employees' | 'schedule' | 'appointments' | 'district' | 'goals' | 'commission' | 'reports' | 'updates' | 'weather' | 'display' | 'tasks' | 'settings'
-export type Theme = 'dark' | 'light' | 'vista' | 'mac' | 'carbon' | 'mint' | 'coral' | 'iris'
+export type Theme = 'dark' | 'light' | 'vista' | 'mac' | 'carbon' | 'mint' | 'coral' | 'iris' | 'graphite' | 'aurora' | 'tide' | 'citrus' | 'rosewood' | 'highland'
 export type Brand = 'default' | 'tmobile' | 'green' | 'black' | 'yellow'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
@@ -27,7 +27,7 @@ const SESSION_TIMEOUT_MS: Record<Exclude<SessionTimeout, 'never'>, number> = {
   '1h': 60 * 60 * 1000,
   '4h': 4 * 60 * 60 * 1000,
 }
-const THEME_CLASSES: Theme[] = ['dark', 'light', 'vista', 'mac', 'carbon', 'mint', 'coral', 'iris']
+const THEME_CLASSES: Theme[] = ['dark', 'light', 'vista', 'mac', 'carbon', 'mint', 'coral', 'iris', 'graphite', 'aurora', 'tide', 'citrus', 'rosewood', 'highland']
 const BRAND_ACCENTS: Record<Exclude<Brand, 'default'>, {
   accent: string
   hover: string
@@ -46,18 +46,11 @@ function applyThemeClass(theme: Theme) {
 }
 
 function applyBrandAccent(brand: Brand) {
-  const accent = brand === 'default' ? null : BRAND_ACCENTS[brand]
-  if (!accent) {
-    document.documentElement.style.removeProperty('--accent')
-    document.documentElement.style.removeProperty('--accent-hover')
-    document.documentElement.style.removeProperty('--accent-light')
-    document.documentElement.style.removeProperty('--accent-glow')
-    return
-  }
-  document.documentElement.style.setProperty('--accent', accent.accent)
-  document.documentElement.style.setProperty('--accent-hover', accent.hover)
-  document.documentElement.style.setProperty('--accent-light', accent.light)
-  document.documentElement.style.setProperty('--accent-glow', accent.glow)
+  void brand
+  document.documentElement.style.removeProperty('--accent')
+  document.documentElement.style.removeProperty('--accent-hover')
+  document.documentElement.style.removeProperty('--accent-light')
+  document.documentElement.style.removeProperty('--accent-glow')
 }
 
 function sessionExpiresAtFor(timeout: SessionTimeout) {
@@ -172,8 +165,9 @@ export const useUiStore = create<UiState>()(
       clearStoreSession: () => set({ storeId: '', accessMode: 'manager', accessRole: null, accessId: '', dealerCode: '', accessLabel: '', needsOnboarding: false, sessionExpiresAt: null, activeTab: 'home' }),
       extendStoreSession: () => set((s) => s.storeId ? { sessionExpiresAt: sessionExpiresAtFor(s.sessionTimeout) } : s),
       setTheme: (theme) => {
-        set({ theme })
+        set({ theme, brand: 'default' })
         applyThemeClass(theme)
+        applyBrandAccent('default')
       },
       setBrand: (brand) => {
         set({ brand })

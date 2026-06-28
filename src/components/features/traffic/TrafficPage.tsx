@@ -114,6 +114,8 @@ function TrafficSignalGrid({ events, loading }: { events: Fl511TrafficEvent[]; l
   )
 }
 
+const LIGHT_MAP_THEMES: Theme[] = ['light', 'mac', 'vista', 'mint', 'coral', 'iris', 'tide', 'citrus', 'highland']
+
 function TrafficMap({
   cameras,
   events,
@@ -131,7 +133,7 @@ function TrafficMap({
   zoom: number
   onZoomChange: (zoom: number) => void
 }) {
-  const lightMap = theme === 'light' || theme === 'mac'
+  const lightMap = LIGHT_MAP_THEMES.includes(theme)
   const basemapStyle = lightMap ? 'light_all' : 'dark_all'
   const trafficFlowStyle = lightMap ? 'relative0' : 'relative0-dark'
   const showTrafficFlow = hasTomTomTrafficKey()
