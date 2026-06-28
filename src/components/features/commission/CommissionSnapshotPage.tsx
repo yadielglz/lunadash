@@ -3,16 +3,19 @@ import {
   BadgeDollarSign,
   CalendarDays,
   CheckCircle2,
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
   DollarSign,
+  LayoutGrid,
   LockKeyhole,
   Pencil,
   Plus,
   RefreshCw,
   StickyNote,
   Target,
+  Table2,
   Trash2,
   TrendingUp,
   Users,
@@ -55,8 +58,10 @@ const numberFields = [
 type NumberField = typeof numberFields[number]
 type MetricKey = 'accessories' | 'revenue' | 'vaf' | 'voiceLines' | 'bts'
 type SummaryMode = 'daily' | 'mtd' | 'need'
+type EntryView = 'cards' | 'table'
 type StoreGoalField = 'accessoryGoal' | 'revenueGoal' | 'vafGoal' | 'voiceLinesGoal' | 'btsGoal'
 type StoreGoalDefaults = Record<StoreGoalField, number>
+type SaveFieldId = string
 
 const BOARD_METRICS: Array<{
   key: MetricKey
@@ -235,6 +240,51 @@ function numericInputValue(snapshot: CommissionSnapshot, field: NumberField) {
   return value === 0 ? '' : String(value)
 }
 
+function saveFieldId(snapshotId: string, field: NumberField | 'notes' | 'employeeName') {
+  return `${snapshotId}:${field}`
+}
+
+function focusRelativeEditor(element: HTMLElement, offset: 1 | -1) {
+  const editors = Array.from(document.querySelectorAll<HTMLElement>('[data-commission-editor="true"]'))
+    .filter((editor) => {
+      if (editor.hasAttribute('disabled') || editor.getAttribute('aria-disabled') === 'true') return false
+      const rect = editor.getBoundingClientRect()
+      const style = window.getComputedStyle(editor)
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'
+    })
+  const index = editors.indexOf(element)
+  if (index === -1) return
+  const next = editors[index + offset]
+  if (!next) return
+
+  requestAnimationFrame(() => {
+    next.focus({ preventScroll: true })
+    next.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    if (next instanceof HTMLInputElement || next instanceof HTMLTextAreaElement) next.select()
+  })
+}
+
+function handleNumberEditorKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+  if (event.key !== 'Enter') return
+  event.preventDefault()
+  const target = event.currentTarget
+  const offset = event.shiftKey ? -1 : 1
+  target.blur()
+  focusRelativeEditor(target, offset)
+}
+
+function handleNotesEditorKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+    event.preventDefault()
+    event.currentTarget.blur()
+  }
+}
+
+function SavedCheck({ show }: { show: boolean }) {
+  if (!show) return null
+  return <Check size={13} className="text-emerald-500" />
+}
+
 function ProgressBar({ value }: { value: number | null }) {
   const tone = progressTone(value)
   const width = value === null ? 0 : Math.min(100, Math.max(0, value))
@@ -279,7 +329,7 @@ function MetricCardFrame({
 
   return (
     <div className={cn(
-      'relative flex min-h-[128px] flex-col justify-between overflow-hidden rounded-lg border bg-[var(--surface-solid)] p-3 shadow-[inset_0_1px_rgba(255,255,255,0.08)] transition-colors',
+      'relative flex min-h-[116px] flex-col justify-between overflow-hidden rounded-lg border bg-[var(--surface-solid)] p-2.5 shadow-[inset_0_1px_rgba(255,255,255,0.08)] transition-colors sm:min-h-[128px] sm:p-3',
       featured ? 'border-[var(--accent)]/25' : 'border-[var(--border)]'
     )}>
       <div className={cn('absolute inset-x-0 top-0 h-0.5', tone.bar)} />
@@ -323,16 +373,57 @@ function MetricSummary({
   )
 }
 
+function NumberEditor({
+  snapshot,
+  field,
+  ariaLabel,
+  placeholder,
+  savedField,
+  onUpdateNumber,
+  className,
+}: {
+  snapshot: CommissionSnapshot
+  field: NumberField
+  ariaLabel: string
+  placeholder: string
+  savedField: SaveFieldId
+  onUpdateNumber: (snapshot: CommissionSnapshot, field: NumberField, value: string, savedId: SaveFieldId) => void
+  className?: string
+}) {
+  const fieldId = saveFieldId(snapshot.id, field)
+  const saved = savedField === fieldId
+
+  return (
+    <Input
+      aria-label={ariaLabel}
+      data-commission-editor="true"
+      inputMode="decimal"
+      defaultValue={numericInputValue(snapshot, field)}
+      onBlur={(event) => onUpdateNumber(snapshot, field, event.target.value, fieldId)}
+      onKeyDown={handleNumberEditorKeyDown}
+      className={cn(
+        'h-9 text-center tabular-nums',
+        saved && 'border-emerald-500/50 focus:border-emerald-500',
+        className
+      )}
+      suffix={<SavedCheck show={saved} />}
+      placeholder={placeholder}
+    />
+  )
+}
+
 function MetricCell({
   snapshot,
   metric,
   canEdit,
   onUpdateNumber,
+  savedField,
 }: {
   snapshot: CommissionSnapshot
   metric: typeof BOARD_METRICS[number]
   canEdit: boolean
-  onUpdateNumber: (snapshot: CommissionSnapshot, field: NumberField, value: string) => void
+  onUpdateNumber: (snapshot: CommissionSnapshot, field: NumberField, value: string, savedId: SaveFieldId) => void
+  savedField: SaveFieldId
 }) {
   const actual = snapshot[metric.key]
   const goal = snapshot[metric.goalKey]
@@ -361,29 +452,21 @@ function MetricCell({
               <span>Goal</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Input
-                key={`${snapshot.id}-${metric.key}-${snapshot.updatedAt}`}
-                aria-label={`${metric.label} actual`}
-                inputMode="decimal"
-                defaultValue={numericInputValue(snapshot, metric.key)}
-                onBlur={(event) => onUpdateNumber(snapshot, metric.key, event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') event.currentTarget.blur()
-                }}
-                className="h-9 text-center tabular-nums"
+              <NumberEditor
+                snapshot={snapshot}
+                field={metric.key}
+                ariaLabel={`${metric.label} actual`}
                 placeholder="0"
+                savedField={savedField}
+                onUpdateNumber={onUpdateNumber}
               />
-              <Input
-                key={`${snapshot.id}-${metric.goalKey}-${snapshot.updatedAt}`}
-                aria-label={`${metric.label} goal`}
-                inputMode="decimal"
-                defaultValue={numericInputValue(snapshot, metric.goalKey)}
-                onBlur={(event) => onUpdateNumber(snapshot, metric.goalKey, event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') event.currentTarget.blur()
-                }}
-                className="h-9 text-center tabular-nums"
+              <NumberEditor
+                snapshot={snapshot}
+                field={metric.goalKey}
+                ariaLabel={`${metric.label} goal`}
                 placeholder="0"
+                savedField={savedField}
+                onUpdateNumber={onUpdateNumber}
               />
             </div>
           </div>
@@ -404,10 +487,12 @@ function CommissionCell({
   snapshot,
   canEdit,
   onUpdateNumber,
+  savedField,
 }: {
   snapshot: CommissionSnapshot
   canEdit: boolean
-  onUpdateNumber: (snapshot: CommissionSnapshot, field: NumberField, value: string) => void
+  onUpdateNumber: (snapshot: CommissionSnapshot, field: NumberField, value: string, savedId: SaveFieldId) => void
+  savedField: SaveFieldId
 }) {
   const capture = capturePercent(snapshot.commission, snapshot.commissionOpportunity)
   const missed = Math.max(0, snapshot.commissionOpportunity - snapshot.commission)
@@ -433,29 +518,21 @@ function CommissionCell({
               <span>Opp</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Input
-                key={`${snapshot.id}-commission-${snapshot.updatedAt}`}
-                aria-label="Commission actual"
-                inputMode="decimal"
-                defaultValue={numericInputValue(snapshot, 'commission')}
-                onBlur={(event) => onUpdateNumber(snapshot, 'commission', event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') event.currentTarget.blur()
-                }}
-                className="h-9 text-center tabular-nums"
+              <NumberEditor
+                snapshot={snapshot}
+                field="commission"
+                ariaLabel="Commission actual"
                 placeholder="$0"
+                savedField={savedField}
+                onUpdateNumber={onUpdateNumber}
               />
-              <Input
-                key={`${snapshot.id}-commissionOpportunity-${snapshot.updatedAt}`}
-                aria-label="Commission opportunity"
-                inputMode="decimal"
-                defaultValue={numericInputValue(snapshot, 'commissionOpportunity')}
-                onBlur={(event) => onUpdateNumber(snapshot, 'commissionOpportunity', event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') event.currentTarget.blur()
-                }}
-                className="h-9 text-center tabular-nums"
+              <NumberEditor
+                snapshot={snapshot}
+                field="commissionOpportunity"
+                ariaLabel="Commission opportunity"
                 placeholder="$0"
+                savedField={savedField}
+                onUpdateNumber={onUpdateNumber}
               />
             </div>
             <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-[var(--surface-2)] px-2 py-1.5">
@@ -481,6 +558,147 @@ function CommissionCell({
         )}
       </div>
     </MetricCardFrame>
+  )
+}
+
+function BulkEntryTable({
+  snapshots,
+  canEdit,
+  commissionableEmployees,
+  savedField,
+  onUpdateRow,
+  onUpdateNumber,
+  onRemove,
+}: {
+  snapshots: CommissionSnapshot[]
+  canEdit: boolean
+  commissionableEmployees: Employee[]
+  savedField: SaveFieldId
+  onUpdateRow: (snapshot: CommissionSnapshot, updates: Partial<CommissionSnapshot>, savedId?: SaveFieldId) => void
+  onUpdateNumber: (snapshot: CommissionSnapshot, field: NumberField, value: string, savedId: SaveFieldId) => void
+  onRemove: (snapshot: CommissionSnapshot) => void
+}) {
+  const tableFields: Array<{ field: NumberField; label: string; placeholder: string }> = [
+    { field: 'commission', label: 'Paid', placeholder: '$0' },
+    { field: 'commissionOpportunity', label: 'Opp', placeholder: '$0' },
+    ...BOARD_METRICS.flatMap((metric) => [
+      { field: metric.key, label: metric.shortLabel, placeholder: metric.money ? '$0' : '0' },
+      { field: metric.goalKey, label: `${metric.shortLabel} Goal`, placeholder: metric.money ? '$0' : '0' },
+    ]),
+  ]
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-2)]">
+      <div className="overflow-x-auto">
+        <table className="min-w-[1320px] border-separate border-spacing-0 text-left text-xs">
+          <thead className="bg-[var(--surface-solid)] text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+            <tr>
+              <th className="sticky left-0 z-20 w-56 border-b border-r border-[var(--border)] bg-[var(--surface-solid)] px-3 py-2">Rep</th>
+              {tableFields.map((item) => (
+                <th key={item.field} className="w-24 border-b border-[var(--border)] px-2 py-2 text-center">
+                  {item.label}
+                </th>
+              ))}
+              <th className="w-72 border-b border-[var(--border)] px-2 py-2">Notes</th>
+              {canEdit && <th className="w-12 border-b border-[var(--border)] px-2 py-2" />}
+            </tr>
+          </thead>
+          <tbody>
+            {snapshots.map((snapshot) => {
+              const nameSaved = savedField === saveFieldId(snapshot.id, 'employeeName')
+              const notesSaved = savedField === saveFieldId(snapshot.id, 'notes')
+
+              return (
+                <tr key={snapshot.id} className="odd:bg-[var(--surface)]/35">
+                  <td className="sticky left-0 z-10 border-r border-t border-[var(--border)] bg-[var(--surface-solid)] px-2 py-2 align-top">
+                    {canEdit ? (
+                      <div className="relative">
+                        <Select
+                          aria-label="Rep name"
+                          data-commission-editor="true"
+                          value={snapshot.employeeName}
+                          onChange={(event) => onUpdateRow(snapshot, { employeeName: event.target.value }, saveFieldId(snapshot.id, 'employeeName'))}
+                          className={cn('h-8 pr-8 text-xs', nameSaved && 'border-emerald-500/50 focus:border-emerald-500')}
+                        >
+                          {snapshot.employeeName && !commissionableEmployees.some((employee) => employee.name === snapshot.employeeName) && (
+                            <option value={snapshot.employeeName}>{snapshot.employeeName}</option>
+                          )}
+                          {commissionableEmployees.map((employee) => (
+                            <option key={employee.id} value={employee.name}>
+                              {employee.name}
+                            </option>
+                          ))}
+                        </Select>
+                        <span className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2">
+                          <SavedCheck show={nameSaved} />
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="truncate py-1 text-sm font-semibold text-[var(--text)]">{snapshot.employeeName || '-'}</div>
+                    )}
+                    <div className="mt-1 text-[10px] text-[var(--text-tertiary)]">
+                      Capture {formatGoalPercent(capturePercent(snapshot.commission, snapshot.commissionOpportunity))}
+                    </div>
+                  </td>
+                  {tableFields.map((item) => (
+                    <td key={item.field} className="border-t border-[var(--border)] px-1.5 py-2 align-top">
+                      {canEdit ? (
+                        <NumberEditor
+                          snapshot={snapshot}
+                          field={item.field}
+                          ariaLabel={`${snapshot.employeeName || 'Rep'} ${item.label}`}
+                          placeholder={item.placeholder}
+                          savedField={savedField}
+                          onUpdateNumber={onUpdateNumber}
+                          className="h-8 min-w-[5.5rem] px-2 text-xs"
+                        />
+                      ) : (
+                        <div className="py-1 text-center text-sm font-semibold tabular-nums text-[var(--text-secondary)]">
+                          {snapshot[item.field] ? formatDecimal(snapshot[item.field]) : '-'}
+                        </div>
+                      )}
+                    </td>
+                  ))}
+                  <td className="border-t border-[var(--border)] px-1.5 py-2 align-top">
+                    {canEdit ? (
+                      <div className="relative">
+                        <Textarea
+                          aria-label={`${snapshot.employeeName || 'Rep'} notes`}
+                          data-commission-editor="true"
+                          defaultValue={snapshot.notes}
+                          rows={1}
+                          onBlur={(event) => onUpdateRow(snapshot, { notes: event.target.value }, saveFieldId(snapshot.id, 'notes'))}
+                          onKeyDown={handleNotesEditorKeyDown}
+                          className={cn(
+                            'min-h-8 min-w-[16rem] resize-y px-2 py-1.5 text-xs',
+                            notesSaved && 'border-emerald-500/50 focus:border-emerald-500'
+                          )}
+                          placeholder="Notes"
+                        />
+                        <span className="pointer-events-none absolute right-2 top-2">
+                          <SavedCheck show={notesSaved} />
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="min-h-8 whitespace-pre-wrap py-1 text-xs text-[var(--text-secondary)]">
+                        {snapshot.notes || '-'}
+                      </div>
+                    )}
+                  </td>
+                  {canEdit && (
+                    <td className="border-t border-[var(--border)] px-1.5 py-2 align-top">
+                      <Button size="icon" variant="danger" onClick={() => onRemove(snapshot)} aria-label={`Remove ${snapshot.employeeName || 'row'}`} className="h-8 w-8">
+                        <Trash2 size={13} />
+                      </Button>
+                    </td>
+                  )}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   )
 }
 
@@ -519,15 +737,19 @@ function RepHeader({
   commissionableEmployees,
   onUpdate,
   onRemove,
+  savedField,
   compact = false,
 }: {
   snapshot: CommissionSnapshot
   canEdit: boolean
   commissionableEmployees: Employee[]
-  onUpdate: (updates: Partial<CommissionSnapshot>) => void
+  onUpdate: (updates: Partial<CommissionSnapshot>, savedId?: SaveFieldId) => void
   onRemove: () => void
+  savedField: SaveFieldId
   compact?: boolean
 }) {
+  const nameSaved = savedField === saveFieldId(snapshot.id, 'employeeName')
+
   return (
     <div className={cn(
       'rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] shadow-[inset_0_1px_rgba(255,255,255,0.08)]',
@@ -541,21 +763,27 @@ function RepHeader({
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Rep</div>
             {canEdit ? (
-              <Select
-                aria-label="Rep name"
-                value={snapshot.employeeName}
-                onChange={(event) => onUpdate({ employeeName: event.target.value })}
-                className="mt-1 h-9"
-              >
-                {snapshot.employeeName && !commissionableEmployees.some((employee) => employee.name === snapshot.employeeName) && (
-                  <option value={snapshot.employeeName}>{snapshot.employeeName}</option>
-                )}
-                {commissionableEmployees.map((employee) => (
-                  <option key={employee.id} value={employee.name}>
-                    {employee.name}
-                  </option>
-                ))}
-              </Select>
+              <div className="relative mt-1">
+                <Select
+                  aria-label="Rep name"
+                  data-commission-editor="true"
+                  value={snapshot.employeeName}
+                  onChange={(event) => onUpdate({ employeeName: event.target.value }, saveFieldId(snapshot.id, 'employeeName'))}
+                  className={cn('h-9 pr-8', nameSaved && 'border-emerald-500/50 focus:border-emerald-500')}
+                >
+                  {snapshot.employeeName && !commissionableEmployees.some((employee) => employee.name === snapshot.employeeName) && (
+                    <option value={snapshot.employeeName}>{snapshot.employeeName}</option>
+                  )}
+                  {commissionableEmployees.map((employee) => (
+                    <option key={employee.id} value={employee.name}>
+                      {employee.name}
+                    </option>
+                  ))}
+                </Select>
+                <span className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2">
+                  <SavedCheck show={nameSaved} />
+                </span>
+              </div>
             ) : (
               <div className="mt-0.5 truncate text-sm font-semibold text-[var(--text)]">{snapshot.employeeName || '-'}</div>
             )}
@@ -588,14 +816,21 @@ export function CommissionSnapshotPage() {
   const { accessLabel, accessRole, storeId } = useUiStore()
   const [selectedDate, setSelectedDate] = useState(todayKey())
   const [summaryMode, setSummaryMode] = useState<SummaryMode>('daily')
+  const [entryView, setEntryView] = useState<EntryView>('cards')
   const [lastSavedAt, setLastSavedAt] = useState('')
+  const [savedField, setSavedField] = useState<SaveFieldId>('')
   const [storeGoalDefaults, setStoreGoalDefaults] = useState(() => readStoreGoalDefaults(storeId))
   const [goalDraft, setGoalDraft] = useState<StoreGoalDefaults>(() => readStoreGoalDefaults(storeId))
   const [goalModalOpen, setGoalModalOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const latestSeenUpdateRef = useRef('')
+  const savedFieldTimerRef = useRef<number | null>(null)
   const canEdit = accessRole === 'admin' || accessRole === 'district_manager'
   const normalizedStoreId = normalizeStoreId(storeId)
+
+  useEffect(() => () => {
+    if (savedFieldTimerRef.current) window.clearTimeout(savedFieldTimerRef.current)
+  }, [])
 
   useEffect(() => {
     const defaults = readStoreGoalDefaults(normalizedStoreId)
@@ -804,17 +1039,25 @@ export function CommissionSnapshotPage() {
     missingEmployees.forEach((employee, index) => addSnapshotForEmployee(employee, visibleSnapshots.length + index))
   }
 
-  const updateRow = (snapshot: CommissionSnapshot, updates: Partial<CommissionSnapshot>) => {
+  const markSaved = (savedId?: SaveFieldId) => {
+    if (!savedId) return
+    setSavedField(savedId)
+    if (savedFieldTimerRef.current) window.clearTimeout(savedFieldTimerRef.current)
+    savedFieldTimerRef.current = window.setTimeout(() => setSavedField(''), 1400)
+  }
+
+  const updateRow = (snapshot: CommissionSnapshot, updates: Partial<CommissionSnapshot>, savedId?: SaveFieldId) => {
     updateSnapshot(snapshot.id, {
       ...updates,
       storeId: snapshot.storeId,
       updatedBy: accessLabel,
     })
     setLastSavedAt(new Date().toISOString())
+    markSaved(savedId)
   }
 
-  const updateNumber = (snapshot: CommissionSnapshot, field: NumberField, value: string) => {
-    updateRow(snapshot, { [field]: parseMetric(value) } as Partial<CommissionSnapshot>)
+  const updateNumber = (snapshot: CommissionSnapshot, field: NumberField, value: string, savedId: SaveFieldId) => {
+    updateRow(snapshot, { [field]: parseMetric(value) } as Partial<CommissionSnapshot>, savedId)
   }
 
   const refreshSnapshots = async () => {
@@ -947,26 +1190,51 @@ export function CommissionSnapshotPage() {
           <div className="text-xs font-semibold uppercase text-[var(--text-tertiary)]">
             {formatDateLabel(selectedDate, { weekday: 'long', month: 'short', day: 'numeric' })} board
           </div>
-          <div className="inline-grid grid-cols-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-1">
-            {([
-              ['daily', 'Today'],
-              ['mtd', 'MTD'],
-              ['need', 'Need/day'],
-            ] as Array<[SummaryMode, string]>).map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setSummaryMode(mode)}
-                className={cn(
-                  'h-8 rounded-md px-3 text-xs font-semibold transition-colors',
-                  summaryMode === mode
-                    ? 'bg-[var(--accent)] text-white shadow-[0_8px_20px_var(--accent-glow)]'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'
-                )}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-grid grid-cols-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-1">
+              {([
+                ['daily', 'Today'],
+                ['mtd', 'MTD'],
+                ['need', 'Need/day'],
+              ] as Array<[SummaryMode, string]>).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setSummaryMode(mode)}
+                  className={cn(
+                    'h-8 rounded-md px-3 text-xs font-semibold transition-colors',
+                    summaryMode === mode
+                      ? 'bg-[var(--accent)] text-white shadow-[0_8px_20px_var(--accent-glow)]'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {canEdit && (
+              <div className="inline-grid grid-cols-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-1">
+                {([
+                  ['cards', 'Cards', <LayoutGrid size={13} />],
+                  ['table', 'Table', <Table2 size={13} />],
+                ] as Array<[EntryView, string, React.ReactNode]>).map(([view, label, icon]) => (
+                  <button
+                    key={view}
+                    type="button"
+                    onClick={() => setEntryView(view)}
+                    className={cn(
+                      'inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors',
+                      entryView === view
+                        ? 'bg-[var(--accent)] text-white shadow-[0_8px_20px_var(--accent-glow)]'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'
+                    )}
+                  >
+                    {icon}
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -997,21 +1265,38 @@ export function CommissionSnapshotPage() {
           </div>
         )}
 
-        <div className="space-y-3">
-          {visibleSnapshots.map((snapshot) => (
+        {entryView === 'table' && canEdit && visibleSnapshots.length > 0 ? (
+          <BulkEntryTable
+            snapshots={visibleSnapshots}
+            canEdit={canEdit}
+            commissionableEmployees={commissionableEmployees}
+            savedField={savedField}
+            onUpdateRow={updateRow}
+            onUpdateNumber={updateNumber}
+            onRemove={(snapshot) => removeSnapshot(snapshot.id)}
+          />
+        ) : (
+          <div className="space-y-3">
+            {visibleSnapshots.map((snapshot) => {
+              const notesSaved = savedField === saveFieldId(snapshot.id, 'notes')
+
+              return (
             <div key={snapshot.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2.5 shadow-[inset_0_1px_rgba(255,255,255,0.06)]">
               <div className="md:hidden">
                 <RepHeader
                   snapshot={snapshot}
                   canEdit={canEdit}
                   commissionableEmployees={commissionableEmployees}
-                  onUpdate={(updates) => updateRow(snapshot, updates)}
+                  onUpdate={(updates, savedId) => updateRow(snapshot, updates, savedId)}
                   onRemove={() => removeSnapshot(snapshot.id)}
+                  savedField={savedField}
                   compact
                 />
 
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  <CommissionCell snapshot={snapshot} canEdit={canEdit} onUpdateNumber={updateNumber} />
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="col-span-2">
+                    <CommissionCell snapshot={snapshot} canEdit={canEdit} onUpdateNumber={updateNumber} savedField={savedField} />
+                  </div>
                   {BOARD_METRICS.map((metric) => (
                     <MetricCell
                       key={metric.key}
@@ -1019,6 +1304,7 @@ export function CommissionSnapshotPage() {
                       metric={metric}
                       canEdit={canEdit}
                       onUpdateNumber={updateNumber}
+                      savedField={savedField}
                     />
                   ))}
                 </div>
@@ -1031,12 +1317,13 @@ export function CommissionSnapshotPage() {
                       snapshot={snapshot}
                       canEdit={canEdit}
                       commissionableEmployees={commissionableEmployees}
-                      onUpdate={(updates) => updateRow(snapshot, updates)}
+                      onUpdate={(updates, savedId) => updateRow(snapshot, updates, savedId)}
                       onRemove={() => removeSnapshot(snapshot.id)}
+                      savedField={savedField}
                     />
                   </div>
 
-                  <CommissionCell snapshot={snapshot} canEdit={canEdit} onUpdateNumber={updateNumber} />
+                  <CommissionCell snapshot={snapshot} canEdit={canEdit} onUpdateNumber={updateNumber} savedField={savedField} />
 
                   {BOARD_METRICS.map((metric) => (
                     <MetricCell
@@ -1045,25 +1332,30 @@ export function CommissionSnapshotPage() {
                       metric={metric}
                       canEdit={canEdit}
                       onUpdateNumber={updateNumber}
+                      savedField={savedField}
                     />
                   ))}
                 </div>
               </div>
 
               <div className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--surface-solid)]/80 p-2.5">
-                <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
-                  <StickyNote size={12} />
-                  Notes
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">
+                    <StickyNote size={12} />
+                    Notes
+                  </div>
+                  <SavedCheck show={notesSaved} />
                 </div>
                 {canEdit ? (
                   <Textarea
-                    key={`${snapshot.id}-notes-${snapshot.updatedAt}`}
                     aria-label={`${snapshot.employeeName || 'Rep'} notes`}
+                    data-commission-editor="true"
                     defaultValue={snapshot.notes}
                     rows={2}
-                    onBlur={(event) => updateRow(snapshot, { notes: event.target.value })}
+                    onBlur={(event) => updateRow(snapshot, { notes: event.target.value }, saveFieldId(snapshot.id, 'notes'))}
+                    onKeyDown={handleNotesEditorKeyDown}
                     placeholder="Add coaching context, promo notes, traffic, or follow-up..."
-                    className="min-h-[58px]"
+                    className={cn('min-h-[58px]', notesSaved && 'border-emerald-500/50 focus:border-emerald-500')}
                   />
                 ) : (
                   <div className="min-h-[38px] whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
@@ -1072,7 +1364,10 @@ export function CommissionSnapshotPage() {
                 )}
               </div>
             </div>
-          ))}
+              )
+            })}
+          </div>
+        )}
 
           {visibleSnapshots.length === 0 && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-16 text-center">
@@ -1096,7 +1391,6 @@ export function CommissionSnapshotPage() {
               )}
             </div>
           )}
-        </div>
       </div>
 
       <Modal open={goalModalOpen} onClose={() => setGoalModalOpen(false)} title="Store Commission Goals" size="md">

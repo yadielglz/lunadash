@@ -21,6 +21,7 @@ import { LunaWirelessLogo } from './brand/LunaWirelessLogo'
 const DEALER_PLACEHOLDERS = ['693D', 'admin', 'Spartans']
 const KIOSK_LOGIN_CODE = 'KIOSK'
 const KIOSK_ENROLLMENT_KEY = 'luna-kiosk-enrollment-token'
+const LOGIN_CONTROL_CLASS = 'text-[16px] sm:text-sm'
 
 type PendingAccess = {
   access: StoreAccessCode
@@ -254,12 +255,12 @@ export function StoreLaunchScreen() {
 
   return (
     <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[var(--bg)] p-4 text-[var(--text)] sm:p-6"
+      className="store-launch-screen relative flex h-full w-full items-center justify-center overflow-y-auto bg-[var(--bg)] text-[var(--text)]"
     >
       <div className="absolute inset-0" style={{ background: 'var(--bg-gradient)' }} />
       <div className="absolute inset-0 bg-[var(--wallpaper-overlay)]" />
 
-      <main className="relative grid max-h-[calc(100vh-32px)] w-full max-w-6xl overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-modal)] backdrop-blur-xl lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+      <main className="store-launch-panel relative grid w-full max-w-6xl overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-modal)] backdrop-blur-xl lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
         <section className="hidden min-h-[640px] flex-col justify-between border-r border-[var(--border)] bg-[var(--surface-2)] p-8 lg:flex">
           <div>
             <div className="flex justify-center pt-6">
@@ -349,6 +350,7 @@ export function StoreLaunchScreen() {
                 <>
                   <Select
                     label="Store"
+                    className={LOGIN_CONTROL_CLASS}
                     value={selectedStoreId}
                     onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setSelectedStoreId(event.target.value)}
                   >
@@ -422,7 +424,12 @@ export function StoreLaunchScreen() {
                   <Input
                     label="Store ID / User"
                     autoCapitalize="characters"
+                    autoComplete="username"
+                    autoCorrect="off"
+                    className={LOGIN_CONTROL_CLASS}
+                    enterKeyHint={isKioskLogin ? 'go' : 'next'}
                     maxLength={20}
+                    spellCheck={false}
                     value={dealerCode}
                     onChange={(e) => {
                       setDealerCode(normalizeAccessCode(e.target.value))
@@ -435,8 +442,12 @@ export function StoreLaunchScreen() {
                     <Input
                       label="PIN"
                       type="password"
+                      autoComplete="current-password"
+                      className={LOGIN_CONTROL_CLASS}
+                      enterKeyHint="go"
                       inputMode="numeric"
                       maxLength={4}
+                      pattern="[0-9]*"
                       value={pin}
                       onChange={(e) => {
                         setPin(e.target.value.replace(/\D/g, '').slice(0, 4))
