@@ -722,6 +722,7 @@ export function PerformancePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const storedSort = useMemo(() => readStoredSort(), [])
   const [sortKey, setSortKey] = useState<SortKey>(storedSort?.sortKey ?? 'overallScore')
   const [direction, setDirection] = useState<'asc' | 'desc'>(storedSort?.direction ?? 'desc')
@@ -733,6 +734,7 @@ export function PerformancePage() {
   const [previousRanks, setPreviousRanks] = useState(() => readStoredRankSnapshot())
   const [selectedStore, setSelectedStore] = useState<RankedRow | null>(null)
   const rowRefs = useRef<Record<string, HTMLElement | null>>({})
+  const mobileSearchRef = useRef<HTMLInputElement | null>(null)
 
   const loadData = async (background = false) => {
     if (!background) setLoading(true)
@@ -754,6 +756,11 @@ export function PerformancePage() {
     const id = window.setInterval(() => loadData(true), SHEET_REFRESH_MS)
     return () => window.clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    if (!mobileSearchOpen) return
+    requestAnimationFrame(() => mobileSearchRef.current?.focus())
+  }, [mobileSearchOpen])
 
   useEffect(() => {
     window.localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify({ sortKey, direction }))
@@ -950,7 +957,7 @@ export function PerformancePage() {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative min-w-0 sm:w-64">
+            <div className="hidden min-w-0 sm:relative sm:block sm:w-64">
               <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
               <Input
                 className="pl-8"
@@ -959,11 +966,58 @@ export function PerformancePage() {
                 placeholder="Search stores"
               />
             </div>
-            <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={() => loadData()} loading={loading}>
+            <div className="flex items-center gap-2 sm:hidden">
+              <button
+                type="button"
+                aria-label="Search stores"
+                onClick={() => setMobileSearchOpen((open) => !open)}
+                className={`flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${
+                  mobileSearchOpen || query
+                    ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                    : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)]'
+                }`}
+              >
+                <Search size={16} />
+              </button>
+              <button
+                type="button"
+                aria-label="Refresh district outlook"
+                onClick={() => loadData()}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text)]"
+              >
+                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+            <Button className="hidden sm:inline-flex" size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={() => loadData()} loading={loading}>
               Refresh
             </Button>
           </div>
         </div>
+        {mobileSearchOpen && (
+          <div className="relative mt-3 sm:hidden">
+            <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+            <Input
+              ref={mobileSearchRef}
+              className="h-10 pl-8 pr-10 text-[16px]"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') setMobileSearchOpen(false)
+              }}
+              placeholder="Search stores"
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setQuery('')}
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
