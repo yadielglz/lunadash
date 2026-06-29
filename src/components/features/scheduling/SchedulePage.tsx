@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { addDays, format, startOfWeek } from 'date-fns'
-import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Camera, ChevronLeft, ChevronRight, Clock, GripVertical, LayoutGrid, Users, Trash2, Edit2, Save, Store, SlidersHorizontal } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Camera, Check, ChevronLeft, ChevronRight, Clock, GripVertical, LayoutGrid, Settings, Trash2, Edit2, Save, Store, SlidersHorizontal, Users } from 'lucide-react'
 import { toPng } from 'html-to-image'
 import { WeeklyGrid } from './WeeklyGrid'
 import { MonthlyCalendar } from './MonthlyCalendar'
@@ -10,8 +10,8 @@ import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
 import { Toggle } from '../../ui/Toggle'
 import { useScheduleStore } from '../../../store/scheduleStore'
-import { useScheduleBlocksStore } from '../../../store/scheduleBlocksStore'
-import { useSchedulePreferencesStore } from '../../../store/schedulePreferencesStore'
+import { useScheduleBlocksStore, type ScheduleBlock } from '../../../store/scheduleBlocksStore'
+import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, type WeekStartDay } from '../../../store/schedulePreferencesStore'
 import { dbSaveScheduleSnapshot } from '../../../lib/supabase'
 import { currentStoreId } from '../../../store/currentStoreId'
 import { useUiStore } from '../../../store/uiStore'
@@ -299,6 +299,256 @@ function StoreHoursModal({ open, onClose }: { open: boolean; onClose: () => void
           <Button size="sm" variant={saveState === 'saved' ? 'accent' : 'primary'} icon={<Save size={12} />} loading={saveState === 'saving'} onClick={save}>
             Save Hours
           </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+const BLOCK_COLORS = ['#0078d4','#7c5ff5','#e74856','#16c60c','#f7630c','#00b7c3','#e3008c','#8764b8','#10893e']
+
+function SchedulerSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { employees, addEmployee, removeEmployee, updateEmployee, reorderEmployees } = useScheduleStore()
+  const { weekStartsOn, setWeekStartsOn } = useSchedulePreferencesStore()
+  const { blocks, addBlock, updateBlock, removeBlock } = useScheduleBlocksStore()
+  const [employeeName, setEmployeeName] = useState('')
+  const [employeeRole, setEmployeeRole] = useState('Associate')
+  const [employeeColor, setEmployeeColor] = useState(COLORS[0])
+  const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null)
+  const [editBlockId, setEditBlockId] = useState<string | null>(null)
+  const [blockName, setBlockName] = useState('')
+  const [blockStartTime, setBlockStartTime] = useState('09:00')
+  const [blockEndTime, setBlockEndTime] = useState('17:00')
+  const [blockNote, setBlockNote] = useState('')
+  const [blockColor, setBlockColor] = useState(BLOCK_COLORS[0])
+  const [countsTowardCoverage, setCountsTowardCoverage] = useState(true)
+
+  const resetEmployee = () => {
+    setEditEmployeeId(null)
+    setEmployeeName('')
+    setEmployeeRole('Associate')
+    setEmployeeColor(COLORS[0])
+  }
+
+  const startEditEmployee = (id: string) => {
+    const employee = employees.find((item) => item.id === id)
+    if (!employee) return
+    setEditEmployeeId(id)
+    setEmployeeName(employee.name)
+    setEmployeeRole(employee.role)
+    setEmployeeColor(employee.color)
+  }
+
+  const saveEmployee = () => {
+    if (!employeeName.trim()) return
+    if (editEmployeeId) updateEmployee(editEmployeeId, { name: employeeName.trim(), role: employeeRole, color: employeeColor })
+    else addEmployee({ name: employeeName.trim(), role: employeeRole, color: employeeColor })
+    resetEmployee()
+  }
+
+  const moveEmployee = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction
+    if (nextIndex < 0 || nextIndex >= employees.length) return
+    const ordered = [...employees]
+    const [moved] = ordered.splice(index, 1)
+    ordered.splice(nextIndex, 0, moved)
+    reorderEmployees(ordered)
+  }
+
+  const resetBlock = () => {
+    setEditBlockId(null)
+    setBlockName('')
+    setBlockStartTime('09:00')
+    setBlockEndTime('17:00')
+    setBlockNote('')
+    setBlockColor(BLOCK_COLORS[0])
+    setCountsTowardCoverage(true)
+  }
+
+  const startEditBlock = (block: ScheduleBlock) => {
+    setEditBlockId(block.id)
+    setBlockName(block.name)
+    setBlockStartTime(block.startTime)
+    setBlockEndTime(block.endTime)
+    setBlockNote(block.note)
+    setBlockColor(block.color)
+    setCountsTowardCoverage(block.countsTowardCoverage ?? true)
+  }
+
+  const applyBlockPreset = (preset: 'Vacation/PTO' | 'Sick') => {
+    setEditBlockId(null)
+    setBlockName(preset)
+    setBlockStartTime('09:00')
+    setBlockEndTime('17:00')
+    setBlockNote(preset === 'Sick' ? 'Sick time' : 'Vacation/PTO')
+    setBlockColor(preset === 'Sick' ? '#e74856' : '#7c5ff5')
+    setCountsTowardCoverage(false)
+  }
+
+  const saveBlock = () => {
+    if (!blockName.trim()) return
+    const data = {
+      name: blockName.trim(),
+      startTime: blockStartTime,
+      endTime: blockEndTime,
+      note: blockNote.trim(),
+      color: blockColor,
+      countsTowardCoverage,
+    }
+    if (editBlockId) updateBlock(editBlockId, data)
+    else addBlock(data)
+    resetBlock()
+  }
+
+  const sortedBlocks = [...blocks].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+  const weekEnd = WEEKDAY_OPTIONS.find((day) => day.value === ((weekStartsOn + 6) % 7))?.label
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Scheduler Settings"
+      size="full"
+      className="sm:h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-2rem)] sm:max-w-none sm:w-[min(1180px,calc(100vw-2rem))]"
+    >
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(420px,1.2fr)]">
+        <div className="space-y-4">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--text)]">Scheduling</p>
+                <p className="mt-1 text-xs text-[var(--text-tertiary)]">Weekly schedules run {WEEKDAY_OPTIONS.find((day) => day.value === weekStartsOn)?.label} through {weekEnd}.</p>
+              </div>
+              <Select
+                value={weekStartsOn}
+                onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setWeekStartsOn(Number(event.target.value) as WeekStartDay)}
+                className="w-36"
+                aria-label="Week starts on"
+              >
+                {WEEKDAY_OPTIONS.map((day) => (
+                  <option key={day.value} value={day.value}>{day.label}</option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+            <div className="mb-3">
+              <p className="text-sm font-semibold text-[var(--text)]">{editEmployeeId ? 'Edit Employee' : 'Add Employee'}</p>
+              <p className="mt-1 text-xs text-[var(--text-tertiary)]">Employees appear on the weekly schedule in this order.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Input label="Name" value={employeeName} onChange={(event) => setEmployeeName(event.target.value)} placeholder="Full name" />
+              <Input label="Role" value={employeeRole} onChange={(event) => setEmployeeRole(event.target.value)} placeholder="e.g. Associate" />
+            </div>
+            <div className="mt-3">
+              <label className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Color</label>
+              <div className="flex flex-wrap gap-2">
+                {COLORS.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setEmployeeColor(color)}
+                    className={`h-7 w-7 rounded-full transition-transform ${employeeColor === color ? 'scale-110 ring-2 ring-[var(--accent)]/45' : 'hover:scale-105'}`}
+                    style={{ background: color }}
+                    aria-label={`Use employee color ${color}`}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              {editEmployeeId && <Button variant="ghost" size="sm" onClick={resetEmployee}>Cancel</Button>}
+              <Button size="sm" variant="primary" onClick={saveEmployee} disabled={!employeeName.trim()}>{editEmployeeId ? 'Update Employee' : 'Add Employee'}</Button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            {employees.map((employee, index) => (
+              <div key={employee.id} className="flex items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 group">
+                <GripVertical size={14} className="text-[var(--text-tertiary)]" />
+                <div className="h-3 w-3 rounded-full" style={{ background: employee.color }} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-[var(--text)]">{employee.name}</div>
+                  <div className="truncate text-xs text-[var(--text-tertiary)]">{employee.role}</div>
+                </div>
+                <div className="flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                  <button onClick={() => moveEmployee(index, -1)} disabled={index === 0} className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--accent)] disabled:opacity-30"><ArrowUp size={12} /></button>
+                  <button onClick={() => moveEmployee(index, 1)} disabled={index === employees.length - 1} className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--accent)] disabled:opacity-30"><ArrowDown size={12} /></button>
+                  <button onClick={() => startEditEmployee(employee.id)} className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--accent)]"><Edit2 size={12} /></button>
+                  <button onClick={() => removeEmployee(employee.id)} className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-red-400"><Trash2 size={12} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-[var(--text)]">{editBlockId ? 'Edit Schedule Block' : 'Create Schedule Block'}</p>
+                <p className="mt-1 text-xs text-[var(--text-tertiary)]">Blocks drive shift defaults and coverage verifier behavior.</p>
+              </div>
+              <div className="flex gap-1.5">
+                <Button size="sm" variant="ghost" onClick={() => applyBlockPreset('Vacation/PTO')}>Vacation/PTO</Button>
+                <Button size="sm" variant="ghost" onClick={() => applyBlockPreset('Sick')}>Sick</Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Input label="Block Name" value={blockName} onChange={(event) => setBlockName(event.target.value)} placeholder="e.g. Mid 10-7" />
+              <Input label="Start Time" type="time" value={blockStartTime} onChange={(event) => setBlockStartTime(event.target.value)} />
+              <Input label="End Time" type="time" value={blockEndTime} onChange={(event) => setBlockEndTime(event.target.value)} />
+            </div>
+            <div className="mt-3">
+              <Input label="Default Note" value={blockNote} onChange={(event) => setBlockNote(event.target.value)} placeholder="Optional note for this block" />
+            </div>
+            <div className="mt-3">
+              <label className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Color</label>
+              <div className="flex flex-wrap gap-2">
+                {BLOCK_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setBlockColor(color)}
+                    className={`h-7 w-7 rounded-full transition-transform ${blockColor === color ? 'scale-110 ring-2 ring-[var(--accent)]/45' : 'hover:scale-105'}`}
+                    style={{ background: color }}
+                    aria-label={`Use block color ${color}`}
+                  />
+                ))}
+              </div>
+            </div>
+            <label className="mt-3 flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+              <input type="checkbox" checked={countsTowardCoverage} onChange={(event) => setCountsTowardCoverage(event.target.checked)} className="mt-0.5 accent-[var(--accent)]" />
+              <span>
+                <span className="block font-semibold text-[var(--text)]">Counts toward coverage</span>
+                <span className="block text-[var(--text-tertiary)]">Turn off for Vacation/PTO, Sick, training, or other paid-away blocks.</span>
+              </span>
+            </label>
+            <div className="mt-3 flex justify-end gap-2">
+              {editBlockId && <Button variant="ghost" size="sm" onClick={resetBlock}>Cancel</Button>}
+              <Button size="sm" variant="primary" onClick={saveBlock} disabled={!blockName.trim()} icon={<Check size={12} />}>{editBlockId ? 'Update Block' : 'Save Block'}</Button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            {sortedBlocks.map((block) => (
+              <div key={block.id} className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 group">
+                <div className="h-9 w-2.5 flex-shrink-0 rounded-full" style={{ background: block.color }} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-[var(--text)]">{block.name}</div>
+                  <div className="text-xs text-[var(--text-tertiary)]">{block.startTime} - {block.endTime}{block.note ? ` · ${block.note}` : ''}</div>
+                  {block.countsTowardCoverage === false && (
+                    <div className="mt-1 text-[10px] font-semibold uppercase text-[var(--status-warn-text)]">No coverage credit</div>
+                  )}
+                </div>
+                <div className="flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                  <button onClick={() => startEditBlock(block)} className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--accent)]"><Edit2 size={12} /></button>
+                  <button onClick={() => removeBlock(block.id)} className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-red-400"><Trash2 size={12} /></button>
+                </div>
+              </div>
+            ))}
+            {sortedBlocks.length === 0 && (
+              <p className="rounded-lg border border-dashed border-[var(--border)] py-8 text-center text-xs text-[var(--text-tertiary)]">No schedule blocks yet.</p>
+            )}
+          </div>
         </div>
       </div>
     </Modal>
@@ -912,6 +1162,7 @@ export function SchedulePage() {
   const [empModalOpen, setEmpModalOpen] = useState(false)
   const [hoursModalOpen, setHoursModalOpen] = useState(false)
   const [exceptionsModalOpen, setExceptionsModalOpen] = useState(false)
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false)
   const { employees, shifts } = useScheduleStore()
   const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
   const showShiftNotes = useSchedulePreferencesStore((s) => s.showShiftNotes)
@@ -987,6 +1238,11 @@ export function SchedulePage() {
           </div>
           {canChooseScheduleStore && <StorePickerButton className="flex-shrink-0" autoOpen requireSelection />}
           {storeId !== 'main' && canEditSchedule && (
+            <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Settings size={13} />} onClick={() => setSettingsModalOpen(true)}>
+              Settings
+            </Button>
+          )}
+          {storeId !== 'main' && canEditSchedule && (
             <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Clock size={13} />} onClick={() => setHoursModalOpen(true)}>
               Hours
             </Button>
@@ -1060,6 +1316,7 @@ export function SchedulePage() {
       </div>
 
       {canEditSchedule && <EmployeeManagerModal open={empModalOpen} onClose={() => setEmpModalOpen(false)} />}
+      {canEditSchedule && <SchedulerSettingsModal open={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} />}
       {canEditSchedule && <StoreHoursModal open={hoursModalOpen} onClose={() => setHoursModalOpen(false)} />}
       {canEditSchedule && <ScheduleExceptionsModal open={exceptionsModalOpen} onClose={() => setExceptionsModalOpen(false)} />}
     </div>
