@@ -75,13 +75,13 @@ create table shifts (
 create index shifts_store_idx on shifts(store_id);
 create index shifts_date_idx  on shifts(store_id, date);
 
--- Schedule exceptions: call outs, no shows, PTO, and holidays
+-- Schedule exceptions: call outs, no shows, PTO, sick time, and holidays
 create table schedule_exceptions (
   id             text primary key,
   store_id       text not null default 'default',
   employee_id    text references employees(id) on delete set null,
   exception_date text not null,
-  type           text not null check (type in ('call_out', 'no_show', 'pto', 'holiday')),
+  type           text not null check (type in ('call_out', 'no_show', 'pto', 'sick', 'holiday')),
   start_time     text,
   end_time       text,
   note           text default '',
@@ -100,6 +100,7 @@ create table schedule_blocks (
   note        text default '',
   color       text not null default '#0078d4',
   sort_order  integer default 0,
+  counts_toward_coverage boolean not null default true,
   created_at  timestamptz default now()
 );
 create index schedule_blocks_store_idx on schedule_blocks(store_id);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { format, addDays, startOfWeek, isToday } from 'date-fns'
-import { AlertTriangle, ChevronLeft, ChevronRight, Copy, GripVertical, Plus, Printer, Save, Upload } from 'lucide-react'
+import { AlertTriangle, CalendarCheck, ChevronLeft, ChevronRight, Copy, GripVertical, Plus, Printer, Save, Upload, Users } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useScheduleStore, Shift, type Employee } from '../../../store/scheduleStore'
 import { ShiftModal } from './ShiftModal'
@@ -8,7 +8,7 @@ import { formatShiftTime, hexToRgba } from '../../../lib/utils'
 import { Modal } from '../../ui/Modal'
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
-import { useScheduleBlocksStore } from '../../../store/scheduleBlocksStore'
+import { useScheduleBlocksStore, type ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore } from '../../../store/schedulePreferencesStore'
 import { shiftsToTemplateShifts, useScheduleTemplatesStore, type TemplateShift } from '../../../store/scheduleTemplatesStore'
 import { useUiStore } from '../../../store/uiStore'
@@ -16,13 +16,15 @@ import { PrintableScheduleModal } from './PrintableScheduleModal'
 import { useDisplayStore } from '../../../store/displayStore'
 import { weekdayKeyForDate, type StoreHours } from '../../../lib/storeHours'
 import { useScheduleExceptionsStore, type ScheduleException, type ScheduleExceptionType } from '../../../store/scheduleExceptionsStore'
+import { scheduleBlockCountsTowardCoverage } from '../../../lib/scheduleCoverage'
 
 const SCHEDULE_GRID_COLUMNS = '220px repeat(7, minmax(118px, 1fr))'
-const UNAVAILABLE_EXCEPTION_TYPES: ScheduleExceptionType[] = ['call_out', 'no_show', 'pto']
+const UNAVAILABLE_EXCEPTION_TYPES: ScheduleExceptionType[] = ['call_out', 'no_show', 'pto', 'sick']
 const EXCEPTION_LABELS: Record<ScheduleExceptionType, string> = {
   call_out: 'Call Out',
   no_show: 'No Show',
   pto: 'PTO',
+  sick: 'Sick',
   holiday: 'Holiday',
 }
 
@@ -208,6 +210,18 @@ function hasUnavailableException(shift: Shift, exceptions: ScheduleException[]) 
   return exceptionsForShift(shift, exceptions).length > 0
 }
 
+function absencesForEmployeeDate(exceptions: ScheduleException[], employeeId: string, date: string) {
+  return exceptions.filter((exception) => (
+    exception.employeeId === employeeId
+    && exception.date === date
+    && (exception.type === 'pto' || exception.type === 'sick')
+  ))
+}
+
+function isStoreManagerEmployee(employee: Employee | undefined) {
+  return /\bstore\s+manager\b/i.test(employee?.role ?? '')
+}
+
 type CoverageAlert = {
   id: string
   date: string
@@ -216,17 +230,28 @@ type CoverageAlert = {
   severity: 'warning' | 'danger'
 }
 
-function buildCoverageAlerts(shifts: Shift[], dates: string[], storeHours: StoreHours, exceptions: ScheduleException[]): CoverageAlert[] {
+function buildCoverageAlerts(shifts: Shift[], employees: Employee[], blocks: ScheduleBlock[], dates: string[], storeHours: StoreHours, exceptions: ScheduleException[]): CoverageAlert[] {
+  const employeesById = new Map(employees.map((employee) => [employee.id, employee]))
+  const blocksByName = new Map(blocks.map((block) => [block.name, block]))
+  const coverageShifts = shifts.filter((shift) => (
+    !isStoreManagerEmployee(employeesById.get(shift.employeeId))
+    && scheduleBlockCountsTowardCoverage(blocksByName.get(shift.type), shift.type)
+  ))
+
   return dates.flatMap((date) => {
     const holiday = exceptions.find((exception) => exception.type === 'holiday' && exception.date === date)
-    const dayHours = storeHours[weekdayKeyForDate(new Date(`${date}T12:00:00`))]
-    const dayShifts = shifts
+    const baseDayHours = storeHours[weekdayKeyForDate(new Date(`${date}T12:00:00`))]
+    const holidayHasHours = Boolean(holiday?.startTime && holiday.endTime)
+    const dayHours = holidayHasHours
+      ? { ...baseDayHours, open: true, start: holiday?.startTime ?? baseDayHours.start, end: holiday?.endTime ?? baseDayHours.end }
+      : baseDayHours
+    const dayShifts = coverageShifts
       .filter((shift) => shift.date === date)
       .sort((a, b) => a.startTime.localeCompare(b.startTime))
     const availableDayShifts = dayShifts.filter((shift) => !hasUnavailableException(shift, exceptions))
     const alerts: CoverageAlert[] = []
 
-    if (holiday) {
+    if (holiday && !holidayHasHours) {
       if (dayShifts.length > 0) {
         alerts.push({
           id: `${date}-holiday-scheduled`,
@@ -480,6 +505,22 @@ function ShiftCard({
   )
 }
 
+function AbsenceCard({ exception }: { exception: ScheduleException }) {
+  const label = exception.type === 'sick' ? 'Sick Leave' : 'Time Off'
+  const reason = exception.note?.trim()
+  const detail = reason || (!exception.startTime || !exception.endTime ? 'Full day' : formatShiftTime(exception.startTime, exception.endTime))
+  return (
+    <div className="relative w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left shadow-sm">
+      <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[var(--accent)]" />
+      <div className="flex items-center gap-1.5 pl-1.5">
+        <CalendarCheck size={11} className="flex-shrink-0 text-[var(--accent)]" />
+        <span className="text-[11px] font-semibold uppercase text-[var(--text)]">{label}</span>
+      </div>
+      <div className="mt-0.5 truncate pl-1.5 text-[10px] font-medium text-[var(--text-secondary)]">{detail}</div>
+    </div>
+  )
+}
+
 function MobileWeeklySchedule({
   days,
   employees,
@@ -541,6 +582,7 @@ function MobileWeeklySchedule({
               <div className="space-y-2">
                 {employees.map((employee) => {
                   const employeeShifts = dayShifts.filter((shift) => shift.employeeId === employee.id)
+                  const employeeAbsences = absencesForEmployeeDate(exceptions, employee.id, dateStr)
                   const conflictIds = new Set(employeeShifts.flatMap((shift) => (
                     employeeShifts.some((other) => shiftsOverlap(shift, other)) ? [shift.id] : []
                   )))
@@ -562,7 +604,11 @@ function MobileWeeklySchedule({
                           </button>
                         )}
                       </div>
-                      {employeeShifts.length > 0 ? (
+                      {employeeAbsences.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {employeeAbsences.map((exception) => <AbsenceCard key={exception.id} exception={exception} />)}
+                        </div>
+                      ) : employeeShifts.length > 0 ? (
                         <div className="space-y-1.5">
                           {employeeShifts.map((shift) => {
                             const shiftExceptions = exceptionsForShift(shift, exceptions)
@@ -630,7 +676,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const previousWeekShifts = shifts.filter((shift) => previousWeekDates.includes(shift.date))
   const currentWeekExceptions = exceptions.filter((exception) => currentWeekDates.includes(exception.date))
   const blockColors = new Map(blocks.map((block) => [block.name, block.color]))
-  const coverageAlerts = buildCoverageAlerts(currentWeekShifts, currentWeekDates, storeHours, currentWeekExceptions)
+  const coverageAlerts = buildCoverageAlerts(currentWeekShifts, employees, blocks, currentWeekDates, storeHours, currentWeekExceptions)
 
   const openAdd = (date: string, employeeId: string) => {
     if (!canEdit) return
@@ -780,7 +826,17 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
         <div className="hidden min-w-[1060px] lg:block">
           {/* Day headers */}
           <div className="grid gap-2 mb-3" style={{ gridTemplateColumns: SCHEDULE_GRID_COLUMNS }}>
-            <div className="sticky left-0 z-20 bg-[var(--bg)]" /> {/* Employee column spacer */}
+            <div className="sticky left-0 z-20 flex min-h-[58px] items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface-2-solid)] px-3 py-2 shadow-[4px_0_10px_rgba(0,0,0,0.08)]">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--accent)]">
+                  <Users size={13} />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Team</div>
+                  <div className="truncate text-xs font-semibold text-[var(--text)]">{employees.length} employee{employees.length === 1 ? '' : 's'}</div>
+                </div>
+              </div>
+            </div>
             {days.map((d) => {
               const today = isToday(d)
               const dateStr = format(d, 'yyyy-MM-dd')
@@ -886,6 +942,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                 {days.map((d) => {
                   const dateStr = format(d, 'yyyy-MM-dd')
                   const dayShifts = shifts.filter((s) => s.employeeId === emp.id && s.date === dateStr)
+                  const dayAbsences = absencesForEmployeeDate(currentWeekExceptions, emp.id, dateStr)
                   const today = isToday(d)
                   const conflictIds = new Set(dayShifts.flatMap((shift) => (
                     dayShifts.some((other) => shiftsOverlap(shift, other)) ? [shift.id] : []
@@ -904,7 +961,9 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                       }`}
                     >
                       <AnimatePresence>
-                        {dayShifts.map((shift) => {
+                        {dayAbsences.length > 0 ? dayAbsences.map((exception) => (
+                          <AbsenceCard key={exception.id} exception={exception} />
+                        )) : dayShifts.map((shift) => {
                           const shiftExceptions = exceptionsForShift(shift, currentWeekExceptions)
                           return (
                             <ShiftCard
@@ -925,7 +984,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                         })}
                       </AnimatePresence>
 
-                      {canEdit && dayShifts.length === 0 && (
+                      {canEdit && dayShifts.length === 0 && dayAbsences.length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <div className="w-6 h-6 rounded-full bg-[var(--accent)]/15 flex items-center justify-center">
                             <Plus size={12} className="text-[var(--accent)]" />

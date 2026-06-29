@@ -15,6 +15,7 @@ export interface ScheduleBlock {
   note: string
   color: string
   sortOrder: number
+  countsTowardCoverage?: boolean
 }
 
 interface ScheduleBlocksState {

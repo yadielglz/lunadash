@@ -27,7 +27,19 @@ const EXCEPTION_LABELS: Record<ScheduleExceptionType, string> = {
   call_out: 'Call Out',
   no_show: 'No Show',
   pto: 'PTO',
+  sick: 'Sick',
   holiday: 'Holiday',
+}
+
+function datesInRange(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T12:00:00`)
+  const end = new Date(`${endDate}T12:00:00`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return [startDate]
+  const dates: string[] = []
+  for (let day = start; day <= end; day = addDays(day, 1)) {
+    dates.push(format(day, 'yyyy-MM-dd'))
+  }
+  return dates
 }
 
 function EmployeeManagerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -231,6 +243,7 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
   const [type, setType] = useState<ScheduleExceptionType>('call_out')
   const [employeeId, setEmployeeId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
   const [allDay, setAllDay] = useState(true)
   const [startTime, setStartTime] = useState('10:00')
   const [endTime, setEndTime] = useState('21:00')
@@ -239,7 +252,9 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
   useEffect(() => {
     if (!open) return
     setEmployeeId(employees[0]?.id ?? '')
-    setDate(new Date().toISOString().split('T')[0])
+    const today = new Date().toISOString().split('T')[0]
+    setDate(today)
+    setEndDate(today)
     setAllDay(true)
     setStartTime('10:00')
     setEndTime('21:00')
@@ -248,13 +263,23 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
 
   const save = () => {
     if (type !== 'holiday' && !employeeId) return
-    addException({
-      type,
-      employeeId: type === 'holiday' ? null : employeeId,
-      date,
-      startTime: allDay ? null : startTime,
-      endTime: allDay ? null : endTime,
-      note: note.trim(),
+    const useDateRange = type === 'pto' || type === 'sick'
+    const exceptionDates = useDateRange ? datesInRange(date, endDate) : [date]
+    if (type === 'holiday') {
+      const confirmed = allDay
+        ? window.confirm('Treat this holiday as closed all day? The schedule verifier will not require coverage for this date.')
+        : window.confirm(`Use ${startTime}-${endTime} as holiday hours? The schedule verifier will require coverage only during those hours.`)
+      if (!confirmed) return
+    }
+    exceptionDates.forEach((exceptionDate) => {
+      addException({
+        type,
+        employeeId: type === 'holiday' ? null : employeeId,
+        date: exceptionDate,
+        startTime: allDay ? null : startTime,
+        endTime: allDay ? null : endTime,
+        note: note.trim(),
+      })
     })
     setNote('')
   }
@@ -273,8 +298,24 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
                 <option key={key} value={key}>{EXCEPTION_LABELS[key]}</option>
               ))}
             </Select>
-            <Input label="Date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+            <Input
+              label={type === 'pto' || type === 'sick' ? 'Start Date' : 'Date'}
+              type="date"
+              value={date}
+              onChange={(event) => {
+                setDate(event.target.value)
+                if (endDate < event.target.value) setEndDate(event.target.value)
+              }}
+            />
           </div>
+          {(type === 'pto' || type === 'sick') && (
+            <div className="mt-3">
+              <Input label="End Date" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+              <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                Saves one {EXCEPTION_LABELS[type]} entry for each date in the range.
+              </p>
+            </div>
+          )}
           {type !== 'holiday' && (
             <div className="mt-3">
               <Select label="Employee" value={employeeId} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setEmployeeId(event.target.value)}>
@@ -289,6 +330,11 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
             <input type="checkbox" checked={allDay} onChange={(event) => setAllDay(event.target.checked)} className="accent-[var(--accent)]" />
             All day
           </label>
+          {type === 'holiday' && (
+            <p className="mt-2 text-xs leading-5 text-[var(--text-tertiary)]">
+              All-day holidays are treated as closed for coverage. Holiday entries with times become special store hours for that date.
+            </p>
+          )}
           {!allDay && (
             <div className="mt-3 grid grid-cols-2 gap-3">
               <Input label="Start" type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
@@ -296,10 +342,15 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
             </div>
           )}
           <div className="mt-3">
-            <Input label="Note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional note" />
+            <Input
+              label="Reason"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder={type === 'pto' ? 'Vacation, personal request, appointment...' : type === 'sick' ? 'Sick, medical, family care...' : 'Optional note'}
+            />
           </div>
           <div className="mt-3 flex justify-end">
-            <Button size="sm" variant="primary" icon={<AlertTriangle size={12} />} onClick={save} disabled={type !== 'holiday' && !employeeId}>
+            <Button size="sm" variant="primary" icon={<AlertTriangle size={12} />} onClick={save} disabled={(type !== 'holiday' && !employeeId) || ((type === 'pto' || type === 'sick') && endDate < date)}>
               Add Exception
             </Button>
           </div>
@@ -336,7 +387,7 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
             )
           })}
           {sortedExceptions.length === 0 && (
-            <p className="py-5 text-center text-xs text-[var(--text-tertiary)]">No call outs, no shows, PTO, or holidays logged yet.</p>
+            <p className="py-5 text-center text-xs text-[var(--text-tertiary)]">No call outs, no shows, PTO, sick time, or holidays logged yet.</p>
           )}
         </div>
       </div>

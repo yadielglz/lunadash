@@ -558,6 +558,7 @@ function ScheduleBlocksSection() {
   const [endTime, setEndTime] = useState('17:00')
   const [note, setNote] = useState('')
   const [color, setColor] = useState(BLOCK_COLORS[0])
+  const [countsTowardCoverage, setCountsTowardCoverage] = useState(true)
 
   const reset = () => {
     setEditId(null)
@@ -566,6 +567,7 @@ function ScheduleBlocksSection() {
     setEndTime('17:00')
     setNote('')
     setColor(BLOCK_COLORS[0])
+    setCountsTowardCoverage(true)
   }
 
   const startEdit = (block: ScheduleBlock) => {
@@ -575,6 +577,7 @@ function ScheduleBlocksSection() {
     setEndTime(block.endTime)
     setNote(block.note)
     setColor(block.color)
+    setCountsTowardCoverage(block.countsTowardCoverage ?? true)
   }
 
   const save = () => {
@@ -585,6 +588,7 @@ function ScheduleBlocksSection() {
       endTime,
       note: note.trim(),
       color,
+      countsTowardCoverage,
     }
     if (editId) updateBlock(editId, data)
     else addBlock(data)
@@ -592,11 +596,26 @@ function ScheduleBlocksSection() {
   }
 
   const sortedBlocks = [...blocks].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+  const applyPreset = (preset: 'Vacation/PTO' | 'Sick') => {
+    setEditId(null)
+    setName(preset)
+    setStartTime('09:00')
+    setEndTime('17:00')
+    setNote(preset === 'Sick' ? 'Sick time' : 'Vacation/PTO')
+    setColor(preset === 'Sick' ? '#e74856' : '#7c5ff5')
+    setCountsTowardCoverage(false)
+  }
 
   return (
     <Section icon={<Calendar size={14} />} title="Schedule Blocks">
       <div className="px-4 py-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3">
-        <p className="text-xs font-semibold text-[var(--text)]">{editId ? 'Edit Schedule Block' : 'Create Schedule Block'}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-[var(--text)]">{editId ? 'Edit Schedule Block' : 'Create Schedule Block'}</p>
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="ghost" onClick={() => applyPreset('Vacation/PTO')}>Vacation/PTO</Button>
+            <Button size="sm" variant="ghost" onClick={() => applyPreset('Sick')}>Sick</Button>
+          </div>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input label="Block Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Mid 10-7" />
           <Input label="Start Time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
@@ -616,6 +635,18 @@ function ScheduleBlocksSection() {
             ))}
           </div>
         </div>
+        <label className="flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+          <input
+            type="checkbox"
+            checked={countsTowardCoverage}
+            onChange={(e) => setCountsTowardCoverage(e.target.checked)}
+            className="mt-0.5 accent-[var(--accent)]"
+          />
+          <span>
+            <span className="block font-semibold text-[var(--text)]">Counts toward coverage</span>
+            <span className="block text-[var(--text-tertiary)]">Turn off for Vacation/PTO, Sick, training, or other paid-away blocks.</span>
+          </span>
+        </label>
         <div className="flex justify-end gap-2">
           {editId && <Button variant="ghost" size="sm" onClick={reset}>Cancel</Button>}
           <Button size="sm" onClick={save} disabled={!name.trim()} icon={<Check size={12} />}>
@@ -633,6 +664,9 @@ function ScheduleBlocksSection() {
               <div className="text-xs text-[var(--text-tertiary)]">
                 {block.startTime} - {block.endTime}{block.note ? ` · ${block.note}` : ''}
               </div>
+              {block.countsTowardCoverage === false && (
+                <div className="mt-1 text-[10px] font-semibold uppercase text-[var(--status-warn-text)]">No coverage credit</div>
+              )}
             </div>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => startEdit(block)} className="p-1 rounded hover:bg-[var(--reveal-bg)] text-[var(--text-tertiary)] hover:text-[var(--accent)]"><Edit2 size={12} /></button>

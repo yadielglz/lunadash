@@ -73,7 +73,7 @@ type DbScheduleException = {
 
 type DbScheduleBlock = {
   id: string; store_id: string; name: string; start_time: string; end_time: string
-  note: string | null; color: string; sort_order: number | null; created_at: string
+  note: string | null; color: string; sort_order: number | null; counts_toward_coverage?: boolean | null; created_at: string
 }
 
 type DbScheduleTemplate = {
@@ -114,6 +114,7 @@ type DbScheduleBlockPatch = Partial<{
   note: string
   color: string
   sort_order: number
+  counts_toward_coverage: boolean
 }>
 
 type DbGoalPatch = Partial<{
@@ -215,6 +216,13 @@ function isMissingKioskCommandColumnError(error: unknown) {
       || text.includes('command_issued_at')
       || text.includes('command_ack_at')
       || text.includes('schema cache'))
+}
+
+function isMissingCoverageColumnError(error: unknown) {
+  if (!isSupabaseError(error)) return false
+  const text = `${error.code ?? ''} ${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
+  return text.includes('counts_toward_coverage')
+    || text.includes("could not find the 'counts_toward_coverage'")
 }
 
 export type StoreAccessCode = {
@@ -728,6 +736,7 @@ function dbToScheduleBlock(r: DbScheduleBlock): ScheduleBlock {
     note: r.note ?? '',
     color: r.color,
     sortOrder: r.sort_order ?? 0,
+    countsTowardCoverage: r.counts_toward_coverage ?? true,
   }
 }
 
@@ -741,6 +750,7 @@ function scheduleBlockToDb(block: ScheduleBlock, storeId: string) {
     note: block.note ?? '',
     color: block.color,
     sort_order: block.sortOrder,
+    counts_toward_coverage: block.countsTowardCoverage ?? true,
   }
 }
 
@@ -758,7 +768,15 @@ export async function dbGetScheduleBlocks(storeId: string): Promise<ScheduleBloc
 }
 
 export async function dbInsertScheduleBlock(block: ScheduleBlock, storeId: string) {
-  const { error } = await supabase.from('schedule_blocks').insert(scheduleBlockToDb(block, storeId))
+  const payload = scheduleBlockToDb(block, storeId)
+  const { error } = await supabase.from('schedule_blocks').insert(payload)
+  if (isMissingCoverageColumnError(error)) {
+    const legacyPayload: Partial<typeof payload> = { ...payload }
+    delete legacyPayload.counts_toward_coverage
+    const retry = await supabase.from('schedule_blocks').insert(legacyPayload)
+    if (!logOptionalScheduleBlocksWarning('new schedule blocks', retry.error)) throwIfError(retry.error, 'Could not save schedule block')
+    return
+  }
   if (!logOptionalScheduleBlocksWarning('new schedule blocks', error)) throwIfError(error, 'Could not save schedule block')
 }
 
@@ -771,8 +789,17 @@ export async function dbUpdateScheduleBlock(id: string, patch: Partial<Omit<Sche
   if (patch.note !== undefined) dbPatch.note = patch.note
   if (patch.color !== undefined) dbPatch.color = patch.color
   if (patch.sortOrder !== undefined) dbPatch.sort_order = patch.sortOrder
+  if (patch.countsTowardCoverage !== undefined) dbPatch.counts_toward_coverage = patch.countsTowardCoverage
   if (Object.keys(dbPatch).length === 0) return
   const { error } = await supabase.from('schedule_blocks').update(dbPatch).eq('id', id)
+  if (isMissingCoverageColumnError(error)) {
+    const legacyPatch: DbScheduleBlockPatch = { ...dbPatch }
+    delete legacyPatch.counts_toward_coverage
+    if (Object.keys(legacyPatch).length === 0) return
+    const retry = await supabase.from('schedule_blocks').update(legacyPatch).eq('id', id)
+    if (!logOptionalScheduleBlocksWarning('schedule block updates', retry.error)) throwIfError(retry.error, 'Could not update schedule block')
+    return
+  }
   if (!logOptionalScheduleBlocksWarning('schedule block updates', error)) throwIfError(error, 'Could not update schedule block')
 }
 

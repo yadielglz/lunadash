@@ -6,7 +6,7 @@ import {
 } from '../lib/supabase'
 import { currentStoreId } from './currentStoreId'
 
-export type ScheduleExceptionType = 'call_out' | 'no_show' | 'pto' | 'holiday'
+export type ScheduleExceptionType = 'call_out' | 'no_show' | 'pto' | 'sick' | 'holiday'
 
 export interface ScheduleException {
   id: string

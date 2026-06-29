@@ -10,8 +10,12 @@ create table if not exists schedule_blocks (
   note        text default '',
   color       text not null default '#0078d4',
   sort_order  integer default 0,
+  counts_toward_coverage boolean not null default true,
   created_at  timestamptz default now()
 );
+
+alter table schedule_blocks
+  add column if not exists counts_toward_coverage boolean not null default true;
 
 create index if not exists schedule_blocks_store_idx on schedule_blocks(store_id);
 create index if not exists schedule_blocks_store_sort_idx on schedule_blocks(store_id, sort_order);

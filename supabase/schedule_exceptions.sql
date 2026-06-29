@@ -3,12 +3,19 @@ create table if not exists schedule_exceptions (
   store_id text not null default 'default',
   employee_id text references employees(id) on delete set null,
   exception_date text not null,
-  type text not null check (type in ('call_out', 'no_show', 'pto', 'holiday')),
+  type text not null check (type in ('call_out', 'no_show', 'pto', 'sick', 'holiday')),
   start_time text,
   end_time text,
   note text default '',
   created_at timestamptz default now()
 );
+
+do $$
+begin
+  alter table schedule_exceptions drop constraint if exists schedule_exceptions_type_check;
+  alter table schedule_exceptions add constraint schedule_exceptions_type_check
+    check (type in ('call_out', 'no_show', 'pto', 'sick', 'holiday'));
+end $$;
 
 create index if not exists schedule_exceptions_store_date_idx on schedule_exceptions(store_id, exception_date);
 create index if not exists schedule_exceptions_employee_idx on schedule_exceptions(employee_id, exception_date);

@@ -35,6 +35,7 @@ type ScheduleBlockRow = StoreScopedRow & {
   note?: string | null
   color: string
   sort_order?: number | null
+  counts_toward_coverage?: boolean | null
 }
 type GoalRow = StoreScopedRow & {
   title: string
@@ -151,6 +152,7 @@ const scheduleBlockFromRow = (r: ScheduleBlockRow): ScheduleBlock => ({
   note: r.note ?? '',
   color: r.color,
   sortOrder: r.sort_order ?? 0,
+  countsTowardCoverage: r.counts_toward_coverage ?? true,
 })
 
 function sortScheduleBlocks(blocks: ScheduleBlock[]) {
