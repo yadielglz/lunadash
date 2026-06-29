@@ -8,6 +8,7 @@ import { useDisplayStore } from '../../../store/displayStore'
 import { useScheduleStore, Shift } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore } from '../../../store/schedulePreferencesStore'
+import { useScheduleExceptionsStore, type ScheduleException } from '../../../store/scheduleExceptionsStore'
 import { formatShiftTime, hexToRgba, timeToMinutes } from '../../../lib/utils'
 
 interface PrintableScheduleModalProps {
@@ -44,6 +45,23 @@ function isMobilePrintSurface() {
   return window.matchMedia('(max-width: 767px)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 }
 
+function absencesForEmployeeDate(exceptions: ScheduleException[], employeeId: string, date: string) {
+  return exceptions.filter((exception) => (
+    exception.employeeId === employeeId
+    && exception.date === date
+    && (exception.type === 'pto' || exception.type === 'sick')
+  ))
+}
+
+function absenceLabel(exception: ScheduleException) {
+  return exception.type === 'sick' ? 'Sick Leave' : 'Time Off'
+}
+
+function absenceDetail(exception: ScheduleException) {
+  const reason = exception.note?.trim()
+  return reason || (!exception.startTime || !exception.endTime ? 'Full day' : formatShiftTime(exception.startTime, exception.endTime))
+}
+
 export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableScheduleModalProps) {
   const captureRef = useRef<HTMLDivElement>(null)
   const [capturing, setCapturing] = useState(false)
@@ -51,6 +69,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
   const { companyName, storeNumber } = useDisplayStore()
   const { employees, shifts } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
+  const exceptions = useScheduleExceptionsStore((s) => s.exceptions)
   const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
   const showShiftNotes = useSchedulePreferencesStore((s) => s.showShiftNotes)
   const showEmployeeRoles = useSchedulePreferencesStore((s) => s.showEmployeeRoles)
@@ -60,8 +79,10 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
   const dates = days.map((day) => format(day, 'yyyy-MM-dd'))
   const blockColors = new Map(blocks.map((block) => [block.name, block.color]))
   const weekShifts = shifts.filter((shift) => dates.includes(shift.date))
+  const weekExceptions = exceptions.filter((exception) => dates.includes(exception.date))
   const scheduledEmployees = employees.filter((employee) =>
     weekShifts.some((shift) => shift.employeeId === employee.id)
+    || weekExceptions.some((exception) => exception.employeeId === employee.id && (exception.type === 'pto' || exception.type === 'sick'))
   )
   const displayedEmployees = scheduledEmployees.length > 0 ? scheduledEmployees : employees
   const shiftHourValues = weekShifts.map(shiftHours)
@@ -104,6 +125,15 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
       const cells = days.map((day) => {
         const date = format(day, 'yyyy-MM-dd')
         const dayShifts = employeeShifts.filter((shift) => shift.date === date)
+        const dayAbsences = absencesForEmployeeDate(weekExceptions, employee.id, date)
+        if (dayAbsences.length > 0) {
+          return `<td>${dayAbsences.map((exception) => `
+            <div class="absence">
+              <div class="absence-name">${absenceLabel(exception)}</div>
+              <div class="absence-detail">${escapeHtml(absenceDetail(exception))}</div>
+            </div>
+          `).join('')}</td>`
+        }
         if (dayShifts.length === 0) return '<td><div class="off">Off</div></td>'
 
         const shiftCards = dayShifts.map((shift) => {
@@ -221,6 +251,27 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
             .shift-name { font-size: 11px; font-weight: 900; line-height: 1.15; }
             .shift-time { margin-top: 2px; color: #334155; font-size: 10px; font-weight: 800; }
             .shift-note { margin-top: 2px; color: #64748b; font-size: 9px; line-height: 1.25; }
+            .absence {
+              position: relative;
+              border: 1px solid #e2e8f0;
+              border-radius: 6px;
+              padding: ${compactSchedule ? '5px 7px 5px 10px' : '7px 8px 7px 11px'};
+              margin-bottom: 5px;
+              background: #f8fafc;
+              break-inside: avoid;
+            }
+            .absence::before {
+              content: "";
+              position: absolute;
+              left: 0;
+              top: 7px;
+              bottom: 7px;
+              width: 3px;
+              border-radius: 0 999px 999px 0;
+              background: #0078d4;
+            }
+            .absence-name { color: #0f172a; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+            .absence-detail { margin-top: 2px; color: #475569; font-size: 9px; font-weight: 700; line-height: 1.25; }
             .off {
               display: flex;
               min-height: 58px;
@@ -417,10 +468,21 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
                     {days.map((day) => {
                       const date = format(day, 'yyyy-MM-dd')
                       const dayShifts = employeeShifts.filter((shift) => shift.date === date)
+                      const dayAbsences = absencesForEmployeeDate(weekExceptions, employee.id, date)
 
                       return (
                         <div key={`${employee.id}-${date}`} className={`${compactSchedule ? 'min-h-[64px] p-1.5' : 'min-h-[86px] p-2'} border-l border-t border-slate-200`}>
-                          {dayShifts.length === 0 ? (
+                          {dayAbsences.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {dayAbsences.map((exception) => (
+                                <div key={exception.id} className="relative overflow-hidden rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 pl-3">
+                                  <div className="absolute bottom-1.5 left-0 top-1.5 w-1 rounded-r-full bg-[#0078d4]" />
+                                  <div className="text-[10px] font-bold uppercase text-slate-950">{absenceLabel(exception)}</div>
+                                  <div className="mt-0.5 text-[10px] font-semibold text-slate-600">{absenceDetail(exception)}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : dayShifts.length === 0 ? (
                             <div className="flex h-full items-center justify-center text-xs font-medium text-slate-300">Off</div>
                           ) : (
                             <div className="space-y-1.5">

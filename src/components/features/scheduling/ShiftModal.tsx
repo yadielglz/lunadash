@@ -4,6 +4,8 @@ import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
 import { useScheduleStore, Shift } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, ScheduleBlock } from '../../../store/scheduleBlocksStore'
+import { useScheduleExceptionsStore } from '../../../store/scheduleExceptionsStore'
+import { useEmployeeInsightsStore } from '../../../store/employeeInsightsStore'
 
 interface Props {
   open: boolean
@@ -28,6 +30,9 @@ function legacyBlockForShift(shift: Shift): ScheduleBlock {
 export function ShiftModal({ open, onClose, initialDate, initialEmployeeId, editShift }: Props) {
   const { employees, addShift, updateShift, removeShift } = useScheduleStore()
   const blocks = useScheduleBlocksStore((s) => s.blocks)
+  const exceptions = useScheduleExceptionsStore((s) => s.exceptions)
+  const preferences = useEmployeeInsightsStore((s) => s.preferences)
+  const loadInsights = useEmployeeInsightsStore((s) => s.loadInsights)
 
   const [employeeId, setEmployeeId] = useState(employees[0]?.id ?? '')
   const [date, setDate]             = useState(initialDate ?? new Date().toISOString().split('T')[0])
@@ -43,6 +48,10 @@ export function ShiftModal({ open, onClose, initialDate, initialEmployeeId, edit
   )
   const selectedBlock = sortedBlocks.find((block) => block.id === blockId)
   const displayBlock = selectedBlock ?? (editShift ? legacyBlockForShift(editShift) : undefined)
+
+  useEffect(() => {
+    if (open) loadInsights()
+  }, [loadInsights, open])
 
   useEffect(() => {
     if (editShift) {
@@ -88,6 +97,23 @@ export function ShiftModal({ open, onClose, initialDate, initialEmployeeId, edit
     const endTime = manualTime ? manualEndTime : block?.endTime
     const note = manualTime ? manualNote.trim() : block?.note
     if (!shiftName || !startTime || !endTime) return
+    const absence = exceptions.find((exception) => (
+      exception.employeeId === employeeId
+      && exception.date === date
+      && (exception.type === 'pto' || exception.type === 'sick')
+    ))
+    if (absence) {
+      const label = absence.type === 'sick' ? 'Sick Leave' : 'Time Off'
+      const reason = absence.note?.trim()
+      const confirmed = window.confirm(`${employees.find((employee) => employee.id === employeeId)?.name ?? 'This employee'} has ${label}${reason ? ` (${reason})` : ''} on this date. Schedule anyway?`)
+      if (!confirmed) return
+    }
+    const preference = preferences.find((item) => item.employeeId === employeeId)
+    const weekday = new Date(`${date}T12:00:00`).getDay()
+    if (preference?.unavailableDays.includes(weekday)) {
+      const confirmed = window.confirm(`${employees.find((employee) => employee.id === employeeId)?.name ?? 'This employee'} is marked unavailable on this weekday. Schedule anyway?`)
+      if (!confirmed) return
+    }
     const data = {
       employeeId,
       date,

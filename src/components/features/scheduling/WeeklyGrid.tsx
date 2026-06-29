@@ -26,6 +26,7 @@ const EXCEPTION_LABELS: Record<ScheduleExceptionType, string> = {
   pto: 'PTO',
   sick: 'Sick',
   holiday: 'Holiday',
+  blackout: 'Blackout',
 }
 
 function weekDates(weekStart: Date) {
@@ -195,6 +196,19 @@ function minutesToTime(minutes: number) {
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
 }
 
+function shiftHours(shift: Shift) {
+  const start = timeToMinutes(shift.startTime)
+  const end = timeToMinutes(shift.endTime)
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null
+  const minutes = end >= start ? end - start : (24 * 60 - start) + end
+  if (minutes <= 0 || minutes > 14 * 60) return null
+  return minutes / 60
+}
+
+function formatHours(hours: number) {
+  return hours.toFixed(hours % 1 === 0 ? 0 : 1)
+}
+
 function exceptionOverlapsShift(exception: ScheduleException, shift: Shift) {
   if (!UNAVAILABLE_EXCEPTION_TYPES.includes(exception.type)) return false
   if (exception.employeeId !== shift.employeeId || exception.date !== shift.date) return false
@@ -220,6 +234,11 @@ function absencesForEmployeeDate(exceptions: ScheduleException[], employeeId: st
 
 function isStoreManagerEmployee(employee: Employee | undefined) {
   return /\bstore\s+manager\b/i.test(employee?.role ?? '')
+}
+
+function isKeyholderEmployee(employee: Employee | undefined) {
+  const role = employee?.role ?? ''
+  return /\b(store\s+manager|assistant\s+manager|manager|keyholder|key\s*holder|lead)\b/i.test(role)
 }
 
 type CoverageAlert = {
@@ -249,6 +268,14 @@ function buildCoverageAlerts(shifts: Shift[], employees: Employee[], blocks: Sch
       .filter((shift) => shift.date === date)
       .sort((a, b) => a.startTime.localeCompare(b.startTime))
     const availableDayShifts = dayShifts.filter((shift) => !hasUnavailableException(shift, exceptions))
+    const availableKeyholderShifts = shifts
+      .filter((shift) => (
+        shift.date === date
+        && scheduleBlockCountsTowardCoverage(blocksByName.get(shift.type), shift.type)
+        && isKeyholderEmployee(employeesById.get(shift.employeeId))
+        && !hasUnavailableException(shift, exceptions)
+      ))
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
     const alerts: CoverageAlert[] = []
 
     if (holiday && !holidayHasHours) {
@@ -286,6 +313,16 @@ function buildCoverageAlerts(shifts: Shift[], employees: Employee[], blocks: Sch
         severity: 'danger',
       })
       return alerts
+    }
+
+    if (availableKeyholderShifts.length === 0) {
+      alerts.push({
+        id: `${date}-keyholder`,
+        date,
+        title: 'No keyholder',
+        detail: 'No store manager, manager, assistant manager, keyholder, or lead is scheduled.',
+        severity: 'warning',
+      })
     }
 
     const openingMinutes = timeToMinutes(dayHours.start)
@@ -332,6 +369,17 @@ function buildCoverageAlerts(shifts: Shift[], employees: Employee[], blocks: Sch
       })
     }
 
+    const openerHasKeyholder = availableKeyholderShifts.some((shift) => timeToMinutes(shift.startTime) <= openingMinutes && timeToMinutes(shift.endTime) > openingMinutes)
+    if (availableKeyholderShifts.length > 0 && !openerHasKeyholder) {
+      alerts.push({
+        id: `${date}-keyholder-open`,
+        date,
+        title: 'No keyholder opener',
+        detail: 'Opening coverage does not include a store manager, manager, assistant manager, keyholder, or lead.',
+        severity: 'warning',
+      })
+    }
+
     mergedIntervals.forEach((interval, index) => {
       const next = mergedIntervals[index + 1]
       if (!next) return
@@ -353,6 +401,17 @@ function buildCoverageAlerts(shifts: Shift[], employees: Employee[], blocks: Sch
         date,
         title: 'Early close',
         detail: `${formatShiftTime(minutesToTime(lastCoverage.end), minutesToTime(closingMinutes))} is uncovered.`,
+        severity: 'warning',
+      })
+    }
+
+    const closerHasKeyholder = availableKeyholderShifts.some((shift) => timeToMinutes(shift.startTime) < closingMinutes && timeToMinutes(shift.endTime) >= closingMinutes)
+    if (availableKeyholderShifts.length > 0 && !closerHasKeyholder) {
+      alerts.push({
+        id: `${date}-keyholder-close`,
+        date,
+        title: 'No keyholder closer',
+        detail: 'Closing coverage does not include a store manager, manager, assistant manager, keyholder, or lead.',
         severity: 'warning',
       })
     }
@@ -505,19 +564,102 @@ function ShiftCard({
   )
 }
 
-function AbsenceCard({ exception }: { exception: ScheduleException }) {
+function AbsenceCard({ exception, canEdit, onClick }: { exception: ScheduleException; canEdit?: boolean; onClick?: () => void }) {
   const label = exception.type === 'sick' ? 'Sick Leave' : 'Time Off'
   const reason = exception.note?.trim()
   const detail = reason || (!exception.startTime || !exception.endTime ? 'Full day' : formatShiftTime(exception.startTime, exception.endTime))
+  const Wrapper = canEdit ? 'button' : 'div'
   return (
-    <div className="relative w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left shadow-sm">
+    <Wrapper
+      type={canEdit ? 'button' : undefined}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick?.()
+      }}
+      className={`relative w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left shadow-sm ${canEdit ? 'transition-colors hover:border-[var(--accent)]/35 hover:bg-[var(--surface-2)]' : ''}`}
+    >
       <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[var(--accent)]" />
       <div className="flex items-center gap-1.5 pl-1.5">
         <CalendarCheck size={11} className="flex-shrink-0 text-[var(--accent)]" />
         <span className="text-[11px] font-semibold uppercase text-[var(--text)]">{label}</span>
       </div>
       <div className="mt-0.5 truncate pl-1.5 text-[10px] font-medium text-[var(--text-secondary)]">{detail}</div>
-    </div>
+    </Wrapper>
+  )
+}
+
+function AbsenceEditModal({
+  exception,
+  onClose,
+}: {
+  exception: ScheduleException | null
+  onClose: () => void
+}) {
+  const updateException = useScheduleExceptionsStore((s) => s.updateException)
+  const removeException = useScheduleExceptionsStore((s) => s.removeException)
+  const [type, setType] = useState<'pto' | 'sick'>('pto')
+  const [date, setDate] = useState('')
+  const [allDay, setAllDay] = useState(true)
+  const [startTime, setStartTime] = useState('09:00')
+  const [endTime, setEndTime] = useState('17:00')
+  const [note, setNote] = useState('')
+
+  useEffect(() => {
+    if (!exception) return
+    setType(exception.type === 'sick' ? 'sick' : 'pto')
+    setDate(exception.date)
+    setAllDay(!exception.startTime || !exception.endTime)
+    setStartTime(exception.startTime ?? '09:00')
+    setEndTime(exception.endTime ?? '17:00')
+    setNote(exception.note ?? '')
+  }, [exception])
+
+  const save = () => {
+    if (!exception) return
+    updateException(exception.id, {
+      type,
+      date,
+      startTime: allDay ? null : startTime,
+      endTime: allDay ? null : endTime,
+      note: note.trim(),
+    })
+    onClose()
+  }
+
+  const remove = () => {
+    if (!exception) return
+    removeException(exception.id)
+    onClose()
+  }
+
+  return (
+    <Modal open={Boolean(exception)} onClose={onClose} title="Edit Time Off" size="sm">
+      <div className="space-y-4">
+        <Select label="Type" value={type} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setType(event.target.value as 'pto' | 'sick')}>
+          <option value="pto">Time Off</option>
+          <option value="sick">Sick Leave</option>
+        </Select>
+        <Input label="Date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        <label className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+          <input type="checkbox" checked={allDay} onChange={(event) => setAllDay(event.target.checked)} className="accent-[var(--accent)]" />
+          Full day
+        </label>
+        {!allDay && (
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Start" type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+            <Input label="End" type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+          </div>
+        )}
+        <Input label="Reason" value={note} onChange={(event) => setNote(event.target.value)} placeholder={type === 'pto' ? 'Vacation, personal request, appointment...' : 'Sick, medical, family care...'} />
+        <div className="flex justify-between pt-2">
+          <Button variant="danger" size="sm" onClick={remove}>Delete</Button>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button variant="primary" onClick={save} disabled={!date}>Save</Button>
+          </div>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -533,6 +675,7 @@ function MobileWeeklySchedule({
   compactSchedule,
   openAdd,
   openEdit,
+  openAbsence,
   duplicateShift,
 }: {
   days: Date[]
@@ -546,6 +689,7 @@ function MobileWeeklySchedule({
   compactSchedule: boolean
   openAdd: (date: string, employeeId: string) => void
   openEdit: (shift: Shift) => void
+  openAbsence: (exception: ScheduleException) => void
   duplicateShift: (shift: Shift) => void
 }) {
   return (
@@ -606,7 +750,9 @@ function MobileWeeklySchedule({
                       </div>
                       {employeeAbsences.length > 0 ? (
                         <div className="space-y-1.5">
-                          {employeeAbsences.map((exception) => <AbsenceCard key={exception.id} exception={exception} />)}
+                          {employeeAbsences.map((exception) => (
+                            <AbsenceCard key={exception.id} exception={exception} canEdit={canEdit} onClick={() => openAbsence(exception)} />
+                          ))}
                         </div>
                       ) : employeeShifts.length > 0 ? (
                         <div className="space-y-1.5">
@@ -661,6 +807,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
   const [editShift, setEditShift] = useState<Shift | undefined>()
+  const [editAbsence, setEditAbsence] = useState<ScheduleException | null>(null)
   const [clickedDate, setClickedDate] = useState<string | undefined>()
   const [clickedEmployeeId, setClickedEmployeeId] = useState<string | undefined>()
   const [dragShiftId, setDragShiftId] = useState<string | null>(null)
@@ -685,6 +832,10 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
   const openEdit = (shift: Shift) => {
     if (!canEdit) return
     setEditShift(shift); setClickedDate(undefined); setClickedEmployeeId(undefined); setModalOpen(true)
+  }
+  const openAbsence = (exception: ScheduleException) => {
+    if (!canEdit) return
+    setEditAbsence(exception)
   }
 
   const copyPreviousWeek = () => {
@@ -820,6 +971,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
             compactSchedule={compactSchedule}
             openAdd={openAdd}
             openEdit={openEdit}
+            openAbsence={openAbsence}
             duplicateShift={duplicateShift}
           />
         </div>
@@ -867,8 +1019,13 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
 
           {/* Employee rows */}
           <div className="space-y-2">
-            {employees.map((emp) => (
-              <motion.div
+            {employees.map((emp) => {
+              const employeeWeekHours = currentWeekShifts
+                .filter((shift) => shift.employeeId === emp.id)
+                .filter((shift) => !isStoreManagerEmployee(emp) && scheduleBlockCountsTowardCoverage(blocks.find((block) => block.name === shift.type), shift.type))
+                .reduce((sum, shift) => sum + (shiftHours(shift) ?? 0), 0)
+              return (
+                <motion.div
                 key={emp.id}
                 layout
                 className="grid gap-2 items-start"
@@ -923,6 +1080,11 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                         {isMainDashboard && emp.storeId ? `${emp.storeId} · ` : ''}{emp.role}
                       </div>
                     )}
+                    {employeeWeekHours > 0 && (
+                      <div className="mt-1 text-[10px] font-medium leading-snug text-[var(--text-tertiary)]">
+                        {formatHours(employeeWeekHours)} hrs
+                      </div>
+                    )}
                   </div>
                   {canEdit && (
                     <button
@@ -962,7 +1124,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                     >
                       <AnimatePresence>
                         {dayAbsences.length > 0 ? dayAbsences.map((exception) => (
-                          <AbsenceCard key={exception.id} exception={exception} />
+                          <AbsenceCard key={exception.id} exception={exception} canEdit={canEdit} onClick={() => openAbsence(exception)} />
                         )) : dayShifts.map((shift) => {
                           const shiftExceptions = exceptionsForShift(shift, currentWeekExceptions)
                           return (
@@ -994,8 +1156,9 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
                     </div>
                   )
                 })}
-              </motion.div>
-            ))}
+                </motion.div>
+              )
+            })}
           </div>
 
           {employees.length === 0 && (
@@ -1019,6 +1182,7 @@ export function WeeklyGrid({ canEdit = false }: { canEdit?: boolean }) {
         onClose={() => setTemplatesOpen(false)}
         weekStart={weekStart}
       />
+      <AbsenceEditModal exception={canEdit ? editAbsence : null} onClose={() => setEditAbsence(null)} />
       <PrintableScheduleModal
         open={printOpen}
         onClose={() => setPrintOpen(false)}

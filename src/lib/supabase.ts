@@ -668,7 +668,7 @@ function scheduleExceptionToDb(exception: ScheduleException, storeId: string) {
   return {
     id: exception.id,
     store_id: normalizeStoreId(exception.storeId ?? storeId),
-    employee_id: exception.type === 'holiday' ? null : exception.employeeId ?? null,
+    employee_id: exception.type === 'holiday' || exception.type === 'blackout' ? null : exception.employeeId ?? null,
     exception_date: exception.date,
     type: exception.type,
     start_time: exception.startTime || null,
@@ -711,7 +711,7 @@ export async function dbInsertScheduleException(exception: ScheduleException, st
 
 export async function dbUpdateScheduleException(id: string, patch: Partial<ScheduleException>) {
   const dbPatch: DbScheduleExceptionPatch = {}
-  if (patch.employeeId !== undefined) dbPatch.employee_id = patch.type === 'holiday' ? null : patch.employeeId ?? null
+  if (patch.employeeId !== undefined) dbPatch.employee_id = patch.type === 'holiday' || patch.type === 'blackout' ? null : patch.employeeId ?? null
   if (patch.date !== undefined) dbPatch.exception_date = patch.date
   if (patch.type !== undefined) dbPatch.type = patch.type
   if (patch.startTime !== undefined) dbPatch.start_time = patch.startTime || null

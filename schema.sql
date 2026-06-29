@@ -75,13 +75,13 @@ create table shifts (
 create index shifts_store_idx on shifts(store_id);
 create index shifts_date_idx  on shifts(store_id, date);
 
--- Schedule exceptions: call outs, no shows, PTO, sick time, and holidays
+-- Schedule exceptions: call outs, no shows, PTO, sick time, holidays, and hidden blackout ranges
 create table schedule_exceptions (
   id             text primary key,
   store_id       text not null default 'default',
   employee_id    text references employees(id) on delete set null,
   exception_date text not null,
-  type           text not null check (type in ('call_out', 'no_show', 'pto', 'sick', 'holiday')),
+  type           text not null check (type in ('call_out', 'no_show', 'pto', 'sick', 'holiday', 'blackout')),
   start_time     text,
   end_time       text,
   note           text default '',

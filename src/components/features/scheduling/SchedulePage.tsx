@@ -29,6 +29,7 @@ const EXCEPTION_LABELS: Record<ScheduleExceptionType, string> = {
   pto: 'PTO',
   sick: 'Sick',
   holiday: 'Holiday',
+  blackout: 'Blackout',
 }
 
 function datesInRange(startDate: string, endDate: string) {
@@ -40,6 +41,73 @@ function datesInRange(startDate: string, endDate: string) {
     dates.push(format(day, 'yyyy-MM-dd'))
   }
   return dates
+}
+
+type ExceptionGroup = {
+  key: string
+  type: ScheduleExceptionType
+  employeeId?: string | null
+  startDate: string
+  endDate: string
+  startTime?: string | null
+  endTime?: string | null
+  note?: string
+  ids: string[]
+  count: number
+  createdAt: string
+}
+
+function groupScheduleExceptions(exceptions: ReturnType<typeof useScheduleExceptionsStore.getState>['exceptions']): ExceptionGroup[] {
+  const sorted = [...exceptions].sort((a, b) => (
+    a.type.localeCompare(b.type)
+    || (a.employeeId ?? '').localeCompare(b.employeeId ?? '')
+    || (a.note ?? '').localeCompare(b.note ?? '')
+    || (a.startTime ?? '').localeCompare(b.startTime ?? '')
+    || (a.endTime ?? '').localeCompare(b.endTime ?? '')
+    || a.date.localeCompare(b.date)
+  ))
+  const groups: ExceptionGroup[] = []
+
+  sorted.forEach((exception) => {
+    const signature = [
+      exception.type,
+      exception.employeeId ?? '',
+      exception.note ?? '',
+      exception.startTime ?? '',
+      exception.endTime ?? '',
+    ].join('|')
+    const previous = groups[groups.length - 1]
+    const expectedNextDate = previous ? format(addDays(new Date(`${previous.endDate}T12:00:00`), 1), 'yyyy-MM-dd') : ''
+
+    if (previous && previous.key === signature && expectedNextDate === exception.date) {
+      previous.endDate = exception.date
+      previous.ids.push(exception.id)
+      previous.count += 1
+      if (exception.createdAt > previous.createdAt) previous.createdAt = exception.createdAt
+      return
+    }
+
+    groups.push({
+      key: signature,
+      type: exception.type,
+      employeeId: exception.employeeId,
+      startDate: exception.date,
+      endDate: exception.date,
+      startTime: exception.startTime,
+      endTime: exception.endTime,
+      note: exception.note,
+      ids: [exception.id],
+      count: 1,
+      createdAt: exception.createdAt,
+    })
+  })
+
+  return groups.sort((a, b) => b.startDate.localeCompare(a.startDate) || b.createdAt.localeCompare(a.createdAt))
+}
+
+function formatExceptionDateRange(group: ExceptionGroup) {
+  if (group.startDate === group.endDate) return group.startDate
+  return `${group.startDate} to ${group.endDate}`
 }
 
 function EmployeeManagerModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -262,9 +330,14 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
   }, [employees, open])
 
   const save = () => {
-    if (type !== 'holiday' && !employeeId) return
-    const useDateRange = type === 'pto' || type === 'sick'
+    const isStoreLevel = type === 'holiday' || type === 'blackout'
+    if (!isStoreLevel && !employeeId) return
+    const useDateRange = type === 'pto' || type === 'sick' || type === 'blackout'
     const exceptionDates = useDateRange ? datesInRange(date, endDate) : [date]
+    if ((type === 'pto' || type === 'sick') && exceptions.some((exception) => exception.type === 'blackout' && exceptionDates.includes(exception.date))) {
+      const confirmed = window.confirm('This time-off range overlaps a blackout date. Add it anyway?')
+      if (!confirmed) return
+    }
     if (type === 'holiday') {
       const confirmed = allDay
         ? window.confirm('Treat this holiday as closed all day? The schedule verifier will not require coverage for this date.')
@@ -274,7 +347,7 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
     exceptionDates.forEach((exceptionDate) => {
       addException({
         type,
-        employeeId: type === 'holiday' ? null : employeeId,
+        employeeId: isStoreLevel ? null : employeeId,
         date: exceptionDate,
         startTime: allDay ? null : startTime,
         endTime: allDay ? null : endTime,
@@ -284,14 +357,22 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
     setNote('')
   }
 
-  const sortedExceptions = [...exceptions].sort((a, b) => (
-    b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
-  ))
+  const exceptionGroups = groupScheduleExceptions(exceptions)
 
   return (
-    <Modal open={open} onClose={onClose} title="Schedule Exceptions" size="md">
-      <div className="space-y-4">
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Schedule Exceptions"
+      size="full"
+      className="sm:h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-2rem)] sm:max-w-none sm:w-[min(1180px,calc(100vw-2rem))]"
+    >
+      <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 lg:sticky lg:top-0 lg:self-start">
+          <div className="mb-3">
+            <p className="text-sm font-semibold text-[var(--text)]">New Exception</p>
+            <p className="mt-1 text-xs text-[var(--text-tertiary)]">Add time off, sick leave, holidays, or hidden blackout ranges.</p>
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Select label="Type" value={type} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setType(event.target.value as ScheduleExceptionType)}>
               {(Object.keys(EXCEPTION_LABELS) as ScheduleExceptionType[]).map((key) => (
@@ -299,7 +380,7 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
               ))}
             </Select>
             <Input
-              label={type === 'pto' || type === 'sick' ? 'Start Date' : 'Date'}
+              label={type === 'pto' || type === 'sick' || type === 'blackout' ? 'Start Date' : 'Date'}
               type="date"
               value={date}
               onChange={(event) => {
@@ -308,7 +389,7 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
               }}
             />
           </div>
-          {(type === 'pto' || type === 'sick') && (
+          {(type === 'pto' || type === 'sick' || type === 'blackout') && (
             <div className="mt-3">
               <Input label="End Date" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
               <p className="mt-1 text-xs text-[var(--text-tertiary)]">
@@ -316,7 +397,7 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
               </p>
             </div>
           )}
-          {type !== 'holiday' && (
+          {type !== 'holiday' && type !== 'blackout' && (
             <div className="mt-3">
               <Select label="Employee" value={employeeId} onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setEmployeeId(event.target.value)}>
                 <option value="" disabled>Select employee</option>
@@ -346,49 +427,72 @@ function ScheduleExceptionsModal({ open, onClose }: { open: boolean; onClose: ()
               label="Reason"
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              placeholder={type === 'pto' ? 'Vacation, personal request, appointment...' : type === 'sick' ? 'Sick, medical, family care...' : 'Optional note'}
+              placeholder={type === 'pto' ? 'Vacation, personal request, appointment...' : type === 'sick' ? 'Sick, medical, family care...' : type === 'blackout' ? 'Holiday blackout, inventory, district event...' : 'Optional note'}
             />
           </div>
           <div className="mt-3 flex justify-end">
-            <Button size="sm" variant="primary" icon={<AlertTriangle size={12} />} onClick={save} disabled={(type !== 'holiday' && !employeeId) || ((type === 'pto' || type === 'sick') && endDate < date)}>
+            <Button size="sm" variant="primary" icon={<AlertTriangle size={12} />} onClick={save} disabled={(type !== 'holiday' && type !== 'blackout' && !employeeId) || ((type === 'pto' || type === 'sick' || type === 'blackout') && endDate < date)}>
               Add Exception
             </Button>
           </div>
         </div>
 
-        <div className="space-y-2">
-          {sortedExceptions.map((exception) => {
-            const employee = employees.find((item) => item.id === exception.employeeId)
-            return (
-              <div key={exception.id} className="flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--text-secondary)]">
-                      {EXCEPTION_LABELS[exception.type]}
-                    </span>
-                    <span className="text-xs font-medium text-[var(--text)]">{exception.date}</span>
-                    {employee && <span className="text-xs text-[var(--text-secondary)]">{employee.name}</span>}
-                    {!exception.startTime || !exception.endTime ? (
-                      <span className="text-[10px] text-[var(--text-tertiary)]">All day</span>
-                    ) : (
-                      <span className="text-[10px] text-[var(--text-tertiary)]">{exception.startTime}-{exception.endTime}</span>
-                    )}
+        <div className="min-w-0">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[var(--text)]">Exception Log</p>
+              <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                {exceptionGroups.length} grouped item{exceptionGroups.length === 1 ? '' : 's'} from {exceptions.length} entr{exceptions.length === 1 ? 'y' : 'ies'}.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {exceptionGroups.map((group) => {
+              const employee = employees.find((item) => item.id === group.employeeId)
+              const isRange = group.startDate !== group.endDate
+              return (
+                <div key={`${group.key}-${group.startDate}-${group.endDate}`} className="flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--text-secondary)]">
+                        {EXCEPTION_LABELS[group.type]}
+                      </span>
+                      {isRange && (
+                        <span className="rounded-md border border-[var(--accent)]/20 bg-[var(--accent)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--accent)]">
+                          {group.count} days
+                        </span>
+                      )}
+                      <span className="text-xs font-medium text-[var(--text)]">{formatExceptionDateRange(group)}</span>
+                      {employee && <span className="text-xs text-[var(--text-secondary)]">{employee.name}</span>}
+                      {!group.startTime || !group.endTime ? (
+                        <span className="text-[10px] text-[var(--text-tertiary)]">All day</span>
+                      ) : (
+                        <span className="text-[10px] text-[var(--text-tertiary)]">{group.startTime}-{group.endTime}</span>
+                      )}
+                    </div>
+                    {group.note && <p className="mt-1 text-xs text-[var(--text-tertiary)]">{group.note}</p>}
                   </div>
-                  {exception.note && <p className="mt-1 text-xs text-[var(--text-tertiary)]">{exception.note}</p>}
+                  <button
+                    onClick={() => {
+                      const message = group.ids.length > 1
+                        ? `Remove all ${group.ids.length} entries in this grouped range?`
+                        : 'Remove this exception?'
+                      if (!window.confirm(message)) return
+                      group.ids.forEach(removeException)
+                    }}
+                    className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-red-400"
+                    aria-label="Remove exception group"
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => removeException(exception.id)}
-                  className="rounded p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-red-400"
-                  aria-label="Remove exception"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            )
-          })}
-          {sortedExceptions.length === 0 && (
-            <p className="py-5 text-center text-xs text-[var(--text-tertiary)]">No call outs, no shows, PTO, sick time, or holidays logged yet.</p>
-          )}
+              )
+            })}
+            {exceptionGroups.length === 0 && (
+              <p className="rounded-lg border border-dashed border-[var(--border)] py-8 text-center text-xs text-[var(--text-tertiary)]">No call outs, no shows, PTO, sick time, holidays, or blackout dates logged yet.</p>
+            )}
+          </div>
         </div>
       </div>
     </Modal>
@@ -709,7 +813,7 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
                 const dayShifts = weekShifts
                   .filter((shift) => shift.date === date)
                   .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
-                const dayExceptions = weekExceptions.filter((exception) => exception.date === date)
+                const dayExceptions = weekExceptions.filter((exception) => exception.date === date && exception.type !== 'blackout')
                 const isCurrentDay = date === today
 
                 return (
