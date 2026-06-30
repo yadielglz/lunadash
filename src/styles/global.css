@@ -944,6 +944,7 @@ body::after {
 }
 
 .command-icon-button {
+  position: relative;
   display: inline-flex;
   width: 2.4rem;
   height: 2.4rem;
@@ -959,6 +960,28 @@ body::after {
   border-color: var(--border);
   background: var(--reveal-bg);
   color: var(--text);
+}
+
+.command-notification-dot {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.15rem;
+  min-width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--surface);
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 0.95rem;
+  text-align: center;
+}
+
+.command-menu-panel,
+.command-popover {
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
 }
 
 .luna-logo-badge {

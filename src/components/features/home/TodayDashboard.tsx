@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
@@ -9,6 +9,9 @@ import {
   CheckCircle2,
   CheckSquare,
   Clock,
+  EyeOff,
+  RotateCcw,
+  Settings2,
   Sparkles,
   Trophy,
   RadioTower,
@@ -35,6 +38,56 @@ const todayKey = () => {
     String(date.getMonth() + 1).padStart(2, '0'),
     String(date.getDate()).padStart(2, '0'),
   ].join('-')
+}
+
+const DASHBOARD_PREFS_KEY = 'luna-today-dashboard-sections'
+const DASHBOARD_SECTIONS = [
+  { id: 'brief', label: 'Smart Brief' },
+  { id: 'pulse', label: 'Performance Pulse' },
+  { id: 'attention', label: 'Needs Attention' },
+  { id: 'wins', label: 'District Wins' },
+  { id: 'coverage', label: 'Coverage' },
+  { id: 'checklist', label: 'Checklist' },
+  { id: 'announcements', label: 'Announcements' },
+  { id: 'connectivity', label: 'Connectivity' },
+] as const
+type DashboardSectionId = typeof DASHBOARD_SECTIONS[number]['id']
+type DashboardSectionPrefs = Record<DashboardSectionId, boolean>
+
+const DEFAULT_DASHBOARD_PREFS = DASHBOARD_SECTIONS.reduce((prefs, section) => {
+  prefs[section.id] = true
+  return prefs
+}, {} as DashboardSectionPrefs)
+
+function loadDashboardPrefs(): DashboardSectionPrefs {
+  try {
+    const raw = window.localStorage.getItem(DASHBOARD_PREFS_KEY)
+    if (!raw) return { ...DEFAULT_DASHBOARD_PREFS }
+    return { ...DEFAULT_DASHBOARD_PREFS, ...JSON.parse(raw) }
+  } catch {
+    return { ...DEFAULT_DASHBOARD_PREFS }
+  }
+}
+
+function EmptyState({
+  icon,
+  title,
+  detail,
+  action,
+}: {
+  icon: ReactNode
+  title: string
+  detail: string
+  action?: ReactNode
+}) {
+  return (
+    <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] px-4 py-6 text-center">
+      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-md bg-[var(--surface-3)] text-[var(--accent)]">{icon}</div>
+      <div className="mt-3 text-sm font-semibold text-[var(--text)]">{title}</div>
+      <div className="mx-auto mt-1 max-w-xs text-xs text-[var(--text-secondary)]">{detail}</div>
+      {action && <div className="mt-3">{action}</div>}
+    </div>
+  )
 }
 
 function normalizeStoreCode(value: string) {
@@ -275,6 +328,8 @@ export function TodayDashboard() {
   const { employees, shifts } = useScheduleStore()
   const { tasks } = useTasksStore()
   const syncEntries = useSyncStore((s) => s.entries)
+  const [customizing, setCustomizing] = useState(false)
+  const [sectionPrefs, setSectionPrefs] = useState<DashboardSectionPrefs>(() => loadDashboardPrefs())
   const today = todayKey()
   const isMain = normalizeStoreId(storeId) === 'main'
   const dateLabel = new Date().toLocaleDateString('en-US', {
@@ -343,6 +398,16 @@ export function TodayDashboard() {
     ? 'District overview: All stores'
     : `Today at ${companyName || 'Luna Store'}`
 
+  useEffect(() => {
+    window.localStorage.setItem(DASHBOARD_PREFS_KEY, JSON.stringify(sectionPrefs))
+  }, [sectionPrefs])
+
+  const toggleSection = (sectionId: DashboardSectionId) => {
+    setSectionPrefs((current) => ({ ...current, [sectionId]: !current[sectionId] }))
+  }
+
+  const resetSections = () => setSectionPrefs({ ...DEFAULT_DASHBOARD_PREFS })
+
   return (
     <div className="today-page">
       <section className="today-hero">
@@ -357,6 +422,21 @@ export function TodayDashboard() {
           <p className="mt-2 max-w-2xl text-sm text-[var(--text-secondary)]">
             A live read on sales, coverage, checklist progress, appointments, and store messages.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={customizing ? 'accent' : 'ghost'}
+              icon={<Settings2 size={13} />}
+              onClick={() => setCustomizing((value) => !value)}
+            >
+              Customize
+            </Button>
+            {customizing && (
+              <Button size="sm" variant="ghost" icon={<RotateCcw size={13} />} onClick={resetSections}>
+                Reset
+              </Button>
+            )}
+          </div>
         </div>
         <div className="today-hero-card">
           <div className="flex items-center gap-3">
@@ -381,13 +461,42 @@ export function TodayDashboard() {
         </div>
       </section>
 
+      {customizing && (
+        <div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-card)]">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+            <Settings2 size={15} className="text-[var(--accent)]" />
+            Dashboard Sections
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {DASHBOARD_SECTIONS.map((section) => {
+              const enabled = sectionPrefs[section.id]
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors ${
+                    enabled
+                      ? 'border-[var(--accent)]/35 bg-[var(--accent)]/10 text-[var(--text)]'
+                      : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-tertiary)]'
+                  }`}
+                >
+                  <span className="truncate">{section.label}</span>
+                  {!enabled && <EyeOff size={13} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="today-grid">
         <div className="space-y-4">
-          <SmartBriefCard brief={brief} onOpenDistrict={() => setTab('district')} />
+          {sectionPrefs.brief && <SmartBriefCard brief={brief} onOpenDistrict={() => setTab('district')} />}
 
-          <StorePulse row={performanceRow} />
+          {sectionPrefs.pulse && <StorePulse row={performanceRow} />}
 
-          <Card className="today-panel" noPadding>
+          {sectionPrefs.attention && <Card className="today-panel" noPadding>
             <div className="border-b border-[var(--border)] px-4 py-3">
               <h2 className="text-sm font-semibold text-[var(--text)]">Needs Attention</h2>
               <p className="text-xs text-[var(--text-tertiary)]">The fastest next moves for this store.</p>
@@ -423,13 +532,13 @@ export function TodayDashboard() {
                 />
               )}
             </div>
-          </Card>
+          </Card>}
         </div>
 
         <aside className="space-y-4">
-          <DistrictWinsCard wins={wins} onOpenDistrict={() => setTab('district')} />
+          {sectionPrefs.wins && <DistrictWinsCard wins={wins} onOpenDistrict={() => setTab('district')} />}
 
-          <Card className="today-panel" noPadding>
+          {sectionPrefs.coverage && <Card className="today-panel" noPadding>
             <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
               <div>
                 <h2 className="text-sm font-semibold text-[var(--text)]">Today’s Coverage</h2>
@@ -439,7 +548,12 @@ export function TodayDashboard() {
             </div>
             <div className="max-h-[19rem] space-y-2 overflow-y-auto p-4">
               {todayShifts.length === 0 ? (
-                <p className="text-sm text-[var(--text-secondary)]">No coverage has been added for today.</p>
+                <EmptyState
+                  icon={<Users size={18} />}
+                  title="No coverage today"
+                  detail="Add shifts so the team can see who is opening, closing, and covering the floor."
+                  action={<Button size="sm" variant="ghost" onClick={() => setTab('schedule')} icon={<Calendar size={13} />}>Open Schedule</Button>}
+                />
               ) : todayShifts.map((shift) => (
                 <div key={shift.id} className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
                   <span className="h-8 w-1 rounded-full" style={{ background: shift.employee.color }} />
@@ -454,9 +568,9 @@ export function TodayDashboard() {
                 </div>
               ))}
             </div>
-          </Card>
+          </Card>}
 
-          <Card className="today-panel" noPadding>
+          {sectionPrefs.checklist && <Card className="today-panel" noPadding>
             <div className="border-b border-[var(--border)] px-4 py-3">
               <h2 className="text-sm font-semibold text-[var(--text)]">Checklist</h2>
               <p className="text-xs text-[var(--text-tertiary)]">Daily completion progress</p>
@@ -472,17 +586,29 @@ export function TodayDashboard() {
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--surface-3)]">
                 <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: hasTasks ? `${taskPct}%` : '0%' }} />
               </div>
+              {!hasTasks && (
+                <div className="mt-4">
+                  <Button size="sm" variant="ghost" onClick={() => setTab('tasks')} icon={<CheckSquare size={13} />}>
+                    Open Checklist
+                  </Button>
+                </div>
+              )}
             </div>
-          </Card>
+          </Card>}
 
-          <Card className="today-panel" noPadding>
+          {sectionPrefs.announcements && <Card className="today-panel" noPadding>
             <div className="border-b border-[var(--border)] px-4 py-3">
               <h2 className="text-sm font-semibold text-[var(--text)]">Announcements</h2>
               <p className="text-xs text-[var(--text-tertiary)]">{activeAnnouncements.length} active messages</p>
             </div>
             <div className="space-y-2 p-4">
               {activeAnnouncements.length === 0 ? (
-                <p className="text-sm text-[var(--text-secondary)]">No active store messages right now.</p>
+                <EmptyState
+                  icon={<RadioTower size={18} />}
+                  title="No active messages"
+                  detail="Store announcements will appear here when they are active for this screen."
+                  action={<Button size="sm" variant="ghost" onClick={() => setTab('settings')}>Manage Messages</Button>}
+                />
               ) : activeAnnouncements.slice(0, 3).map((announcement) => (
                 <div key={announcement.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
                   <div className="text-sm text-[var(--text)]">{announcement.text}</div>
@@ -490,9 +616,9 @@ export function TodayDashboard() {
                 </div>
               ))}
             </div>
-          </Card>
+          </Card>}
 
-          <Card className="today-panel">
+          {sectionPrefs.connectivity && <Card className="today-panel">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
@@ -519,7 +645,7 @@ export function TodayDashboard() {
                 detail={`Last updated ${formatUpdatedAt(supabaseUpdatedAt)}`}
               />
             </div>
-          </Card>
+          </Card>}
         </aside>
       </div>
     </div>

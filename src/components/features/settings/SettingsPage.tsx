@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Megaphone, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles, CarFront, MonitorCheck, Waves, Mountain, Flame, Leaf, Gem, CircleDot
+  Clock, Store, Megaphone, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles, CarFront, MonitorCheck, Waves, Mountain, Flame, Leaf, Gem, CircleDot, Search
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
@@ -1366,6 +1366,20 @@ const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'traffic']
 const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores', 'remote']
 const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store']
 const STANDALONE_SETTINGS_SECTIONS: SectionId[] = ['reports']
+const SECTION_SEARCH_TERMS: Record<SectionId, string> = {
+  general: 'theme accent zoom time temperature session',
+  weather: 'forecast weather location radar temperature',
+  traffic: 'traffic roads commute cameras alerts',
+  display: 'display screen slides interval kiosk',
+  remote: 'remote kiosk approval refresh update command',
+  store: 'store details hours profile number',
+  configuredStores: 'stores database configured delete sync',
+  reports: 'reports print goals commission',
+  announcements: 'announcements messages alerts display urgent',
+  access: 'access login roles pin codes permissions',
+  sync: 'sync database supabase cloud status schema',
+  about: 'about version build support update notes',
+}
 
 function isSectionId(value: string): value is SectionId {
   return SECTIONS.some((section) => section.id === value)
@@ -1376,6 +1390,7 @@ export function SettingsPage() {
   const accessRole = useUiStore((state) => state.accessRole)
   const requestedSection = useUiStore((state) => state.settingsSection)
   const setSettingsSection = useUiStore((state) => state.setSettingsSection)
+  const [sectionQuery, setSectionQuery] = useState('')
   const visibleSections = useMemo(() => (
     accessRole === 'employee'
       ? SECTIONS.filter((section) => LIMITED_SETTINGS_SECTIONS.includes(section.id))
@@ -1401,6 +1416,13 @@ export function SettingsPage() {
   }, [active, fallbackSection, requestedSection, visibleSections])
 
   const activeSection = visibleSections.some((section) => section.id === active) ? active : fallbackSection
+  const searchedSections = useMemo(() => {
+    const query = sectionQuery.trim().toLowerCase()
+    if (!query) return visibleSections
+    return visibleSections.filter((section) => (
+      `${section.label} ${SECTION_SEARCH_TERMS[section.id]}`.toLowerCase().includes(query)
+    ))
+  }, [sectionQuery, visibleSections])
 
   const content: Record<SectionId, React.ReactNode> = {
     general:       <GeneralSection />,
@@ -1420,8 +1442,21 @@ export function SettingsPage() {
   return (
     <div className="flex flex-col sm:flex-row h-full overflow-hidden">
       {/* Sidebar */}
-      <div className="settings-section-nav sm:w-48 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-[var(--border)] flex sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto px-3 py-2 sm:px-0 sm:py-3">
-        {visibleSections.map((s) => (
+      <div className="settings-section-nav sm:w-56 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-[var(--border)] flex sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto px-3 py-2 sm:px-2 sm:py-3">
+        <div className="relative mb-1 hidden sm:block">
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+          <input
+            value={sectionQuery}
+            onChange={(event) => setSectionQuery(event.target.value)}
+            className="h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] pl-8 pr-3 text-xs text-[var(--text)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent)]"
+            placeholder="Search settings"
+          />
+        </div>
+        {searchedSections.length === 0 ? (
+          <div className="hidden rounded-lg border border-dashed border-[var(--border)] px-3 py-6 text-center text-xs text-[var(--text-secondary)] sm:block">
+            No settings match.
+          </div>
+        ) : searchedSections.map((s) => (
           <button
             key={s.id}
             onClick={() => {

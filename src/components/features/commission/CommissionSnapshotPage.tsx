@@ -41,21 +41,19 @@ const todayKey = () => {
   ].join('-')
 }
 
-const numberFields = [
-  'commission',
-  'commissionOpportunity',
-  'accessories',
-  'accessoryGoal',
-  'revenue',
-  'revenueGoal',
-  'vaf',
-  'vafGoal',
-  'voiceLines',
-  'voiceLinesGoal',
-  'bts',
-  'btsGoal',
-] as const
-type NumberField = typeof numberFields[number]
+type NumberField =
+  | 'commission'
+  | 'commissionOpportunity'
+  | 'accessories'
+  | 'accessoryGoal'
+  | 'revenue'
+  | 'revenueGoal'
+  | 'vaf'
+  | 'vafGoal'
+  | 'voiceLines'
+  | 'voiceLinesGoal'
+  | 'bts'
+  | 'btsGoal'
 type MetricKey = 'accessories' | 'revenue' | 'vaf' | 'voiceLines' | 'bts'
 type SummaryMode = 'daily' | 'mtd' | 'need'
 type EntryView = 'cards' | 'table'

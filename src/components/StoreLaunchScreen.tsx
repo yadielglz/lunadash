@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { AlertTriangle, Building2, KeyRound, Loader2, LockKeyhole, Monitor, ShieldCheck, Smartphone, Store, Tag, Wifi } from 'lucide-react'
 import {
   dbAuthenticateAccess,
@@ -89,7 +89,7 @@ export function StoreLaunchScreen() {
     ? [welcomeStore, accessRoleLabel(pendingAccess.access.role)].filter(Boolean).join(' · ')
     : 'Project by Marcos G © 2025 Glz Tech.'
 
-  const completeKioskEnrollment = (enrollment: KioskEnrollment) => {
+  const completeKioskEnrollment = useCallback((enrollment: KioskEnrollment) => {
     if (!enrollment.store_id || enrollment.status !== 'approved') return
     setAccessSession({
       id: enrollment.id,
@@ -100,7 +100,7 @@ export function StoreLaunchScreen() {
       onboardedAt: enrollment.approved_at ?? new Date().toISOString(),
       mode: 'display',
     })
-  }
+  }, [setAccessSession])
 
   const completeLogin = (access: StoreAccessCode, accessMode: AccessMode, storeId: string) => {
     setAccessSession({
@@ -136,7 +136,7 @@ export function StoreLaunchScreen() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [completeKioskEnrollment])
 
   useEffect(() => {
     if (!kioskEnrollment?.device_token) return
@@ -167,7 +167,7 @@ export function StoreLaunchScreen() {
       cancelled = true
       window.clearInterval(id)
     }
-  }, [kioskEnrollment?.device_token])
+  }, [completeKioskEnrollment, kioskEnrollment?.device_token])
 
   const login = async () => {
     const code = normalizeAccessCode(dealerCode)

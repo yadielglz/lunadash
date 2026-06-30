@@ -755,7 +755,7 @@ function RadarSlide() {
     refetchInterval: 5 * 60 * 1000,
     retry: 1,
   })
-  const frames = data?.radar?.past ?? []
+  const frames = useMemo(() => data?.radar?.past ?? [], [data?.radar?.past])
   const frame = frames[frameIndex] ?? frames[frames.length - 1]
   const frameDelay = frames.length > 1
     ? Math.max(100, Math.floor((slideInterval * 1000) / (frames.length * 2)))
@@ -1711,7 +1711,7 @@ export function DisplayPage() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [next, restartDisplay])
+  }, [next, prev, restartDisplay])
 
   const Slide = visibleSlides[slideIdx]?.component ?? ClockSlide
 

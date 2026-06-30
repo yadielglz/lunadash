@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Check, MonitorCheck, Power, RefreshCw, Trash2, X } from 'lucide-react'
 import {
   dbDeleteKioskEnrollment,
@@ -30,15 +30,15 @@ export function RemoteSection() {
   const managedKioskEnrollments = kioskEnrollments.filter((enrollment) => enrollment.status === 'approved')
   const firstAssignableStoreId = stores.find((store) => normalizeStoreId(store.store_id) !== 'main')?.store_id ?? ''
 
-  const loadStores = async () => {
+  const loadStores = useCallback(async () => {
     try {
       setStores((await dbGetStores()).filter((store) => normalizeStoreId(store.store_id) !== 'main'))
     } catch {
       setStores([])
     }
-  }
+  }, [])
 
-  const loadKioskEnrollments = async () => {
+  const loadKioskEnrollments = useCallback(async () => {
     if (!canManageRemote) return
     setLoading(true)
     setError('')
@@ -69,19 +69,19 @@ export function RemoteSection() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [canManageRemote, firstAssignableStoreId])
 
   useEffect(() => {
     if (!canManageRemote) return
     loadStores()
-  }, [canManageRemote])
+  }, [canManageRemote, loadStores])
 
   useEffect(() => {
     if (!canManageRemote) return
     loadKioskEnrollments()
     const id = window.setInterval(loadKioskEnrollments, 10000)
     return () => window.clearInterval(id)
-  }, [canManageRemote, stores.length])
+  }, [canManageRemote, loadKioskEnrollments, stores.length])
 
   const approveKioskEnrollment = async (enrollment: KioskEnrollment) => {
     const targetStore = normalizeStoreId(kioskStoreById[enrollment.id] || firstAssignableStoreId)

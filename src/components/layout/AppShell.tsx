@@ -1,13 +1,15 @@
-import { ReactNode, useState } from 'react'
+import { ReactNode, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   BarChart3,
   BadgeDollarSign,
+  Bell,
   Calendar,
   CalendarPlus,
   CarFront,
   CheckSquare,
   ChevronLeft,
+  Command,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -16,6 +18,7 @@ import {
   Moon,
   PanelLeftOpen,
   Radar,
+  Search,
   Settings,
   Sun,
   UploadCloud,
@@ -32,6 +35,9 @@ import { canAccessTab } from '../../lib/accessControl'
 import { cn } from '../../lib/utils'
 import { LunaWirelessLogo } from '../brand/LunaWirelessLogo'
 import { StorePickerButton } from '../shared/StorePickerButton'
+import { isAnnouncementActive, useDisplayStore } from '../../store/displayStore'
+import { useSyncStore } from '../../store/syncStore'
+import { useTasksStore } from '../../store/tasksStore'
 
 const NAV_ITEMS: { id: Tab; icon: React.ReactNode; label: string; helper: string }[] = [
   { id: 'home', icon: <LayoutDashboard size={18} />, label: 'Today', helper: 'Store Home' },
@@ -62,6 +68,17 @@ const MOBILE_NAV_LABELS: Partial<Record<Tab, string>> = {
   display: 'Display',
   settings: 'Settings',
 }
+
+const SETTINGS_COMMANDS = [
+  { id: 'settings-general', section: 'general', label: 'General Settings', helper: 'Theme, zoom, time, and temperature', keywords: 'theme zoom time temperature' },
+  { id: 'settings-weather', section: 'weather', label: 'Weather Settings', helper: 'Location and forecast setup', keywords: 'forecast location temperature' },
+  { id: 'settings-traffic', section: 'traffic', label: 'Traffic Settings', helper: 'Traffic source and commute view', keywords: 'traffic road commute' },
+  { id: 'settings-display', section: 'display', label: 'Display Settings', helper: 'Screen display timing and layout', keywords: 'screen kiosk display' },
+  { id: 'settings-remote', section: 'remote', label: 'Remote Settings', helper: 'Kiosk approvals and commands', keywords: 'remote kiosk approve' },
+  { id: 'settings-access', section: 'access', label: 'Access Settings', helper: 'PINs and roles', keywords: 'login access roles pin' },
+  { id: 'settings-sync', section: 'sync', label: 'Sync Status', helper: 'Database and sheet sync state', keywords: 'supabase database sync status' },
+  { id: 'settings-about', section: 'about', label: 'About LunaDash', helper: 'Version, support, and update notes', keywords: 'version build support update' },
+] as const
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -124,7 +141,208 @@ function TrafficChip() {
   )
 }
 
-function TopCommandBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
+type CommandAction = {
+  id: string
+  label: string
+  helper: string
+  icon: React.ReactNode
+  keywords: string
+  run: () => void
+}
+
+function CommandMenu({
+  open,
+  onClose,
+  actions,
+}: {
+  open: boolean
+  onClose: () => void
+  actions: CommandAction[]
+}) {
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    if (open) setQuery('')
+  }, [open])
+
+  const filteredActions = useMemo(() => {
+    const normalized = query.trim().toLowerCase()
+    if (!normalized) return actions
+    return actions.filter((action) => (
+      `${action.label} ${action.helper} ${action.keywords}`.toLowerCase().includes(normalized)
+    ))
+  }, [actions, query])
+
+  const runAction = (action: CommandAction) => {
+    action.run()
+    onClose()
+  }
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[120] flex items-start justify-center bg-black/45 px-3 pt-[min(12vh,5rem)]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onMouseDown={onClose}
+        >
+          <motion.div
+            className="command-menu-panel w-full max-w-2xl overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-modal)]"
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.16 }}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3">
+              <Search size={18} className="text-[var(--text-tertiary)]" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') onClose()
+                  if (event.key === 'Enter' && filteredActions[0]) runAction(filteredActions[0])
+                }}
+                className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-tertiary)]"
+                placeholder="Search pages and settings"
+              />
+              <kbd className="rounded-md border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)]">Esc</kbd>
+            </div>
+            <div className="max-h-[26rem] overflow-y-auto p-2">
+              {filteredActions.length === 0 ? (
+                <div className="px-3 py-8 text-center text-sm text-[var(--text-secondary)]">No matching command.</div>
+              ) : filteredActions.map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  onClick={() => runAction(action)}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[var(--reveal-bg)]"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--surface-2)] text-[var(--accent)]">{action.icon}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-[var(--text)]">{action.label}</span>
+                    <span className="block truncate text-xs text-[var(--text-secondary)]">{action.helper}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+function NotificationCenter() {
+  const [open, setOpen] = useState(false)
+  const setTab = useUiStore((state) => state.setTab)
+  const setSettingsSection = useUiStore((state) => state.setSettingsSection)
+  const tasks = useTasksStore((state) => state.tasks)
+  const announcements = useDisplayStore((state) => state.announcements)
+  const syncEntries = useSyncStore((state) => state.entries)
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const openTasks = tasks.filter((task) => task.completedDate !== today).length
+  const activeAnnouncements = announcements.filter((announcement) => isAnnouncementActive(announcement))
+  const urgentAnnouncements = activeAnnouncements.filter((announcement) => announcement.priority === 'urgent').length
+  const syncProblems = Object.entries(syncEntries).filter(([, entry]) => entry.state === 'error')
+  const savingAreas = Object.entries(syncEntries).filter(([, entry]) => entry.state === 'saving')
+  const notices = [
+    ...(syncProblems.length ? [{
+      id: 'sync-errors',
+      label: `${syncProblems.length} sync issue${syncProblems.length === 1 ? '' : 's'}`,
+      detail: syncProblems[0]?.[1].message ?? 'Review sync status',
+      tone: '#c94040',
+      run: () => {
+        setSettingsSection('sync')
+        setTab('settings')
+      },
+    }] : []),
+    ...(savingAreas.length ? [{
+      id: 'sync-saving',
+      label: 'Changes are syncing',
+      detail: savingAreas[0]?.[1].message ?? 'Database sync is active',
+      tone: '#c98408',
+      run: () => {
+        setSettingsSection('sync')
+        setTab('settings')
+      },
+    }] : []),
+    ...(urgentAnnouncements ? [{
+      id: 'urgent-announcements',
+      label: `${urgentAnnouncements} urgent announcement${urgentAnnouncements === 1 ? '' : 's'}`,
+      detail: 'Review active store display messages',
+      tone: '#c98408',
+      run: () => setTab('display'),
+    }] : []),
+    ...(openTasks ? [{
+      id: 'open-tasks',
+      label: `${openTasks} checklist item${openTasks === 1 ? '' : 's'} open`,
+      detail: 'Open the checklist to keep today moving',
+      tone: 'var(--accent)',
+      run: () => setTab('tasks'),
+    }] : []),
+  ]
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className="command-icon-button"
+        onClick={() => setOpen((value) => !value)}
+        aria-label="Open notifications"
+        title="Notifications"
+      >
+        <Bell size={16} />
+        {notices.length > 0 && <span className="command-notification-dot">{notices.length}</span>}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="command-popover absolute right-0 top-[calc(100%+0.5rem)] z-[90] w-[min(22rem,calc(100vw-1rem))] rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-[var(--shadow-modal)]"
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+          >
+            <div className="flex items-center justify-between px-2 py-1.5">
+              <div className="text-sm font-semibold text-[var(--text)]">Notifications</div>
+              <button className="rounded-md p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)]" onClick={() => setOpen(false)} aria-label="Close notifications">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="space-y-1">
+              {notices.length === 0 ? (
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-5 text-center text-sm text-[var(--text-secondary)]">
+                  Everything looks quiet.
+                </div>
+              ) : notices.map((notice) => (
+                <button
+                  key={notice.id}
+                  type="button"
+                  onClick={() => {
+                    notice.run()
+                    setOpen(false)
+                  }}
+                  className="flex w-full items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 text-left transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-3)]"
+                >
+                  <span className="mt-1 h-2.5 w-2.5 rounded-full" style={{ background: notice.tone }} />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-[var(--text)]">{notice.label}</span>
+                    <span className="block text-xs text-[var(--text-secondary)]">{notice.detail}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu }: { onOpenMobileNav: () => void; onOpenCommandMenu: () => void }) {
   const now = useClock()
   const { toggleTheme, isDark } = useTheme()
   const {
@@ -177,6 +395,12 @@ function TopCommandBar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
         </button>
         <WeatherChip />
         <TrafficChip />
+        <button type="button" className="command-chip hidden md:inline-flex" onClick={onOpenCommandMenu}>
+          <Command size={14} />
+          <span>Search</span>
+          <kbd className="text-[10px] text-[var(--text-tertiary)]">⌘K</kbd>
+        </button>
+        <NotificationCenter />
         <StorePickerButton className="hidden sm:inline-flex" />
         {accessRole && (
           <div className="hidden min-w-0 flex-col items-end leading-tight xl:flex">
@@ -307,8 +531,9 @@ function MobileNavOverlay({ open, onClose }: { open: boolean; onClose: () => voi
 }
 
 export function AppShell({ children, activeKey }: AppShellProps) {
-  const { activeTab, uiScale } = useUiStore()
+  const { accessRole, activeTab, setSettingsSection, setTab, uiScale } = useUiStore()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false)
   const [railCollapsed, setRailCollapsed] = useState(() => {
     try {
       return localStorage.getItem('luna-left-rail-collapsed') === 'true'
@@ -317,6 +542,44 @@ export function AppShell({ children, activeKey }: AppShellProps) {
     }
   })
   const zoom = uiScale === '120' ? 1.2 : 1
+  const commandActions = useMemo<CommandAction[]>(() => {
+    const pageActions = NAV_ITEMS
+      .filter((item) => canAccessTab(accessRole, item.id))
+      .map((item) => ({
+        id: `tab-${item.id}`,
+        label: item.label,
+        helper: item.helper,
+        icon: item.icon,
+        keywords: `${item.id} ${item.label} ${item.helper}`,
+        run: () => setTab(item.id),
+      }))
+    const settingsActions = SETTINGS_COMMANDS
+      .filter(() => canAccessTab(accessRole, 'settings'))
+      .map((item) => ({
+        id: item.id,
+        label: item.label,
+        helper: item.helper,
+        icon: <Settings size={17} />,
+        keywords: item.keywords,
+        run: () => {
+          setSettingsSection(item.section)
+          setTab('settings')
+        },
+      }))
+
+    return [...pageActions, ...settingsActions]
+  }, [accessRole, setSettingsSection, setTab])
+
+  useEffect(() => {
+    const openCommandMenu = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setCommandMenuOpen(true)
+      }
+    }
+    window.addEventListener('keydown', openCommandMenu)
+    return () => window.removeEventListener('keydown', openCommandMenu)
+  }, [])
 
   const toggleRailCollapsed = () => {
     setRailCollapsed((collapsed) => {
@@ -352,7 +615,10 @@ export function AppShell({ children, activeKey }: AppShellProps) {
           <NavigationRail collapsed={railCollapsed} onToggleCollapse={toggleRailCollapsed} />
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopCommandBar onOpenMobileNav={() => setMobileNavOpen(true)} />
+          <TopCommandBar
+            onOpenMobileNav={() => setMobileNavOpen(true)}
+            onOpenCommandMenu={() => setCommandMenuOpen(true)}
+          />
           <main className="relative min-h-0 flex-1 overflow-hidden">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
@@ -371,6 +637,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
         </div>
       </div>
       <MobileNavOverlay open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <CommandMenu open={commandMenuOpen} onClose={() => setCommandMenuOpen(false)} actions={commandActions} />
     </div>
   )
 }

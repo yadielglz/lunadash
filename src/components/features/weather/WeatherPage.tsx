@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, LocateFixed, Search, Wind, Droplets, Thermometer, MapPin, RefreshCw, Radar } from 'lucide-react'
@@ -123,7 +123,7 @@ function WeatherRadarCard({ location }: { location: WeatherLocation }) {
     refetchInterval: 5 * 60 * 1000,
     retry: 1,
   })
-  const frames = data?.radar?.past ?? []
+  const frames = useMemo(() => data?.radar?.past ?? [], [data?.radar?.past])
   const frame = frames[frameIndex] ?? frames[frames.length - 1]
 
   useEffect(() => {
