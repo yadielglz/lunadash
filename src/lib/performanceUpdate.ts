@@ -8,6 +8,7 @@ export type PerformanceSheetUpdate = {
   vl?: number
   bts?: number
   hsi?: number
+  updates?: Partial<Record<'traffic' | 'netRevenue' | 'accessoryRevenue' | 'vl' | 'bts' | 'hsi', number>>
 }
 
 export async function updatePerformanceSheet(payload: PerformanceSheetUpdate & {

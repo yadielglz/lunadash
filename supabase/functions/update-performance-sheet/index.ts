@@ -18,6 +18,7 @@ type UpdatePayload = {
   vl?: number
   bts?: number
   hsi?: number
+  updates?: Partial<Record<'traffic' | 'netRevenue' | 'accessoryRevenue' | 'vl' | 'bts' | 'hsi', number>>
 }
 
 function json(body: unknown, status = 200) {
@@ -169,13 +170,14 @@ Deno.serve(async (req: Request) => {
     const storeCode = normalizeStoreId(payload.storeCode ?? '')
     if (!storeCode || storeCode === 'main') throw new Error('A valid store code is required.')
 
+    const updatePayload = payload.updates ?? payload
     const values = {
-      traffic: payload.traffic === undefined ? null : assertNumber(payload.traffic, 'Traffic'),
-      netRevenue: payload.netRevenue === undefined ? null : assertNumber(payload.netRevenue, 'Net Revenue'),
-      accessoryRevenue: payload.accessoryRevenue === undefined ? null : assertNumber(payload.accessoryRevenue, 'Accessories'),
-      vl: payload.vl === undefined ? null : assertNumber(payload.vl, 'VL'),
-      bts: payload.bts === undefined ? null : assertNumber(payload.bts, 'BTS'),
-      hsi: payload.hsi === undefined ? null : assertNumber(payload.hsi, 'HSI'),
+      traffic: updatePayload.traffic === undefined ? null : assertNumber(updatePayload.traffic, 'Traffic'),
+      netRevenue: updatePayload.netRevenue === undefined ? null : assertNumber(updatePayload.netRevenue, 'Net Revenue'),
+      accessoryRevenue: updatePayload.accessoryRevenue === undefined ? null : assertNumber(updatePayload.accessoryRevenue, 'Accessories'),
+      vl: updatePayload.vl === undefined ? null : assertNumber(updatePayload.vl, 'VL'),
+      bts: updatePayload.bts === undefined ? null : assertNumber(updatePayload.bts, 'BTS'),
+      hsi: updatePayload.hsi === undefined ? null : assertNumber(updatePayload.hsi, 'HSI'),
     }
     if (Object.values(values).every((value) => value === null)) {
       throw new Error('At least one tracker value is required.')

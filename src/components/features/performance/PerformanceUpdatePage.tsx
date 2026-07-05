@@ -415,7 +415,7 @@ export function PerformanceUpdatePage() {
         accessId,
         accessRole: accessRole ?? '',
         storeCode: selectedRow.storeCode,
-        ...Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)),
+        updates: Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)),
       })
       setMessage(result.message || `Updated ${selectedRow.storeCode}`)
       await loadData()
