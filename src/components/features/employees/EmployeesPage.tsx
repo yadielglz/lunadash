@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BadgeDollarSign, CalendarDays, CheckCircle2, Save, Store, Target, Trash2, TrendingUp, UserRound, Users } from 'lucide-react'
+import { BadgeDollarSign, CalendarDays, CheckCircle2, Printer, Save, Store, Target, Trash2, TrendingUp, UserRound, Users } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
@@ -73,6 +73,31 @@ function formatPercent(value: number | null) {
   return `${value.toFixed(0)}%`
 }
 
+function formatReportDate(dateKey: string) {
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatReportDateTime(value?: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+function capturePercent(actual: number, opportunity: number) {
+  if (!opportunity) return null
+  return (actual / opportunity) * 100
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 function MetricHero({ icon, label, value, helper }: { icon: React.ReactNode; label: string; value: string; helper: string }) {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4 shadow-[inset_0_1px_rgba(255,255,255,0.08)]">
@@ -90,8 +115,8 @@ function MetricHero({ icon, label, value, helper }: { icon: React.ReactNode; lab
   )
 }
 
-function snapshotForEmployee(snapshots: CommissionSnapshot[], employee: Employee | undefined, storeId: string) {
-  if (!employee) return undefined
+function snapshotsForEmployee(snapshots: CommissionSnapshot[], employee: Employee | undefined, storeId: string) {
+  if (!employee) return []
   const employeeName = employee.name.trim().toLowerCase()
   return snapshots
     .filter((snapshot) => (
@@ -101,7 +126,87 @@ function snapshotForEmployee(snapshots: CommissionSnapshot[], employee: Employee
     .sort((a, b) => {
       if (a.snapshotDate !== b.snapshotDate) return b.snapshotDate.localeCompare(a.snapshotDate)
       return b.updatedAt.localeCompare(a.updatedAt)
-    })[0]
+    })
+}
+
+function buildEmployeeCommissionReportHtml(params: {
+  employee: Employee
+  snapshots: CommissionSnapshot[]
+  storeId: string
+}) {
+  const latest = params.snapshots[0]
+  const generatedAt = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+  const assignedStore = normalizeStoreId(params.employee.storeId ?? params.storeId)
+  const goalStats = latest
+    ? [
+      goalPercent(latest.accessories, latest.accessoryGoal),
+      goalPercent(latest.revenue, latest.revenueGoal),
+      goalPercent(latest.vaf, latest.vafGoal),
+      goalPercent(latest.voiceLines, latest.voiceLinesGoal),
+      goalPercent(latest.bts, latest.btsGoal),
+    ].filter((percent): percent is number => percent !== null)
+    : []
+  const goalsHit = goalStats.filter((percent) => percent >= 100).length
+  const rows = params.snapshots.map((snapshot) => {
+    const open = Math.max(snapshot.commissionOpportunity - snapshot.commission, 0)
+    return `<tr>
+      <td>${escapeHtml(formatReportDate(snapshot.snapshotDate))}</td>
+      <td>${escapeHtml(formatMoney(snapshot.commission))}</td>
+      <td>${escapeHtml(formatMoney(snapshot.commissionOpportunity))}</td>
+      <td>${escapeHtml(formatPercent(capturePercent(snapshot.commission, snapshot.commissionOpportunity)))}</td>
+      <td>${escapeHtml(formatMoney(open))}</td>
+      <td>${escapeHtml(formatMoney(snapshot.accessories))}</td>
+      <td>${escapeHtml(formatMoney(snapshot.revenue))}</td>
+      <td>${escapeHtml(formatMoney(snapshot.vaf))}</td>
+      <td>${escapeHtml(String(Math.round(snapshot.voiceLines)))}</td>
+      <td>${escapeHtml(String(Math.round(snapshot.bts)))}</td>
+    </tr>`
+  }).join('')
+
+  return `<!doctype html><html><head><title>${escapeHtml(params.employee.name)} Commission Report</title><style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #111827; font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", system-ui, sans-serif; background: #eef2f7; }
+    main { width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.55in; background: white; }
+    header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 16px; }
+    h1 { margin: 0; font-size: 25px; letter-spacing: 0; }
+    h2 { margin: 24px 0 0; font-size: 15px; }
+    .subtle { color: #64748b; font-size: 12px; }
+    .meta { text-align: right; line-height: 1.5; }
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
+    .tile { border: 1px solid #d8dee8; border-radius: 8px; padding: 12px; min-height: 82px; }
+    .label { color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+    .value { margin-top: 8px; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { text-align: left; color: #64748b; font-size: 9px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; padding: 8px 6px; }
+    td { border-bottom: 1px solid #e5e7eb; padding: 9px 6px; font-size: 11px; }
+    td:not(:first-child), th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+    footer { margin-top: 22px; color: #64748b; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+    @media print {
+      body { background: white; }
+      main { width: auto; min-height: auto; margin: 0; padding: 0.45in; }
+    }
+  </style></head><body><main>
+    <header>
+      <div>
+        <h1>${escapeHtml(params.employee.name)}</h1>
+        <div class="subtle">Employee Commission Report</div>
+      </div>
+      <div class="meta subtle">
+        <div>${escapeHtml(params.employee.role || 'Associate')}</div>
+        <div>Store ID: ${escapeHtml(assignedStore || 'DEFAULT')}</div>
+        <div>Generated ${escapeHtml(generatedAt)}</div>
+      </div>
+    </header>
+    <section class="summary">
+      <div class="tile"><div class="label">Latest Paid</div><div class="value">${escapeHtml(latest ? formatMoney(latest.commission) : '-')}</div></div>
+      <div class="tile"><div class="label">Opportunity</div><div class="value">${escapeHtml(latest ? formatMoney(latest.commissionOpportunity) : '-')}</div></div>
+      <div class="tile"><div class="label">Capture</div><div class="value">${escapeHtml(latest ? formatPercent(capturePercent(latest.commission, latest.commissionOpportunity)) : '-')}</div></div>
+      <div class="tile"><div class="label">Goals Hit</div><div class="value">${escapeHtml(latest ? `${goalsHit}/${goalStats.length || 5}` : '-')}</div></div>
+    </section>
+    <h2>Commission History</h2>
+    <table><thead><tr><th>Date</th><th>Paid</th><th>Opp</th><th>Capture</th><th>Open</th><th>Accessories</th><th>Revenue</th><th>VAF</th><th>Voice</th><th>BTS</th></tr></thead><tbody>${rows}</tbody></table>
+    <footer>${escapeHtml(latest?.updatedAt ? `Latest snapshot updated ${formatReportDateTime(latest.updatedAt)}` : 'No commission snapshots saved.')}</footer>
+  </main></body></html>`
 }
 
 export function EmployeesPage() {
@@ -137,7 +242,10 @@ export function EmployeesPage() {
   const monthNr = employeeSales
     .filter((sale) => sale.saleDate.startsWith(monthKey))
     .reduce((sum, sale) => sum + sale.estimatedNetRevenue, 0)
-  const latestSnapshot = snapshotForEmployee(commissionSnapshots, selectedEmployee, storeId)
+  const employeeCommissionSnapshots = useMemo(() => (
+    snapshotsForEmployee(commissionSnapshots, selectedEmployee, storeId)
+  ), [commissionSnapshots, selectedEmployee, storeId])
+  const latestSnapshot = employeeCommissionSnapshots[0]
   const snapshotGoalCount = latestSnapshot
     ? [
       goalPercent(latestSnapshot.accessories, latestSnapshot.accessoryGoal),
@@ -194,6 +302,28 @@ export function EmployeesPage() {
       storeId: normalizeStoreId(selectedEmployee.storeId ?? storeId),
     })
     setMessage('Schedule preferences saved.')
+  }
+
+  const printCommissionReport = () => {
+    if (!selectedEmployee || employeeCommissionSnapshots.length === 0) {
+      setMessage('No commission snapshot is available to print.')
+      return
+    }
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      setMessage('Pop-up blocked. Allow pop-ups to print this report.')
+      return
+    }
+    printWindow.document.write(buildEmployeeCommissionReportHtml({
+      employee: selectedEmployee,
+      snapshots: employeeCommissionSnapshots,
+      storeId,
+    }))
+    printWindow.document.close()
+    printWindow.focus()
+    window.setTimeout(() => {
+      printWindow.print()
+    }, 150)
   }
 
   if (employees.length === 0) {
@@ -400,9 +530,14 @@ export function EmployeesPage() {
                       <BadgeDollarSign size={16} className="text-[var(--accent)]" />
                       <h2 className="text-sm font-semibold text-[var(--text)]">Latest Commission Snapshot</h2>
                     </div>
-                    <span className="text-xs text-[var(--text-tertiary)]">
-                      {latestSnapshot ? latestSnapshot.snapshotDate : 'No snapshot yet'}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-[var(--text-tertiary)]">
+                        {latestSnapshot ? latestSnapshot.snapshotDate : 'No snapshot yet'}
+                      </span>
+                      <Button size="sm" variant="secondary" icon={<Printer size={13} />} disabled={!latestSnapshot} onClick={printCommissionReport}>
+                        Print Report
+                      </Button>
+                    </div>
                   </div>
 
                   {latestSnapshot ? (

@@ -6,6 +6,8 @@ import { Select } from '../../ui/Input'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useDisplayStore } from '../../../store/displayStore'
 import { useUiStore } from '../../../store/uiStore'
+import { useCommissionSnapshotStore, type CommissionSnapshot } from '../../../store/commissionSnapshotStore'
+import { useScheduleStore, type Employee } from '../../../store/scheduleStore'
 import { dbForceEodSnapshot, dbGetGoals, dbGetStores } from '../../../lib/supabase'
 import { getStoreProfile } from '../../../config/storeProfiles'
 import { normalizeStoreId } from '../../../lib/storeIds'
@@ -23,7 +25,17 @@ const REPORT_METRICS: Record<string, { label: string; kind: 'money' | 'number' |
   visa: { label: 'VISA', kind: 'number' },
 }
 
-type ReportMode = 'store' | 'district'
+type ReportMode = 'store' | 'district' | 'commission'
+type CommissionReportRow = CommissionSnapshot & { employeeSortOrder: number }
+type CommissionTotals = {
+  commission: number
+  opportunity: number
+  accessories: number
+  revenue: number
+  vaf: number
+  voiceLines: number
+  bts: number
+}
 
 function snapshotKey(goal: Goal) {
   return goal.description.startsWith(SNAPSHOT_PREFIX) ? goal.description.slice(SNAPSHOT_PREFIX.length) : ''
@@ -40,6 +52,43 @@ function formatReportValue(value: number, kind: 'money' | 'number' | 'percent') 
   }
   if (kind === 'percent') return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`
   return Math.round(value).toLocaleString('en-US')
+}
+
+function formatPercent(value: number | null) {
+  if (value === null) return '-'
+  return `${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}%`
+}
+
+function formatReportDate(dateKey: string) {
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatReportDateTime(value?: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+function capturePercent(actual: number, opportunity: number) {
+  if (!opportunity) return null
+  return (actual / opportunity) * 100
+}
+
+function emptyCommissionTotals(): CommissionTotals {
+  return { commission: 0, opportunity: 0, accessories: 0, revenue: 0, vaf: 0, voiceLines: 0, bts: 0 }
+}
+
+function commissionTotalsFor(rows: CommissionSnapshot[]) {
+  return rows.reduce((totals, row) => ({
+    commission: totals.commission + row.commission,
+    opportunity: totals.opportunity + row.commissionOpportunity,
+    accessories: totals.accessories + row.accessories,
+    revenue: totals.revenue + row.revenue,
+    vaf: totals.vaf + row.vaf,
+    voiceLines: totals.voiceLines + row.voiceLines,
+    bts: totals.bts + row.bts,
+  }), emptyCommissionTotals())
 }
 
 function escapeHtml(value: string) {
@@ -66,6 +115,47 @@ function reportGoalFor(goals: Goal[], metricKey: string, storeId?: string) {
     snapshotKey(goal) === metricKey
     && (!storeId || normalizeStoreId(goal.storeId ?? '') === normalizeStoreId(storeId))
   ))
+}
+
+function isCommissionableEmployee(employee: Employee, storeId: string) {
+  const employeeStoreId = normalizeStoreId(employee.storeId ?? storeId)
+  const role = employee.role.trim().toLowerCase().replace(/\s+/g, ' ')
+  const isManagerRole = role === 'store manager'
+    || role.includes('store manager')
+    || role === 'retail store manager'
+    || role === 'rsm'
+  return employeeStoreId === storeId && !isManagerRole
+}
+
+function buildCommissionReportRows(params: {
+  storeId: string
+  snapshots: CommissionSnapshot[]
+  employees: Employee[]
+}) {
+  const storeId = normalizeStoreId(params.storeId)
+  const commissionableEmployees = params.employees.filter((employee) => isCommissionableEmployee(employee, storeId))
+  const employeeByName = new Map(commissionableEmployees.map((employee) => [employee.name.trim().toLowerCase(), employee]))
+  const storeSnapshots = params.snapshots.filter((snapshot) => (
+    normalizeStoreId(snapshot.storeId ?? '') === storeId
+    && employeeByName.has(snapshot.employeeName.trim().toLowerCase())
+  ))
+  const latestUpdate = storeSnapshots.reduce((latest, snapshot) => (
+    (snapshot.updatedAt || snapshot.createdAt || '') > latest ? (snapshot.updatedAt || snapshot.createdAt || '') : latest
+  ), '')
+  const latestDate = storeSnapshots.reduce((latest, snapshot) => {
+    if (!latest) return snapshot.snapshotDate
+    if ((snapshot.updatedAt || snapshot.createdAt || '') === latestUpdate) return snapshot.snapshotDate
+    return latest
+  }, '')
+  const reportDate = latestDate || storeSnapshots.map((snapshot) => snapshot.snapshotDate).sort().reverse()[0] || ''
+  const rows = storeSnapshots
+    .filter((snapshot) => snapshot.snapshotDate === reportDate)
+    .map<CommissionReportRow>((snapshot) => {
+      const employee = employeeByName.get(snapshot.employeeName.trim().toLowerCase())
+      return { ...snapshot, employeeSortOrder: employee?.sortOrder ?? Number.MAX_SAFE_INTEGER }
+    })
+    .sort((a, b) => a.employeeSortOrder - b.employeeSortOrder || a.sortOrder - b.sortOrder || a.employeeName.localeCompare(b.employeeName))
+  return { rows, reportDate, latestUpdate }
 }
 
 function monthSnapshotTotal(goal: Goal | undefined, month: string) {
@@ -97,6 +187,12 @@ function baseReportCss(mode: ReportMode) {
     td { border-bottom: 1px solid #e5e7eb; padding: 9px 6px; font-size: 11px; }
     td:not(:first-child), th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
     .store { text-align: left !important; font-weight: 700; color: #111827; }
+    .section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-top: 24px; }
+    .section-title h2 { margin: 0; }
+    .note { color: #64748b; font-size: 10px; }
+    .employee { text-align: left !important; font-weight: 700; color: #111827; }
+    .total-row td { background: #f8fafc; font-weight: 800; }
+    .empty { margin-top: 10px; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px; color: #64748b; font-size: 11px; }
     footer { margin-top: 22px; color: #64748b; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 10px; }
     @media print {
       ${mode === 'district' ? '@page { size: landscape; }' : ''}
@@ -112,6 +208,9 @@ function buildStoreReportHtml(params: {
   storeId: string
   companyName: string
   storeNumber: string
+  commissionRows: CommissionReportRow[]
+  commissionDate: string
+  commissionUpdatedAt: string
 }) {
   const rows = Object.entries(REPORT_METRICS).map(([key, meta]) => ({
     key,
@@ -128,14 +227,68 @@ function buildStoreReportHtml(params: {
   }))
   const generatedAt = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
   const storeLabel = `${params.companyName || 'Luna Store'}${params.storeNumber ? ` #${params.storeNumber}` : ''}`
+  const commissionTotals = params.commissionRows.reduce((totals, row) => ({
+    commission: totals.commission + row.commission,
+    opportunity: totals.opportunity + row.commissionOpportunity,
+    accessories: totals.accessories + row.accessories,
+    revenue: totals.revenue + row.revenue,
+    vaf: totals.vaf + row.vaf,
+    voiceLines: totals.voiceLines + row.voiceLines,
+    bts: totals.bts + row.bts,
+  }), emptyCommissionTotals())
+  const commissionMeta = [
+    params.commissionDate ? formatReportDate(params.commissionDate) : '',
+    params.commissionUpdatedAt ? `Last updated ${formatReportDateTime(params.commissionUpdatedAt)}` : '',
+  ].filter(Boolean).join(' | ')
+  const commissionRowsHtml = params.commissionRows.length > 0
+    ? `<table><thead><tr><th class="employee">Employee</th><th>Paid</th><th>Opp</th><th>Capture</th><th>Accessories</th><th>Revenue</th><th>VAF</th><th>Voice</th><th>BTS</th></tr></thead><tbody>${params.commissionRows.map((row) => `<tr><td class="employee">${escapeHtml(row.employeeName || '-')}</td><td>${escapeHtml(formatReportValue(row.commission, 'money'))}</td><td>${escapeHtml(formatReportValue(row.commissionOpportunity, 'money'))}</td><td>${escapeHtml(formatPercent(capturePercent(row.commission, row.commissionOpportunity)))}</td><td>${escapeHtml(formatReportValue(row.accessories, 'money'))}</td><td>${escapeHtml(formatReportValue(row.revenue, 'money'))}</td><td>${escapeHtml(formatReportValue(row.vaf, 'money'))}</td><td>${escapeHtml(formatReportValue(row.voiceLines, 'number'))}</td><td>${escapeHtml(formatReportValue(row.bts, 'number'))}</td></tr>`).join('')}<tr class="total-row"><td class="employee">Team Total</td><td>${escapeHtml(formatReportValue(commissionTotals.commission, 'money'))}</td><td>${escapeHtml(formatReportValue(commissionTotals.opportunity, 'money'))}</td><td>${escapeHtml(formatPercent(capturePercent(commissionTotals.commission, commissionTotals.opportunity)))}</td><td>${escapeHtml(formatReportValue(commissionTotals.accessories, 'money'))}</td><td>${escapeHtml(formatReportValue(commissionTotals.revenue, 'money'))}</td><td>${escapeHtml(formatReportValue(commissionTotals.vaf, 'money'))}</td><td>${escapeHtml(formatReportValue(commissionTotals.voiceLines, 'number'))}</td><td>${escapeHtml(formatReportValue(commissionTotals.bts, 'number'))}</td></tr></tbody></table>`
+    : '<div class="empty">No team commission snapshot has been saved for this store in the selected month.</div>'
 
   return `<!doctype html><html><head><title>${escapeHtml(monthLabel(params.month))} Performance Snapshot</title><style>${baseReportCss('store')}</style></head><body><main>
     <header><div><h1>Performance Snapshot</h1><div class="subtle">${escapeHtml(monthLabel(params.month))}</div></div><div class="meta subtle"><div>${escapeHtml(storeLabel)}</div><div>Store ID: ${escapeHtml(params.storeId || 'DEFAULT')}</div><div>Generated ${escapeHtml(generatedAt)}</div></div></header>
     <section class="summary">${rows.slice(0, 4).map((row) => `<div class="tile"><div class="label">${escapeHtml(row.label)}</div><div class="value">${escapeHtml(formatReportValue(row.total, row.kind))}</div></div>`).join('')}</section>
     <table><thead><tr><th>Metric</th><th>MTD Total</th></tr></thead><tbody>${rows.map((row) => `<tr><td class="store">${escapeHtml(row.label)}</td><td>${escapeHtml(formatReportValue(row.total, row.kind))}</td></tr>`).join('')}</tbody></table>
+    <div class="section-title"><h2>Team Commission</h2><div class="note">${escapeHtml(commissionMeta || 'Not updated yet')}</div></div>
+    ${commissionRowsHtml}
     <h2>EOD MTD Records</h2>
     <table><thead><tr><th>Date</th>${metricKeys.map((key) => `<th>${escapeHtml(REPORT_METRICS[key].label)}</th>`).join('')}</tr></thead><tbody>${dailyRows.map((row) => `<tr><td class="store">${escapeHtml(new Date(row.date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }))}</td>${metricKeys.map((key) => `<td>${escapeHtml(formatReportValue(Number(row.values[key]) || 0, REPORT_METRICS[key].kind))}</td>`).join('')}</tr>`).join('')}</tbody></table>
     <footer>MTD totals are calculated from saved daily Source snapshots.</footer>
+  </main></body></html>`
+}
+
+function buildCommissionReportHtml(params: {
+  storeId: string
+  companyName: string
+  storeNumber: string
+  rows: CommissionReportRow[]
+  reportDate: string
+  updatedAt: string
+}) {
+  const generatedAt = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+  const storeLabel = `${params.companyName || 'Luna Store'}${params.storeNumber ? ` #${params.storeNumber}` : ''}`
+  const totals = commissionTotalsFor(params.rows)
+  const averageVaf = params.rows.length ? totals.vaf / params.rows.length : 0
+  const openOpportunity = Math.max(totals.opportunity - totals.commission, 0)
+  const reportMeta = [
+    params.reportDate ? `Information date ${formatReportDate(params.reportDate)}` : 'No information date',
+    params.updatedAt ? `Last updated ${formatReportDateTime(params.updatedAt)}` : 'Not updated yet',
+  ].join(' | ')
+  const employeeRows = params.rows.length > 0
+    ? params.rows.map((row) => `<tr><td class="employee">${escapeHtml(row.employeeName || '-')}</td><td>${escapeHtml(formatReportValue(row.commission, 'money'))}</td><td>${escapeHtml(formatReportValue(row.commissionOpportunity, 'money'))}</td><td>${escapeHtml(formatPercent(capturePercent(row.commission, row.commissionOpportunity)))}</td><td>${escapeHtml(formatReportValue(Math.max(row.commissionOpportunity - row.commission, 0), 'money'))}</td><td>${escapeHtml(formatReportValue(row.accessories, 'money'))}</td><td>${escapeHtml(formatReportValue(row.revenue, 'money'))}</td><td>${escapeHtml(formatReportValue(row.vaf, 'money'))}</td><td>${escapeHtml(formatReportValue(row.voiceLines, 'number'))}</td><td>${escapeHtml(formatReportValue(row.bts, 'number'))}</td></tr>`).join('')
+    : ''
+  return `<!doctype html><html><head><title>Commission Dashboard</title><style>${baseReportCss('store')}</style></head><body><main>
+    <header><div><h1>Commission Dashboard</h1><div class="subtle">${escapeHtml(params.reportDate ? formatReportDate(params.reportDate) : 'Current team view')}</div></div><div class="meta subtle"><div>${escapeHtml(storeLabel)}</div><div>Store ID: ${escapeHtml(params.storeId || 'DEFAULT')}</div><div>Generated ${escapeHtml(generatedAt)}</div></div></header>
+    <section class="summary">
+      <div class="tile"><div class="label">Team Paid</div><div class="value">${escapeHtml(formatReportValue(totals.commission, 'money'))}</div></div>
+      <div class="tile"><div class="label">Opportunity</div><div class="value">${escapeHtml(formatReportValue(totals.opportunity, 'money'))}</div></div>
+      <div class="tile"><div class="label">Capture</div><div class="value">${escapeHtml(formatPercent(capturePercent(totals.commission, totals.opportunity)))}</div></div>
+      <div class="tile"><div class="label">Open Opp</div><div class="value">${escapeHtml(formatReportValue(openOpportunity, 'money'))}</div></div>
+    </section>
+    <div class="section-title"><h2>Team Commission</h2><div class="note">${escapeHtml(reportMeta)}</div></div>
+    ${params.rows.length > 0
+      ? `<table><thead><tr><th class="employee">Employee</th><th>Paid</th><th>Opp</th><th>Capture</th><th>Open</th><th>Accessories</th><th>Revenue</th><th>VAF</th><th>Voice</th><th>BTS</th></tr></thead><tbody>${employeeRows}<tr class="total-row"><td class="employee">Team Total</td><td>${escapeHtml(formatReportValue(totals.commission, 'money'))}</td><td>${escapeHtml(formatReportValue(totals.opportunity, 'money'))}</td><td>${escapeHtml(formatPercent(capturePercent(totals.commission, totals.opportunity)))}</td><td>${escapeHtml(formatReportValue(openOpportunity, 'money'))}</td><td>${escapeHtml(formatReportValue(totals.accessories, 'money'))}</td><td>${escapeHtml(formatReportValue(totals.revenue, 'money'))}</td><td>${escapeHtml(formatReportValue(averageVaf, 'money'))}</td><td>${escapeHtml(formatReportValue(totals.voiceLines, 'number'))}</td><td>${escapeHtml(formatReportValue(totals.bts, 'number'))}</td></tr></tbody></table>`
+      : '<div class="empty">No current commission dashboard has been saved for this store yet.</div>'}
+    <footer>Commission dashboard uses the store's latest saved team information. Store Manager, Retail Store Manager, and RSM roles are excluded.</footer>
   </main></body></html>`
 }
 
@@ -174,6 +327,8 @@ function buildDistrictReportHtml(month: string, districtGoals: Goal[]) {
 
 export function ReportsPage() {
   const { goals, _init: goalsInit } = useGoalsStore()
+  const commissionSnapshots = useCommissionSnapshotStore((s) => s.snapshots)
+  const employees = useScheduleStore((s) => s.employees)
   const { companyName, storeNumber } = useDisplayStore()
   const { storeId } = useUiStore()
   const previewRef = useRef<HTMLIFrameElement>(null)
@@ -193,8 +348,19 @@ export function ReportsPage() {
     goal.category === SNAPSHOT_CATEGORY && snapshotKey(goal) && normalizeStoreId(goal.storeId ?? '') === reportStoreId
   ))
   const months = useMemo(() => Array.from(new Set(
-    allSnapshotGoals.flatMap((goal) => Object.keys(goal.dailyLog ?? {}).map((day) => day.slice(0, 7)))
-  )).sort().reverse(), [allSnapshotGoals])
+    [
+      ...allSnapshotGoals.flatMap((goal) => Object.keys(goal.dailyLog ?? {}).map((day) => day.slice(0, 7))),
+      ...commissionSnapshots
+        .filter((snapshot) => normalizeStoreId(snapshot.storeId ?? '') === reportStoreId)
+        .map((snapshot) => snapshot.snapshotDate.slice(0, 7)),
+    ]
+  )).sort().reverse(), [allSnapshotGoals, commissionSnapshots, reportStoreId])
+
+  const commissionReport = useMemo(() => buildCommissionReportRows({
+    storeId: reportStoreId,
+    snapshots: commissionSnapshots,
+    employees,
+  }), [commissionSnapshots, employees, reportStoreId])
 
   useEffect(() => {
     if (!selectedMonth && months[0]) setSelectedMonth(months[0])
@@ -224,16 +390,34 @@ export function ReportsPage() {
   useEffect(() => {
     let cancelled = false
     const buildPreview = async () => {
-      if (!selectedMonth) {
+      if (mode !== 'commission' && !selectedMonth) {
         setPreviewHtml('')
         return
       }
       setLoadingPreview(true)
       setError('')
       try {
-        const html = mode === 'store'
-          ? buildStoreReportHtml({ month: selectedMonth, goals: storeSnapshotGoals, storeId: storeId || 'DEFAULT', companyName, storeNumber })
-          : buildDistrictReportHtml(selectedMonth, await loadDistrictSnapshotGoals())
+        const html = mode === 'district'
+          ? buildDistrictReportHtml(selectedMonth, await loadDistrictSnapshotGoals())
+          : mode === 'commission'
+            ? buildCommissionReportHtml({
+              storeId: storeId || 'DEFAULT',
+              companyName,
+              storeNumber,
+              rows: commissionReport.rows,
+              reportDate: commissionReport.reportDate,
+              updatedAt: commissionReport.latestUpdate,
+            })
+            : buildStoreReportHtml({
+            month: selectedMonth,
+            goals: storeSnapshotGoals,
+            storeId: storeId || 'DEFAULT',
+            companyName,
+            storeNumber,
+            commissionRows: commissionReport.rows,
+            commissionDate: commissionReport.reportDate,
+            commissionUpdatedAt: commissionReport.latestUpdate,
+          })
         if (!cancelled) setPreviewHtml(html)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Could not build report preview')
@@ -244,7 +428,7 @@ export function ReportsPage() {
     buildPreview()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedMonth, companyName, storeNumber, storeId, goals.length])
+  }, [mode, selectedMonth, companyName, storeNumber, storeId, goals.length, commissionReport])
 
   const printPreview = () => {
     const frame = previewRef.current
@@ -283,12 +467,14 @@ export function ReportsPage() {
               <FileText size={18} className="text-[var(--accent)]" />
               Reports
             </h1>
-            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Preview, print, and refresh performance snapshot reports.</p>
+            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Preview, print, and refresh store reports.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} loading={snapshotRunning} onClick={forceSnapshot}>
-              Force Snapshot
-            </Button>
+            {mode !== 'commission' && (
+              <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} loading={snapshotRunning} onClick={forceSnapshot}>
+                Force Snapshot
+              </Button>
+            )}
             <Button size="sm" variant="primary" icon={<Printer size={13} />} disabled={!previewHtml || loadingPreview} onClick={printPreview}>
               Print Preview
             </Button>
@@ -306,19 +492,26 @@ export function ReportsPage() {
               </div>
               <Select label="Report" value={mode} onChange={(event) => setMode(event.target.value as ReportMode)}>
                 <option value="store">Store Performance Snapshot</option>
+                <option value="commission">Store Commission Dashboard</option>
                 <option value="district">District Performance Snapshot</option>
               </Select>
-              <Select label="Month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} disabled={months.length === 0}>
-                {months.length === 0 ? <option value="">No historical snapshots yet</option> : months.map((month) => (
-                  <option key={month} value={month}>{monthLabel(month)}</option>
-                ))}
-              </Select>
+              {mode !== 'commission' && (
+                <Select label="Month" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} disabled={months.length === 0}>
+                  {months.length === 0 ? <option value="">No historical snapshots yet</option> : months.map((month) => (
+                    <option key={month} value={month}>{monthLabel(month)}</option>
+                  ))}
+                </Select>
+              )}
             </Card>
 
             <Card>
               <div className="text-xs font-semibold uppercase text-[var(--text-tertiary)]">Preview Status</div>
               <div className="mt-2 text-sm font-semibold text-[var(--text)]">{loadingPreview ? 'Building preview...' : previewHtml ? 'Ready to print' : 'No report available'}</div>
-              <div className="mt-1 text-xs text-[var(--text-secondary)]">{selectedMonth ? monthLabel(selectedMonth) : 'Select a month to begin.'}</div>
+              <div className="mt-1 text-xs text-[var(--text-secondary)]">
+                {mode === 'commission'
+                  ? (commissionReport.latestUpdate ? `Last updated ${formatReportDateTime(commissionReport.latestUpdate)}` : 'No commission dashboard saved yet.')
+                  : selectedMonth ? monthLabel(selectedMonth) : 'Select a month to begin.'}
+              </div>
               {message && <p className="mt-3 text-xs text-[var(--accent)]">{message}</p>}
               {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
             </Card>
@@ -330,7 +523,13 @@ export function ReportsPage() {
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-[var(--text)]">Report Preview</div>
-                <div className="text-xs text-[var(--text-tertiary)]">{mode === 'district' ? 'Landscape district report' : 'Store report'} · {selectedMonth ? monthLabel(selectedMonth) : 'No month selected'}</div>
+                <div className="text-xs text-[var(--text-tertiary)]">
+                  {mode === 'district'
+                    ? `Landscape district report · ${selectedMonth ? monthLabel(selectedMonth) : 'No month selected'}`
+                    : mode === 'commission'
+                      ? `Store commission dashboard · ${commissionReport.reportDate ? formatReportDate(commissionReport.reportDate) : 'No information date'}`
+                      : `Store report · ${selectedMonth ? monthLabel(selectedMonth) : 'No month selected'}`}
+                </div>
               </div>
             </div>
             <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-[var(--shadow-card)]">
