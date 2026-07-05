@@ -2,12 +2,12 @@ import { supabase } from './supabase'
 
 export type PerformanceSheetUpdate = {
   storeCode: string
-  traffic: number
+  traffic?: number
   netRevenue?: number
-  accessoryRevenue: number
-  vl: number
-  bts: number
-  hsi: number
+  accessoryRevenue?: number
+  vl?: number
+  bts?: number
+  hsi?: number
 }
 
 export async function updatePerformanceSheet(payload: PerformanceSheetUpdate & {

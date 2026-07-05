@@ -106,20 +106,24 @@ const newSaleEntry = (): SaleEntry => ({
   p360: '',
 })
 
-function toDraft(row: PerformanceRow | null): Draft {
+function emptyDraft(): Draft {
   return {
-    traffic: row ? String(row.traffic) : '',
-    netRevenue: row ? String(row.netRevenue) : '',
-    accessoryRevenue: row ? String(row.accessoryRevenue) : '',
-    vl: row ? String(row.vl) : '',
-    bts: row ? String(row.bts) : '',
-    hsi: row ? String(row.hsi) : '',
+    traffic: '',
+    netRevenue: '',
+    accessoryRevenue: '',
+    vl: '',
+    bts: '',
+    hsi: '',
   }
 }
 
 function parseDraftNumber(value: string) {
   const parsed = Number(value.replace(/[$,\s]/g, ''))
   return Number.isFinite(parsed) ? Math.max(0, parsed) : NaN
+}
+
+function parseOptionalDraftNumber(value: string) {
+  return value.trim() ? parseDraftNumber(value) : undefined
 }
 
 function safeDraftNumber(value: string) {
@@ -206,7 +210,7 @@ export function PerformanceUpdatePage() {
   const addEmployeeSale = useEmployeeInsightsStore((state) => state.addSale)
   const [rows, setRows] = useState<PerformanceRow[]>([])
   const [selectedStoreCode, setSelectedStoreCode] = useState(normalizeStoreId(storeId) === 'main' ? '' : normalizeStoreId(storeId))
-  const [draft, setDraft] = useState<Draft>(toDraft(null))
+  const [draft, setDraft] = useState<Draft>(emptyDraft())
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -279,7 +283,7 @@ export function PerformanceUpdatePage() {
         ? currentStore
         : normalizeStoreId(fallback)
       setSelectedStoreCode(nextStore)
-      setDraft(toDraft(data.rows.find((row) => normalizeStoreId(row.storeCode) === nextStore) ?? null))
+      setDraft(emptyDraft())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load performance data')
     } finally {
@@ -294,7 +298,7 @@ export function PerformanceUpdatePage() {
   }, [])
 
   useEffect(() => {
-    setDraft(toDraft(selectedRow))
+    setDraft(emptyDraft())
     setMessage('')
   }, [selectedRow])
 
@@ -388,14 +392,18 @@ export function PerformanceUpdatePage() {
     }
 
     const values = {
-      traffic: parseDraftNumber(draft.traffic),
-      accessoryRevenue: parseDraftNumber(draft.accessoryRevenue),
-      vl: parseDraftNumber(draft.vl),
-      bts: parseDraftNumber(draft.bts),
-      hsi: parseDraftNumber(draft.hsi),
+      traffic: parseOptionalDraftNumber(draft.traffic),
+      accessoryRevenue: parseOptionalDraftNumber(draft.accessoryRevenue),
+      vl: parseOptionalDraftNumber(draft.vl),
+      bts: parseOptionalDraftNumber(draft.bts),
+      hsi: parseOptionalDraftNumber(draft.hsi),
     }
-    if (Object.values(values).some((value) => Number.isNaN(value))) {
-      setError('All update values must be valid numbers.')
+    if (Object.values(values).every((value) => value === undefined)) {
+      setError('Enter at least one tracker value before saving.')
+      return
+    }
+    if (Object.values(values).some((value) => value !== undefined && Number.isNaN(value))) {
+      setError('Entered update values must be valid numbers.')
       return
     }
 
@@ -407,7 +415,7 @@ export function PerformanceUpdatePage() {
         accessId,
         accessRole: accessRole ?? '',
         storeCode: selectedRow.storeCode,
-        ...values,
+        ...Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)),
       })
       setMessage(result.message || `Updated ${selectedRow.storeCode}`)
       await loadData()

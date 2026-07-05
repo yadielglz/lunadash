@@ -170,12 +170,15 @@ Deno.serve(async (req: Request) => {
     if (!storeCode || storeCode === 'main') throw new Error('A valid store code is required.')
 
     const values = {
-      traffic: assertNumber(payload.traffic, 'Traffic'),
+      traffic: payload.traffic === undefined ? null : assertNumber(payload.traffic, 'Traffic'),
       netRevenue: payload.netRevenue === undefined ? null : assertNumber(payload.netRevenue, 'Net Revenue'),
-      accessoryRevenue: assertNumber(payload.accessoryRevenue, 'Accessories'),
-      vl: assertNumber(payload.vl, 'VL'),
-      bts: assertNumber(payload.bts, 'BTS'),
-      hsi: assertNumber(payload.hsi, 'HSI'),
+      accessoryRevenue: payload.accessoryRevenue === undefined ? null : assertNumber(payload.accessoryRevenue, 'Accessories'),
+      vl: payload.vl === undefined ? null : assertNumber(payload.vl, 'VL'),
+      bts: payload.bts === undefined ? null : assertNumber(payload.bts, 'BTS'),
+      hsi: payload.hsi === undefined ? null : assertNumber(payload.hsi, 'HSI'),
+    }
+    if (Object.values(values).every((value) => value === null)) {
+      throw new Error('At least one tracker value is required.')
     }
 
     const spreadsheetId = Deno.env.get('PERFORMANCE_SPREADSHEET_ID') ?? DEFAULT_SPREADSHEET_ID
@@ -188,23 +191,31 @@ Deno.serve(async (req: Request) => {
 
     const rowNumber = rowIndex + 1
     const escapedTitle = sheetTitle.replace(/'/g, "''")
-    const editableRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        valueInputOption: 'USER_ENTERED',
-        data: [
-          { range: `'${escapedTitle}'!C${rowNumber}`, values: [[values.traffic]] },
-          { range: `'${escapedTitle}'!I${rowNumber}`, values: [[values.accessoryRevenue]] },
-          { range: `'${escapedTitle}'!N${rowNumber}:P${rowNumber}`, values: [[values.vl, values.bts, values.hsi]] },
-        ],
-      }),
-    })
-    const editableResult = await editableRes.json()
-    if (!editableRes.ok) throw new Error(googleErrorMessage(editableResult, 'Google Sheets update failed.'))
+    const editableData = [
+      values.traffic === null ? null : { range: `'${escapedTitle}'!C${rowNumber}`, values: [[values.traffic]] },
+      values.accessoryRevenue === null ? null : { range: `'${escapedTitle}'!I${rowNumber}`, values: [[values.accessoryRevenue]] },
+      values.vl === null ? null : { range: `'${escapedTitle}'!N${rowNumber}`, values: [[values.vl]] },
+      values.bts === null ? null : { range: `'${escapedTitle}'!O${rowNumber}`, values: [[values.bts]] },
+      values.hsi === null ? null : { range: `'${escapedTitle}'!P${rowNumber}`, values: [[values.hsi]] },
+    ].filter((item): item is { range: string; values: number[][] } => Boolean(item))
+
+    let editableRanges: string[] = []
+    if (editableData.length > 0) {
+      const editableRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          valueInputOption: 'USER_ENTERED',
+          data: editableData,
+        }),
+      })
+      const editableResult = await editableRes.json()
+      if (!editableRes.ok) throw new Error(googleErrorMessage(editableResult, 'Google Sheets update failed.'))
+      editableRanges = editableResult.responses?.map((item: { updatedRange?: string }) => item.updatedRange).filter(Boolean) ?? []
+    }
 
     let netRevenueWarning = ''
     let netRevenueRange = ''
@@ -232,7 +243,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const editableRanges = editableResult.responses?.map((item: { updatedRange?: string }) => item.updatedRange).filter(Boolean) ?? []
     const updatedRange = [...editableRanges, netRevenueRange].filter(Boolean).join(', ')
 
     return json({
