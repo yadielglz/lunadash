@@ -160,6 +160,10 @@ async function fetchSnapshotRows() {
     }
   }
 
+  if (liveRows.length === 0 || !liveTotal) {
+    throw new Error('Performance sheet CSV did not include any valid stores and a Total row. Snapshot was not saved.')
+  }
+
   return { liveRows, liveTotal }
 }
 
@@ -239,6 +243,10 @@ Deno.serve(async (req: Request) => {
       ...(liveTotal ? [{ storeId: 'main', row: liveTotal }] : []),
       ...liveRows.map((row) => ({ storeId: normalizeStoreId(row.storeCode), row })),
     ]
+
+    if (!liveTotal || targets.some(({ storeId }) => storeId !== 'main' && !isValidStoreCode(storeId))) {
+      throw new Error('Performance sheet did not contain a complete, valid store set. Snapshot was not saved.')
+    }
 
     const existingGoals = (goals ?? []) as SnapshotGoal[]
     const updates = targets.flatMap(({ storeId, row }) => (

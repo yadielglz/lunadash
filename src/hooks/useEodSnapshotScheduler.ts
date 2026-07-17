@@ -67,7 +67,12 @@ export function useEodSnapshotScheduler(enabled: boolean) {
               console.warn('Automatic EOD snapshot verification failed', error)
               try {
                 await dbTriggerSupabaseEodSnapshot(true)
-                localStorage.setItem(verificationKey, 'saved')
+                const refreshedStatus = await dbGetEodSnapshotStatus(day)
+                if (refreshedStatus.complete) {
+                  localStorage.setItem(verificationKey, 'saved')
+                } else {
+                  console.warn(`Supabase EOD snapshot fallback finished but ${day} is still incomplete.`, refreshedStatus)
+                }
               } catch (triggerError) {
                 console.warn('Automatic Supabase EOD snapshot fallback failed', triggerError)
               }

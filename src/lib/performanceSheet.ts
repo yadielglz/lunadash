@@ -165,6 +165,10 @@ function parseCsv(text: string): PerformanceData {
     performanceRows.push(liveRow)
   }
 
+  if (performanceRows.length === 0 || !total) {
+    throw new Error('Performance Source CSV did not include any valid stores and a Total row. Snapshot was not saved.')
+  }
+
   return {
     rows: performanceRows,
     total,
@@ -177,6 +181,10 @@ export async function fetchPerformanceData(): Promise<PerformanceData> {
   const res = await fetch(PERFORMANCE_SHEET_CSV_URL)
   if (!res.ok) {
     throw new Error(`Failed to fetch performance Source (${res.status}). Check Google Cloud Services access and network connection.`)
+  }
+  const contentType = res.headers.get('content-type')?.toLowerCase() ?? ''
+  if (contentType.includes('text/html')) {
+    throw new Error('Performance Source returned HTML instead of CSV. Snapshot was not saved.')
   }
   return parseCsv(await res.text())
 }

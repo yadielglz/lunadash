@@ -1270,6 +1270,9 @@ export async function dbForceEodSnapshot(): Promise<{ message: string; updated: 
     ...(source.total ? [{ storeId: 'main', row: source.total }] : []),
     ...source.rows.map((row) => ({ storeId: normalizeStoreId(row.storeCode), row })),
   ]
+  if (!source.total || source.rows.length === 0 || targets.some(({ storeId }) => !validSnapshotStoreId(storeId))) {
+    throw new Error('Performance Source did not contain a complete, valid store set. EOD snapshot was not saved.')
+  }
   const { data: existingRows, error: existingError } = await supabase
     .from('goals')
     .select('*')
@@ -1304,10 +1307,12 @@ export async function dbForceEodSnapshot(): Promise<{ message: string; updated: 
     })
   ))
 
-  if (rows.length > 0) {
-    const { error } = await supabase.from('goals').upsert(rows)
-    throwIfError(error, 'Could not save EOD snapshot')
+  if (rows.length !== targets.length * SNAPSHOT_METRICS.length) {
+    throw new Error('EOD snapshot row count did not match the validated source data.')
   }
+
+  const { error } = await supabase.from('goals').upsert(rows)
+  throwIfError(error, 'Could not save EOD snapshot')
 
   return {
     message: `Successfully saved EOD snapshots for ${snapshotDay}`,
