@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Select, Textarea } from '../../ui/Input'
 import { Modal } from '../../ui/Modal'
+import { EmptyState, ModuleHeader, ModuleSkeleton } from '../../ui/ModulePrimitives'
 import { useUiStore } from '../../../store/uiStore'
 import { getDealerInfo } from '../../../lib/dealers'
 import { normalizeStoreId } from '../../../lib/storeIds'
@@ -273,17 +274,12 @@ export function AppointmentsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="border-b border-[var(--border)] px-4 py-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
-              <CalendarPlus size={18} className="text-[var(--accent)]" />
-              Appointments
-            </h1>
-            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              Calendar view for appointment rows posted to the current store sheet.
-            </p>
-          </div>
+      <ModuleHeader
+        icon={<CalendarPlus size={18} />}
+        eyebrow="Customer pipeline"
+        title="Appointments"
+        description="Plan customer visits, review weekly activation expectations, and keep follow-ups moving."
+        actions={
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" icon={<CalendarPlus size={13} />} onClick={() => openAppointmentFlyout(selectedDate)}>
               New Appointment
@@ -292,8 +288,8 @@ export function AppointmentsPage() {
               Refresh
             </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -433,14 +429,17 @@ export function AppointmentsPage() {
                   </button>
                 ))}
                 {!loading && availableRows.length === 0 && (
-                  <div className="px-3 py-8 text-center text-xs text-[var(--text-tertiary)]">
-                    No available appointment rows found for {selectedWeek}.
-                  </div>
+                  <EmptyState
+                    compact
+                    className="m-3"
+                    icon={<CalendarPlus size={20} />}
+                    title="No appointment updates this week"
+                    description={`New or changed appointment rows for ${selectedWeek} will appear here.`}
+                    action={<Button size="sm" variant="ghost" onClick={() => openAppointmentFlyout(selectedDate)}>Add appointment</Button>}
+                  />
                 )}
                 {loading && (
-                  <div className="px-3 py-8 text-center text-xs text-[var(--text-tertiary)]">
-                    Loading appointment rows...
-                  </div>
+                  <ModuleSkeleton rows={2} className="m-3" />
                 )}
               </div>
             </Card>

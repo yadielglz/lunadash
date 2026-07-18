@@ -1,10 +1,10 @@
 export const APP_META = {
   name: 'LunaDash',
   version: '6.4',
-  build: '26G1720:A',
+  build: 'PRB-26G-18',
   codename: 'Rising-Moon',
   copyright: '© 2025 Glz Tech',
-  supportEmail: 'support@lunawireless.com',
+  supportEmail: 'support@glztech.com',
   updateNotes: [
     'Bug Fixes',
     'New Schedule UI Implemented',

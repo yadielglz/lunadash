@@ -140,7 +140,7 @@ export function FirstLoginOnboarding() {
   }
 
   return (
-    <Modal open onClose={() => undefined} size="lg" className="border-[var(--accent)]/25">
+    <Modal open onClose={() => undefined} size="lg" ariaLabel="Welcome to LunaDash" className="border-[var(--accent)]/25">
       <div className="space-y-6">
         <div className="flex flex-col items-center text-center">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-6 py-4 shadow-sm">
@@ -177,12 +177,13 @@ export function FirstLoginOnboarding() {
               type="button"
               aria-label={`Go to onboarding step ${index + 1}`}
               onClick={() => setStepIndex(index)}
+              aria-current={index === stepIndex ? 'step' : undefined}
               className={`h-2.5 rounded-full transition-all ${index === stepIndex ? 'w-8 bg-[var(--accent)]' : 'w-2.5 bg-[var(--border-strong)]'}`}
             />
           ))}
         </div>
 
-        {error && <p className="text-center text-xs text-red-400">{error}</p>}
+        {error && <p className="text-center text-xs text-red-400" role="alert">{error}</p>}
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
           <Button

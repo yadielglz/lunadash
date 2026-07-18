@@ -69,6 +69,7 @@ function StepPill({ active, complete, label }: { active: boolean; complete: bool
         active ? 'bg-[var(--accent)]' : complete ? 'bg-emerald-400' : 'bg-[var(--surface-3)]'
       }`}
       aria-label={label}
+      aria-current={active ? 'step' : undefined}
       title={label}
     />
   )
@@ -90,6 +91,7 @@ function ChoiceButton({
   return (
     <motion.button
       layout
+      type="button"
       onClick={onClick}
       whileTap={{ scale: 0.98 }}
       className="group w-full min-h-[76px] rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-left transition-colors hover:border-[var(--accent)]/40 hover:bg-[var(--surface-3)]"
@@ -227,7 +229,7 @@ export function DevicesPage() {
 
   return (
     <div className="flex h-full flex-col bg-[var(--bg)]">
-      <div className="border-b border-[var(--border)] bg-[var(--mica)] px-4 pb-3 pt-4">
+      <header className="module-legacy-header border-b border-[var(--border)] bg-[var(--mica)] px-4 pb-3 pt-4">
         <div className="mx-auto flex max-w-5xl flex-col gap-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -290,13 +292,14 @@ export function DevicesPage() {
           {step !== 'result' && (
             <Input
               icon={<Search size={15} />}
+              aria-label={step === 'model' ? 'Search device models' : `Search ${step}s`}
               placeholder={step === 'model' ? 'Search device models...' : `Search ${step}s...`}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           )}
         </div>
-      </div>
+      </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-5">
         <div className="mx-auto max-w-5xl">

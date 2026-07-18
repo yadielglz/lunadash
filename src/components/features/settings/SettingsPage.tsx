@@ -49,6 +49,7 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
             key={choice.value}
             type="button"
             onClick={() => onChange(choice.value as Theme)}
+            aria-pressed={selected}
             className={`group rounded-lg border p-2 text-left transition-colors ${
               selected
                 ? 'border-[var(--accent)] bg-[var(--accent)]/10'
@@ -1442,7 +1443,7 @@ export function SettingsPage() {
   return (
     <div className="flex flex-col sm:flex-row h-full overflow-hidden">
       {/* Sidebar */}
-      <div className="settings-section-nav sm:w-56 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-[var(--border)] flex sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto px-3 py-2 sm:px-2 sm:py-3">
+      <nav aria-label="Settings sections" className="settings-section-nav sm:w-56 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-[var(--border)] flex sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto px-3 py-2 sm:px-2 sm:py-3">
         <div className="relative mb-1 hidden sm:block">
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
           <input
@@ -1459,10 +1460,12 @@ export function SettingsPage() {
         ) : searchedSections.map((s) => (
           <button
             key={s.id}
+            type="button"
             onClick={() => {
               setActive(s.id)
               setSettingsSection(s.id)
             }}
+            aria-current={activeSection === s.id ? 'page' : undefined}
             className={`settings-section-tab relative flex items-center gap-2.5 sm:mx-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left whitespace-nowrap ${
               activeSection === s.id
                 ? 'text-[var(--accent)]'
@@ -1484,7 +1487,7 @@ export function SettingsPage() {
             {active === s.id && <ChevronRight size={12} className="relative z-10 ml-auto opacity-60 hidden sm:block" />}
           </button>
         ))}
-      </div>
+      </nav>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">

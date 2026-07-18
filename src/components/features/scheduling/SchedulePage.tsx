@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { addDays, format, startOfWeek } from 'date-fns'
-import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Camera, Check, ChevronLeft, ChevronRight, Clock, GripVertical, LayoutGrid, Settings, Trash2, Edit2, Save, Store, SlidersHorizontal, Users } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, GripVertical, LayoutGrid, Settings, Trash2, Edit2, Save, Store, SlidersHorizontal, Users } from 'lucide-react'
 import { toPng } from 'html-to-image'
 import { WeeklyGrid } from './WeeklyGrid'
 import { MonthlyCalendar } from './MonthlyCalendar'
@@ -9,6 +9,7 @@ import { Modal } from '../../ui/Modal'
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
 import { Toggle } from '../../ui/Toggle'
+import { EmptyState } from '../../ui/ModulePrimitives'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, type ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, type WeekStartDay } from '../../../store/schedulePreferencesStore'
@@ -861,7 +862,7 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-[var(--bg)] sm:hidden">
       <div className="bg-[var(--bg)]">
-        <div className="border-b border-[var(--border)] px-4 py-4">
+        <header className="module-legacy-header border-b border-[var(--border)] px-4 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
@@ -930,7 +931,7 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
               </button>
             </div>
           )}
-        </div>
+        </header>
 
         {storeId !== 'main' && (
           <div
@@ -1179,6 +1180,7 @@ export function SchedulePage() {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [saveMessage, setSaveMessage] = useState('')
   const [viewOptionsOpen, setViewOptionsOpen] = useState(false)
+  const [configureOpen, setConfigureOpen] = useState(false)
 
   const saveSchedule = async () => {
     if (storeId === 'main') {
@@ -1204,7 +1206,7 @@ export function SchedulePage() {
     <MobileScheduleWeek canChooseScheduleStore={canChooseScheduleStore} />
     <div className="hidden h-full flex-col sm:flex">
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <header className="module-legacy-header px-4 pt-4 pb-3 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-[var(--text)] flex items-center gap-2">
             <Calendar size={18} className="text-[var(--accent)]" />
@@ -1238,19 +1240,24 @@ export function SchedulePage() {
           </div>
           {canChooseScheduleStore && <StorePickerButton className="flex-shrink-0" autoOpen requireSelection />}
           {storeId !== 'main' && canEditSchedule && (
-            <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Settings size={13} />} onClick={() => setSettingsModalOpen(true)}>
-              Settings
-            </Button>
-          )}
-          {storeId !== 'main' && canEditSchedule && (
-            <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Clock size={13} />} onClick={() => setHoursModalOpen(true)}>
-              Hours
-            </Button>
-          )}
-          {storeId !== 'main' && canEditSchedule && (
-            <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<AlertTriangle size={13} />} onClick={() => setExceptionsModalOpen(true)}>
-              Exceptions
-            </Button>
+            <div className="relative flex-shrink-0">
+              <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Settings size={13} />} onClick={() => setConfigureOpen((open) => !open)} aria-expanded={configureOpen}>
+                Configure <ChevronDown size={12} />
+              </Button>
+              {configureOpen && (
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-40 w-52 rounded-lg border border-[var(--border)] bg-[var(--surface-solid)] p-1.5 shadow-[var(--shadow-float)]">
+                  {[
+                    { label: 'Schedule settings', icon: <Settings size={14} />, run: () => setSettingsModalOpen(true) },
+                    { label: 'Store hours', icon: <Clock size={14} />, run: () => setHoursModalOpen(true) },
+                    { label: 'Exceptions', icon: <AlertTriangle size={14} />, run: () => setExceptionsModalOpen(true) },
+                  ].map((item) => (
+                    <button key={item.label} type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]" onClick={() => { item.run(); setConfigureOpen(false) }}>
+                      {item.icon}{item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           {saveMessage && (
             <span className={`hidden md:inline text-xs ${saveState === 'error' ? 'text-red-400' : 'text-[var(--accent)]'}`}>
@@ -1280,7 +1287,9 @@ export function SchedulePage() {
             {(['weekly', 'monthly'] as const).map((v) => (
               <button
                 key={v}
+                type="button"
                 onClick={() => setView(v)}
+                aria-pressed={view === v}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
                   view === v ? 'bg-[var(--accent)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)]'
                 }`}
@@ -1290,17 +1299,19 @@ export function SchedulePage() {
             ))}
           </div>
         </div>
-      </div>
+      </header>
 
       {/* View */}
       <div className="flex-1 overflow-hidden">
         {storeId === 'main' ? (
           <div className="h-full flex items-center justify-center px-4 text-center">
-            <div>
-              <Store size={24} className="mx-auto text-[var(--accent)]" />
-              <p className="mt-3 text-sm font-semibold text-[var(--text)]">Choose a store to edit its schedule.</p>
-              <p className="mt-1 text-xs text-[var(--text-tertiary)]">District and admin schedule views stay scoped to one location.</p>
-            </div>
+            <EmptyState
+              className="w-full max-w-lg"
+              icon={<Store size={22} />}
+              title="Choose a store to edit its schedule"
+              description="District and administrator schedule tools stay scoped to one location so changes never cross store boundaries."
+              action={<StorePickerButton requireSelection />}
+            />
           </div>
         ) : (
           <motion.div

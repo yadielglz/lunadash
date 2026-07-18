@@ -4,6 +4,7 @@ import { Activity, BarChart3, CalendarDays, DollarSign, Package, Smartphone, Tar
 import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
 import { Select } from '../../ui/Input'
+import { EmptyState } from '../../ui/ModulePrimitives'
 import { useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useUiStore } from '../../../store/uiStore'
@@ -341,7 +342,7 @@ export function GoalsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="border-b border-[var(--border)] bg-[var(--app-bg)] px-4 py-4">
+      <header className="module-legacy-header border-b border-[var(--border)] bg-[var(--app-bg)] px-4 py-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -382,7 +383,7 @@ export function GoalsPage() {
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="flex-1 overflow-y-auto p-4">
         {sourceQuery.isLoading && (
@@ -394,13 +395,11 @@ export function GoalsPage() {
         )}
 
         {!sourceQuery.isLoading && !sourceRow && (
-          <Card className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-center">
-            <BarChart3 size={42} className="text-[var(--text-tertiary)]" />
-            <div>
-              <p className="text-sm font-semibold text-[var(--text)]">No selected-store Source row found</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">Check the store number or dealer code for this session.</p>
-            </div>
-          </Card>
+          <EmptyState
+            icon={<BarChart3 size={22} />}
+            title="No performance snapshot found"
+            description="The selected store does not match a Source row. Check its store number or dealer code in Store Details."
+          />
         )}
 
         {sourceRow && (

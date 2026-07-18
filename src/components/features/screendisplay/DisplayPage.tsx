@@ -31,11 +31,11 @@ import {
   type RadarFrame,
 } from '../../../lib/radar'
 
-const MG  = '#007AFF'
-const MG2 = '#5AC8FA'
-const CYAN = '#64D2FF'
-const GREEN = '#30D158'
-const GOLD = '#FFD60A'
+const MG  = '#E86243'
+const MG2 = '#F2A17F'
+const CYAN = '#F2A17F'
+const GREEN = '#8DBA88'
+const GOLD = '#E4B15A'
 const PANEL = 'rgba(255,255,255,0.085)'
 const PANEL_STRONG = 'rgba(255,255,255,0.16)'
 const LINE = 'rgba(255,255,255,0.16)'
@@ -1717,9 +1717,11 @@ export function DisplayPage() {
 
   return (
     <div
-      className="relative w-screen h-screen overflow-hidden cursor-none"
-      style={{ background: '#05060A' }}
+      className="relative h-screen w-screen cursor-none overflow-hidden"
+      style={{ background: '#101820' }}
       onMouseMove={resetHideTimer}
+      role="region"
+      aria-label={`${companyName} store display`}
     >
       {/* Broadcast backdrop */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -1727,16 +1729,17 @@ export function DisplayPage() {
           className="absolute inset-0"
           style={{
             background: [
-              'radial-gradient(circle at 18% 12%, rgba(0,122,255,0.32), transparent 30%)',
-              'radial-gradient(circle at 82% 18%, rgba(48,209,88,0.16), transparent 30%)',
-              'radial-gradient(circle at 52% 105%, rgba(100,210,255,0.18), transparent 42%)',
-              'linear-gradient(180deg, rgba(255,255,255,0.045), transparent 46%)',
+              'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px)',
+              'linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
+              'linear-gradient(145deg, rgba(232,98,67,0.16), transparent 42%)',
+              'linear-gradient(180deg, #17232c 0%, #101820 70%, #0b1217 100%)',
             ].join(', '),
+            backgroundSize: '48px 48px, 48px 48px, auto, auto',
           }}
         />
         <div
           className="absolute inset-x-[-10%] bottom-[-30%] h-[60%] rotate-[-4deg]"
-          style={{ background: 'linear-gradient(90deg, rgba(0,122,255,0.15), rgba(100,210,255,0.1), transparent)', filter: 'blur(44px)' }}
+          style={{ background: 'linear-gradient(90deg, rgba(232,98,67,0.12), rgba(228,177,90,0.07), transparent)', filter: 'blur(44px)' }}
         />
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.76) 100%)' }} />
       </div>
@@ -1774,7 +1777,7 @@ export function DisplayPage() {
             {/* Top bar */}
             <div className="absolute top-3 left-0 right-0 flex items-center justify-between px-5 pointer-events-auto">
               {/* Brand */}
-              <div className="flex items-center gap-2.5 rounded-full border px-3 py-2 shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl" style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}>
+              <div className="flex items-center gap-2.5 rounded-lg border px-3 py-2 shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl" style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}>
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-black"
                   style={{ background: `linear-gradient(135deg, ${MG}, ${CYAN})` }}
@@ -1793,23 +1796,27 @@ export function DisplayPage() {
               {/* Controls */}
               <div className="flex items-center gap-1.5">
                 <button
+                  type="button"
                   onClick={() => setPaused((p) => !p)}
-                  className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-white/[0.70] text-xs transition-colors hover:text-white cursor-auto backdrop-blur-2xl"
+                  className="flex cursor-auto items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs text-white/[0.70] transition-colors hover:text-white backdrop-blur-2xl"
                   style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
                 >
                   {paused ? <Play size={11} /> : <Pause size={11} />}
                   {paused ? 'Resume' : 'Pause'}
                 </button>
                 <button
+                  type="button"
                   onClick={() => isFullscreen ? exitFs() : enterFs()}
-                  className="p-2 rounded-full border text-white/[0.70] hover:text-white transition-colors cursor-auto backdrop-blur-2xl"
+                  className="cursor-auto rounded-lg border p-2 text-white/[0.70] transition-colors hover:text-white backdrop-blur-2xl"
                   style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
+                  aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
                 >
                   {isFullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
                 </button>
                 <button
+                  type="button"
                   onClick={restartDisplay}
-                  className="p-2 rounded-full border text-white/[0.70] hover:text-white transition-colors cursor-auto backdrop-blur-2xl"
+                  className="cursor-auto rounded-lg border p-2 text-white/[0.70] transition-colors hover:text-white backdrop-blur-2xl"
                   style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
                   title={accessMode === 'display' ? 'Reload display' : 'Exit display'}
                 >
@@ -1817,8 +1824,9 @@ export function DisplayPage() {
                 </button>
                 {accessMode === 'display' && (
                   <button
+                    type="button"
                     onClick={logoutDisplay}
-                    className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-white/[0.70] text-xs transition-colors hover:text-white cursor-auto backdrop-blur-2xl"
+                    className="flex cursor-auto items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs text-white/[0.70] transition-colors hover:text-white backdrop-blur-2xl"
                     style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
                     title="Log out"
                   >
@@ -1831,16 +1839,20 @@ export function DisplayPage() {
 
             {/* Side nav arrows */}
             <button
+              type="button"
               onClick={prev}
               className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border p-2.5 text-white/[0.60] hover:text-white transition-all cursor-auto backdrop-blur-2xl"
               style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
+              aria-label="Previous display slide"
             >
               <ChevronLeft size={22} />
             </button>
             <button
+              type="button"
               onClick={next}
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border p-2.5 text-white/[0.60] hover:text-white transition-all cursor-auto backdrop-blur-2xl"
               style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}
+              aria-label="Next display slide"
             >
               <ChevronRight size={22} />
             </button>
@@ -1853,7 +1865,10 @@ export function DisplayPage() {
                   return (
                     <button
                       key={s.key}
+                      type="button"
                       onClick={() => setSlideIdx(i)}
+                      aria-label={`Show ${s.label} slide`}
+                      aria-current={active ? 'true' : undefined}
                       className="flex flex-col items-center gap-1.5 cursor-auto"
                     >
                       <span

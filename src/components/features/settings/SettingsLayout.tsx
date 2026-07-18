@@ -30,7 +30,9 @@ export function Segment<T extends string>({ options, value, onChange }: { option
       {options.map((o) => (
         <button
           key={o.value}
+          type="button"
           onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
           className={`min-w-[4.5rem] flex-1 px-3 py-1.5 text-xs font-medium transition-all rounded-md sm:flex-none ${value === o.value ? 'bg-[var(--accent)] text-white shadow-sm' : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'}`}
         >
           {o.label}

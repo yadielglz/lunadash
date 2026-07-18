@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Select } from '../../ui/Input'
+import { EmptyState, ModuleHeader } from '../../ui/ModulePrimitives'
 import { useScheduleStore, type Employee } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore } from '../../../store/scheduleBlocksStore'
 import {
@@ -329,36 +330,30 @@ export function EmployeesPage() {
   if (employees.length === 0) {
     return (
       <div className="flex h-full items-center justify-center px-4 text-center">
-        <div>
-          <UserRound size={28} className="mx-auto text-[var(--accent)]" />
-          <p className="mt-3 text-sm font-semibold text-[var(--text)]">No employees yet</p>
-          <p className="mt-1 text-xs text-[var(--text-tertiary)]">Add employees from Schedule, then manage profiles here.</p>
-          <Button className="mt-4" size="sm" variant="primary" icon={<CalendarDays size={13} />} onClick={() => setTab('schedule')}>
-            Open Schedule
-          </Button>
-        </div>
+        <EmptyState
+          className="w-full max-w-lg"
+          icon={<UserRound size={22} />}
+          title="No team members yet"
+          description="Add employees from Schedule first, then return here to manage profiles, availability, and performance history."
+          action={<Button size="sm" variant="primary" icon={<CalendarDays size={13} />} onClick={() => setTab('schedule')}>Open Schedule</Button>}
+        />
       </div>
     )
   }
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-[var(--border)] px-4 py-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
-              <UserRound size={18} className="text-[var(--accent)]" />
-              Employees
-            </h1>
-            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Profiles, schedule preferences, and sales NR tracking.</p>
-          </div>
-          {message && <div className="text-xs font-medium text-[var(--accent)]">{message}</div>}
-        </div>
-      </div>
+      <ModuleHeader
+        icon={<UserRound size={18} />}
+        eyebrow="People and availability"
+        title="Team"
+        description="Manage profiles, scheduling preferences, commission history, and recent sales activity."
+        meta={message ? <span className="font-medium text-[var(--accent)]" role="status">{message}</span> : undefined}
+      />
 
-      <div className="grid flex-1 overflow-hidden lg:grid-cols-[280px_1fr]">
-        <aside className="border-b border-[var(--border)] p-3 lg:border-b-0 lg:border-r">
-          <div className="space-y-1.5">
+      <div className="grid flex-1 overflow-y-auto lg:grid-cols-[280px_1fr] lg:overflow-hidden">
+        <aside className="employee-selector border-b border-[var(--border)] p-3 lg:border-b-0 lg:border-r">
+          <div className="employee-selector-list">
             {employees.map((employee) => {
               const active = selectedEmployee?.id === employee.id
               const employeeTotal = sales
@@ -389,7 +384,7 @@ export function EmployeesPage() {
         </aside>
 
         {selectedEmployee && draftPreference && (
-          <main className="overflow-auto p-4">
+          <main className="overflow-visible p-4 lg:overflow-auto">
             <div className="grid gap-4 xl:grid-cols-[1fr_1.15fr]">
               <div className="space-y-4">
                 <Card className="space-y-4">

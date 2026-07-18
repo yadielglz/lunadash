@@ -9,6 +9,7 @@ import { format } from 'date-fns'
 import { Input } from '../../ui/Input'
 import { Card } from '../../ui/Card'
 import { Button } from '../../ui/Button'
+import { EmptyState, InlineNotice, ModuleHeader } from '../../ui/ModulePrimitives'
 import { getStoreWeatherLocation } from '../../../config/storeWeather'
 import { type Theme, useUiStore } from '../../../store/uiStore'
 import {
@@ -237,10 +238,12 @@ export function WeatherPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-[var(--border)]">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <h1 className="text-xl font-semibold text-[var(--text)]">🌤️ Weather</h1>
+      <ModuleHeader
+        icon={<Radar size={18} />}
+        eyebrow="Local conditions"
+        title="Weather"
+        description="Review current conditions, short-range radar, and the seven-day outlook for the selected location."
+        actions={
           <div className="flex items-center gap-2">
             <Button
               size="sm"
@@ -254,14 +257,15 @@ export function WeatherPage() {
             {/* °F / °C toggle */}
             <button
               onClick={toggleTempUnit}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-pill border border-[var(--border)] bg-[var(--surface-2)] text-sm font-semibold text-[var(--accent)] hover:bg-[var(--surface-3)] hover:border-[var(--accent)]/40 transition-colors"
+              className="flex h-8 items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-sm font-semibold text-[var(--accent)] transition-colors hover:border-[var(--accent)]/40 hover:bg-[var(--surface-3)]"
               title="Toggle temperature unit"
             >
               <Thermometer size={13} />
               {unit}
             </button>
           </div>
-        </div>
+        }
+      >
         {storeWeatherLocation ? (
           <div className="inline-flex max-w-full items-center gap-2 rounded-lg border border-[var(--accent)]/25 bg-[var(--accent)]/10 px-3 py-2 text-sm text-[var(--text)]">
             <MapPin size={14} className="text-[var(--accent)]" />
@@ -317,21 +321,23 @@ export function WeatherPage() {
           </div>
         )}
         {locationError && (
-          <p className="mt-2 text-xs text-red-400">{locationError}</p>
+          <InlineNotice className="mt-2" tone="danger">{locationError}</InlineNotice>
         )}
         {location.source === 'default' && !location.name.startsWith('Store ') && (
           <p className="mt-2 text-xs text-[var(--text-secondary)]">
             Using Haines City until GeoIP finishes or you pick a store weather point.
           </p>
         )}
-      </div>
+      </ModuleHeader>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {isError && !data && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <span className="text-5xl">📡</span>
-            <p className="text-sm text-[var(--text-secondary)]">Enable location or search for a city above</p>
-          </div>
+          <EmptyState
+            icon={<Radar size={22} />}
+            title="Weather data is unavailable"
+            description="Choose a store weather point, search for a city, or allow device location to load local conditions."
+            action={<Button size="sm" variant="secondary" icon={<LocateFixed size={12} />} loading={locating} onClick={locateDevice}>Use device location</Button>}
+          />
         )}
 
         {isLoading && (

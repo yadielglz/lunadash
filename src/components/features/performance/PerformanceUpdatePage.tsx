@@ -1,6 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import {
-  AlertCircle,
   Calculator,
   CheckCircle2,
   DollarSign,
@@ -15,6 +14,7 @@ import {
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Select } from '../../ui/Input'
+import { EmptyState, InlineNotice, ModuleHeader, WorkflowSteps } from '../../ui/ModulePrimitives'
 import { fetchPerformanceData, formatMoney, formatNumber, type PerformanceRow } from '../../../lib/performanceSheet'
 import { updatePerformanceSheet } from '../../../lib/performanceUpdate'
 import { useUiStore } from '../../../store/uiStore'
@@ -429,9 +429,12 @@ export function PerformanceUpdatePage() {
   if (!canUpdate) {
     return (
       <div className="flex h-full items-center justify-center p-4">
-        <Card className="max-w-md text-sm text-[var(--text-secondary)]">
-          Performance updates are available to manager sessions and up.
-        </Card>
+        <EmptyState
+          className="w-full max-w-lg"
+          icon={<UploadCloud size={22} />}
+          title="Manager access required"
+          description="Performance updates are available to manager, district manager, and administrator sessions."
+        />
       </div>
     )
   }
@@ -440,22 +443,18 @@ export function PerformanceUpdatePage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="border-b border-[var(--border)] px-4 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
-              <UploadCloud size={18} className="text-[var(--accent)]" />
-              Performance Update
-            </h1>
-            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              Add sales activity or make a controlled tracker adjustment for the selected store.
-            </p>
-          </div>
+      <ModuleHeader
+        icon={<UploadCloud size={18} />}
+        eyebrow="Controlled tracker entry"
+        title="Data Updates"
+        description="Select a store, enter sales activity, review calculated totals, and post a verified update."
+        actions={
           <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={loadData} loading={loading}>
             Refresh
           </Button>
-        </div>
-      </div>
+        }
+      />
+      <WorkflowSteps steps={['Select store', 'Enter activity', 'Review and post']} current={message ? 2 : selectedRow ? 1 : 0} />
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)]">
@@ -466,7 +465,7 @@ export function PerformanceUpdatePage() {
                 <Input className="pl-8" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search stores" />
               </div>
             </div>
-            <div className="max-h-[calc(100vh-15rem)] overflow-y-auto">
+            <div className="max-h-72 overflow-y-auto xl:max-h-[calc(100vh-15rem)]">
               {visibleRows.map((row) => {
                 const dealer = dealerInfoForRow(row)
                 const selected = normalizeStoreId(row.storeCode) === normalizeStoreId(selectedStoreCode)
@@ -669,19 +668,9 @@ export function PerformanceUpdatePage() {
             </Card>
 
             {(error || message) && (
-              <div className={`rounded-lg border px-3 py-2 text-sm ${error ? 'border-red-500/25 bg-red-500/10 text-red-300' : 'border-green-500/25 bg-green-500/10 text-green-300'}`}>
-                {error ? (
-                  <p className="flex items-center gap-1.5">
-                    <AlertCircle size={13} />
-                    {error}
-                  </p>
-                ) : (
-                  <p className="flex items-center gap-1.5">
-                    <CheckCircle2 size={13} />
-                    {message}
-                  </p>
-                )}
-              </div>
+              <InlineNotice tone={error ? 'danger' : 'success'} title={error ? 'Update could not be posted' : 'Update posted'}>
+                {error || message}
+              </InlineNotice>
             )}
           </div>
         </div>

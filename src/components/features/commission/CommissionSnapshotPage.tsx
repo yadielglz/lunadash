@@ -25,6 +25,7 @@ import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Select, Textarea } from '../../ui/Input'
 import { Modal } from '../../ui/Modal'
+import { EmptyState } from '../../ui/ModulePrimitives'
 import { useCommissionSnapshotStore, type CommissionSnapshot } from '../../../store/commissionSnapshotStore'
 import { useUiStore } from '../../../store/uiStore'
 import { useScheduleStore, type Employee } from '../../../store/scheduleStore'
@@ -1106,7 +1107,7 @@ export function CommissionSnapshotPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="border-b border-[var(--border)] bg-[var(--app-bg)] px-4 py-4">
+      <header className="module-legacy-header border-b border-[var(--border)] bg-[var(--app-bg)] px-4 py-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1181,7 +1182,7 @@ export function CommissionSnapshotPage() {
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -1368,13 +1369,11 @@ export function CommissionSnapshotPage() {
         )}
 
           {visibleSnapshots.length === 0 && (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-16 text-center">
-              <CalendarDays size={36} className="mx-auto text-[var(--text-tertiary)]" />
-              <div className="mt-3 text-sm font-semibold text-[var(--text)]">No commission snapshot for this date</div>
-              <div className="mt-1 text-xs text-[var(--text-secondary)]">
-                {canEdit ? 'Add one rep or create rows for the full team.' : 'Check back after Admin or District Manager enters the board.'}
-              </div>
-              {canEdit && commissionableEmployees.length > 0 && (
+            <EmptyState
+              icon={<CalendarDays size={22} />}
+              title="No commission snapshot for this date"
+              description={canEdit ? 'Create one row or add the full eligible team to begin today’s board.' : 'A manager has not published the commission board for this date yet.'}
+              action={canEdit && commissionableEmployees.length > 0 ? (
                 <div className="mt-4 flex justify-center gap-2">
                   <Button variant="accent" icon={<Target size={15} />} onClick={openGoalModal}>
                     Store Goals
@@ -1386,8 +1385,8 @@ export function CommissionSnapshotPage() {
                     Add Row
                   </Button>
                 </div>
-              )}
-            </div>
+              ) : undefined}
+            />
           )}
       </div>
 

@@ -4,6 +4,7 @@ import { AlertTriangle, Camera, CarFront, ExternalLink, RefreshCw, TrafficCone, 
 import { formatDistanceToNow } from 'date-fns'
 import { Card } from '../../ui/Card'
 import { Button } from '../../ui/Button'
+import { InlineNotice, ModuleHeader } from '../../ui/ModulePrimitives'
 import { useWeather } from '../../../hooks/useWeather'
 import { type Theme, useUiStore } from '../../../store/uiStore'
 import {
@@ -404,12 +405,13 @@ export function TrafficPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-[var(--border)] px-4 pb-3 pt-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-[var(--text)]">Traffic</h1>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">{location.name}</p>
-          </div>
+      <ModuleHeader
+        icon={<CarFront size={18} />}
+        eyebrow="Road conditions"
+        title="Traffic"
+        description="Monitor nearby incidents, camera freshness, and current traffic flow around the selected store."
+        meta={<span>{location.name}</span>}
+        actions={
           <Button
             size="sm"
             variant="ghost"
@@ -419,21 +421,13 @@ export function TrafficPage() {
           >
             Refresh
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid flex-1 gap-4 overflow-y-auto p-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
         <div className="space-y-4">
           {tomTomError && (
-            <Card className="border-amber-500/25 bg-amber-500/10">
-              <div className="flex gap-3">
-                <AlertTriangle size={18} className="mt-0.5 flex-shrink-0 text-amber-400" />
-                <div>
-                  <p className="text-sm font-semibold text-[var(--text)]">Traffic data needs attention</p>
-                  <p className="mt-1 text-xs text-[var(--text-secondary)]">{tomTomError}</p>
-                </div>
-              </div>
-            </Card>
+            <InlineNotice tone="warning" title="Traffic data needs attention">{tomTomError}</InlineNotice>
           )}
           <TrafficSignalGrid events={events} loading={tomTomConfigured && eventsLoading} />
           <TrafficMap

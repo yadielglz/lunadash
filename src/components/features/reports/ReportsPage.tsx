@@ -3,6 +3,7 @@ import { FileText, Printer, RefreshCw } from 'lucide-react'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Select } from '../../ui/Input'
+import { EmptyState, InlineNotice, ModuleHeader } from '../../ui/ModulePrimitives'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useDisplayStore } from '../../../store/displayStore'
 import { useUiStore } from '../../../store/uiStore'
@@ -463,15 +464,12 @@ export function ReportsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="border-b border-[var(--border)] px-4 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
-              <FileText size={18} className="text-[var(--accent)]" />
-              Reports
-            </h1>
-            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Preview, print, and refresh store reports.</p>
-          </div>
+      <ModuleHeader
+        icon={<FileText size={18} />}
+        eyebrow="Review and export"
+        title="Reports"
+        description="Choose a reporting view, verify the latest snapshot, and prepare a print-ready document."
+        actions={
           <div className="flex flex-wrap gap-2">
             {mode !== 'commission' && (
               <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} loading={snapshotRunning} onClick={forceSnapshot}>
@@ -482,10 +480,10 @@ export function ReportsPage() {
               Print Preview
             </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="grid flex-1 overflow-hidden xl:grid-cols-[20rem_minmax(0,1fr)]">
+      <div className="grid flex-1 overflow-y-auto xl:grid-cols-[20rem_minmax(0,1fr)] xl:overflow-hidden">
         <aside className="border-b border-[var(--border)] p-4 xl:border-b-0 xl:border-r">
           <div className="space-y-4">
             <Card className="space-y-3">
@@ -515,13 +513,13 @@ export function ReportsPage() {
                   ? (commissionReport.latestUpdate ? `Last updated ${formatReportDateTime(commissionReport.latestUpdate)}` : 'No commission dashboard saved yet.')
                   : selectedMonth ? monthLabel(selectedMonth) : 'Select a month to begin.'}
               </div>
-              {message && <p className="mt-3 text-xs text-[var(--accent)]">{message}</p>}
-              {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
+              {message && <InlineNotice className="mt-3" tone="success">{message}</InlineNotice>}
+              {error && <InlineNotice className="mt-3" tone="danger">{error}</InlineNotice>}
             </Card>
           </div>
         </aside>
 
-        <main className="overflow-auto bg-[var(--surface-2)] p-4">
+        <main className="overflow-visible bg-[var(--surface-2)] p-4 xl:overflow-auto">
           <div className="mx-auto max-w-6xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
@@ -539,7 +537,12 @@ export function ReportsPage() {
               {previewHtml ? (
                 <iframe ref={previewRef} title="Report preview" srcDoc={previewHtml} className="h-[calc(100vh-13rem)] w-full bg-white" />
               ) : (
-                <div className="flex h-[32rem] items-center justify-center text-sm text-slate-500">No report preview yet.</div>
+                <EmptyState
+                  className="m-4 h-[30rem]"
+                  icon={<FileText size={22} />}
+                  title="No report preview yet"
+                  description="Choose a report and an available month. The printable preview will appear here when its snapshot is ready."
+                />
               )}
             </div>
           </div>

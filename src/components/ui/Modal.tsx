@@ -10,9 +10,10 @@ interface ModalProps {
   children: ReactNode
   className?: string
   size?: 'sm' | 'md' | 'lg' | 'full'
+  ariaLabel?: string
 }
 
-export function Modal({ open, onClose, title, children, className, size = 'md' }: ModalProps) {
+export function Modal({ open, onClose, title, children, className, size = 'md', ariaLabel }: ModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -59,7 +60,7 @@ export function Modal({ open, onClose, title, children, className, size = 'md' }
             role="dialog"
             aria-modal="true"
             aria-labelledby={title ? titleId : undefined}
-            aria-label={title ? undefined : 'Dialog'}
+            aria-label={title ? undefined : (ariaLabel ?? 'Dialog')}
             tabIndex={-1}
             className="absolute inset-0 bg-black/35 backdrop-blur-md"
             onClick={onClose}

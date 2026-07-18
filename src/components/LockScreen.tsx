@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Delete } from 'lucide-react'
 import { useLockStore, hashPin } from '../store/lockStore'
+import { LunaWirelessLogo } from './brand/LunaWirelessLogo'
 
 const PAD = [
   ['1', '2', '3'],
@@ -93,16 +94,16 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
     : 'fixed inset-0 z-[999] bg-[var(--bg)] flex flex-col items-center justify-center'
 
   return (
-    <div className={wrapperClass}>
+    <div className={`${wrapperClass} lock-screen`} role="region" aria-label="Protected area">
       <motion.div
         animate={shake ? { x: [-12, 12, -10, 10, -6, 6, 0] } : { x: 0 }}
         transition={{ duration: 0.5 }}
-        className="flex flex-col items-center gap-8 relative"
+        className="relative flex flex-col items-center gap-7 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-8 py-9 shadow-[var(--shadow-float)]"
       >
         {/* Logo */}
         <div className="flex flex-col items-center gap-3">
-          <div className="w-16 h-16 rounded-xl bg-[var(--accent)] flex items-center justify-center">
-            <span className="text-white text-3xl font-bold">L</span>
+          <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-[var(--border)] bg-white shadow-sm">
+            <LunaWirelessLogo tone="light-surface" className="h-12 w-12" />
           </div>
           <div className="text-center">
             <p className="text-[var(--text)] text-lg font-semibold">Luna Dashboard</p>
@@ -111,7 +112,7 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
         </div>
 
         {/* Dot indicators */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" aria-label={`${input.length} of 4 PIN digits entered`}>
           {[0, 1, 2, 3].map((i) => (
             <motion.div
               key={i}
@@ -132,6 +133,7 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               className="flex flex-col items-center gap-1 absolute -bottom-10"
+              role="alert"
             >
               <p className="text-red-400 text-sm">Too many attempts</p>
               <p className="text-[var(--text-secondary)] text-xs">Try again in {countdown}s</p>
@@ -143,6 +145,7 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               className="text-red-400 text-sm absolute -bottom-6"
+              role="alert"
             >
               {error}
             </motion.p>
@@ -156,9 +159,11 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
             return (
               <motion.button
                 key={key}
+                type="button"
                 onClick={() => handlePress(key)}
                 whileTap={!isLockedOut ? { scale: 0.88 } : {}}
                 disabled={isLockedOut}
+                aria-label={key === '⌫' ? 'Delete PIN digit' : `PIN digit ${key}`}
                 className={`w-16 h-16 rounded-xl flex items-center justify-center font-semibold text-xl transition-colors ${
                   isLockedOut
                     ? 'opacity-30 cursor-not-allowed bg-[var(--surface)] text-[var(--text-tertiary)]'

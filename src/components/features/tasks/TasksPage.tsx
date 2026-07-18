@@ -254,7 +254,7 @@ export function TasksPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="border-b border-[var(--border)] bg-[var(--surface)] px-4 py-4 sm:px-6 sm:py-5">
+      <header className="module-legacy-header border-b border-[var(--border)] bg-[var(--surface)] px-4 py-4 sm:px-6 sm:py-5">
         <div className="ops-strip rounded-lg px-3 py-3 space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -316,7 +316,9 @@ export function TasksPage() {
           {(['all', ...CATEGORY_ORDER] as const).map((f) => (
             <button
               key={f}
+              type="button"
               onClick={() => setFilter(f)}
+              aria-pressed={filter === f}
               className={`relative h-7 rounded-md border px-3 text-xs font-medium transition-all capitalize ${
                 filter === f
                   ? 'border-[var(--accent)]/35 text-[var(--accent)]'
@@ -337,7 +339,7 @@ export function TasksPage() {
           ))}
         </div>
         </div>
-      </div>
+      </header>
 
       {/* Task list */}
       <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-4">
