@@ -24,9 +24,9 @@ import { RemoteSection } from './RemoteSection'
 
 function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Theme) => void }) {
   const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string; accents: string[] }[] = [
-    { value: 'dark', label: 'Luna Dark', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#08090d,#17191f_58%,#007aff)]', accents: ['#007aff', '#34c759'] },
-    { value: 'light', label: 'Luna Light', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#fbfbfd,#f2f2f7_55%,#007aff)]', accents: ['#007aff', '#15803d'] },
-    { value: 'mac', label: 'Mac Glass', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#f8fafc,#dbeafe_45%,#f5d0fe)]', accents: ['#007aff', '#34c759'] },
+    { value: 'dark', label: 'Night Shift', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#11171d,#202b34_58%,#de5838)]', accents: ['#de5838', '#d49431'] },
+    { value: 'light', label: 'Warm Paper', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#fffdf9,#eeeae2_55%,#de5838)]', accents: ['#de5838', '#d49431'] },
+    { value: 'mac', label: 'Luna Paper', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#fffdf9,#ebe7df_58%,#de5838)]', accents: ['#de5838', '#d49431'] },
     { value: 'vista', label: 'Vista Aero', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#162b4d,#5c7fb5_55%,#d8ecff)]', accents: ['#0a64ad', '#5c7fb5'] },
     { value: 'carbon', label: 'Carbon Teal', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#090b0b,#1f2d2a_55%,#2dd4bf)]', accents: ['#2dd4bf', '#f59e0b'] },
     { value: 'graphite', label: 'Graphite', icon: <CircleDot size={14} />, preview: 'bg-[linear-gradient(135deg,#0c0d10,#24272f_56%,#38bdf8)]', accents: ['#38bdf8', '#f97316'] },
@@ -41,7 +41,7 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
   ]
 
   return (
-    <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid w-full max-w-full grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
       {choices.map((choice) => {
         const selected = value === choice.value
         return (
@@ -88,7 +88,7 @@ function GeneralSection() {
   const { theme, setTheme, timeFormat, setTimeFormat, tempUnit, toggleTempUnit, uiScale, setUiScale } = useUiStore()
   return (
     <Section icon={<Clock size={14} />} title="General">
-      <Row label="Theme & Accent" description="Each theme includes its own accent colors across the app">
+      <Row layout="stacked" label="Theme & Accent" description="Each theme includes its own accent colors across the app">
         <ThemePicker value={theme} onChange={setTheme} />
       </Row>
       <Row label="App Zoom" description="Increase dashboard size on larger displays">

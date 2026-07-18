@@ -1618,3 +1618,475 @@ body::after {
   50% { transform: translateY(-4px); }
 }
 .float-anim { animation: float 3s ease-in-out infinite; }
+
+/* ============================================================
+   LUNADASH PRODUCT SYSTEM — RETAIL OPERATIONS CONSOLE
+   ============================================================ */
+:root {
+  --font-display: 'Avenir Next', 'Segoe UI Variable Display', 'SF Pro Display', system-ui, sans-serif;
+  --font-text: 'Inter', 'Segoe UI Variable Text', 'SF Pro Text', system-ui, sans-serif;
+  --accent: #de5838;
+  --accent-hover: #c9482c;
+  --accent-light: #fff0eb;
+  --accent-secondary: #d49431;
+  --accent-glow: rgba(222, 88, 56, 0.18);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --shadow-card: 0 1px 2px rgba(31, 37, 45, 0.05), 0 8px 24px rgba(31, 37, 45, 0.05);
+  --shadow-float: 0 2px 4px rgba(31, 37, 45, 0.06), 0 20px 48px rgba(31, 37, 45, 0.12);
+  --shadow-modal: 0 4px 12px rgba(14, 20, 28, 0.14), 0 32px 80px rgba(14, 20, 28, 0.24);
+}
+
+:root,
+.dark {
+  --bg: #11171d;
+  --bg-gradient: linear-gradient(135deg, #141b22 0%, #0e141a 58%, #111820 100%);
+  --surface: #182129;
+  --surface-2: #202b34;
+  --surface-3: #293640;
+  --surface-solid: #182129;
+  --surface-2-solid: #202b34;
+  --sidebar-bg: #10171d;
+  --command-bg: rgba(17, 24, 30, 0.96);
+  --border: rgba(229, 235, 238, 0.11);
+  --border-strong: rgba(229, 235, 238, 0.2);
+  --text: #f3f0ea;
+  --text-secondary: #aeb8bc;
+  --text-tertiary: #718087;
+  --input-bg: #11191f;
+  --reveal-bg: rgba(255, 255, 255, 0.055);
+  --wallpaper-overlay: rgba(10, 15, 19, 0.54);
+}
+
+.light,
+.mac {
+  --bg: #eeeae2;
+  --bg-gradient: linear-gradient(135deg, #f7f4ee 0%, #ebe7df 62%, #e6e1d7 100%);
+  --surface: #fffdf9;
+  --surface-2: #f5f1ea;
+  --surface-3: #ebe5dc;
+  --surface-solid: #fffdf9;
+  --surface-2-solid: #f7f3ec;
+  --sidebar-bg: #17232c;
+  --command-bg: rgba(255, 253, 249, 0.94);
+  --border: rgba(49, 57, 62, 0.13);
+  --border-strong: rgba(49, 57, 62, 0.23);
+  --text: #20282d;
+  --text-secondary: #5c686e;
+  --text-tertiary: #8b9497;
+  --input-bg: #fffefa;
+  --reveal-bg: rgba(31, 42, 48, 0.055);
+  --wallpaper-overlay: rgba(244, 240, 233, 0.68);
+}
+
+html {
+  font-family: var(--font-text);
+  letter-spacing: -0.006em;
+}
+
+body {
+  background: var(--bg);
+}
+
+h1,
+h2,
+h3,
+.command-page-title,
+.command-nav > div:first-child {
+  font-family: var(--font-display);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+:where(button, a, input, select, textarea, [role='button']):focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.6rem;
+  left: 0.6rem;
+  z-index: 999;
+  transform: translateY(-160%);
+  border-radius: var(--radius-md);
+  background: var(--text);
+  padding: 0.65rem 0.9rem;
+  color: var(--bg);
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: transform var(--transition-fast);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.app-command-shell {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--border) 24%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border) 24%, transparent) 1px, transparent 1px),
+    var(--bg-gradient);
+  background-size: 32px 32px, 32px 32px, auto;
+}
+
+.app-command-shell > aside {
+  border-color: rgba(255, 255, 255, 0.075) !important;
+  background: var(--sidebar-bg) !important;
+  box-shadow: 12px 0 32px rgba(10, 18, 24, 0.08);
+}
+
+.command-bar {
+  min-height: calc(4rem + max(var(--safe-area-top), 0px));
+  border-color: var(--border);
+  background: var(--command-bg);
+  padding: calc(0.65rem + max(var(--safe-area-top), 0px)) 1.25rem 0.65rem;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 28px rgba(31, 37, 42, 0.045);
+  backdrop-filter: blur(18px);
+}
+
+.command-bar-title::before {
+  width: 3px;
+  height: 2rem;
+  flex: 0 0 auto;
+  border-radius: 99px;
+  background: var(--accent);
+  content: '';
+}
+
+.command-page-title > div:first-child {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.command-chip,
+.command-icon-button,
+.command-nav-toggle {
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+.command-chip {
+  min-height: 2.25rem;
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+.light .command-chip,
+.mac .command-chip {
+  background: #faf7f1;
+}
+
+.command-chip:hover,
+.command-nav-toggle:hover {
+  transform: none;
+}
+
+.command-nav {
+  color: #aeb9be;
+}
+
+.command-nav .luna-logo-badge {
+  border: 0;
+  background: #fff !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.command-nav > div:first-child > div:last-child > div:first-child {
+  color: #f6f3ed !important;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.command-nav > div:first-child > div:last-child > div:last-child {
+  color: #788991 !important;
+}
+
+.command-nav-toggle {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.04);
+  color: #91a0a7;
+}
+
+.command-nav-list {
+  padding-right: 0.2rem;
+}
+
+.command-nav-group + .command-nav-group {
+  margin-top: 1rem;
+}
+
+.command-nav-group-label {
+  margin: 0 0.55rem 0.35rem;
+  color: #667981;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.command-nav-item {
+  min-height: 3.15rem;
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.55rem;
+  color: #aeb9be;
+}
+
+.command-nav-item:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.055);
+  color: #fffdf8;
+  transform: none;
+}
+
+.command-nav-item-active {
+  border-color: rgba(245, 117, 84, 0.22);
+  background: rgba(222, 88, 56, 0.14);
+  color: #fff8f4;
+  box-shadow: inset 3px 0 #ec6a49;
+}
+
+.command-nav-icon,
+.command-nav-item-active .command-nav-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 7px;
+  background: transparent;
+}
+
+.command-nav-item-active .command-nav-icon {
+  color: #ff8a69;
+}
+
+.ops-surface,
+.today-hero-card,
+.today-metric {
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: none;
+}
+
+.ops-panel {
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.ops-strip {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, var(--surface-2)), var(--surface-2) 62%);
+  box-shadow: none;
+}
+
+.today-page {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 1.25rem;
+}
+
+.today-hero {
+  gap: 1.25rem;
+  padding: 0.75rem 0 1.25rem;
+}
+
+.today-hero h1 {
+  max-width: 16ch;
+  font-size: clamp(2rem, 3.3vw, 3.4rem);
+  font-weight: 650;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.today-hero-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.today-hero-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--accent);
+  content: '';
+}
+
+.today-grid {
+  gap: 1.25rem;
+  padding-top: 1.25rem;
+}
+
+.today-metric {
+  min-height: 8.3rem;
+  border-radius: var(--radius-lg);
+}
+
+.app-command-shell main h1:not(.today-hero h1) {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.app-command-shell main h2,
+.app-command-shell main h3 {
+  letter-spacing: -0.015em;
+}
+
+.store-launch-screen {
+  background: #e8e2d8;
+}
+
+.store-launch-screen > div:first-child {
+  background-color: #e8e2d8 !important;
+  background-image:
+    linear-gradient(rgba(33, 45, 51, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(33, 45, 51, 0.055) 1px, transparent 1px),
+    linear-gradient(135deg, #f3efe7, #e2ddd2) !important;
+  background-size: 36px 36px, 36px 36px, auto !important;
+}
+
+.store-launch-panel {
+  border-radius: var(--radius-xl) !important;
+  border-color: rgba(33, 45, 51, 0.15) !important;
+  box-shadow: 0 32px 90px rgba(38, 45, 49, 0.16) !important;
+}
+
+.store-launch-panel > section:first-child {
+  position: relative;
+  background: #17232c !important;
+  color: #f7f2e9;
+}
+
+.store-launch-panel > section:first-child::after {
+  position: absolute;
+  right: 2rem;
+  bottom: 7.2rem;
+  width: 8rem;
+  height: 8rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  content: '';
+  box-shadow: 0 0 0 2rem rgba(255, 255, 255, 0.025), 0 0 0 4rem rgba(255, 255, 255, 0.018);
+  pointer-events: none;
+}
+
+.store-launch-panel > section:first-child h1 {
+  color: #fffaf2 !important;
+  font-size: clamp(2.4rem, 4vw, 4rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.store-launch-panel > section:first-child p {
+  color: #9cabb1 !important;
+}
+
+.store-launch-panel > section:first-child > div:last-child > div {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+}
+
+.store-launch-panel > section:first-child > div:last-child > div > div:last-child {
+  color: #f5f0e8 !important;
+}
+
+.login-card {
+  background: #fffdf9;
+}
+
+.login-card input,
+.login-card select {
+  background: #faf7f1;
+}
+
+.dashboard-loader {
+  background: var(--bg-gradient);
+}
+
+.dashboard-loader-orb {
+  width: 116px;
+  height: 116px;
+}
+
+.dashboard-loader-ring {
+  border-style: dashed;
+  opacity: 0.65;
+}
+
+.dashboard-loader-logo {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.animate-pulse {
+  animation-duration: 1.8s;
+}
+
+@media (max-width: 1023px) {
+  .command-mobile-drawer {
+    background: #17232c !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .command-bar {
+    min-height: calc(3.75rem + max(var(--safe-area-top), 0px));
+    padding-inline: 0.75rem;
+  }
+
+  .command-bar-title::before {
+    display: none;
+  }
+
+  .command-bar-actions > .command-chip:not(.command-chip-time) {
+    display: none;
+  }
+
+  .command-bar-title {
+    max-width: none;
+  }
+
+  .command-page-title {
+    max-width: 7rem;
+  }
+
+  .today-page {
+    padding: 0.9rem;
+  }
+
+  .today-hero {
+    padding-top: 0.35rem;
+  }
+
+  .today-hero h1 {
+    font-size: 2.15rem;
+  }
+
+  .store-launch-screen {
+    background: #fffdf9;
+    padding: 0 !important;
+  }
+
+  .store-launch-panel {
+    min-height: 100svh !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

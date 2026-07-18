@@ -342,9 +342,12 @@ export function TasksPage() {
       {/* Task list */}
       <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-4">
         {tasks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <span className="text-5xl">✅</span>
-            <p className="text-sm text-[var(--text-secondary)]">No tasks yet — add your first one!</p>
+          <div className="mx-auto flex max-w-sm flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center shadow-[var(--shadow-card)]">
+            <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent)]/10 text-[var(--accent)]"><CheckSquare size={23} /></span>
+            <div>
+              <p className="text-sm font-semibold text-[var(--text)]">Your checklist is ready to build</p>
+              <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">Add opening, closing, or general tasks for the team.</p>
+            </div>
             <Button variant="primary" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>New Task</Button>
           </div>
         ) : visibleTasks.length === 0 ? (

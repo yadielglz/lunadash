@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react'
+import { ReactNode, useEffect, useId, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -13,11 +13,27 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, className, size = 'md' }: ModalProps) {
+  const titleId = useId()
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const previousFocus = document.activeElement as HTMLElement | null
+    dialogRef.current?.focus()
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Tab' || !dialogRef.current) return
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((item) => !item.hasAttribute('disabled'))
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    return () => {
+      window.removeEventListener('keydown', handler)
+      previousFocus?.focus()
+    }
   }, [open, onClose])
 
   const sizes = {
@@ -39,6 +55,12 @@ export function Modal({ open, onClose, title, children, className, size = 'md' }
         >
           {/* Backdrop */}
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+            aria-label={title ? undefined : 'Dialog'}
+            tabIndex={-1}
             className="absolute inset-0 bg-black/35 backdrop-blur-md"
             onClick={onClose}
           />
@@ -63,9 +85,10 @@ export function Modal({ open, onClose, title, children, className, size = 'md' }
 
             {title && (
               <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-                <h2 className="text-base font-semibold text-[var(--text)]">{title}</h2>
+                <h2 id={titleId} className="text-base font-semibold text-[var(--text)]">{title}</h2>
                 <button
                   onClick={onClose}
+                  aria-label="Close dialog"
                   className="p-1.5 rounded-lg hover:bg-[var(--reveal-bg)] text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors"
                 >
                   <X size={16} />

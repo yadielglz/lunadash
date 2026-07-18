@@ -84,10 +84,10 @@ export function StoreLaunchScreen() {
     ? 'Welcome, kiosk display.'
     : pendingAccess
       ? `Welcome, ${welcomeName || welcomeStore || 'Store'}.`
-      : 'Orlando Phoenix Dashboard.'
+      : 'Run the floor with confidence.'
   const heroSubtitle = pendingAccess
     ? [welcomeStore, accessRoleLabel(pendingAccess.access.role)].filter(Boolean).join(' · ')
-    : 'Project by Marcos G © 2025 Glz Tech.'
+    : 'Orlando Phoenix operations, performance, and team coverage in one place.'
 
   const completeKioskEnrollment = useCallback((enrollment: KioskEnrollment) => {
     if (!enrollment.store_id || enrollment.status !== 'approved') return
@@ -264,7 +264,7 @@ export function StoreLaunchScreen() {
         <section className="hidden min-h-[640px] flex-col justify-between border-r border-[var(--border)] bg-[var(--surface-2)] p-8 lg:flex">
           <div>
             <div className="flex justify-center pt-6">
-              <LunaWirelessLogo className="h-28 w-72" />
+              <LunaWirelessLogo tone="dark-surface" className="h-28 w-72" />
             </div>
             <div className="mx-auto mt-10 max-w-xl text-center">
               <div className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-3)] px-3 py-1.5 text-xs font-semibold uppercase text-[var(--text-secondary)]">

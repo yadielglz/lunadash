@@ -36,7 +36,7 @@ function DisplayFallback() {
 
 function PageFallback() {
   return (
-    <div className="h-full w-full p-4">
+    <div className="h-full w-full p-4" role="status" aria-label="Loading page">
       <div className="mx-auto flex h-full max-w-6xl flex-col gap-4">
         <div className="h-24 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]" />
         <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -82,11 +82,11 @@ function AnnouncementPopup() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4" role="dialog" aria-modal="true" aria-labelledby="announcement-title">
       <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold text-[var(--text)]">Store Announcements</h2>
+            <h2 id="announcement-title" className="text-base font-semibold text-[var(--text)]">Store Announcements</h2>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">Active messages for this store.</p>
           </div>
           <button className="rounded-md px-2 py-1 text-xs text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)]" onClick={close}>

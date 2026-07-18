@@ -14,11 +14,11 @@ export function Button({
   children, variant = 'secondary', size = 'md',
   loading, icon, className, disabled, ...rest
 }: ButtonProps) {
-  const base = 'inline-flex items-center justify-center gap-2 font-semibold rounded-pill border transition-all duration-200 select-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]'
+  const base = 'inline-flex items-center justify-center gap-2 font-semibold rounded-lg border transition-all duration-200 select-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]'
 
   const variants = {
-    primary:   'bg-[var(--accent)] border-[var(--accent)] text-white shadow-[0_10px_24px_var(--accent-glow)] hover:-translate-y-0.5 hover:bg-[var(--accent-hover)] hover:border-[var(--accent-hover)] active:translate-y-0 active:opacity-90',
-    secondary: 'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)] shadow-[inset_0_1px_rgba(255,255,255,0.12)] hover:-translate-y-0.5 hover:bg-[var(--surface-3)] hover:border-[var(--border-strong)] active:translate-y-0 active:opacity-80',
+    primary:   'bg-[var(--accent)] border-[var(--accent)] text-white shadow-[0_6px_16px_var(--accent-glow)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent-hover)] active:translate-y-px active:shadow-none',
+    secondary: 'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)] shadow-[0_1px_2px_rgba(15,23,42,0.05)] hover:bg-[var(--surface-3)] hover:border-[var(--border-strong)] active:translate-y-px',
     ghost:     'bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] hover:border-[var(--border)]',
     danger:    'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20 hover:border-red-500/30',
     accent:    'bg-[var(--accent)]/10 border-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/15',

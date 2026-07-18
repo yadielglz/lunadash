@@ -12,14 +12,14 @@ export function Section({ icon, title, children }: { icon: React.ReactNode; titl
   )
 }
 
-export function Row({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
+export function Row({ label, description, children, layout = 'default' }: { label: string; description?: string; children: React.ReactNode; layout?: 'default' | 'stacked' }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 px-4 py-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] transition-colors hover:border-[var(--border-strong)]">
+    <div className={`settings-row flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 transition-colors hover:border-[var(--border-strong)] ${layout === 'default' ? 'sm:flex-row sm:items-center sm:justify-between sm:gap-4' : ''}`}>
       <div className="min-w-0">
         <div className="text-sm font-medium text-[var(--text)]">{label}</div>
         {description && <div className="text-xs text-[var(--text-tertiary)] mt-0.5">{description}</div>}
       </div>
-      <div className="sm:flex-shrink-0">{children}</div>
+      <div className={layout === 'default' ? 'sm:flex-shrink-0' : 'w-full'}>{children}</div>
     </div>
   )
 }

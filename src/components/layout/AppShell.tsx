@@ -39,20 +39,24 @@ import { isAnnouncementActive, useDisplayStore } from '../../store/displayStore'
 import { useSyncStore } from '../../store/syncStore'
 import { useTasksStore } from '../../store/tasksStore'
 
-const NAV_ITEMS: { id: Tab; icon: React.ReactNode; label: string; helper: string }[] = [
-  { id: 'home', icon: <LayoutDashboard size={18} />, label: 'Today', helper: 'Store Home' },
-  { id: 'district', icon: <Radar size={18} />, label: 'District Outlook', helper: 'Region Rank' },
-  { id: 'schedule', icon: <Calendar size={18} />, label: 'Schedule', helper: 'Store Coverage' },
-  { id: 'appointments', icon: <CalendarPlus size={18} />, label: 'Appointments', helper: 'Customer Intake / CAD' },
-  { id: 'tasks', icon: <CheckSquare size={18} />, label: 'Checklist', helper: 'Open and close' },
-  { id: 'goals', icon: <BarChart3 size={18} />, label: 'Goals', helper: 'Currently Around Region' },
-  { id: 'commission', icon: <BadgeDollarSign size={18} />, label: 'Commissions', helper: 'Most Recent Earnings Report' },
-  { id: 'reports', icon: <FileText size={18} />, label: 'Reports', helper: 'Preview and print' },
-  { id: 'employees', icon: <Users size={18} />, label: 'Employees', helper: 'Your Team Info' },
-  { id: 'updates', icon: <UploadCloud size={18} />, label: 'Updates', helper: 'Update Tracker Here!' },
-  { id: 'display', icon: <Monitor size={18} />, label: 'Display', helper: 'Store screen' },
-  { id: 'settings', icon: <Settings size={18} />, label: 'Settings', helper: 'Options and More' },
+type NavGroup = 'Overview' | 'Operations' | 'Performance' | 'Workspace'
+
+const NAV_ITEMS: { id: Tab; icon: React.ReactNode; label: string; helper: string; group: NavGroup }[] = [
+  { id: 'home', icon: <LayoutDashboard size={18} />, label: 'Today', helper: 'Daily brief', group: 'Overview' },
+  { id: 'district', icon: <Radar size={18} />, label: 'District', helper: 'Rank and outlook', group: 'Overview' },
+  { id: 'schedule', icon: <Calendar size={18} />, label: 'Schedule', helper: 'Coverage and shifts', group: 'Operations' },
+  { id: 'appointments', icon: <CalendarPlus size={18} />, label: 'Appointments', helper: 'Customer pipeline', group: 'Operations' },
+  { id: 'tasks', icon: <CheckSquare size={18} />, label: 'Checklist', helper: 'Open and close', group: 'Operations' },
+  { id: 'employees', icon: <Users size={18} />, label: 'Team', helper: 'People and preferences', group: 'Operations' },
+  { id: 'goals', icon: <BarChart3 size={18} />, label: 'Goals', helper: 'Targets and pace', group: 'Performance' },
+  { id: 'commission', icon: <BadgeDollarSign size={18} />, label: 'Commissions', helper: 'Earnings snapshot', group: 'Performance' },
+  { id: 'reports', icon: <FileText size={18} />, label: 'Reports', helper: 'Preview and print', group: 'Performance' },
+  { id: 'updates', icon: <UploadCloud size={18} />, label: 'Data updates', helper: 'Submit tracker data', group: 'Performance' },
+  { id: 'display', icon: <Monitor size={18} />, label: 'Store display', helper: 'Customer-facing screen', group: 'Workspace' },
+  { id: 'settings', icon: <Settings size={18} />, label: 'Settings', helper: 'Workspace controls', group: 'Workspace' },
 ]
+
+const NAV_GROUPS: NavGroup[] = ['Overview', 'Operations', 'Performance', 'Workspace']
 
 const MOBILE_NAV_LABELS: Partial<Record<Tab, string>> = {
   home: 'Today',
@@ -190,6 +194,9 @@ function CommandMenu({
         >
           <motion.div
             className="command-menu-panel w-full max-w-2xl overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-modal)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Search pages and settings"
             initial={{ opacity: 0, y: -10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
@@ -474,25 +481,37 @@ function NavigationRail({
         </button>
       )}
 
-      <div className="command-nav-list space-y-1">
-        {visibleItems.map((item) => {
-          const active = activeTab === item.id
+      <div className="command-nav-list">
+        {NAV_GROUPS.map((group) => {
+          const items = visibleItems.filter((item) => item.group === group)
+          if (items.length === 0) return null
           return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => navigate(item.id)}
-              className={cn('command-nav-item', active && 'command-nav-item-active')}
-              title={collapsed && !mobile ? item.label : undefined}
-              aria-label={item.label}
-            >
-              <span className="command-nav-icon">{item.icon}</span>
-              <span className={cn('min-w-0 flex-1 text-left', collapsed && !mobile && 'hidden')}>
-                <span className="block truncate text-sm font-medium">{item.label}</span>
-                <span className="block truncate text-[11px] text-[var(--text-tertiary)]">{item.helper}</span>
-              </span>
-              {active && !collapsed && <ChevronLeft size={14} className="hidden text-[var(--accent)] lg:block" />}
-            </button>
+            <div className="command-nav-group" key={group}>
+              <div className={cn('command-nav-group-label', collapsed && !mobile && 'sr-only')}>{group}</div>
+              <div className="space-y-1">
+                {items.map((item) => {
+                  const active = activeTab === item.id
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => navigate(item.id)}
+                      className={cn('command-nav-item', active && 'command-nav-item-active')}
+                      title={collapsed && !mobile ? item.label : undefined}
+                      aria-label={item.label}
+                      aria-current={active ? 'page' : undefined}
+                    >
+                      <span className="command-nav-icon">{item.icon}</span>
+                      <span className={cn('min-w-0 flex-1 text-left', collapsed && !mobile && 'hidden')}>
+                        <span className="block truncate text-sm font-medium">{item.label}</span>
+                        <span className="block truncate text-[11px] text-[var(--text-tertiary)]">{item.helper}</span>
+                      </span>
+                      {active && !collapsed && <ChevronLeft size={14} className="hidden text-[var(--accent)] lg:block" />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           )
         })}
       </div>
@@ -512,6 +531,9 @@ function MobileNavOverlay({ open, onClose }: { open: boolean; onClose: () => voi
         >
           <motion.div
             className="command-mobile-drawer flex h-full min-h-0 w-[min(21rem,88vw)] flex-col border-r border-[var(--border)] bg-[var(--surface)] px-3 shadow-[var(--shadow-modal)] backdrop-blur-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation"
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
@@ -599,6 +621,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
 
   return (
     <div className="h-full w-full overflow-hidden bg-[var(--bg)]">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <div
         className="app-command-shell"
         style={{
@@ -619,7 +642,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
             onOpenMobileNav={() => setMobileNavOpen(true)}
             onOpenCommandMenu={() => setCommandMenuOpen(true)}
           />
-          <main className="relative min-h-0 flex-1 overflow-hidden">
+          <main id="main-content" className="relative min-h-0 flex-1 overflow-hidden" tabIndex={-1}>
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={activeKey}
