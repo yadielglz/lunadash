@@ -117,9 +117,9 @@ function readStoredPinnedMetrics() {
 }
 
 function metricColor(value: number, warning = 80) {
-  if (value >= 100) return '#16c60c'
-  if (value >= warning) return '#f7b731'
-  return '#e74856'
+  if (value >= 100) return '#27a46d'
+  if (value >= warning) return '#d28a22'
+  return '#d65353'
 }
 
 function rankRows(rows: PerformanceRow[], previousRanks = new Map<string, number>()): RankedRow[] {
@@ -163,10 +163,10 @@ function rankRows(rows: PerformanceRow[], previousRanks = new Map<string, number
   }))
 }
 
-function RankPill({ rank, tone = '#7c5ff5' }: { rank: number; tone?: string }) {
+function RankPill({ rank, tone = '#159bd7' }: { rank: number; tone?: string }) {
   return (
     <span
-      className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border px-2 text-xs font-bold tabular-nums"
+      className="district-rank-pill inline-flex h-7 min-w-7 items-center justify-center rounded-md border px-2 text-xs font-bold tabular-nums"
       style={{ borderColor: `${tone}55`, background: `${tone}18`, color: tone }}
     >
       #{rank || '-'}
@@ -184,7 +184,7 @@ function MovementBadge({ movement }: { movement: number | null }) {
 
   const positive = movement > 0
   return (
-    <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold ${positive ? 'text-[#16c60c]' : 'text-[#e74856]'}`}>
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold ${positive ? 'text-[#27a46d]' : 'text-[#d65353]'}`}>
       {positive ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
       {Math.abs(movement)}
     </span>
@@ -197,7 +197,7 @@ function GoalChip({ value }: { value: number }) {
 
   return (
     <span
-      className="inline-flex h-6 items-center rounded-md border px-2 text-[10px] font-semibold uppercase tabular-nums"
+      className="district-goal-chip inline-flex h-6 items-center rounded-md border px-2 text-[10px] font-semibold uppercase tabular-nums"
       style={{ borderColor: `${color}45`, background: `${color}18`, color }}
     >
       {label} {formatPercent(value)}
@@ -207,10 +207,10 @@ function GoalChip({ value }: { value: number }) {
 
 function SummaryTile({ label, value, helper, tone }: { label: string; value: string; helper: string; tone?: string }) {
   return (
-    <Card className="min-h-[92px] p-3">
-      <div className="text-xs font-medium uppercase text-[var(--text-tertiary)]">{label}</div>
-      <div className="mt-1.5 text-2xl font-semibold text-[var(--text)] tabular-nums">{value}</div>
-      <div className="mt-1 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+    <Card className="district-summary-tile min-h-[108px] p-4" style={{ borderTopColor: tone || 'var(--accent)' }}>
+      <div className="district-summary-label text-xs font-medium uppercase text-[var(--text-tertiary)]">{label}</div>
+      <div className="district-summary-value mt-2 text-2xl font-semibold text-[var(--text)] tabular-nums">{value}</div>
+      <div className="district-summary-helper mt-1.5 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
         {tone && <span className="h-2 w-2 rounded-full" style={{ background: tone }} />}
         <span>{helper}</span>
       </div>
@@ -273,7 +273,7 @@ function MetricPanel({ label, value, helper, percent }: { label: string; value: 
   const color = percent === undefined ? undefined : metricColor(percent)
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+    <div className="district-metric-panel rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
       <div className="text-xs font-medium uppercase text-[var(--text-tertiary)]">{label}</div>
       <div className="mt-1 text-xl font-semibold tabular-nums text-[var(--text)]">{value}</div>
       {percent !== undefined ? (
@@ -524,7 +524,7 @@ function StoreDetailDrawer({
             >
               <CompactStoreNumbersCapture row={row} updated={updated} districtAverage={districtAverage} />
             </div>
-            <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
+            <div className="store-detail-header flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
               <div className="min-w-0">
                 <div className="truncate text-base font-semibold text-[var(--text)]">{captureTitle}</div>
                 <div className="mt-1 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
@@ -550,7 +550,7 @@ function StoreDetailDrawer({
                 </Button>
               </div>
             </div>
-            <div className="flex-1 space-y-4 overflow-y-auto bg-[var(--surface)] p-5" data-capture-scroll="true">
+            <div className="store-detail-content flex-1 space-y-5 overflow-y-auto bg-[var(--surface)] p-5" data-capture-scroll="true">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -570,7 +570,7 @@ function StoreDetailDrawer({
                 ['HSI', row.hsi],
                 ['VISA', row.visa],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+                <div key={label} className="store-detail-mini-stat rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
                   <div className="text-[10px] font-medium text-[var(--text-tertiary)]">{label}</div>
                   <div className="text-lg font-semibold tabular-nums text-[var(--text)]">{value}</div>
                 </div>
@@ -1028,9 +1028,9 @@ export function PerformancePage() {
         {loading && !data ? (
           <SkeletonDashboard />
         ) : (
-          <div className="space-y-4">
-            <div className="performance-filter-bar flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-wrap gap-1.5">
+          <div className="district-board space-y-5">
+            <div className="performance-filter-bar district-view-toolbar flex flex-col gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="district-view-switcher flex flex-wrap gap-1.5" aria-label="District view">
                 {[
                   ['today', 'Today'],
                   ['ranking', 'Ranking'],
@@ -1051,8 +1051,8 @@ export function PerformancePage() {
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Pin size={13} className="text-[var(--text-tertiary)]" />
+              <div className="district-pin-controls flex flex-wrap items-center gap-1.5">
+                <span className="district-control-label"><Pin size={13} /> Pinned metrics</span>
                 {[
                   ['overall', 'Overall'],
                   ['netRevenuePct', 'NR %'],
@@ -1076,7 +1076,7 @@ export function PerformancePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="district-kpi-grid grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {pinnedMetrics.includes('overall') && (
                 <SummaryTile
                   label={isMainDashboard ? 'Overall Avg' : 'Overall Rank'}
@@ -1121,15 +1121,15 @@ export function PerformancePage() {
                   label="Goal Gap"
                   value={isMainDashboard ? `${rankedRows.filter((row) => row.goalGapScore > 0).length} stores` : (storeRow ? `${formatPercent(Math.max(100 - ((storeRow.netRevenuePct + storeRow.accessoryPct + storeRow.ppPct) / 3), 0))}` : '-')}
                   helper="Remaining blended gap"
-                  tone="#f7b731"
+                  tone="#d28a22"
                 />
               )}
             </div>
 
             {viewMode === 'today' && (
-              <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
-                <Card noPadding className="overflow-hidden">
-                  <div className="border-b border-[var(--border)] px-4 py-3">
+              <div className="district-today-layout grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+                <Card noPadding className="district-focus-panel overflow-hidden">
+                  <div className="district-panel-heading border-b border-[var(--border)] px-5 py-4">
                     <div className="text-sm font-semibold text-[var(--text)]">Today's Focus</div>
                     <div className="text-xs text-[var(--text-tertiary)]">Current store plus the biggest district gaps</div>
                   </div>
@@ -1140,7 +1140,7 @@ export function PerformancePage() {
                         <button
                           key={row.store}
                           onClick={() => setSelectedStore(row)}
-                          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--reveal-bg)]"
+                          className="district-focus-row flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left hover:bg-[var(--reveal-bg)]"
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
@@ -1156,11 +1156,11 @@ export function PerformancePage() {
                     })}
                   </div>
                 </Card>
-                <Card noPadding className="overflow-hidden">
-                  <div className="border-b border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text)]">Insights</div>
+                <Card noPadding className="district-insights-panel overflow-hidden">
+                  <div className="district-panel-heading border-b border-[var(--border)] px-5 py-4 text-sm font-semibold text-[var(--text)]">District Insights</div>
                   <div className="divide-y divide-[var(--border)]">
                     {insights.map((insight) => (
-                      <div key={insight} className="px-4 py-3 text-sm text-[var(--text-secondary)]">{insight}</div>
+                      <div key={insight} className="district-insight-row flex gap-3 px-5 py-3.5 text-sm text-[var(--text-secondary)]"><span aria-hidden="true" />{insight}</div>
                     ))}
                   </div>
                 </Card>
@@ -1168,8 +1168,8 @@ export function PerformancePage() {
             )}
 
             {viewMode === 'compare' && (
-              <Card noPadding className="overflow-hidden">
-                <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+              <Card noPadding className="district-comparison-panel overflow-hidden">
+                <div className="district-panel-heading flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
                   <div>
                     <div className="text-sm font-semibold text-[var(--text)]">Store Comparison</div>
                     <div className="text-xs text-[var(--text-tertiary)]">Select up to four stores from the ranking</div>
@@ -1181,11 +1181,11 @@ export function PerformancePage() {
                   )}
                 </div>
                 {compareRows.length ? (
-                  <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 xl:grid-cols-4">
                     {compareRows.map((row) => {
                       const dealer = dealerInfoForRow(row)
                       return (
-                        <div key={row.store} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                        <div key={row.store} className="district-comparison-card rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <div className="truncate text-sm font-semibold text-[var(--text)]">{dealer.nickname}</div>
@@ -1193,10 +1193,10 @@ export function PerformancePage() {
                             </div>
                             <RankPill rank={row.overallRank} />
                           </div>
-                          <div className="mt-3 grid grid-cols-3 gap-2">
-                            <GoalChip value={row.netRevenuePct} />
-                            <GoalChip value={row.accessoryPct} />
-                            <GoalChip value={row.ppPct} />
+                          <div className="mt-4 grid grid-cols-3 gap-2">
+                            <div className="district-compare-metric"><span>NR</span><GoalChip value={row.netRevenuePct} /></div>
+                            <div className="district-compare-metric"><span>ACC</span><GoalChip value={row.accessoryPct} /></div>
+                            <div className="district-compare-metric"><span>PP</span><GoalChip value={row.ppPct} /></div>
                           </div>
                           <div className="mt-3 space-y-2 text-xs text-[var(--text-secondary)]">
                             <div className="flex justify-between"><span>Net Rev</span><span className="font-semibold text-[var(--text)]">{formatMoney(row.netRevenue)}</span></div>
@@ -1252,7 +1252,7 @@ export function PerformancePage() {
             {!isMainDashboard && !storeRow && (
               <Card>
                 <div className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
-                  <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-[#f7b731]" />
+                  <AlertCircle size={15} className="mt-0.5 flex-shrink-0 text-[#d28a22]" />
                   <div>
                     <p className="font-semibold text-[var(--text)]">No Source row was found for store ID {currentStoreId}.</p>
                     <p className="mt-1 text-xs">Check this session’s store ID, dealer code, and the Source sheet store code. LunaDash matches against the store code in the sheet, such as 693D or 5383.</p>
@@ -1262,30 +1262,31 @@ export function PerformancePage() {
             )}
 
             {isMainDashboard && data?.summary && (
-              <Card className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
+              <Card className="district-gap-strip grid grid-cols-1 gap-0 p-0 sm:grid-cols-3">
+                <div className="district-gap-stat">
                   <div className="text-xs text-[var(--text-tertiary)]">Net Rev Left</div>
                   <div className="text-lg font-semibold text-[var(--text)]">{data.summary.netRevenueLeft === null ? '-' : formatMoney(data.summary.netRevenueLeft)}</div>
                 </div>
-                <div>
+                <div className="district-gap-stat">
                   <div className="text-xs text-[var(--text-tertiary)]">Acc Left</div>
                   <div className="text-lg font-semibold text-[var(--text)]">{data.summary.accessoryLeft === null ? '-' : formatMoney(data.summary.accessoryLeft)}</div>
                 </div>
-                <div>
+                <div className="district-gap-stat">
                   <div className="text-xs text-[var(--text-tertiary)]">Post Left</div>
                   <div className="text-lg font-semibold text-[var(--text)]">{data.summary.postLeft ?? '-'}</div>
                 </div>
               </Card>
             )}
 
-            <Card noPadding className="overflow-hidden">
-              <div className="flex flex-col gap-3 border-b border-[var(--border)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+            <Card noPadding className="district-ranking-panel overflow-hidden">
+              <div className="district-ranking-toolbar flex flex-col gap-4 border-b border-[var(--border)] px-5 py-4 xl:flex-row xl:items-start xl:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-[var(--text)]">District Ranking</div>
+                  <div className="text-base font-semibold text-[var(--text)]">District Ranking</div>
                   <div className="text-xs text-[var(--text-tertiary)]">{filteredRows.length} stores ranked by {SORT_OPTIONS.find((option) => option.key === sortKey)?.label}</div>
                 </div>
-                <div className="flex flex-col gap-2 lg:items-end">
-                  <div className="flex flex-wrap gap-1.5">
+                <div className="district-ranking-controls flex flex-col gap-2 xl:items-end">
+                  <div className="district-control-group flex flex-wrap gap-1.5">
+                    <span className="district-control-label">Sort</span>
                     {storeRow && (
                       <Button size="sm" variant="accent" icon={<LocateFixed size={13} />} onClick={jumpToMyStore}>
                         My Store
@@ -1301,8 +1302,8 @@ export function PerformancePage() {
                       />
                     ))}
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Columns3 size={13} className="text-[var(--text-tertiary)]" />
+                  <div className="district-control-group flex flex-wrap items-center gap-1.5">
+                    <span className="district-control-label"><Columns3 size={13} /> Columns</span>
                     {[
                       ['traffic', 'Traffic'],
                       ['postConv', 'Post Conv'],
@@ -1322,8 +1323,8 @@ export function PerformancePage() {
                       </button>
                     ))}
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Filter size={13} className="text-[var(--text-tertiary)]" />
+                  <div className="district-control-group flex flex-wrap items-center gap-1.5">
+                    <span className="district-control-label"><Filter size={13} /> Filter</span>
                     {[
                       ['all', 'All'],
                       ['behind', 'Behind'],
@@ -1350,8 +1351,8 @@ export function PerformancePage() {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="hidden w-full min-w-[1180px] text-left text-xs lg:table">
+              <div className="district-ranking-scroll overflow-x-auto">
+                <table className="district-ranking-table hidden w-full min-w-[1180px] text-left text-xs lg:table">
                   <thead className="bg-[var(--surface-2)] text-[var(--text-tertiary)]">
                     <tr>
                       <th className="sticky top-0 z-10 bg-[var(--surface-2)] px-4 py-2 font-medium">Compare</th>
@@ -1375,6 +1376,13 @@ export function PerformancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
+                    {filteredRows.length === 0 && (
+                      <tr>
+                        <td colSpan={18} className="px-6 py-14 text-center text-sm text-[var(--text-secondary)]">
+                          No stores match the current search and filters.
+                        </td>
+                      </tr>
+                    )}
                     {filteredRows.map((row) => {
                       const dealer = dealerInfoForRow(row)
                       const isCurrentStore = normalizeStoreId(row.storeCode) === currentStoreId
@@ -1384,7 +1392,7 @@ export function PerformancePage() {
                       <tr
                         key={row.store}
                         ref={(element) => { rowRefs.current[normalizeStoreId(row.storeCode)] = element }}
-                        className={`cursor-pointer hover:bg-[var(--reveal-bg)] ${isCurrentStore ? 'bg-[var(--accent)]/10 shadow-[inset_3px_0_0_var(--accent)]' : ''}`}
+                        className={`district-ranking-row cursor-pointer hover:bg-[var(--reveal-bg)] ${isCurrentStore ? 'is-current-store bg-[var(--accent)]/10 shadow-[inset_3px_0_0_var(--accent)]' : ''}`}
                         onClick={() => setSelectedStore(row)}
                         tabIndex={0}
                         onKeyDown={(event) => handleRowKeyDown(event, row)}
@@ -1406,7 +1414,7 @@ export function PerformancePage() {
                           </button>
                         </td>
                         <td className="px-4 py-3">
-                          <RankPill rank={row.overallRank} tone="#7c5ff5" />
+                          <RankPill rank={row.overallRank} tone="#159bd7" />
                           <div className="mt-1"><MovementBadge movement={row.movement} /></div>
                         </td>
                         <td className="px-4 py-3">
@@ -1415,13 +1423,13 @@ export function PerformancePage() {
                               <div className="font-semibold text-[var(--text)]">{dealer.nickname}</div>
                               <div className="text-[var(--text-tertiary)]">{dealer.location} | {dealer.code}</div>
                             </div>
-                            {isCurrentStore && <Badge color="#7c5ff5">Mine</Badge>}
+                            {isCurrentStore && <Badge color="#159bd7">Mine</Badge>}
                             {openNoteCount > 0 && <Badge color="#c98408">{openNoteCount} note{openNoteCount === 1 ? '' : 's'}</Badge>}
                           </div>
                         </td>
-                        <td className="px-3 py-3"><RankPill rank={row.netRevenueRank} tone="#f7b731" /></td>
-                        <td className="px-3 py-3"><RankPill rank={row.accessoryRank} tone="#00b7c3" /></td>
-                        <td className="px-3 py-3"><RankPill rank={row.ppRank} tone="#16c60c" /></td>
+                        <td className="px-3 py-3"><RankPill rank={row.netRevenueRank} tone="#d28a22" /></td>
+                        <td className="px-3 py-3"><RankPill rank={row.accessoryRank} tone="#2589cf" /></td>
+                        <td className="px-3 py-3"><RankPill rank={row.ppRank} tone="#27a46d" /></td>
                         {columns.traffic && <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatNumber(row.traffic)}</td>}
                         {columns.postConv && <td className="px-3 py-3 tabular-nums text-[var(--text)]">{formatPercent(row.postConv)}</td>}
                         <td className="px-3 py-3">
@@ -1451,7 +1459,12 @@ export function PerformancePage() {
                   </tbody>
                 </table>
 
-                <div className="grid gap-2 p-3 lg:hidden">
+                <div className="district-mobile-ranking grid gap-3 p-3 lg:hidden">
+                  {filteredRows.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-[var(--border-strong)] px-4 py-10 text-center text-sm text-[var(--text-secondary)]">
+                      No stores match the current search and filters.
+                    </div>
+                  )}
                   {filteredRows.map((row) => {
                     const dealer = dealerInfoForRow(row)
                     const isCurrentStore = normalizeStoreId(row.storeCode) === currentStoreId
@@ -1461,14 +1474,14 @@ export function PerformancePage() {
                       <div
                         key={row.store}
                         ref={(element) => { rowRefs.current[normalizeStoreId(row.storeCode)] = element }}
-                        className={`rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 ${isCurrentStore ? 'border-[var(--accent)]/50 bg-[var(--accent)]/10' : ''}`}
+                        className={`district-store-card rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4 ${isCurrentStore ? 'is-current-store border-[var(--accent)]/50 bg-[var(--accent)]/10' : ''}`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <button className="min-w-0 text-left" onClick={() => setSelectedStore(row)}>
                             <div className="flex items-center gap-2">
                               <RankPill rank={row.overallRank} />
                               <MovementBadge movement={row.movement} />
-                              {isCurrentStore && <Badge color="#7c5ff5">Mine</Badge>}
+                              {isCurrentStore && <Badge color="#159bd7">Mine</Badge>}
                               {openNoteCount > 0 && <Badge color="#c98408">{openNoteCount} note{openNoteCount === 1 ? '' : 's'}</Badge>}
                             </div>
                             <div className="mt-2 truncate text-sm font-semibold text-[var(--text)]">{dealer.nickname}</div>
@@ -1485,10 +1498,10 @@ export function PerformancePage() {
                             {compareStores.includes(row.store) ? 'Added' : 'Compare'}
                           </button>
                         </div>
-                        <div className="mt-3 grid grid-cols-3 gap-2">
-                          <div><div className="text-[10px] uppercase text-[var(--text-tertiary)]">NR</div><GoalChip value={row.netRevenuePct} /></div>
-                          <div><div className="text-[10px] uppercase text-[var(--text-tertiary)]">ACC</div><GoalChip value={row.accessoryPct} /></div>
-                          <div><div className="text-[10px] uppercase text-[var(--text-tertiary)]">PP</div><GoalChip value={row.ppPct} /></div>
+                        <div className="district-mobile-metrics mt-4 grid grid-cols-3 gap-2">
+                          <div><div className="text-[10px] uppercase text-[var(--text-tertiary)]">NR</div><div className="mt-1"><GoalChip value={row.netRevenuePct} /></div></div>
+                          <div><div className="text-[10px] uppercase text-[var(--text-tertiary)]">ACC</div><div className="mt-1"><GoalChip value={row.accessoryPct} /></div></div>
+                          <div><div className="text-[10px] uppercase text-[var(--text-tertiary)]">PP</div><div className="mt-1"><GoalChip value={row.ppPct} /></div></div>
                         </div>
                         <div className="mt-3 text-xs text-[var(--text-secondary)]">{row.goalGapLabel}</div>
                       </div>
