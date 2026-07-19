@@ -237,7 +237,7 @@ export function WeatherPage() {
   const timezoneLabel = data ? formatWeatherTimezone(data.timezone) : ''
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="tool-suite weather-tool-page flex h-full flex-col">
       <ModuleHeader
         icon={<Radar size={18} />}
         eyebrow="Local conditions"
@@ -330,7 +330,7 @@ export function WeatherPage() {
         )}
       </ModuleHeader>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="tool-content flex-1 space-y-4 overflow-y-auto p-4">
         {isError && !data && (
           <EmptyState
             icon={<Radar size={22} />}

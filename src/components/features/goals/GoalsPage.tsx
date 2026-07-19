@@ -4,7 +4,7 @@ import { Activity, BarChart3, CalendarDays, DollarSign, Package, Smartphone, Tar
 import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
 import { Select } from '../../ui/Input'
-import { EmptyState } from '../../ui/ModulePrimitives'
+import { EmptyState, ModuleHeader } from '../../ui/ModulePrimitives'
 import { useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useUiStore } from '../../../store/uiStore'
@@ -341,22 +341,22 @@ export function GoalsPage() {
     : 'No Source row matched'
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <header className="module-legacy-header border-b border-[var(--border)] bg-[var(--app-bg)] px-4 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <BarChart3 size={18} className="text-[var(--accent)]" />
-              <h1 className="text-xl font-semibold text-[var(--text)]">Performance Snapshot</h1>
-            </div>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">
-              {isMainDashboard
-                ? 'All-store Source snapshot with store-labeled EOD history.'
-                : 'Store-gated Source snapshot with today\'s actual, daily goal, MTD snapshots, and gap.'}
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            {canChooseStore && (
+    <div className="performance-suite goals-performance-page flex h-full flex-col overflow-hidden">
+      <ModuleHeader
+        icon={<BarChart3 size={18} />}
+        eyebrow="Targets and pace"
+        title="Performance Snapshot"
+        description={isMainDashboard
+          ? 'Review the all-store Source snapshot and store-labeled end-of-day history.'
+          : 'Compare today’s actuals, daily goals, month-to-date snapshots, and remaining gaps.'}
+        meta={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <CalendarDays size={14} />
+            {new Date().toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })} · {storeLabel}
+            {sourceUpdated ? ` · Source ${sourceUpdated}` : ''}
+          </span>
+        }
+        actions={canChooseStore ? (
               <Select
                 label="Store"
                 value={snapshotScopeId}
@@ -368,24 +368,10 @@ export function GoalsPage() {
                   <option key={option.id} value={option.id}>{option.label}</option>
                 ))}
               </Select>
-            )}
-            <div className="flex min-h-9 flex-wrap items-center gap-2 text-xs text-[var(--text-tertiary)]">
-              <CalendarDays size={14} />
-              <span>{new Date().toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</span>
-              <span>·</span>
-              <span>{storeLabel}</span>
-              {sourceUpdated && (
-                <>
-                  <span>·</span>
-                  <span>Source {sourceUpdated}</span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+            ) : undefined}
+      />
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="performance-content flex-1 overflow-y-auto p-4">
         {sourceQuery.isLoading && (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, index) => (

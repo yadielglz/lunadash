@@ -329,20 +329,28 @@ export function EmployeesPage() {
 
   if (employees.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center px-4 text-center">
-        <EmptyState
-          className="w-full max-w-lg"
-          icon={<UserRound size={22} />}
-          title="No team members yet"
-          description="Add employees from Schedule first, then return here to manage profiles, availability, and performance history."
-          action={<Button size="sm" variant="primary" icon={<CalendarDays size={13} />} onClick={() => setTab('schedule')}>Open Schedule</Button>}
+      <div className="operations-page employees-page flex h-full flex-col">
+        <ModuleHeader
+          icon={<UserRound size={18} />}
+          eyebrow="People and availability"
+          title="Team"
+          description="Manage profiles, scheduling preferences, commission history, and recent sales activity."
         />
+        <div className="operations-content flex flex-1 items-center justify-center px-4 text-center">
+          <EmptyState
+            className="w-full max-w-lg"
+            icon={<UserRound size={22} />}
+            title="No team members yet"
+            description="Add employees from Schedule first, then return here to manage profiles, availability, and performance history."
+            action={<Button size="sm" variant="primary" icon={<CalendarDays size={13} />} onClick={() => setTab('schedule')}>Open Schedule</Button>}
+          />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="operations-page employees-page flex h-full flex-col">
       <ModuleHeader
         icon={<UserRound size={18} />}
         eyebrow="People and availability"
@@ -351,7 +359,7 @@ export function EmployeesPage() {
         meta={message ? <span className="font-medium text-[var(--accent)]" role="status">{message}</span> : undefined}
       />
 
-      <div className="grid flex-1 overflow-y-auto lg:grid-cols-[280px_1fr] lg:overflow-hidden">
+      <div className="operations-content grid flex-1 overflow-y-auto lg:grid-cols-[300px_1fr] lg:overflow-hidden">
         <aside className="employee-selector border-b border-[var(--border)] p-3 lg:border-b-0 lg:border-r">
           <div className="employee-selector-list">
             {employees.map((employee) => {
@@ -384,7 +392,7 @@ export function EmployeesPage() {
         </aside>
 
         {selectedEmployee && draftPreference && (
-          <main className="overflow-visible p-4 lg:overflow-auto">
+          <main className="employee-workspace overflow-visible p-4 lg:overflow-auto">
             <div className="grid gap-4 xl:grid-cols-[1fr_1.15fr]">
               <div className="space-y-4">
                 <Card className="space-y-4">

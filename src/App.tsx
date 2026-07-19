@@ -82,8 +82,8 @@ function AnnouncementPopup() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4" role="dialog" aria-modal="true" aria-labelledby="announcement-title">
-      <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl">
+    <div className="announcement-overlay fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-4" role="dialog" aria-modal="true" aria-labelledby="announcement-title">
+      <div className="announcement-dialog w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 id="announcement-title" className="text-base font-semibold text-[var(--text)]">Store Announcements</h2>
@@ -95,7 +95,7 @@ function AnnouncementPopup() {
         </div>
         <div className="mt-4 space-y-2">
           {activeAnnouncements.map((announcement) => (
-            <div key={announcement.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+            <div key={announcement.id} className="announcement-item rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
               <div className="text-sm text-[var(--text)]">{announcement.text}</div>
               <div className="mt-1 text-[10px] uppercase text-[var(--text-tertiary)]">{announcement.priority}</div>
             </div>

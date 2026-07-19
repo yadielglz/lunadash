@@ -16,6 +16,7 @@ import { fetchPerformanceData, type PerformanceRow } from '../../../lib/performa
 import { dealerInfoForRow } from '../../../lib/dealers'
 import { weekdayKeyForDate, type StoreHours } from '../../../lib/storeHours'
 import { normalizeStoreId } from '../../../lib/storeIds'
+import { LunaWirelessLogo } from '../../brand/LunaWirelessLogo'
 import {
   RADAR_BASEMAP_ZOOM,
   RADAR_RADIUS_MILES,
@@ -31,11 +32,11 @@ import {
   type RadarFrame,
 } from '../../../lib/radar'
 
-const MG  = '#E86243'
-const MG2 = '#F2A17F'
-const CYAN = '#F2A17F'
-const GREEN = '#8DBA88'
-const GOLD = '#E4B15A'
+const MG  = '#159BD7'
+const MG2 = '#55C8F4'
+const CYAN = '#75D7FF'
+const GREEN = '#4DD59A'
+const GOLD = '#F2C66D'
 const PANEL = 'rgba(255,255,255,0.085)'
 const PANEL_STRONG = 'rgba(255,255,255,0.16)'
 const LINE = 'rgba(255,255,255,0.16)'
@@ -453,7 +454,7 @@ function ClockSlide() {
         )}
 
         <div className={`min-w-0 ${storeLogo ? '' : 'w-full max-w-[70vw]'}`}>
-          <div className="w-full rounded-[1.8vw] border p-[2.4vw]" style={{ background: 'linear-gradient(135deg, rgba(226,0,116,0.15), rgba(54,209,220,0.08), rgba(255,255,255,0.035))', borderColor: LINE }}>
+          <div className="w-full rounded-[1.8vw] border p-[2.4vw]" style={{ background: 'linear-gradient(135deg, rgba(21,155,215,0.16), rgba(117,215,255,0.08), rgba(255,255,255,0.035))', borderColor: LINE }}>
           <div className="flex items-start justify-between gap-[2vw]">
             <div
               className="rounded-full px-[1vw] py-[0.55vh] text-[0.95vw] font-black uppercase tracking-[0.22em]"
@@ -733,7 +734,7 @@ function RadarTileGrid({ lat, lon, frame, host, transitionMs }: { lat: number; l
           ))}
         </motion.div>
       </AnimatePresence>
-      <div className="absolute left-1/2 top-1/2 h-[1.2vw] w-[1.2vw] -translate-x-1/2 -translate-y-1/2 rounded-full border-[0.22vw] border-white bg-[var(--accent)] shadow-[0_0_0_0.45vw_rgba(226,0,116,0.22),0_0_2vw_rgba(226,0,116,0.85)]" />
+      <div className="absolute left-1/2 top-1/2 h-[1.2vw] w-[1.2vw] -translate-x-1/2 -translate-y-1/2 rounded-full border-[0.22vw] border-white bg-[var(--accent)] shadow-[0_0_0_0.45vw_rgba(21,155,215,0.22),0_0_2vw_rgba(21,155,215,0.85)]" />
       <div className="absolute left-1/2 top-1/2 h-[5vw] w-[5vw] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20" />
       <div className="absolute bottom-3 right-4 rounded-md bg-black/40 px-2 py-1 text-[0.62vw] font-semibold text-white/[0.50]">
         Radar: RainViewer | Map: CARTO
@@ -863,7 +864,7 @@ function ScheduleSlide() {
         </div>
       ) : (
         <div className="grid flex-1 grid-cols-[0.35fr_0.65fr] gap-[2vw] overflow-hidden">
-          <div className="flex flex-col justify-between rounded-[1.2vw] border p-[1.5vw]" style={{ background: 'linear-gradient(135deg, rgba(226,0,116,0.16), rgba(255,255,255,0.045))', borderColor: `${MG}45` }}>
+          <div className="flex flex-col justify-between rounded-[1.2vw] border p-[1.5vw]" style={{ background: 'linear-gradient(135deg, rgba(21,155,215,0.16), rgba(255,255,255,0.045))', borderColor: `${MG}45` }}>
             <div>
               <div className="text-[0.9vw] font-bold uppercase tracking-[0.24em] text-white/[0.40]">Coverage</div>
               <div className="mt-[1vh] text-[6vw] font-black leading-none tabular-nums text-white">{sorted.length}</div>
@@ -1717,8 +1718,8 @@ export function DisplayPage() {
 
   return (
     <div
-      className="relative h-screen w-screen cursor-none overflow-hidden"
-      style={{ background: '#101820' }}
+      className="luna-display relative h-screen w-screen cursor-none overflow-hidden"
+      style={{ background: '#071724' }}
       onMouseMove={resetHideTimer}
       role="region"
       aria-label={`${companyName} store display`}
@@ -1731,15 +1732,15 @@ export function DisplayPage() {
             background: [
               'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px)',
               'linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
-              'linear-gradient(145deg, rgba(232,98,67,0.16), transparent 42%)',
-              'linear-gradient(180deg, #17232c 0%, #101820 70%, #0b1217 100%)',
+              'linear-gradient(145deg, rgba(21,155,215,0.18), transparent 42%)',
+              'linear-gradient(180deg, #0d2a3d 0%, #071724 70%, #050f18 100%)',
             ].join(', '),
             backgroundSize: '48px 48px, 48px 48px, auto, auto',
           }}
         />
         <div
           className="absolute inset-x-[-10%] bottom-[-30%] h-[60%] rotate-[-4deg]"
-          style={{ background: 'linear-gradient(90deg, rgba(232,98,67,0.12), rgba(228,177,90,0.07), transparent)', filter: 'blur(44px)' }}
+          style={{ background: 'linear-gradient(90deg, rgba(21,155,215,0.16), rgba(117,215,255,0.08), transparent)', filter: 'blur(44px)' }}
         />
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.76) 100%)' }} />
       </div>
@@ -1768,21 +1769,18 @@ export function DisplayPage() {
       <AnimatePresence>
         {showControls && (
           <motion.div
-            className="absolute inset-0 pointer-events-none"
+            className="display-controls absolute inset-0 pointer-events-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
             {/* Top bar */}
-            <div className="absolute top-3 left-0 right-0 flex items-center justify-between px-5 pointer-events-auto">
+            <div className="display-control-bar absolute top-3 left-0 right-0 flex items-center justify-between px-5 pointer-events-auto">
               {/* Brand */}
-              <div className="flex items-center gap-2.5 rounded-lg border px-3 py-2 shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl" style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}>
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-black"
-                  style={{ background: `linear-gradient(135deg, ${MG}, ${CYAN})` }}
-                >
-                  L
+              <div className="display-brand flex items-center gap-2.5 rounded-lg border px-3 py-2 shadow-[inset_0_1px_rgba(255,255,255,0.12)] backdrop-blur-2xl" style={{ background: 'rgba(255,255,255,0.08)', borderColor: LINE }}>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm">
+                  <LunaWirelessLogo tone="light-surface" className="h-7 w-7" />
                 </div>
                 <div className="flex flex-col leading-none">
                   <span className="text-white text-xs font-semibold">
@@ -1794,7 +1792,7 @@ export function DisplayPage() {
               </div>
 
               {/* Controls */}
-              <div className="flex items-center gap-1.5">
+              <div className="display-control-actions flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setPaused((p) => !p)}
@@ -1858,7 +1856,7 @@ export function DisplayPage() {
             </button>
 
             {/* Bottom: indicators */}
-            <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center pb-5 gap-2.5 pointer-events-auto">
+            <div className="display-slide-nav absolute bottom-0 left-0 right-0 flex flex-col items-center pb-5 gap-2.5 pointer-events-auto">
               <div className="flex items-end gap-3">
                 {visibleSlides.map((s, i) => {
                   const active = i === slideIdx

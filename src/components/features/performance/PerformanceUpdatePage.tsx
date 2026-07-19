@@ -428,13 +428,21 @@ export function PerformanceUpdatePage() {
 
   if (!canUpdate) {
     return (
-      <div className="flex h-full items-center justify-center p-4">
-        <EmptyState
-          className="w-full max-w-lg"
-          icon={<UploadCloud size={22} />}
-          title="Manager access required"
-          description="Performance updates are available to manager, district manager, and administrator sessions."
+      <div className="performance-suite performance-update-page flex h-full flex-col">
+        <ModuleHeader
+          icon={<UploadCloud size={18} />}
+          eyebrow="Controlled tracker entry"
+          title="Data Updates"
+          description="Post verified sales activity to the performance tracker."
         />
+        <div className="performance-content flex flex-1 items-center justify-center p-4">
+          <EmptyState
+            className="w-full max-w-lg"
+            icon={<UploadCloud size={22} />}
+            title="Manager access required"
+            description="Performance updates are available to manager, district manager, and administrator sessions."
+          />
+        </div>
       </div>
     )
   }
@@ -442,7 +450,7 @@ export function PerformanceUpdatePage() {
   const selectedDealer = selectedRow ? dealerInfoForRow(selectedRow) : null
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="performance-suite performance-update-page flex h-full flex-col overflow-hidden">
       <ModuleHeader
         icon={<UploadCloud size={18} />}
         eyebrow="Controlled tracker entry"
@@ -456,7 +464,7 @@ export function PerformanceUpdatePage() {
       />
       <WorkflowSteps steps={['Select store', 'Enter activity', 'Review and post']} current={message ? 2 : selectedRow ? 1 : 0} />
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="performance-content flex-1 overflow-y-auto p-4">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)]">
           <Card noPadding className="overflow-hidden">
             <div className="border-b border-[var(--border)] p-3">

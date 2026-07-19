@@ -226,7 +226,7 @@ export function RemoteSection() {
 
   return (
     <Section icon={<MonitorCheck size={14} />} title="Remote">
-      <div className="space-y-4">
+      <div className="remote-admin-section space-y-4">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">

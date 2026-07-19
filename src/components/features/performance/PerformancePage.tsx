@@ -6,7 +6,7 @@ import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Textarea } from '../../ui/Input'
-import { InlineNotice } from '../../ui/ModulePrimitives'
+import { InlineNotice, ModuleHeader } from '../../ui/ModulePrimitives'
 import { useUiStore } from '../../../store/uiStore'
 import { useDistrictCoachingStore } from '../../../store/districtCoachingStore'
 import { normalizeStoreId } from '../../../lib/storeIds'
@@ -945,18 +945,14 @@ export function PerformancePage() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <header className="module-legacy-header border-b border-[var(--border)] px-4 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
-              <BarChart3 size={18} className="text-[var(--accent)]" />
-              District Outlook
-            </h1>
-            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              Store rankings and district Source metrics{updated ? ` · refreshed ${updated}` : ''} · auto-refreshes every 60s
-            </p>
-          </div>
+    <div className="performance-suite district-performance-page flex h-full flex-col overflow-hidden">
+      <ModuleHeader
+        icon={<BarChart3 size={18} />}
+        eyebrow="District intelligence"
+        title="District Outlook"
+        description="Compare store rankings, goal gaps, and live Source performance across the district."
+        meta={<span>{updated ? `Refreshed ${updated}` : 'Awaiting refresh'} · Updates every 60 seconds</span>}
+        actions={
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="hidden min-w-0 sm:relative sm:block sm:w-64">
               <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
@@ -993,9 +989,10 @@ export function PerformancePage() {
               Refresh
             </Button>
           </div>
-        </div>
+        }
+      >
         {mobileSearchOpen && (
-          <div className="relative mt-3 sm:hidden">
+          <div className="relative sm:hidden">
             <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
             <Input
               ref={mobileSearchRef}
@@ -1019,9 +1016,9 @@ export function PerformancePage() {
             )}
           </div>
         )}
-      </header>
+      </ModuleHeader>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="performance-content flex-1 overflow-y-auto p-4">
         {error && (
           <InlineNotice className="mb-4" tone="danger" title="Performance Source could not load">
             {error} Confirm Google Cloud Services are reachable and that this device or an ad blocker is not blocking the data source.
@@ -1032,7 +1029,7 @@ export function PerformancePage() {
           <SkeletonDashboard />
         ) : (
           <div className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="performance-filter-bar flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-wrap gap-1.5">
                 {[
                   ['today', 'Today'],

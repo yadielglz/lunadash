@@ -141,9 +141,9 @@ export function FirstLoginOnboarding() {
 
   return (
     <Modal open onClose={() => undefined} size="lg" ariaLabel="Welcome to LunaDash" className="border-[var(--accent)]/25">
-      <div className="space-y-6">
+      <div className="onboarding-flow space-y-6">
         <div className="flex flex-col items-center text-center">
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-6 py-4 shadow-sm">
+          <div className="onboarding-logo rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-6 py-4 shadow-sm">
             <LunaWirelessLogo className="h-20 w-56" />
           </div>
           <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">{step.kicker}</p>
@@ -154,7 +154,7 @@ export function FirstLoginOnboarding() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+        <div className="onboarding-step-card rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/10 p-3 text-[var(--accent)]">
               {step.icon}

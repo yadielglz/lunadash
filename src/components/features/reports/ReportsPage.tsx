@@ -463,7 +463,7 @@ export function ReportsPage() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="performance-suite reports-performance-page flex h-full flex-col overflow-hidden">
       <ModuleHeader
         icon={<FileText size={18} />}
         eyebrow="Review and export"
@@ -483,8 +483,8 @@ export function ReportsPage() {
         }
       />
 
-      <div className="grid flex-1 overflow-y-auto xl:grid-cols-[20rem_minmax(0,1fr)] xl:overflow-hidden">
-        <aside className="border-b border-[var(--border)] p-4 xl:border-b-0 xl:border-r">
+      <div className="performance-content grid flex-1 overflow-y-auto xl:grid-cols-[21rem_minmax(0,1fr)] xl:overflow-hidden">
+        <aside className="report-setup border-b border-[var(--border)] p-4 xl:border-b-0 xl:border-r">
           <div className="space-y-4">
             <Card className="space-y-3">
               <div>
@@ -519,7 +519,7 @@ export function ReportsPage() {
           </div>
         </aside>
 
-        <main className="overflow-visible bg-[var(--surface-2)] p-4 xl:overflow-auto">
+        <main className="report-preview overflow-visible bg-[var(--surface-2)] p-4 xl:overflow-auto">
           <div className="mx-auto max-w-6xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>

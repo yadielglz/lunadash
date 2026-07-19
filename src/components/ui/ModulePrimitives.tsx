@@ -2,6 +2,47 @@ import type { ReactNode } from 'react'
 import { AlertCircle, CheckCircle2, Info, TriangleAlert } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
+export function PageFrame({ children, width = 'wide', className }: {
+  children: ReactNode
+  width?: 'standard' | 'wide' | 'full'
+  className?: string
+}) {
+  return <div className={cn('page-frame', `page-frame-${width}`, className)}>{children}</div>
+}
+
+export function SectionHeader({ title, description, icon, action, className }: {
+  title: ReactNode
+  description?: ReactNode
+  icon?: ReactNode
+  action?: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('section-header', className)}>
+      <div className="section-header-copy">
+        <div className="section-header-title">
+          {icon && <span className="section-header-icon" aria-hidden="true">{icon}</span>}
+          <h2>{title}</h2>
+        </div>
+        {description && <p>{description}</p>}
+      </div>
+      {action && <div className="section-header-action">{action}</div>}
+    </div>
+  )
+}
+
+export function StatusDot({ tone = 'neutral', label }: {
+  tone?: 'neutral' | 'info' | 'success' | 'warning' | 'danger'
+  label: string
+}) {
+  return (
+    <span className={cn('status-label', `status-label-${tone}`)}>
+      <span className="status-label-dot" aria-hidden="true" />
+      {label}
+    </span>
+  )
+}
+
 type ModuleHeaderProps = {
   icon: ReactNode
   title: string

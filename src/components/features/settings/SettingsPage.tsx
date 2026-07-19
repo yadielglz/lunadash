@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Megaphone, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, Sparkles, CarFront, MonitorCheck, Waves, Mountain, Flame, Leaf, Gem, CircleDot, Search
+  Clock, Store, Megaphone, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, CarFront, MonitorCheck, Search, SlidersHorizontal
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
@@ -21,27 +21,16 @@ import { WEEKDAY_KEYS, WEEKDAY_LABELS, type StoreHours } from '../../../lib/stor
 import { Section, Row, Segment } from './SettingsLayout'
 import { AccessSection } from './AccessSection'
 import { RemoteSection } from './RemoteSection'
+import { ModuleHeader } from '../../ui/ModulePrimitives'
 
 function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Theme) => void }) {
   const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string; accents: string[] }[] = [
-    { value: 'dark', label: 'Night Shift', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#11171d,#202b34_58%,#de5838)]', accents: ['#de5838', '#d49431'] },
-    { value: 'light', label: 'Warm Paper', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#fffdf9,#eeeae2_55%,#de5838)]', accents: ['#de5838', '#d49431'] },
-    { value: 'mac', label: 'Luna Paper', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#fffdf9,#ebe7df_58%,#de5838)]', accents: ['#de5838', '#d49431'] },
-    { value: 'vista', label: 'Vista Aero', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#162b4d,#5c7fb5_55%,#d8ecff)]', accents: ['#0a64ad', '#5c7fb5'] },
-    { value: 'carbon', label: 'Carbon Teal', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#090b0b,#1f2d2a_55%,#2dd4bf)]', accents: ['#2dd4bf', '#f59e0b'] },
-    { value: 'graphite', label: 'Graphite', icon: <CircleDot size={14} />, preview: 'bg-[linear-gradient(135deg,#0c0d10,#24272f_56%,#38bdf8)]', accents: ['#38bdf8', '#f97316'] },
-    { value: 'aurora', label: 'Aurora', icon: <Sparkles size={14} />, preview: 'bg-[linear-gradient(135deg,#0b1020,#123b3b_48%,#a3e635)]', accents: ['#a3e635', '#22d3ee'] },
-    { value: 'tide', label: 'Tide', icon: <Waves size={14} />, preview: 'bg-[linear-gradient(135deg,#f7fbff,#d7f3f5_52%,#0284c7)]', accents: ['#0284c7', '#0d9488'] },
-    { value: 'citrus', label: 'Citrus', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#fffdf2,#fef3c7_54%,#65a30d)]', accents: ['#65a30d', '#f59e0b'] },
-    { value: 'rosewood', label: 'Rosewood', icon: <Flame size={14} />, preview: 'bg-[linear-gradient(135deg,#171012,#3b1d24_55%,#fb7185)]', accents: ['#fb7185', '#f59e0b'] },
-    { value: 'highland', label: 'Highland', icon: <Mountain size={14} />, preview: 'bg-[linear-gradient(135deg,#f7faf5,#dcebd7_52%,#2f7d57)]', accents: ['#2f7d57', '#b45309'] },
-    { value: 'mint', label: 'Mint Bloom', icon: <Leaf size={14} />, preview: 'bg-[linear-gradient(135deg,#fbfffd,#ccfbf1_52%,#fbcfe8)]', accents: ['#0f766e', '#db2777'] },
-    { value: 'coral', label: 'Coral', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#fffafa,#ffe4e6_52%,#99f6e4)]', accents: ['#e11d48', '#0f766e'] },
-    { value: 'iris', label: 'Iris', icon: <Gem size={14} />, preview: 'bg-[linear-gradient(135deg,#fcfbff,#ede9fe_52%,#cffafe)]', accents: ['#6d28d9', '#0891b2'] },
+    { value: 'dark', label: 'Luna Night', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#071018,#172631_58%,#159bd7)]', accents: ['#159bd7', '#55c8f4'] },
+    { value: 'light', label: 'Luna Light', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#ffffff,#eaf1f4_58%,#159bd7)]', accents: ['#159bd7', '#087fb8'] },
   ]
 
   return (
-    <div className="grid w-full max-w-full grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
+    <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
       {choices.map((choice) => {
         const selected = value === choice.value
         return (
@@ -1441,7 +1430,14 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col sm:flex-row h-full overflow-hidden">
+    <div className="tool-suite settings-admin-page flex h-full flex-col overflow-hidden">
+      <ModuleHeader
+        icon={<SlidersHorizontal size={18} />}
+        eyebrow="System administration"
+        title="Settings"
+        description="Configure store identity, displays, integrations, access, reports, and application preferences."
+      />
+      <div className="settings-workspace flex min-h-0 flex-1 flex-col overflow-hidden sm:flex-row">
       {/* Sidebar */}
       <nav aria-label="Settings sections" className="settings-section-nav sm:w-56 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-[var(--border)] flex sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto px-3 py-2 sm:px-2 sm:py-3">
         <div className="relative mb-1 hidden sm:block">
@@ -1490,7 +1486,7 @@ export function SettingsPage() {
       </nav>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
+      <div className="settings-content flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeSection}
@@ -1502,6 +1498,7 @@ export function SettingsPage() {
             {content[activeSection]}
           </motion.div>
         </AnimatePresence>
+      </div>
       </div>
     </div>
   )

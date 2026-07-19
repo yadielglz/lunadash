@@ -95,14 +95,20 @@ interface UiState {
 }
 
 function getSystemTheme(): Theme {
-  return 'mac'
+  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark'
+  return 'light'
+}
+
+function canonicalTheme(theme: Theme | undefined): Theme {
+  if (theme === 'dark' || theme === 'carbon' || theme === 'graphite' || theme === 'aurora' || theme === 'rosewood') return 'dark'
+  return 'light'
 }
 
 function persistedPreferences(persisted: unknown) {
   const state = persisted as Partial<UiState> | undefined
   return {
     activeTab: state?.activeTab ?? 'home',
-    theme: state?.theme && THEME_CLASSES.includes(state.theme) ? state.theme : getSystemTheme(),
+    theme: state?.theme && THEME_CLASSES.includes(state.theme) ? canonicalTheme(state.theme) : getSystemTheme(),
     brand: state?.brand && (state.brand === 'default' || state.brand in BRAND_ACCENTS) ? state.brand : 'default',
     tempUnit: state?.tempUnit ?? 'F',
     timeFormat: state?.timeFormat ?? '12',

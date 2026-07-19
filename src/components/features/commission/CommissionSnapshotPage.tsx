@@ -25,7 +25,7 @@ import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Select, Textarea } from '../../ui/Input'
 import { Modal } from '../../ui/Modal'
-import { EmptyState } from '../../ui/ModulePrimitives'
+import { EmptyState, ModuleHeader } from '../../ui/ModulePrimitives'
 import { useCommissionSnapshotStore, type CommissionSnapshot } from '../../../store/commissionSnapshotStore'
 import { useUiStore } from '../../../store/uiStore'
 import { useScheduleStore, type Employee } from '../../../store/scheduleStore'
@@ -1106,13 +1106,14 @@ export function CommissionSnapshotPage() {
   ).size
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <header className="module-legacy-header border-b border-[var(--border)] bg-[var(--app-bg)] px-4 py-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <BadgeDollarSign size={19} className="text-[var(--accent)]" />
-              <h1 className="text-xl font-semibold text-[var(--text)]">Commission Snapshot</h1>
+    <div className="performance-suite commission-performance-page flex h-full flex-col overflow-hidden">
+      <ModuleHeader
+        icon={<BadgeDollarSign size={19} />}
+        eyebrow="Earnings and coaching"
+        title="Commission Snapshot"
+        description="Capture daily commission progress, attach-rate goals, and coaching notes for the store board."
+        meta={
+          <div className="flex flex-wrap items-center gap-2">
               <span className={cn(
                 'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase',
                 canEdit
@@ -1128,12 +1129,9 @@ export function CommissionSnapshotPage() {
                   Updated {formatTimeLabel(lastSavedAt || visibleSnapshots[0]?.updatedAt)}
                 </span>
               )}
-            </div>
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">
-              Daily commission capture, attach-rate goals, and coaching notes for the store board.
-            </p>
           </div>
-
+        }
+        actions={
           <div className="flex flex-col gap-2 md:flex-row md:items-end">
             <div className="flex items-end gap-2">
               <Button size="icon" variant="secondary" onClick={() => setSelectedDate(addDays(selectedDate, -1))} aria-label="Previous day">
@@ -1181,11 +1179,11 @@ export function CommissionSnapshotPage() {
               )}
             </div>
           </div>
-        </div>
-      </header>
+        }
+      />
 
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="performance-content flex-1 overflow-y-auto p-4">
+        <div className="performance-board-toolbar mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs font-semibold uppercase text-[var(--text-tertiary)]">
             {formatDateLabel(selectedDate, { weekday: 'long', month: 'short', day: 'numeric' })} board
           </div>

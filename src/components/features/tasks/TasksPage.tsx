@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowDown, ArrowUp, CheckSquare, Edit2, Plus, Check, Trash2, X, Save, Cloud } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckSquare, Edit2, Plus, Check, Trash2, X, Save } from 'lucide-react'
 import { useTasksStore } from '../../../store/tasksStore'
 import type { Task, TaskCategory } from '../../../store/tasksStore'
 import { Button } from '../../ui/Button'
@@ -10,6 +10,7 @@ import { dbSaveTasksSnapshot } from '../../../lib/supabase'
 import { currentStoreId } from '../../../store/currentStoreId'
 import { useUiStore } from '../../../store/uiStore'
 import { useSyncStore } from '../../../store/syncStore'
+import { EmptyState, ModuleHeader, StatusDot } from '../../ui/ModulePrimitives'
 
 const today = () => new Date().toISOString().split('T')[0]
 
@@ -55,7 +56,7 @@ function TaskRow({ task, canMoveUp, canMoveDown }: { task: Task; canMoveUp: bool
   return (
     <motion.div
       layout
-      className="group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:border-[var(--border)] hover:bg-[var(--reveal-bg)]"
+      className="task-row group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:border-[var(--border)] hover:bg-[var(--reveal-bg)]"
     >
       <button
         onClick={() => toggleTask(task.id)}
@@ -251,36 +252,25 @@ export function TasksPage() {
     }
   }
 
+  const syncTone = syncEntry.state === 'error'
+    ? 'danger'
+    : syncEntry.state === 'saving'
+      ? 'info'
+      : syncEntry.state === 'synced'
+        ? 'success'
+        : 'neutral'
+
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Header */}
-      <header className="module-legacy-header border-b border-[var(--border)] bg-[var(--surface)] px-4 py-4 sm:px-6 sm:py-5">
-        <div className="ops-strip rounded-lg px-3 py-3 space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="status-dot" />
-              <span className="ops-kicker text-[10px] font-semibold">Store Operations</span>
-            </div>
-            <div className="mt-1 flex items-center gap-2">
-              <CheckSquare size={18} className="text-[var(--accent)]" />
-              <h1 className="text-lg font-semibold text-[var(--text)]">Daily Checklist</h1>
-            </div>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{dateLabel} · {done}/{tasks.length} complete</p>
-          </div>
+    <div className="operations-page tasks-page flex h-full flex-col overflow-hidden">
+      <ModuleHeader
+        icon={<CheckSquare size={18} />}
+        eyebrow="Store operations"
+        title="Daily Checklist"
+        description="Keep opening, closing, and general tasks visible and moving throughout the day."
+        meta={<span>{dateLabel} · {done}/{tasks.length} complete</span>}
+        actions={
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-[10px] font-semibold uppercase ${
-              syncEntry.state === 'error'
-                ? 'border-red-400/25 bg-red-400/10 text-red-300'
-                : syncEntry.state === 'saving'
-                  ? 'border-[var(--accent)]/25 bg-[var(--accent)]/10 text-[var(--accent)]'
-                  : syncEntry.state === 'synced'
-                    ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-300'
-                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-tertiary)]'
-            }`}>
-              <Cloud size={11} />
-              {syncEntry.state}
-            </span>
+            <StatusDot tone={syncTone} label={syncEntry.state} />
             {saveMessage && (
               <span className={`hidden md:inline text-xs ${saveState === 'error' ? 'text-red-400' : 'text-[var(--accent)]'}`}>
                 {saveMessage}
@@ -298,9 +288,8 @@ export function TasksPage() {
             </Button>
             <Button size="sm" icon={<Plus size={12} />} onClick={() => setAddOpen(true)}>New Task</Button>
           </div>
-        </div>
-
-        {/* Progress bar */}
+        }
+      >
         <div className="h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
           <motion.div
             className="h-full rounded-full"
@@ -311,8 +300,7 @@ export function TasksPage() {
           />
         </div>
 
-        {/* Category filters */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="operation-filter-bar flex items-center gap-1.5 flex-wrap">
           {(['all', ...CATEGORY_ORDER] as const).map((f) => (
             <button
               key={f}
@@ -338,20 +326,18 @@ export function TasksPage() {
             </button>
           ))}
         </div>
-        </div>
-      </header>
+      </ModuleHeader>
 
       {/* Task list */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+      <div className="operations-content flex-1 overflow-y-auto px-3 py-4 sm:px-4">
         {tasks.length === 0 ? (
-          <div className="mx-auto flex max-w-sm flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center shadow-[var(--shadow-card)]">
-            <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent)]/10 text-[var(--accent)]"><CheckSquare size={23} /></span>
-            <div>
-              <p className="text-sm font-semibold text-[var(--text)]">Your checklist is ready to build</p>
-              <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">Add opening, closing, or general tasks for the team.</p>
-            </div>
-            <Button variant="primary" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>New Task</Button>
-          </div>
+          <EmptyState
+            className="mx-auto max-w-md"
+            icon={<CheckSquare size={23} />}
+            title="Your checklist is ready to build"
+            description="Add opening, closing, or general tasks for the team."
+            action={<Button variant="primary" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>New Task</Button>}
+          />
         ) : visibleTasks.length === 0 ? (
           <p className="text-xs text-[var(--text-tertiary)] text-center py-10">No tasks in this category</p>
         ) : filter === 'all' ? (
@@ -359,7 +345,7 @@ export function TasksPage() {
             {grouped.map(({ cat, tasks: catTasks }) => {
               const catDone = catTasks.filter((t) => t.completedDate === todayStr).length
               return (
-                <div key={cat}>
+                <section key={cat} className="task-category-group">
                   <div className="flex items-center gap-2 mb-2 px-3">
                     <span
                       className="w-2 h-2 rounded-full flex-shrink-0"
@@ -385,7 +371,7 @@ export function TasksPage() {
                       />
                     ))}
                   </AnimatePresence>
-                </div>
+                </section>
               )
             })}
           </div>

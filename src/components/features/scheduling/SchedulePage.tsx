@@ -9,7 +9,7 @@ import { Modal } from '../../ui/Modal'
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
 import { Toggle } from '../../ui/Toggle'
-import { EmptyState } from '../../ui/ModulePrimitives'
+import { EmptyState, ModuleHeader } from '../../ui/ModulePrimitives'
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, type ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, type WeekStartDay } from '../../../store/schedulePreferencesStore'
@@ -860,21 +860,17 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
   }
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-[var(--bg)] sm:hidden">
+    <div className="operations-page mobile-schedule-page flex h-full flex-col overflow-y-auto bg-[var(--bg)] sm:hidden">
       <div className="bg-[var(--bg)]">
-        <header className="module-legacy-header border-b border-[var(--border)] px-4 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="flex items-center gap-2 text-xl font-semibold text-[var(--text)]">
-                <Calendar size={18} className="text-[var(--accent)]" />
-                Schedule
-              </h1>
-              <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                {storeNumber ? `Store ${storeNumber} · ` : ''}
-                {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
-              </p>
-            </div>
-            {storeId !== 'main' && (
+        <ModuleHeader
+          icon={<Calendar size={18} />}
+          eyebrow="Team coverage"
+          title="Schedule"
+          description={`${storeNumber ? `Store ${storeNumber} · ` : ''}${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`}
+          meta={captureMessage ? (
+            <span className={captureMessage.includes('could not') ? 'text-red-400' : 'text-[var(--accent)]'}>{captureMessage}</span>
+          ) : undefined}
+          actions={storeId !== 'main' ? (
               <Button
                 className="flex-shrink-0"
                 size="sm"
@@ -886,15 +882,10 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
               >
                 Capture
               </Button>
-            )}
-          </div>
-          {captureMessage && (
-            <p className={`mt-2 text-xs ${captureMessage.includes('could not') ? 'text-red-400' : 'text-[var(--accent)]'}`}>
-              {captureMessage}
-            </p>
-          )}
+            ) : undefined}
+        >
           {storeId !== 'main' && (
-            <div className="mt-3 flex items-center gap-2" data-capture-exclude="true">
+            <div className="flex items-center gap-2" data-capture-exclude="true">
               <button
                 onClick={() => setWeekOffset((current) => current - 1)}
                 className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)]"
@@ -931,7 +922,7 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
               </button>
             </div>
           )}
-        </header>
+        </ModuleHeader>
 
         {storeId !== 'main' && (
           <div
@@ -1204,19 +1195,15 @@ export function SchedulePage() {
   return (
     <>
     <MobileScheduleWeek canChooseScheduleStore={canChooseScheduleStore} />
-    <div className="hidden h-full flex-col sm:flex">
-      {/* Header */}
-      <header className="module-legacy-header px-4 pt-4 pb-3 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-[var(--text)] flex items-center gap-2">
-            <Calendar size={18} className="text-[var(--accent)]" />
-            Schedule
-          </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            {storeId === 'main' ? 'Choose a store to edit schedules' : `${employees.length} employees · ${shifts.length} shifts total`}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="operations-page schedule-page hidden h-full flex-col sm:flex">
+      <ModuleHeader
+        icon={<Calendar size={18} />}
+        eyebrow="Team coverage"
+        title="Schedule"
+        description={storeId === 'main' ? 'Choose a store to review and edit its schedule.' : 'Plan weekly coverage, manage exceptions, and keep the team aligned.'}
+        meta={<span>{storeId === 'main' ? 'No store selected' : `${employees.length} employees · ${shifts.length} shifts total`}</span>}
+        actions={
+        <div className="schedule-header-actions flex flex-wrap items-center justify-end gap-2">
           <div className="relative flex-shrink-0">
             <Button
               className="flex-shrink-0"
@@ -1299,10 +1286,11 @@ export function SchedulePage() {
             ))}
           </div>
         </div>
-      </header>
+        }
+      />
 
       {/* View */}
-      <div className="flex-1 overflow-hidden">
+      <div className="operations-content flex-1 overflow-hidden">
         {storeId === 'main' ? (
           <div className="h-full flex items-center justify-center px-4 text-center">
             <EmptyState

@@ -98,7 +98,7 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
       <motion.div
         animate={shake ? { x: [-12, 12, -10, 10, -6, 6, 0] } : { x: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative flex flex-col items-center gap-7 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-8 py-9 shadow-[var(--shadow-float)]"
+        className="lock-screen-card relative flex flex-col items-center gap-7 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-8 py-9 shadow-[var(--shadow-float)]"
       >
         {/* Logo */}
         <div className="flex flex-col items-center gap-3">
@@ -164,7 +164,7 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
                 whileTap={!isLockedOut ? { scale: 0.88 } : {}}
                 disabled={isLockedOut}
                 aria-label={key === '⌫' ? 'Delete PIN digit' : `PIN digit ${key}`}
-                className={`w-16 h-16 rounded-xl flex items-center justify-center font-semibold text-xl transition-colors ${
+                className={`lock-key w-16 h-16 rounded-xl flex items-center justify-center font-semibold text-xl transition-colors ${
                   isLockedOut
                     ? 'opacity-30 cursor-not-allowed bg-[var(--surface)] text-[var(--text-tertiary)]'
                     : key === '⌫'

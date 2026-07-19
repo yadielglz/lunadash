@@ -267,7 +267,7 @@ export function AccessSection() {
 
   return (
     <Section icon={<KeyRound size={14} />} title="Access">
-      <div className="space-y-4">
+      <div className="access-admin-section space-y-4">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
           <p className="text-sm font-semibold text-[var(--text)]">Current Session</p>
           <p className="text-xs text-[var(--text-secondary)] mt-1">

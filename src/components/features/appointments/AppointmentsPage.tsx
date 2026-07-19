@@ -273,7 +273,7 @@ export function AppointmentsPage() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="operations-page appointments-page flex h-full flex-col overflow-hidden">
       <ModuleHeader
         icon={<CalendarPlus size={18} />}
         eyebrow="Customer pipeline"
@@ -291,9 +291,9 @@ export function AppointmentsPage() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="operations-content flex-1 overflow-y-auto p-4">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <Card noPadding className="overflow-hidden">
+          <Card noPadding className="appointment-calendar overflow-hidden">
             <div className="flex flex-col gap-3 border-b border-[var(--border)] p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-lg font-semibold text-[var(--text)]">{monthLabel(calendarMonth)}</div>
@@ -342,7 +342,7 @@ export function AppointmentsPage() {
                     type="button"
                     onClick={() => openAppointmentFlyout(key)}
                     className={cn(
-                      'min-h-[92px] border-b border-r border-[var(--border)] p-2 text-left transition-colors hover:bg-[var(--reveal-bg)]',
+                      'appointment-day min-h-[92px] border-b border-r border-[var(--border)] p-2 text-left transition-colors hover:bg-[var(--reveal-bg)]',
                       !inMonth && 'bg-[var(--surface-2)]/35 text-[var(--text-tertiary)]',
                       inSelectedWeek && !active && 'bg-[var(--accent)]/[0.045]',
                       active && 'bg-[var(--accent)]/10',
@@ -382,7 +382,7 @@ export function AppointmentsPage() {
             </div>
           </Card>
 
-          <div className="space-y-4">
+          <aside className="appointment-sidebar space-y-4">
             <Card>
               <div className="text-xs font-medium uppercase text-[var(--text-tertiary)]">Selected Date</div>
               <div className="mt-1 text-xl font-semibold text-[var(--text)]">{shortDateLabel(selectedDate)}</div>
@@ -443,7 +443,7 @@ export function AppointmentsPage() {
                 )}
               </div>
             </Card>
-          </div>
+          </aside>
         </div>
       </div>
 

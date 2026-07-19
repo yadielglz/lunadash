@@ -404,7 +404,7 @@ export function TrafficPage() {
     || trafficErrorMessage(flowQueryError, '')
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="tool-suite traffic-tool-page flex h-full flex-col">
       <ModuleHeader
         icon={<CarFront size={18} />}
         eyebrow="Road conditions"
@@ -424,7 +424,7 @@ export function TrafficPage() {
         }
       />
 
-      <div className="grid flex-1 gap-4 overflow-y-auto p-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
+      <div className="tool-content grid flex-1 gap-4 overflow-y-auto p-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
         <div className="space-y-4">
           {tomTomError && (
             <InlineNotice tone="warning" title="Traffic data needs attention">{tomTomError}</InlineNotice>

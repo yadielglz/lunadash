@@ -16,6 +16,7 @@ import {
 import { useDevices } from '../../../hooks/useDevices'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Input'
+import { ModuleHeader } from '../../ui/ModulePrimitives'
 
 interface DeviceRow { [key: string]: string }
 
@@ -228,20 +229,14 @@ export function DevicesPage() {
   const filteredTypes = types.filter((type) => type.toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <div className="flex h-full flex-col bg-[var(--bg)]">
-      <header className="module-legacy-header border-b border-[var(--border)] bg-[var(--mica)] px-4 pb-3 pt-4">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
-                <ShieldCheck size={14} />
-                Protect
-              </div>
-              <h1 className="truncate text-2xl font-semibold text-[var(--text)]">Protection Lookup</h1>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                {isLoading ? 'Loading catalog...' : `${totalRows} catalog rows ready`}
-              </p>
-            </div>
+    <div className="tool-suite devices-tool-page flex h-full flex-col bg-[var(--bg)]">
+      <ModuleHeader
+        icon={<ShieldCheck size={18} />}
+        eyebrow="Protect catalog"
+        title="Protection Lookup"
+        description="Find compatible protection products by brand, model, and protection type."
+        meta={<span>{isLoading ? 'Loading catalog…' : `${totalRows} catalog rows ready`}</span>}
+        actions={
             <Button
               size="icon"
               variant="ghost"
@@ -251,8 +246,9 @@ export function DevicesPage() {
             >
               <span className="sr-only">Refresh</span>
             </Button>
-          </div>
-
+        }
+      >
+        <div className="device-lookup-toolbar mx-auto flex w-full max-w-5xl flex-col gap-3">
           <div className="flex items-center gap-1.5" aria-label="Lookup progress">
             {(['Brand', 'Device Model', 'Protection Type', 'Result'] as const).map((label, index) => (
               <StepPill key={label} label={label} active={index === stepIndex} complete={index < stepIndex} />
@@ -299,9 +295,9 @@ export function DevicesPage() {
             />
           )}
         </div>
-      </header>
+      </ModuleHeader>
 
-      <div className="flex-1 overflow-y-auto px-4 py-5">
+      <div className="tool-content flex-1 overflow-y-auto px-4 py-5">
         <div className="mx-auto max-w-5xl">
           {isError && (
             <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 text-center">

@@ -2,13 +2,13 @@ import React from 'react'
 
 export function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 pb-1 border-b border-[var(--border)]">
-        <span className="text-[var(--accent)]">{icon}</span>
+    <section className="settings-section space-y-3">
+      <div className="settings-section-heading flex items-center gap-2 border-b border-[var(--border)] pb-1">
+        <span className="settings-section-heading-icon text-[var(--accent)]">{icon}</span>
         <h2 className="text-sm font-semibold text-[var(--text)]">{title}</h2>
       </div>
       {children}
-    </div>
+    </section>
   )
 }
 
@@ -26,7 +26,7 @@ export function Row({ label, description, children, layout = 'default' }: { labe
 
 export function Segment<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
   return (
-    <div className="flex w-full flex-wrap gap-1 rounded-lg border border-[var(--border)] overflow-hidden p-0.5 bg-[var(--surface-2)] sm:w-auto">
+    <div className="settings-segment flex w-full flex-wrap gap-1 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-0.5 sm:w-auto">
       {options.map((o) => (
         <button
           key={o.value}

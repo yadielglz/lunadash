@@ -409,9 +409,9 @@ export function TodayDashboard() {
   const resetSections = () => setSectionPrefs({ ...DEFAULT_DASHBOARD_PREFS })
 
   return (
-    <div className="today-page">
+    <div className="today-page page-frame page-frame-wide">
       <section className="today-hero">
-        <div className="min-w-0">
+        <div className="today-hero-copy min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{dateLabel}</Badge>
             {accessRole && <Badge color="var(--accent)">{accessRole.replace('_', ' ')}</Badge>}
@@ -438,7 +438,7 @@ export function TodayDashboard() {
             )}
           </div>
         </div>
-        <div className="today-hero-card">
+        <div className="today-hero-card" aria-label="Store signal summary">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-md bg-[var(--accent)]/12 text-[var(--accent)]">
               <RadioTower size={21} />
@@ -448,14 +448,14 @@ export function TodayDashboard() {
               <div className="text-lg font-semibold text-[var(--text)]">{isMain ? 'All stores' : `Store ${storeId}`}</div>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-            <div className="rounded-md bg-[var(--surface-2)] p-2">
-              <div className="text-[10px] uppercase text-[var(--text-tertiary)]">Team</div>
-              <div className="font-semibold tabular-nums text-[var(--text)]">{employees.length}</div>
+          <div className="today-signal-grid mt-4 grid grid-cols-2 gap-2 text-sm">
+            <div className="today-signal-stat">
+              <div className="today-signal-label">Team today</div>
+              <div className="today-signal-value">{todayShifts.length}</div>
             </div>
-            <div className="rounded-md bg-[var(--surface-2)] p-2">
-              <div className="text-[10px] uppercase text-[var(--text-tertiary)]">Tasks</div>
-              <div className="font-semibold tabular-nums text-[var(--text)]">{hasTasks ? `${taskPct}%` : 'No tasks'}</div>
+            <div className="today-signal-stat">
+              <div className="today-signal-label">Checklist</div>
+              <div className="today-signal-value">{hasTasks ? `${taskPct}%` : '—'}</div>
             </div>
           </div>
         </div>

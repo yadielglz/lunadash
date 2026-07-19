@@ -261,7 +261,7 @@ export function StoreLaunchScreen() {
       <div className="absolute inset-0 bg-[var(--wallpaper-overlay)]" />
 
       <main className="store-launch-panel relative grid w-full max-w-6xl overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-modal)] backdrop-blur-xl lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
-        <section className="hidden min-h-[640px] flex-col justify-between border-r border-[var(--border)] bg-[var(--surface-2)] p-8 lg:flex">
+        <section className="launch-hero hidden min-h-[640px] flex-col justify-between border-r border-[var(--border)] bg-[var(--surface-2)] p-8 lg:flex">
           <div>
             <div className="flex justify-center pt-6">
               <LunaWirelessLogo tone="dark-surface" className="h-28 w-72" />
@@ -280,14 +280,14 @@ export function StoreLaunchScreen() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="launch-stats grid grid-cols-3 gap-3">
             <AccessStat icon={<Tag size={13} />} label="Version" value={APP_META.version} />
             <AccessStat icon={<Wifi size={13} />} label="Status" value={limitedBrowserContext ? 'LAN dev' : 'Secure Connect'} />
             <AccessStat icon={<Building2 size={13} />} label="Build" value={APP_META.build} />
           </div>
         </section>
 
-        <section className={`login-card flex min-h-0 flex-col ${compactLogin ? 'lg:min-h-[560px]' : 'lg:min-h-[640px]'}`}>
+        <section className={`login-card launch-login flex min-h-0 flex-col ${compactLogin ? 'lg:min-h-[560px]' : 'lg:min-h-[640px]'}`}>
           <div className="border-b border-[var(--border)] px-5 py-5 sm:px-7 lg:hidden">
             <div className="flex justify-center">
               <LunaWirelessLogo className="h-20 w-56" />
