@@ -58,16 +58,6 @@ Run linting:
 npm run lint
 ```
 
-## Traffic Setup
-
-The Traffic page uses TomTom for incident and flow data and FL511's ArcGIS camera layer for nearby camera markers. Add a TomTom key before using the Traffic page:
-
-```bash
-VITE_TOMTOM_API_KEY=your_tomtom_key
-```
-
-For Netlify, set `VITE_TOMTOM_API_KEY` in the site's environment variables and restrict the key to your app domain in TomTom when possible.
-
 ## Supabase Setup
 
 The app expects the tables defined in `schema.sql`. Run that file in the Supabase SQL editor for a fresh project.

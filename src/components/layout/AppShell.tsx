@@ -6,7 +6,6 @@ import {
   Bell,
   Calendar,
   CalendarPlus,
-  CarFront,
   CheckSquare,
   ChevronLeft,
   Command,
@@ -76,7 +75,6 @@ const MOBILE_NAV_LABELS: Partial<Record<Tab, string>> = {
 const SETTINGS_COMMANDS = [
   { id: 'settings-general', section: 'general', label: 'General Settings', helper: 'Theme, zoom, time, and temperature', keywords: 'theme zoom time temperature' },
   { id: 'settings-weather', section: 'weather', label: 'Weather Settings', helper: 'Location and forecast setup', keywords: 'forecast location temperature' },
-  { id: 'settings-traffic', section: 'traffic', label: 'Traffic Settings', helper: 'Traffic source and commute view', keywords: 'traffic road commute' },
   { id: 'settings-display', section: 'display', label: 'Display Settings', helper: 'Screen display timing and layout', keywords: 'screen kiosk display' },
   { id: 'settings-remote', section: 'remote', label: 'Remote Settings', helper: 'Kiosk approvals and commands', keywords: 'remote kiosk approve' },
   { id: 'settings-access', section: 'access', label: 'Access Settings', helper: 'PINs and roles', keywords: 'login access roles pin' },
@@ -125,22 +123,6 @@ function WeatherChip() {
       <span>{weather.icon}</span>
       <span className="tabular-nums text-[var(--text)]">{fmt(current.temperature)}{unit}</span>
       <span className="max-w-[7rem] truncate">{weather.label}</span>
-    </button>
-  )
-}
-
-function TrafficChip() {
-  const { setSettingsSection, setTab } = useUiStore()
-
-  const openTraffic = () => {
-    setSettingsSection('traffic')
-    setTab('settings')
-  }
-
-  return (
-    <button className="command-chip command-traffic-chip hidden lg:inline-flex" onClick={openTraffic} title="Open traffic">
-      <CarFront size={14} className="text-[var(--accent)]" />
-      <span>Traffic</span>
     </button>
   )
 }
@@ -401,7 +383,6 @@ function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu }: { onOpenMobileNav
           <span className="tabular-nums text-[var(--text)]">{time}</span>
         </button>
         <WeatherChip />
-        <TrafficChip />
         <button type="button" className="command-chip hidden md:inline-flex" onClick={onOpenCommandMenu}>
           <Command size={14} />
           <span>Search</span>

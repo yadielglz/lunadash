@@ -1545,13 +1545,11 @@ h6 {
 .tool-content { scrollbar-gutter: stable; }
 
 .devices-tool-page .tool-content,
-.weather-tool-page .tool-content,
-.traffic-tool-page .tool-content {
+.weather-tool-page .tool-content {
   padding: clamp(1rem, 1.8vw, 1.5rem);
 }
 
-.weather-tool-page .tool-content,
-.traffic-tool-page .tool-content {
+.weather-tool-page .tool-content {
   width: 100%;
   max-width: 96rem;
   margin-inline: auto;
@@ -1576,15 +1574,13 @@ h6 {
   transform: translateY(-1px);
 }
 
-/* Weather and traffic monitoring */
-.weather-tool-page .ops-surface,
-.traffic-tool-page .ops-surface {
+/* Weather monitoring */
+.weather-tool-page .ops-surface {
   border-radius: var(--radius-lg);
   background: var(--surface);
 }
 
-.weather-tool-page .tool-content > div,
-.traffic-tool-page .tool-content > div {
+.weather-tool-page .tool-content > div {
   gap: 1.25rem;
 }
 
@@ -1592,12 +1588,6 @@ h6 {
   font-family: var(--font-display);
   font-weight: 520;
   letter-spacing: -0.06em;
-}
-
-.traffic-tool-page .tool-content > .ops-surface:last-child {
-  position: sticky;
-  top: 0;
-  align-self: start;
 }
 
 /* Settings navigation and forms */
@@ -1632,16 +1622,14 @@ h6 {
 .settings-content { scrollbar-gutter: stable; }
 .settings-content > div { max-width: 88rem; margin-inline: auto; }
 
-.settings-admin-page .settings-content .weather-tool-page > .module-header,
-.settings-admin-page .settings-content .traffic-tool-page > .module-header {
+.settings-admin-page .settings-content .weather-tool-page > .module-header {
   padding: 0 0 1rem;
   border-bottom: 1px solid var(--border);
   background: transparent;
   backdrop-filter: none;
 }
 
-.settings-admin-page .settings-content .weather-tool-page .tool-content,
-.settings-admin-page .settings-content .traffic-tool-page .tool-content {
+.settings-admin-page .settings-content .weather-tool-page .tool-content {
   max-width: none;
   padding: 1rem 0 0;
 }
@@ -1701,7 +1689,6 @@ h6 {
 
 @media (max-width: 1023px) {
   .tool-suite .module-header-main { align-items: flex-start; }
-  .traffic-tool-page .tool-content > .ops-surface:last-child { position: static; }
 }
 
 @media (max-width: 639px) {
@@ -1710,8 +1697,7 @@ h6 {
   .tool-suite .module-header-actions > div { width: 100%; }
 
   .devices-tool-page .tool-content,
-  .weather-tool-page .tool-content,
-  .traffic-tool-page .tool-content { padding: 0.8rem; }
+  .weather-tool-page .tool-content { padding: 0.8rem; }
 
   .settings-section-nav {
     width: 100%;

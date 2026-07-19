@@ -936,13 +936,6 @@ body::after {
   height: calc(100% - max(var(--safe-area-top), 0px));
 }
 
-@media (hover: none) and (pointer: coarse) {
-  .command-traffic-chip,
-  .titlebar-traffic-button {
-    display: none !important;
-  }
-}
-
 .command-icon-button {
   position: relative;
   display: inline-flex;

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Megaphone, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, CarFront, MonitorCheck, Search, SlidersHorizontal
+  Clock, Store, Megaphone, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, MonitorCheck, Search, SlidersHorizontal
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
@@ -13,7 +13,6 @@ import { Button } from '../../ui/Button'
 import { APP_META } from '../../../config/appMeta'
 import { SyncArea, useSyncStore } from '../../../store/syncStore'
 import { WeatherPage } from '../weather/WeatherPage'
-import { TrafficPage } from '../traffic/TrafficPage'
 import { getDealerInfo } from '../../../lib/dealers'
 import { getStoreProfile } from '../../../config/storeProfiles'
 import { normalizeStoreId } from '../../../lib/storeIds'
@@ -1325,7 +1324,6 @@ function SyncStatusSection() {
 const SECTIONS = [
   { id: 'general',       label: 'General',       icon: <Clock size={14} /> },
   { id: 'weather',       label: 'Weather',       icon: <Cloud size={14} /> },
-  { id: 'traffic',       label: 'Traffic',       icon: <CarFront size={14} /> },
   { id: 'display',       label: 'Display',       icon: <Tv2 size={14} /> },
   { id: 'remote',        label: 'Remote',        icon: <MonitorCheck size={14} /> },
   { id: 'store',         label: 'Store Details',  icon: <Store size={14} /> },
@@ -1341,7 +1339,6 @@ type SectionId = typeof SECTIONS[number]['id']
 const MOBILE_SECTION_LABELS: Partial<Record<SectionId, string>> = {
   general: 'General',
   weather: 'Weather',
-  traffic: 'Traffic',
   display: 'Display',
   remote: 'Remote',
   store: 'Store',
@@ -1352,14 +1349,13 @@ const MOBILE_SECTION_LABELS: Partial<Record<SectionId, string>> = {
   sync: 'Sync',
   about: 'About',
 }
-const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather', 'traffic']
+const LIMITED_SETTINGS_SECTIONS: SectionId[] = ['weather']
 const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores', 'remote']
 const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store']
 const STANDALONE_SETTINGS_SECTIONS: SectionId[] = ['reports']
 const SECTION_SEARCH_TERMS: Record<SectionId, string> = {
   general: 'theme accent zoom time temperature session',
   weather: 'forecast weather location radar temperature',
-  traffic: 'traffic roads commute cameras alerts',
   display: 'display screen slides interval kiosk',
   remote: 'remote kiosk approval refresh update command',
   store: 'store details hours profile number',
@@ -1417,7 +1413,6 @@ export function SettingsPage() {
   const content: Record<SectionId, React.ReactNode> = {
     general:       <GeneralSection />,
     weather:       <WeatherPage />,
-    traffic:       <TrafficPage />,
     display:       <DisplaySettingsSection />,
     remote:        <RemoteSection />,
     store:         <StoreSection />,
