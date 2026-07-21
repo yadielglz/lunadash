@@ -1160,6 +1160,18 @@ h6 {
   padding: 0.7rem 0.8rem;
 }
 
+@media (min-width: 1024px) {
+  .employee-selector-list {
+    flex-direction: column;
+  }
+
+  .employee-selector-list > button {
+    width: 100%;
+    min-width: 0;
+    flex: none;
+  }
+}
+
 .employee-workspace {
   padding: clamp(1rem, 1.8vw, 1.5rem);
 }

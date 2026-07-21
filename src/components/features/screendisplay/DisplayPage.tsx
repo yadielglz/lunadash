@@ -12,7 +12,8 @@ import { isAnnouncementActive, useDisplayStore } from '../../../store/displaySto
 import { useUiStore } from '../../../store/uiStore'
 import { getWeatherInfo, getWindDirection } from '../../../lib/openMeteo'
 import { formatShiftTime, hexToRgba } from '../../../lib/utils'
-import { fetchPerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
+import { type PerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
+import { fetchDashboardPerformanceData } from '../../../lib/dashboardSales'
 import { dealerInfoForRow } from '../../../lib/dealers'
 import { weekdayKeyForDate, type StoreHours } from '../../../lib/storeHours'
 import { normalizeStoreId } from '../../../lib/storeIds'
@@ -163,7 +164,7 @@ function normalizeStoreCode(value: string) {
   return value.replace(/\D/g, '').trim()
 }
 
-function selectedPerformanceRow(data: Awaited<ReturnType<typeof fetchPerformanceData>> | undefined, identifiers: string[], isMain: boolean) {
+function selectedPerformanceRow(data: PerformanceData | undefined, identifiers: string[], isMain: boolean) {
   if (!data) return null
   if (isMain) return data.total
 
@@ -249,7 +250,7 @@ function StorePulseSlide() {
   const todayLow = weatherData?.daily.temperature_2m_min[0]
   const performanceQuery = useQuery({
     queryKey: ['display-pulse-performance'],
-    queryFn: fetchPerformanceData,
+    queryFn: fetchDashboardPerformanceData,
     staleTime: 55_000,
     refetchInterval: 60_000,
   })
@@ -1132,7 +1133,7 @@ function ScheduleOutlookSlide() {
 function DistrictOutlookSlide() {
   const { data, isLoading } = useQuery({
     queryKey: ['display-performance-source'],
-    queryFn: fetchPerformanceData,
+    queryFn: fetchDashboardPerformanceData,
     staleTime: 55_000,
     refetchInterval: 60_000,
   })
@@ -1220,7 +1221,7 @@ type LeaderboardMetric = {
 function PerformanceLeaderboardSlide({ metric }: { metric: LeaderboardMetric }) {
   const { data, isLoading } = useQuery({
     queryKey: ['display-performance-source'],
-    queryFn: fetchPerformanceData,
+    queryFn: fetchDashboardPerformanceData,
     staleTime: 55_000,
     refetchInterval: 60_000,
   })

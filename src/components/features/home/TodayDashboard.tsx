@@ -26,10 +26,11 @@ import { isAnnouncementActive, useDisplayStore } from '../../../store/displaySto
 import { useScheduleStore } from '../../../store/scheduleStore'
 import { useTasksStore } from '../../../store/tasksStore'
 import { useSyncStore } from '../../../store/syncStore'
-import { fetchPerformanceData, formatMoney, formatNumber, formatPercent, type PerformanceRow } from '../../../lib/performanceSheet'
+import { formatMoney, formatNumber, formatPercent, type PerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
 import { districtWins, smartDailyBrief } from '../../../lib/districtInsights'
 import { appointmentFilledRows, fetchAppointmentTrackerData } from '../../../lib/appointments'
 import { normalizeStoreId } from '../../../lib/storeIds'
+import { fetchDashboardPerformanceData } from '../../../lib/dashboardSales'
 
 const todayKey = () => {
   const date = new Date()
@@ -147,7 +148,7 @@ function ConnectivityTile({
   )
 }
 
-function selectedPerformanceRow(data: Awaited<ReturnType<typeof fetchPerformanceData>> | undefined, identifiers: string[], isMain: boolean) {
+function selectedPerformanceRow(data: PerformanceData | undefined, identifiers: string[], isMain: boolean) {
   if (!data) return null
   if (isMain) return data.total
 
@@ -233,7 +234,7 @@ function StorePulse({ row }: { row: PerformanceRow | null }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-[var(--text)]">Performance Pulse</h2>
-            <p className="text-xs text-[var(--text-tertiary)]">Live sales sheet snapshot</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Google source plus LunaDash sales</p>
           </div>
           <Badge color={metricTone(overall)}>{formatPercent(overall)} overall</Badge>
         </div>
@@ -340,7 +341,9 @@ export function TodayDashboard() {
 
   const performanceQuery = useQuery({
     queryKey: ['today-performance'],
-    queryFn: fetchPerformanceData,
+    queryFn: async () => {
+      return fetchDashboardPerformanceData()
+    },
     staleTime: 55_000,
     refetchInterval: 60_000,
   })

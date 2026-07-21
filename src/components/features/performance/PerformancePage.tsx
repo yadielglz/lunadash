@@ -11,7 +11,6 @@ import { useUiStore } from '../../../store/uiStore'
 import { useDistrictCoachingStore } from '../../../store/districtCoachingStore'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import {
-  fetchPerformanceData,
   formatMoney,
   formatNumber,
   formatPercent,
@@ -20,6 +19,7 @@ import {
 } from '../../../lib/performanceSheet'
 import { dealerInfoForRow } from '../../../lib/dealers'
 import { copyEodToClipboard } from '../../../lib/eodCopy'
+import { fetchDashboardPerformanceData } from '../../../lib/dashboardSales'
 
 type SortKey = 'overallScore' | 'goalGapScore' | 'netRevenue' | 'netRevenuePct' | 'accessoryRevenue' | 'accessoryPct' | 'totalPp' | 'ppPct' | 'traffic'
 type OptionalColumn = 'traffic' | 'postConv' | 'goals' | 'products'
@@ -741,7 +741,7 @@ export function PerformancePage() {
     if (!background) setLoading(true)
     setError('')
     try {
-      setData(await fetchPerformanceData())
+      setData(await fetchDashboardPerformanceData())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load performance Source')
     } finally {
@@ -950,7 +950,7 @@ export function PerformancePage() {
         icon={<BarChart3 size={18} />}
         eyebrow="District intelligence"
         title="District Outlook"
-        description="Compare store rankings, goal gaps, and live Source performance across the district."
+        description="Compare Google source metrics with published LunaDash sales across the district."
         meta={<span>{updated ? `Refreshed ${updated}` : 'Awaiting refresh'} · Updates every 60 seconds</span>}
         actions={
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

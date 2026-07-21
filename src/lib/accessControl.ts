@@ -1,10 +1,10 @@
 import type { AccessMode, AccessRole, Tab } from '../store/uiStore'
 
 const ROLE_TABS: Record<AccessRole, Tab[]> = {
-  admin: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'updates', 'settings', 'devices', 'display'],
-  district_manager: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'updates', 'settings', 'display'],
-  manager: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'updates', 'settings', 'display'],
-  employee: ['home', 'district', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'settings', 'display'],
+  admin: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'mrc-calculator', 'nr-tracking', 'updates', 'settings', 'devices', 'display'],
+  district_manager: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'mrc-calculator', 'nr-tracking', 'updates', 'settings', 'display'],
+  manager: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'mrc-calculator', 'nr-tracking', 'updates', 'settings', 'display'],
+  employee: ['home', 'district', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'mrc-calculator', 'nr-tracking', 'settings', 'display'],
   display: ['display'],
 }
 

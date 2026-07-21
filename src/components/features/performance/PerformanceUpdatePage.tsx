@@ -1,14 +1,9 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import {
-  Calculator,
-  CheckCircle2,
-  DollarSign,
-  Plus,
   RefreshCw,
   Search,
   SlidersHorizontal,
   Store,
-  Trash2,
   UploadCloud,
 } from 'lucide-react'
 import { Button } from '../../ui/Button'
@@ -20,8 +15,6 @@ import { updatePerformanceSheet } from '../../../lib/performanceUpdate'
 import { useUiStore } from '../../../store/uiStore'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import { dealerInfoForRow } from '../../../lib/dealers'
-import { useScheduleStore } from '../../../store/scheduleStore'
-import { estimateNetRevenue, useEmployeeInsightsStore, type EmployeeSaleCategory } from '../../../store/employeeInsightsStore'
 
 type Draft = {
   traffic: string
@@ -31,80 +24,6 @@ type Draft = {
   bts: string
   hsi: string
 }
-
-type SaleType = 'voice' | 'bts' | 'hsi' | 'other'
-
-type SaleEntry = {
-  id: string
-  rep: string
-  revenue: string
-  type: SaleType
-  feature: string
-  accessory: string
-  phones: string
-  p360: string
-}
-
-type PlanKey =
-  | 'experienceBeyond'
-  | 'experienceMore'
-  | 'betterValue'
-  | 'experienceBeyond55'
-  | 'experienceMore55'
-  | 'fourFor100'
-  | 'voiceAal'
-  | 'btsLine'
-  | 'hsiLine'
-
-type PlanOption = {
-  key: PlanKey
-  label: string
-  value: number
-}
-
-type PlanCounts = Record<PlanKey, string>
-
-const PLAN_GROUPS: { label: string; prices: PlanOption[] }[] = [
-  {
-    label: 'Premium Plans',
-    prices: [
-      { key: 'experienceBeyond', label: 'Experience Beyond', value: 180 },
-      { key: 'experienceMore', label: 'Experience More', value: 150 },
-      { key: 'betterValue', label: 'Better Value', value: 155 },
-    ],
-  },
-  {
-    label: 'Value / 55+ Plans',
-    prices: [
-      { key: 'experienceBeyond55', label: 'Experience Beyond 55+', value: 130 },
-      { key: 'experienceMore55', label: 'Experience More 55+', value: 100 },
-      { key: 'fourFor100', label: '4 x $100', value: 120 },
-    ],
-  },
-  {
-    label: 'Add-a-line / Other',
-    prices: [
-      { key: 'voiceAal', label: 'Voice / AAL', value: 65 },
-      { key: 'btsLine', label: 'BTS', value: 20 },
-      { key: 'hsiLine', label: 'HSI', value: 15 },
-    ],
-  },
-]
-
-const EMPTY_PLAN_COUNTS = PLAN_GROUPS
-  .flatMap((group) => group.prices)
-  .reduce((acc, plan) => ({ ...acc, [plan.key]: '' }), {} as PlanCounts)
-
-const newSaleEntry = (): SaleEntry => ({
-  id: crypto.randomUUID(),
-  rep: '',
-  revenue: '',
-  type: 'voice',
-  feature: '',
-  accessory: '',
-  phones: '',
-  p360: '',
-})
 
 function emptyDraft(): Draft {
   return {
@@ -126,38 +45,8 @@ function parseOptionalDraftNumber(value: string) {
   return value.trim() ? parseDraftNumber(value) : undefined
 }
 
-function safeDraftNumber(value: string) {
-  const parsed = parseDraftNumber(value)
-  return Number.isNaN(parsed) ? 0 : parsed
-}
-
 function metricInputValue(value: string) {
   return value.replace(/[^\d.]/g, '')
-}
-
-function sumPlanRevenue(counts: PlanCounts) {
-  return PLAN_GROUPS.flatMap((group) => group.prices).reduce((sum, plan) => (
-    sum + safeDraftNumber(counts[plan.key]) * plan.value
-  ), 0)
-}
-
-function sumSalesRevenue(entries: SaleEntry[]) {
-  return entries.reduce((sum, entry) => sum + safeDraftNumber(entry.revenue) + safeDraftNumber(entry.feature), 0)
-}
-
-function sumAccessories(entries: SaleEntry[]) {
-  return entries.reduce((sum, entry) => sum + safeDraftNumber(entry.accessory), 0)
-}
-
-function countType(entries: SaleEntry[], type: SaleType) {
-  return entries.filter((entry) => entry.type === type).length
-}
-
-function saleCategoryForType(type: SaleType): EmployeeSaleCategory {
-  if (type === 'voice') return 'voice'
-  if (type === 'bts') return 'bts'
-  if (type === 'hsi') return 'hsi'
-  return 'other'
 }
 
 function MetricTile({
@@ -206,8 +95,6 @@ function SectionTitle({
 
 export function PerformanceUpdatePage() {
   const { accessId, accessRole, storeId } = useUiStore()
-  const employees = useScheduleStore((state) => state.employees)
-  const addEmployeeSale = useEmployeeInsightsStore((state) => state.addSale)
   const [rows, setRows] = useState<PerformanceRow[]>([])
   const [selectedStoreCode, setSelectedStoreCode] = useState(normalizeStoreId(storeId) === 'main' ? '' : normalizeStoreId(storeId))
   const [draft, setDraft] = useState<Draft>(emptyDraft())
@@ -216,8 +103,6 @@ export function PerformanceUpdatePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const [planCounts, setPlanCounts] = useState<PlanCounts>(EMPTY_PLAN_COUNTS)
-  const [sales, setSales] = useState<SaleEntry[]>([])
 
   const canChooseStore = accessRole === 'admin' || accessRole === 'district_manager'
   const canUpdate = accessRole === 'admin' || accessRole === 'district_manager' || accessRole === 'manager'
@@ -241,35 +126,6 @@ export function PerformanceUpdatePage() {
         || dealer.location.toLowerCase().includes(q)
     })
   }, [canChooseStore, query, rows, storeId])
-
-  const calculatorTotals = useMemo(() => {
-    const planRevenue = sumPlanRevenue(planCounts)
-    const salesRevenue = sumSalesRevenue(sales)
-    const accessoryRevenue = sumAccessories(sales)
-    return {
-      planRevenue,
-      salesRevenue,
-      netRevenue: planRevenue + salesRevenue,
-      accessoryRevenue,
-      vl: countType(sales, 'voice'),
-      bts: countType(sales, 'bts'),
-      hsi: countType(sales, 'hsi'),
-    }
-  }, [planCounts, sales])
-
-  const nextTotals = selectedRow ? {
-    netRevenue: selectedRow.netRevenue + Math.round(calculatorTotals.netRevenue),
-    accessoryRevenue: selectedRow.accessoryRevenue + Math.round(calculatorTotals.accessoryRevenue),
-    vl: selectedRow.vl + calculatorTotals.vl,
-    bts: selectedRow.bts + calculatorTotals.bts,
-    hsi: selectedRow.hsi + calculatorTotals.hsi,
-  } : null
-
-  const hasCalculatorValues = calculatorTotals.netRevenue > 0
-    || calculatorTotals.accessoryRevenue > 0
-    || calculatorTotals.vl > 0
-    || calculatorTotals.bts > 0
-    || calculatorTotals.hsi > 0
 
   const loadData = async () => {
     setLoading(true)
@@ -302,85 +158,6 @@ export function PerformanceUpdatePage() {
     setMessage('')
   }, [selectedRow])
 
-  const updateSale = (id: string, patch: Partial<SaleEntry>) => {
-    setSales((entries) => entries.map((entry) => entry.id === id ? { ...entry, ...patch } : entry))
-  }
-
-  const removeSale = (id: string) => {
-    setSales((entries) => entries.filter((entry) => entry.id !== id))
-  }
-
-  const applyCalculatorTotals = async () => {
-    if (!canUpdate) {
-      setError('Performance updates are available to manager sessions and up.')
-      return
-    }
-    if (!selectedRow) {
-      setError('Select a store before applying calculator totals.')
-      return
-    }
-    if (!hasCalculatorValues) {
-      setError('Enter calculator values before applying totals.')
-      return
-    }
-
-    setSaving(true)
-    setError('')
-    setMessage('')
-    try {
-      const result = await updatePerformanceSheet({
-        accessId,
-        accessRole: accessRole ?? '',
-        storeCode: selectedRow.storeCode,
-        traffic: selectedRow.traffic,
-        netRevenue: nextTotals?.netRevenue ?? selectedRow.netRevenue,
-        accessoryRevenue: nextTotals?.accessoryRevenue ?? selectedRow.accessoryRevenue,
-        vl: nextTotals?.vl ?? selectedRow.vl,
-        bts: nextTotals?.bts ?? selectedRow.bts,
-        hsi: nextTotals?.hsi ?? selectedRow.hsi,
-      })
-      const selectedStoreId = normalizeStoreId(selectedRow.storeCode)
-      const storeEmployees = employees.filter((employee) => normalizeStoreId(employee.storeId ?? selectedStoreId) === selectedStoreId)
-      const employeeByName = new Map(storeEmployees.map((employee) => [employee.name.trim().toLowerCase(), employee]))
-      await Promise.all(sales.map(async (entry) => {
-        const employee = employeeByName.get(entry.rep.trim().toLowerCase())
-        if (!employee) return
-        const grossRevenue = safeDraftNumber(entry.revenue) + safeDraftNumber(entry.feature)
-        const accessoryRevenue = safeDraftNumber(entry.accessory)
-        const protectionCount = Math.round(safeDraftNumber(entry.p360))
-        const estimatedNetRevenue = estimateNetRevenue({
-          grossRevenue,
-          accessoryRevenue,
-          protectionCount,
-        })
-        if (estimatedNetRevenue <= 0) return
-        await addEmployeeSale({
-          employeeId: employee.id,
-          storeId: selectedStoreId,
-          saleDate: new Date().toISOString().slice(0, 10),
-          category: saleCategoryForType(entry.type),
-          grossRevenue,
-          accessoryRevenue,
-          protectionCount,
-          estimatedNetRevenue,
-          note: [
-            'Performance Update',
-            entry.phones ? `${entry.phones} phones` : '',
-            entry.p360 ? `${entry.p360} P360` : '',
-          ].filter(Boolean).join(' · '),
-        })
-      }))
-      setMessage(result.message || `Added calculator totals to ${selectedRow.storeCode}`)
-      setPlanCounts(EMPTY_PLAN_COUNTS)
-      setSales([])
-      await loadData()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update Google Cloud Services')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const save = async () => {
     if (!canUpdate) {
       setError('Performance updates are available to manager sessions and up.')
@@ -393,6 +170,7 @@ export function PerformanceUpdatePage() {
 
     const values = {
       traffic: parseOptionalDraftNumber(draft.traffic),
+      netRevenue: parseOptionalDraftNumber(draft.netRevenue),
       accessoryRevenue: parseOptionalDraftNumber(draft.accessoryRevenue),
       vl: parseOptionalDraftNumber(draft.vl),
       bts: parseOptionalDraftNumber(draft.bts),
@@ -433,7 +211,7 @@ export function PerformanceUpdatePage() {
           icon={<UploadCloud size={18} />}
           eyebrow="Controlled tracker entry"
           title="Data Updates"
-          description="Post verified sales activity to the performance tracker."
+          description="Manually post verified tracker values to the Google Sheet."
         />
         <div className="performance-content flex flex-1 items-center justify-center p-4">
           <EmptyState
@@ -455,14 +233,14 @@ export function PerformanceUpdatePage() {
         icon={<UploadCloud size={18} />}
         eyebrow="Controlled tracker entry"
         title="Data Updates"
-        description="Select a store, enter sales activity, review calculated totals, and post a verified update."
+        description="Manually update selected Google Sheet tracker values. MRC Calculator and NR Tracking do not post here automatically."
         actions={
           <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={loadData} loading={loading}>
             Refresh
           </Button>
         }
       />
-      <WorkflowSteps steps={['Select store', 'Enter activity', 'Review and post']} current={message ? 2 : selectedRow ? 1 : 0} />
+      <WorkflowSteps steps={['Select store', 'Enter values', 'Review and post']} current={message ? 2 : selectedRow ? 1 : 0} />
 
       <div className="performance-content flex-1 overflow-y-auto p-4">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)]">
@@ -544,104 +322,6 @@ export function PerformanceUpdatePage() {
             <Card>
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <SectionTitle
-                  icon={<CalculatorIcon />}
-                  title="Add Sales Activity"
-                  detail="Enter quantities or sale rows, review the preview, then post the totals."
-                />
-                <Button
-                  size="sm"
-                  variant="accent"
-                  icon={<CheckCircle2 size={13} />}
-                  loading={saving}
-                  disabled={!selectedRow || !hasCalculatorValues}
-                  onClick={applyCalculatorTotals}
-                >
-                  Post Totals
-                </Button>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
-                <MetricTile label="Plan Revenue" value={calculatorTotals.planRevenue} money />
-                <MetricTile label="Sale Revenue" value={calculatorTotals.salesRevenue} money />
-                <MetricTile label="NR Add" value={calculatorTotals.netRevenue} money helper={nextTotals ? `New ${formatMoney(nextTotals.netRevenue)}` : undefined} />
-                <MetricTile label="ACC Add" value={calculatorTotals.accessoryRevenue} money helper={nextTotals ? `New ${formatMoney(nextTotals.accessoryRevenue)}` : undefined} />
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-3">
-                {PLAN_GROUPS.map((group) => (
-                  <div key={group.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                    <div className="mb-3 text-xs font-semibold text-[var(--text)]">{group.label}</div>
-                    <div className="space-y-2">
-                      {group.prices.map((plan) => (
-                        <Input
-                          key={plan.key}
-                          label={`${plan.label} (${formatMoney(plan.value)})`}
-                          inputMode="decimal"
-                          value={planCounts[plan.key]}
-                          onChange={(event) => setPlanCounts((counts) => ({ ...counts, [plan.key]: metricInputValue(event.target.value) }))}
-                          placeholder="0"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]">
-                <div className="flex flex-col gap-2 border-b border-[var(--border)] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-xs font-semibold text-[var(--text)]">Sale Detail Rows</div>
-                    <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
-                      {sales.length ? `${sales.length} row${sales.length === 1 ? '' : 's'} included in preview` : 'Optional detail for rep-level sales and accessories.'}
-                    </div>
-                  </div>
-                  <Button size="sm" variant="ghost" icon={<Plus size={12} />} onClick={() => setSales((entries) => [...entries, newSaleEntry()])}>
-                    Add Row
-                  </Button>
-                </div>
-
-                <div className="space-y-2 p-3">
-                  {sales.length === 0 && (
-                    <div className="rounded-md border border-dashed border-[var(--border)] px-3 py-5 text-center text-xs text-[var(--text-tertiary)]">
-                      No sale rows added.
-                    </div>
-                  )}
-                  {sales.map((entry, index) => (
-                    <div key={entry.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium text-[var(--text-secondary)]">Sale {index + 1}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeSale(entry.id)}
-                          className="rounded-md p-1 text-[var(--text-tertiary)] transition-colors hover:bg-red-500/10 hover:text-red-400"
-                          title="Remove sale"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                        <Input label="Rep" value={entry.rep} onChange={(event) => updateSale(entry.id, { rep: event.target.value })} />
-                        <Input label="Sale Revenue" inputMode="decimal" value={entry.revenue} onChange={(event) => updateSale(entry.id, { revenue: metricInputValue(event.target.value) })} />
-                        <Select label="Type" value={entry.type} onChange={(event) => updateSale(entry.id, { type: event.target.value as SaleType })}>
-                          <option value="voice">Voice / AAL</option>
-                          <option value="bts">BTS</option>
-                          <option value="hsi">HSI</option>
-                          <option value="other">Other</option>
-                        </Select>
-                        <Input label="Feature $" inputMode="decimal" value={entry.feature} onChange={(event) => updateSale(entry.id, { feature: metricInputValue(event.target.value) })} />
-                        <Input label="ACC $" inputMode="decimal" value={entry.accessory} onChange={(event) => updateSale(entry.id, { accessory: metricInputValue(event.target.value) })} />
-                        <Input label="# Phones" inputMode="decimal" value={entry.phones} onChange={(event) => updateSale(entry.id, { phones: metricInputValue(event.target.value) })} />
-                        <Input label="# P360" inputMode="decimal" value={entry.p360} onChange={(event) => updateSale(entry.id, { p360: metricInputValue(event.target.value) })} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <SectionTitle
                   icon={<SlidersHorizontal size={16} />}
                   title="Manual Tracker Adjustment"
                   detail="Use this when you need to overwrite the current tracker values directly."
@@ -651,10 +331,14 @@ export function PerformanceUpdatePage() {
                 </Button>
               </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
                 <div>
                   <Input label="Traffic" inputMode="decimal" value={draft.traffic} onChange={(e) => setDraft((d) => ({ ...d, traffic: metricInputValue(e.target.value) }))} />
                   <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatNumber(selectedRow?.traffic ?? 0)}</p>
+                </div>
+                <div>
+                  <Input label="Net Revenue" inputMode="decimal" value={draft.netRevenue} onChange={(e) => setDraft((d) => ({ ...d, netRevenue: metricInputValue(e.target.value) }))} />
+                  <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatMoney(selectedRow?.netRevenue ?? 0)}</p>
                 </div>
                 <div>
                   <Input label="Accessories" inputMode="decimal" value={draft.accessoryRevenue} onChange={(e) => setDraft((d) => ({ ...d, accessoryRevenue: metricInputValue(e.target.value) }))} />
@@ -684,14 +368,5 @@ export function PerformanceUpdatePage() {
         </div>
       </div>
     </div>
-  )
-}
-
-function CalculatorIcon() {
-  return (
-    <span className="relative flex h-4 w-4 items-center justify-center">
-      <Calculator size={16} />
-      <DollarSign size={8} className="absolute -right-1 -top-1 rounded-full bg-[var(--surface)] text-[var(--accent)]" />
-    </span>
   )
 }

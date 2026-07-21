@@ -16,12 +16,15 @@ interface ModalProps {
 export function Modal({ open, onClose, title, children, className, size = 'md', ariaLabel }: ModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
     if (!open) return
     const previousFocus = document.activeElement as HTMLElement | null
     dialogRef.current?.focus()
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onCloseRef.current()
       if (e.key !== 'Tab' || !dialogRef.current) return
       const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((item) => !item.hasAttribute('disabled'))
       if (!focusable.length) return
@@ -35,7 +38,7 @@ export function Modal({ open, onClose, title, children, className, size = 'md', 
       window.removeEventListener('keydown', handler)
       previousFocus?.focus()
     }
-  }, [open, onClose])
+  }, [open])
 
   const sizes = {
     sm: 'max-w-sm',
@@ -56,18 +59,18 @@ export function Modal({ open, onClose, title, children, className, size = 'md', 
         >
           {/* Backdrop */}
           <motion.div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={title ? titleId : undefined}
-            aria-label={title ? undefined : (ariaLabel ?? 'Dialog')}
-            tabIndex={-1}
             className="absolute inset-0 bg-black/35 backdrop-blur-md"
             onClick={onClose}
           />
 
           {/* Sheet */}
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+            aria-label={title ? undefined : (ariaLabel ?? 'Dialog')}
+            tabIndex={-1}
             className={cn(
               'relative w-full rounded-t-2xl sm:rounded-2xl bg-[var(--surface)] border border-[var(--border-strong)] shadow-[var(--shadow-modal)] overflow-hidden flex flex-col backdrop-blur-2xl',
               sizes[size],

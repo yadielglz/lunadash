@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { BadgeDollarSign, Calendar, CalendarPlus, CheckSquare, FileText, LayoutGrid, Radar, Settings, Target, UploadCloud, Users, X } from 'lucide-react'
 import { useUiStore, type Tab } from '../../store/uiStore'
 import { canAccessTab } from '../../lib/accessControl'
-import { fetchPerformanceData, type PerformanceRow } from '../../lib/performanceSheet'
+import { type PerformanceRow } from '../../lib/performanceSheet'
+import { fetchDashboardPerformanceData } from '../../lib/dashboardSales'
 import { dealerInfoForRow } from '../../lib/dealers'
 import { normalizeStoreId } from '../../lib/storeIds'
 import { cn } from '../../lib/utils'
@@ -34,7 +35,7 @@ export function MobileNavDrawer({ open, onClose }: { open: boolean; onClose: () 
   useEffect(() => {
     if (!open || rows.length > 0 || statsLoading) return
     setStatsLoading(true)
-    fetchPerformanceData()
+    fetchDashboardPerformanceData()
       .then((data) => setRows(data.rows))
       .catch(() => setRows([]))
       .finally(() => setStatsLoading(false))

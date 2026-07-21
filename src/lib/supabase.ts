@@ -8,6 +8,7 @@ import type { Announcement } from '../store/displayStore'
 import type { Task, TaskCategory } from '../store/tasksStore'
 import type { ScheduleException } from '../store/scheduleExceptionsStore'
 import type { CommissionSnapshot } from '../store/commissionSnapshotStore'
+import { normalizeNRTrackingEntry, type NRTrackingEntry } from './nrTracking'
 import { useSyncStore } from '../store/syncStore'
 import type { AccessRole } from '../store/uiStore'
 import { fetchPerformanceData, type PerformanceRow } from './performanceSheet'
@@ -91,6 +92,20 @@ type DbEmployeeSale = {
   category: EmployeeSale['category']; gross_revenue: number | null
   accessory_revenue: number | null; protection_count: number | null
   estimated_net_revenue: number | null; note: string | null; created_at: string
+}
+
+type DbNRTrackingEntry = {
+  id: string; sale_id: string; created_at: string; sale_date: string
+  employee_id: string | null; employee_name: string | null
+  store_id: string | null; store_name: string | null
+  source: NRTrackingEntry['source']; category: NRTrackingEntry['category']
+  plan_id: string; plan_name: string; line_count: number
+  mrc: number; nr: number; notes: string | null
+  sale_type: NRTrackingEntry['saleType']; account_line_count_before: number
+  account_line_count_after: number; account_mrc_before: number; account_mrc_after: number
+  accessory_revenue: number; dashboard_pushed_at: string | null; dashboard_pushed_by: string | null
+  source_pushed_at: string | null; source_pushed_by: string | null
+  product_category: NRTrackingEntry['productCategory']
 }
 
 type DbAnnouncement = {
@@ -961,6 +976,168 @@ export async function dbDeleteEmployeeSale(id: string): Promise<boolean> {
   if (logOptionalEmployeeInsightsWarning('employee sale deletion', error)) return false
   throwIfError(error, 'Could not delete employee sale')
   return true
+}
+
+// ── NR tracking ──────────────────────────────────────────────────────────────
+
+function dbToNRTrackingEntry(row: DbNRTrackingEntry): NRTrackingEntry {
+  return normalizeNRTrackingEntry({
+    id: row.id,
+    saleId: row.sale_id ?? row.id,
+    createdAt: row.created_at,
+    saleDate: row.sale_date,
+    employeeId: row.employee_id ?? undefined,
+    employeeName: row.employee_name ?? undefined,
+    storeId: row.store_id ?? undefined,
+    storeName: row.store_name ?? undefined,
+    source: row.source,
+    category: row.category,
+    planId: row.plan_id,
+    planName: row.plan_name,
+    lineCount: row.line_count,
+    mrc: Number(row.mrc),
+    nr: Number(row.nr),
+    notes: row.notes ?? undefined,
+    saleType: row.sale_type ?? 'new-account',
+    accountLineCountBefore: row.account_line_count_before ?? 0,
+    accountLineCountAfter: row.account_line_count_after ?? row.line_count,
+    accountMrcBefore: Number(row.account_mrc_before ?? 0),
+    accountMrcAfter: Number(row.account_mrc_after ?? row.mrc),
+    accessoryRevenue: Number(row.accessory_revenue ?? 0),
+    dashboardPushedAt: row.dashboard_pushed_at ?? undefined,
+    dashboardPushedBy: row.dashboard_pushed_by ?? undefined,
+    sourcePushedAt: row.source_pushed_at ?? undefined,
+    sourcePushedBy: row.source_pushed_by ?? undefined,
+    productCategory: row.product_category ?? 'voice',
+  })
+}
+
+function nrTrackingEntryToDb(entry: NRTrackingEntry, storeId: string) {
+  const safe = normalizeNRTrackingEntry(entry)
+  return {
+    id: safe.id,
+    sale_id: safe.saleId || safe.id,
+    created_at: safe.createdAt,
+    sale_date: safe.saleDate,
+    employee_id: safe.employeeId || null,
+    employee_name: safe.employeeName || null,
+    store_id: normalizeStoreId(safe.storeId || storeId),
+    store_name: safe.storeName || null,
+    source: safe.source,
+    category: safe.category,
+    plan_id: safe.planId,
+    plan_name: safe.planName,
+    line_count: safe.lineCount,
+    mrc: safe.mrc,
+    // The database trigger independently derives NR from MRC.
+    nr: safe.nr,
+    notes: safe.notes || null,
+    sale_type: safe.saleType,
+    account_line_count_before: safe.accountLineCountBefore,
+    account_line_count_after: safe.accountLineCountAfter,
+    account_mrc_before: safe.accountMrcBefore,
+    account_mrc_after: safe.accountMrcAfter,
+    accessory_revenue: safe.accessoryRevenue,
+    dashboard_pushed_at: safe.dashboardPushedAt || null,
+    dashboard_pushed_by: safe.dashboardPushedBy || null,
+    source_pushed_at: safe.sourcePushedAt || null,
+    source_pushed_by: safe.sourcePushedBy || null,
+    product_category: safe.productCategory,
+  }
+}
+
+export async function dbGetNRTrackingEntries(storeId: string): Promise<NRTrackingEntry[]> {
+  const { data, error } = await supabase
+    .from('nr_tracking_entries')
+    .select('*')
+    .eq('store_id', normalizeStoreId(storeId))
+    .order('sale_date', { ascending: false })
+    .order('created_at', { ascending: false })
+  throwIfError(error, 'Could not load NR tracking')
+  return ((data ?? []) as DbNRTrackingEntry[]).map(dbToNRTrackingEntry)
+}
+
+export async function dbInsertNRTrackingEntry(entry: NRTrackingEntry, storeId: string): Promise<NRTrackingEntry> {
+  const { data, error } = await supabase
+    .from('nr_tracking_entries')
+    .insert(nrTrackingEntryToDb(entry, storeId))
+    .select('*')
+    .single()
+  throwIfError(error, 'Could not save NR entry')
+  return dbToNRTrackingEntry(data as DbNRTrackingEntry)
+}
+
+export async function dbUpdateNRTrackingEntry(entry: NRTrackingEntry, storeId: string): Promise<NRTrackingEntry> {
+  const payload = nrTrackingEntryToDb(entry, storeId)
+  const patch: Partial<typeof payload> = { ...payload }
+  delete patch.id
+  delete patch.created_at
+  const { data, error } = await supabase
+    .from('nr_tracking_entries')
+    .update(patch)
+    .eq('id', payload.id)
+    .select('*')
+    .single()
+  throwIfError(error, 'Could not update NR entry')
+  return dbToNRTrackingEntry(data as DbNRTrackingEntry)
+}
+
+export async function dbDeleteNRTrackingEntry(id: string) {
+  const { error } = await supabase.from('nr_tracking_entries').delete().eq('id', id)
+  throwIfError(error, 'Could not delete NR entry')
+}
+
+export async function dbGetDashboardNRTrackingEntries(): Promise<NRTrackingEntry[]> {
+  const { data, error } = await supabase
+    .from('nr_tracking_entries')
+    .select('*')
+    .not('dashboard_pushed_at', 'is', null)
+    .is('source_pushed_at', null)
+  throwIfError(error, 'Could not load dashboard sales entries')
+  return ((data ?? []) as DbNRTrackingEntry[]).map(dbToNRTrackingEntry)
+}
+
+export async function dbMarkNRTrackingDashboardPushed(id: string, pushedBy: string): Promise<NRTrackingEntry> {
+  const { data, error } = await supabase.from('nr_tracking_entries').update({
+    dashboard_pushed_at: new Date().toISOString(),
+    dashboard_pushed_by: pushedBy,
+  }).eq('id', id).select('*').single()
+  throwIfError(error, 'Could not push sale to dashboard')
+  return dbToNRTrackingEntry(data as DbNRTrackingEntry)
+}
+
+export async function dbMarkNRSaleDashboardPushed(saleId: string, pushedBy: string): Promise<NRTrackingEntry[]> {
+  const { data, error } = await supabase.from('nr_tracking_entries').update({
+    dashboard_pushed_at: new Date().toISOString(), dashboard_pushed_by: pushedBy,
+  }).eq('sale_id', saleId).select('*')
+  throwIfError(error, 'Could not push sale to dashboard')
+  return ((data ?? []) as DbNRTrackingEntry[]).map(dbToNRTrackingEntry)
+}
+
+export async function dbMarkNRTrackingSourcePushed(id: string, pushedBy: string): Promise<NRTrackingEntry> {
+  const now = new Date().toISOString()
+  const { data, error } = await supabase.from('nr_tracking_entries').update({
+    dashboard_pushed_at: now,
+    dashboard_pushed_by: pushedBy,
+    source_pushed_at: now,
+    source_pushed_by: pushedBy,
+  }).eq('id', id).select('*').single()
+  throwIfError(error, 'Could not mark sale as source-pushed')
+  return dbToNRTrackingEntry(data as DbNRTrackingEntry)
+}
+
+export async function dbMarkNRSaleSourcePushed(saleId: string, pushedBy: string): Promise<NRTrackingEntry[]> {
+  const now = new Date().toISOString()
+  const { data, error } = await supabase.from('nr_tracking_entries').update({
+    dashboard_pushed_at: now, dashboard_pushed_by: pushedBy, source_pushed_at: now, source_pushed_by: pushedBy,
+  }).eq('sale_id', saleId).select('*')
+  throwIfError(error, 'Could not mark sale as source-pushed')
+  return ((data ?? []) as DbNRTrackingEntry[]).map(dbToNRTrackingEntry)
+}
+
+export async function dbDeleteNRSale(saleId: string) {
+  const { error } = await supabase.from('nr_tracking_entries').delete().eq('sale_id', saleId)
+  throwIfError(error, 'Could not delete sale')
 }
 
 export async function dbSaveScheduleSnapshot(storeId: string, employees: Employee[], shifts: Shift[]) {

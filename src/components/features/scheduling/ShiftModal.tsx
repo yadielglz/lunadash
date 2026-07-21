@@ -63,7 +63,9 @@ export function ShiftModal({ open, onClose, initialDate, initialEmployeeId, edit
       setEmployeeId(editShift.employeeId)
       setDate(editShift.date)
       setBlockId(matchingBlock?.id ?? '')
-      setManualTime(!matchingBlock)
+      // Existing shifts should always open with editable hours. A matching saved
+      // block is retained as context, but must not force the form into read-only mode.
+      setManualTime(true)
       setManualName(editShift.type)
       setManualStartTime(editShift.startTime)
       setManualEndTime(editShift.endTime)

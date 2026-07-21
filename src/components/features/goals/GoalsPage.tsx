@@ -8,7 +8,8 @@ import { EmptyState, ModuleHeader } from '../../ui/ModulePrimitives'
 import { useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
 import { useUiStore } from '../../../store/uiStore'
-import { fetchPerformanceData, type PerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
+import { type PerformanceData, type PerformanceRow } from '../../../lib/performanceSheet'
+import { fetchDashboardPerformanceData } from '../../../lib/dashboardSales'
 import { dealerInfoForRow, getDealerInfo } from '../../../lib/dealers'
 import { normalizeStoreId } from '../../../lib/storeIds'
 
@@ -191,7 +192,7 @@ export function GoalsPage() {
 
   const sourceQuery = useQuery({
     queryKey: ['performance-snapshot-source'],
-    queryFn: fetchPerformanceData,
+    queryFn: fetchDashboardPerformanceData,
     staleTime: 55_000,
     refetchInterval: 60_000,
   })
