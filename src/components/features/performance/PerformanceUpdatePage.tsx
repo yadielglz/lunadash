@@ -18,7 +18,6 @@ import { dealerInfoForRow } from '../../../lib/dealers'
 
 type Draft = {
   traffic: string
-  netRevenue: string
   accessoryRevenue: string
   vl: string
   bts: string
@@ -28,7 +27,6 @@ type Draft = {
 function emptyDraft(): Draft {
   return {
     traffic: '',
-    netRevenue: '',
     accessoryRevenue: '',
     vl: '',
     bts: '',
@@ -170,7 +168,6 @@ export function PerformanceUpdatePage() {
 
     const values = {
       traffic: parseOptionalDraftNumber(draft.traffic),
-      netRevenue: parseOptionalDraftNumber(draft.netRevenue),
       accessoryRevenue: parseOptionalDraftNumber(draft.accessoryRevenue),
       vl: parseOptionalDraftNumber(draft.vl),
       bts: parseOptionalDraftNumber(draft.bts),
@@ -233,7 +230,7 @@ export function PerformanceUpdatePage() {
         icon={<UploadCloud size={18} />}
         eyebrow="Controlled tracker entry"
         title="Data Updates"
-        description="Manually update selected Google Sheet tracker values. MRC Calculator and NR Tracking do not post here automatically."
+        description="Update Traffic, Accessories, VL, BTS, and HSI directly in the connected Google Sheet."
         actions={
           <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={loadData} loading={loading}>
             Refresh
@@ -331,14 +328,10 @@ export function PerformanceUpdatePage() {
                 </Button>
               </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
                 <div>
                   <Input label="Traffic" inputMode="decimal" value={draft.traffic} onChange={(e) => setDraft((d) => ({ ...d, traffic: metricInputValue(e.target.value) }))} />
                   <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatNumber(selectedRow?.traffic ?? 0)}</p>
-                </div>
-                <div>
-                  <Input label="Net Revenue" inputMode="decimal" value={draft.netRevenue} onChange={(e) => setDraft((d) => ({ ...d, netRevenue: metricInputValue(e.target.value) }))} />
-                  <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Current {formatMoney(selectedRow?.netRevenue ?? 0)}</p>
                 </div>
                 <div>
                   <Input label="Accessories" inputMode="decimal" value={draft.accessoryRevenue} onChange={(e) => setDraft((d) => ({ ...d, accessoryRevenue: metricInputValue(e.target.value) }))} />

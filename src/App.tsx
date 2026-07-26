@@ -27,8 +27,6 @@ const GoalsPage = lazy(() => import('./components/features/goals/GoalsPage').the
 const CommissionSnapshotPage = lazy(() => import('./components/features/commission/CommissionSnapshotPage').then((m) => ({ default: m.CommissionSnapshotPage })))
 const ReportsPage = lazy(() => import('./components/features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })))
 const PerformanceUpdatePage = lazy(() => import('./components/features/performance/PerformanceUpdatePage').then((m) => ({ default: m.PerformanceUpdatePage })))
-const VoicePlanCalculatorPage = lazy(() => import('./components/features/mrc/VoicePlanCalculatorPage').then((m) => ({ default: m.VoicePlanCalculatorPage })))
-const NRTrackingPage = lazy(() => import('./components/features/nr/NRTrackingPage').then((m) => ({ default: m.NRTrackingPage })))
 const DisplayPage = lazy(() => import('./components/features/screendisplay/DisplayPage').then((m) => ({ default: m.DisplayPage })))
 const SettingsPage = lazy(() => import('./components/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 
@@ -297,8 +295,6 @@ export default function App() {
     goals:    <GoalsPage />,
     commission: <CommissionSnapshotPage />,
     reports: <ReportsPage />,
-    'mrc-calculator': <VoicePlanCalculatorPage />,
-    'nr-tracking': <NRTrackingPage />,
     updates:  <PerformanceUpdatePage />,
     settings: <SettingsPage />,
   }

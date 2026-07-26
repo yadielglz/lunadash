@@ -194,15 +194,16 @@ Deno.serve(async (req: Request) => {
     const rowNumber = rowIndex + 1
     const escapedTitle = sheetTitle.replace(/'/g, "''")
     const editableData = [
-      values.traffic === null ? null : { range: `'${escapedTitle}'!C${rowNumber}`, values: [[values.traffic]] },
-      values.accessoryRevenue === null ? null : { range: `'${escapedTitle}'!I${rowNumber}`, values: [[values.accessoryRevenue]] },
-      values.vl === null ? null : { range: `'${escapedTitle}'!N${rowNumber}`, values: [[values.vl]] },
-      values.bts === null ? null : { range: `'${escapedTitle}'!O${rowNumber}`, values: [[values.bts]] },
-      values.hsi === null ? null : { range: `'${escapedTitle}'!P${rowNumber}`, values: [[values.hsi]] },
-    ].filter((item): item is { range: string; values: number[][] } => Boolean(item))
+      values.traffic === null ? null : { label: 'Traffic', range: `'${escapedTitle}'!C${rowNumber}`, values: [[values.traffic]] },
+      values.accessoryRevenue === null ? null : { label: 'Accessories', range: `'${escapedTitle}'!I${rowNumber}`, values: [[values.accessoryRevenue]] },
+      values.vl === null ? null : { label: 'VL', range: `'${escapedTitle}'!N${rowNumber}`, values: [[values.vl]] },
+      values.bts === null ? null : { label: 'BTS', range: `'${escapedTitle}'!O${rowNumber}`, values: [[values.bts]] },
+      values.hsi === null ? null : { label: 'HSI', range: `'${escapedTitle}'!P${rowNumber}`, values: [[values.hsi]] },
+    ].filter((item): item is { label: string; range: string; values: number[][] } => Boolean(item))
 
     let editableRanges: string[] = []
-    if (editableData.length > 0) {
+    const skippedLabels: string[] = []
+    for (const item of editableData) {
       const editableRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`, {
         method: 'POST',
         headers: {
@@ -211,12 +212,20 @@ Deno.serve(async (req: Request) => {
         },
         body: JSON.stringify({
           valueInputOption: 'USER_ENTERED',
-          data: editableData,
+          data: [{ range: item.range, values: item.values }],
         }),
       })
       const editableResult = await editableRes.json()
-      if (!editableRes.ok) throw new Error(googleErrorMessage(editableResult, 'Google Sheets update failed.'))
-      editableRanges = editableResult.responses?.map((item: { updatedRange?: string }) => item.updatedRange).filter(Boolean) ?? []
+      if (!editableRes.ok) {
+        const message = googleErrorMessage(editableResult, `${item.label} update failed.`)
+        if (!isProtectedCellError(message)) throw new Error(message)
+        skippedLabels.push(item.label)
+        continue
+      }
+      editableRanges = [
+        ...editableRanges,
+        ...(editableResult.responses?.map((response: { updatedRange?: string }) => response.updatedRange).filter(Boolean) ?? []),
+      ]
     }
 
     let netRevenueWarning = ''
@@ -247,8 +256,12 @@ Deno.serve(async (req: Request) => {
 
     const updatedRange = [...editableRanges, netRevenueRange].filter(Boolean).join(', ')
 
+    const protectedWarning = skippedLabels.length > 0
+      ? ` ${skippedLabels.join(', ')} ${skippedLabels.length === 1 ? 'was' : 'were'} skipped because the sheet cell is protected.`
+      : ''
+
     return json({
-      message: `Updated ${storeCode} in Google Sheets.${netRevenueWarning}`,
+      message: `Updated ${storeCode} in Google Sheets.${protectedWarning}${netRevenueWarning}`,
       storeCode,
       updatedRange,
     })
