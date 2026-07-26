@@ -462,7 +462,7 @@ function NavigationRail({
         </button>
       )}
 
-      <div className="command-nav-list">
+      <div className="command-nav-list no-scrollbar">
         {NAV_GROUPS.map((group) => {
           const items = visibleItems.filter((item) => item.group === group)
           if (items.length === 0) return null

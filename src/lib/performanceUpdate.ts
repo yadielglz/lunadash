@@ -15,8 +15,14 @@ export async function updatePerformanceSheet(payload: PerformanceSheetUpdate & {
   accessId: string
   accessRole: string
 }) {
+  const { updates, ...basePayload } = payload
   const { data, error } = await supabase.functions.invoke('update-performance-sheet', {
-    body: payload,
+    // Keep tracker values at the top level for deployed function versions that
+    // predate the grouped `updates` payload. Explicit top-level values win.
+    body: {
+      ...updates,
+      ...basePayload,
+    },
   })
 
   if (error) {
