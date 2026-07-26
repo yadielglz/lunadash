@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Clock, Store, Megaphone, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, MonitorCheck, Search, SlidersHorizontal
+  Clock, Store, Megaphone, Check, ChevronRight, Trash2, Plus, Edit2, Info, RefreshCw, Moon, Sun, Cloud, KeyRound, Tv2, FileText, Printer, MonitorCheck, Search, SlidersHorizontal, Camera
 } from 'lucide-react'
 import { Theme, useUiStore } from '../../../store/uiStore'
 
@@ -21,6 +21,8 @@ import { Section, Row, Segment } from './SettingsLayout'
 import { AccessSection } from './AccessSection'
 import { RemoteSection } from './RemoteSection'
 import { ModuleHeader } from '../../ui/ModulePrimitives'
+import { Toggle } from '../../ui/Toggle'
+import { CAPTURE_METRIC_LABELS, type CaptureMetric, useEodSettingsStore } from '../../../store/eodSettingsStore'
 
 function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Theme) => void }) {
   const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string; accents: string[] }[] = [
@@ -75,7 +77,20 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
 // ── General section ──────────────────────────────────────────────────────────
 function GeneralSection() {
   const { theme, setTheme, timeFormat, setTimeFormat, tempUnit, toggleTempUnit, uiScale, setUiScale } = useUiStore()
+  const {
+    copyFormat,
+    captureShowTotals,
+    captureShowTopFive,
+    captureShowOutlook,
+    captureMetrics,
+    setCopyFormat,
+    setCaptureShowTotals,
+    setCaptureShowTopFive,
+    setCaptureShowOutlook,
+    toggleCaptureMetric,
+  } = useEodSettingsStore()
   return (
+    <>
     <Section icon={<Clock size={14} />} title="General">
       <Row layout="stacked" label="Theme & Accent" description="Each theme includes its own accent colors across the app">
         <ThemePicker value={theme} onChange={setTheme} />
@@ -107,6 +122,59 @@ function GeneralSection() {
         />
       </Row>
     </Section>
+    <Section icon={<FileText size={14} />} title="EOD Settings">
+      <Row label="Copy Format" description="Choose how store and district EOD values are arranged when copied">
+        <Segment
+          options={[
+            { value: 'detailed', label: 'Detailed' },
+            { value: 'compact', label: 'Compact' },
+          ]}
+          value={copyFormat}
+          onChange={setCopyFormat}
+        />
+      </Row>
+      <Row layout="stacked" label="Custom District Capture" description="Choose which sections appear in the shareable District Outlook image">
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+            <Toggle checked={captureShowTotals} onChange={setCaptureShowTotals} label="District totals" size="sm" />
+          </div>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+            <Toggle checked={captureShowTopFive} onChange={setCaptureShowTopFive} label="Top 5 stores" size="sm" />
+          </div>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+            <Toggle checked={captureShowOutlook} onChange={setCaptureShowOutlook} label="Goal outlook" size="sm" />
+          </div>
+        </div>
+      </Row>
+      <Row layout="stacked" label="Capture Values" description="Select the actual district totals shown across the top of the capture">
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(CAPTURE_METRIC_LABELS) as CaptureMetric[]).map((metric) => {
+            const selected = captureMetrics.includes(metric)
+            return (
+              <button
+                key={metric}
+                type="button"
+                onClick={() => toggleCaptureMetric(metric)}
+                aria-pressed={selected}
+                className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition-colors ${
+                  selected
+                    ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-tertiary)]'
+                }`}
+              >
+                {selected && <Check size={12} />}
+                {CAPTURE_METRIC_LABELS[metric]}
+              </button>
+            )
+          })}
+        </div>
+      </Row>
+      <div className="flex items-center gap-2 px-1 text-xs text-[var(--text-tertiary)]">
+        <Camera size={13} />
+        Changes apply immediately to Capture and EOD Copy in District Outlook.
+      </div>
+    </Section>
+    </>
   )
 }
 
@@ -1354,7 +1422,7 @@ const MANAGER_HIDDEN_SECTIONS: SectionId[] = ['store', 'configuredStores', 'remo
 const DISTRICT_HIDDEN_SECTIONS: SectionId[] = ['store']
 const STANDALONE_SETTINGS_SECTIONS: SectionId[] = ['reports']
 const SECTION_SEARCH_TERMS: Record<SectionId, string> = {
-  general: 'theme accent zoom time temperature session',
+  general: 'theme accent zoom time temperature session eod copy format capture district',
   weather: 'forecast weather location radar temperature',
   display: 'display screen slides interval kiosk',
   remote: 'remote kiosk approval refresh update command',

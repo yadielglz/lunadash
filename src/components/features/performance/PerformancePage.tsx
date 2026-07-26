@@ -18,8 +18,9 @@ import {
   PerformanceRow,
 } from '../../../lib/performanceSheet'
 import { dealerInfoForRow } from '../../../lib/dealers'
-import { copyEodToClipboard } from '../../../lib/eodCopy'
+import { copyDistrictEodToClipboard, copyEodToClipboard } from '../../../lib/eodCopy'
 import { fetchDashboardPerformanceData } from '../../../lib/dashboardSales'
+import { CAPTURE_METRIC_LABELS, type CaptureMetric, useEodSettingsStore } from '../../../store/eodSettingsStore'
 
 type SortKey = 'overallScore' | 'goalGapScore' | 'netRevenue' | 'netRevenuePct' | 'accessoryRevenue' | 'accessoryPct' | 'totalPp' | 'ppPct' | 'traffic'
 type OptionalColumn = 'traffic' | 'postConv' | 'goals' | 'products'
@@ -391,6 +392,121 @@ function CompactStoreNumbersCapture({
   )
 }
 
+function DistrictNumbersCapture({
+  total,
+  rows,
+  updated,
+  showTotals,
+  showTopFive,
+  showOutlook,
+  captureMetrics,
+}: {
+  total: PerformanceRow
+  rows: RankedRow[]
+  updated: string
+  showTotals: boolean
+  showTopFive: boolean
+  showOutlook: boolean
+  captureMetrics: CaptureMetric[]
+}) {
+  const topFive = [...rows].sort((a, b) => a.overallRank - b.overallRank).slice(0, 5)
+  const goalMetrics = [
+    ['NR', total.netRevenuePct],
+    ['ACC', total.accessoryPct],
+    ['PP', total.ppPct],
+  ] as const
+  const strongest = [...goalMetrics].sort((a, b) => b[1] - a[1])[0]
+  const opportunity = [...goalMetrics].sort((a, b) => a[1] - b[1])[0]
+  const actualValue: Record<CaptureMetric, string> = {
+    netRevenue: formatMoney(total.netRevenue),
+    accessories: formatMoney(total.accessoryRevenue),
+    pp: formatNumber(total.totalPp),
+    vl: formatNumber(total.vl),
+    bts: formatNumber(total.bts),
+    hsi: formatNumber(total.hsi),
+    visa: formatNumber(total.visa),
+  }
+  const actuals = captureMetrics.map((metric) => [CAPTURE_METRIC_LABELS[metric], actualValue[metric]] as const)
+
+  return (
+    <div className="flex h-full w-full flex-col overflow-hidden bg-[var(--surface)] p-7 text-[var(--text)]">
+      <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-4">
+        <div>
+          <div className="text-3xl font-black">District Outlook</div>
+          <div className="mt-1 text-sm text-[var(--text-secondary)]">Top 5 stores · actual district numbers</div>
+        </div>
+        <div className="text-right text-xs text-[var(--text-tertiary)]">
+          <div className="font-semibold uppercase">Source refreshed</div>
+          <div className="mt-1">{updated || 'just now'}</div>
+        </div>
+      </div>
+
+      {showTotals && actuals.length > 0 && <div
+        className="mt-4 grid gap-2"
+        style={{ gridTemplateColumns: `repeat(${actuals.length}, minmax(0, 1fr))` }}
+      >
+        {actuals.map(([label, value]) => (
+          <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-3 text-center">
+            <div className="text-[9px] font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
+            <div className="mt-1 text-base font-black tabular-nums text-[var(--text)]">{value}</div>
+          </div>
+        ))}
+      </div>}
+
+      <div className={`mt-4 grid flex-1 gap-4 overflow-hidden ${showTopFive && showOutlook ? 'grid-cols-[1fr_210px]' : 'grid-cols-1'}`}>
+        {showTopFive && <div className="overflow-hidden rounded-lg border border-[var(--border)]">
+          <div className="grid grid-cols-[42px_1.3fr_repeat(5,0.8fr)] gap-2 bg-[var(--surface-2)] px-3 py-2 text-[9px] font-semibold uppercase text-[var(--text-tertiary)]">
+            <span>Rank</span><span>Store</span><span>NR</span><span>ACC</span><span>PP</span><span>VL</span><span>BTS</span>
+          </div>
+          <div className="divide-y divide-[var(--border)]">
+            {topFive.map((row) => {
+              const dealer = dealerInfoForRow(row)
+              return (
+                <div key={row.store} className="grid grid-cols-[42px_1.3fr_repeat(5,0.8fr)] items-center gap-2 px-3 py-3 text-xs">
+                  <span className="font-black text-[var(--accent)]">#{row.overallRank}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-bold">{dealer.nickname}</span>
+                    <span className="block text-[9px] text-[var(--text-tertiary)]">{row.storeCode} · {formatPercent(row.overallScore)}</span>
+                  </span>
+                  <span className="font-semibold tabular-nums">{formatMoney(row.netRevenue)}</span>
+                  <span className="font-semibold tabular-nums">{formatMoney(row.accessoryRevenue)}</span>
+                  <span className="font-semibold tabular-nums">{formatNumber(row.totalPp)}</span>
+                  <span className="font-semibold tabular-nums">{formatNumber(row.vl)}</span>
+                  <span className="font-semibold tabular-nums">{formatNumber(row.bts)}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>}
+
+        {showOutlook && <div className={`space-y-3 ${showTopFive ? '' : 'grid grid-cols-3 gap-4 space-y-0 self-start'}`}>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+            <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">District Outlook</div>
+            {goalMetrics.map(([label, value]) => (
+              <div key={label} className="mt-2">
+                <div className="flex justify-between text-xs"><span>{label}</span><strong>{formatPercent(value)}</strong></div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--border)]">
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(Math.max(value, 0), 100)}%`, background: metricColor(value) }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+            <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Strongest</div>
+            <div className="mt-1 text-xl font-black">{strongest[0]}</div>
+            <div className="text-xs text-[var(--text-secondary)]">{formatPercent(strongest[1])}</div>
+          </div>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+            <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Opportunity</div>
+            <div className="mt-1 text-xl font-black">{opportunity[0]}</div>
+            <div className="text-xs text-[var(--text-secondary)]">{formatPercent(opportunity[1])}</div>
+          </div>
+        </div>}
+      </div>
+    </div>
+  )
+}
+
 function StoreDetailDrawer({
   row,
   updated,
@@ -403,6 +519,7 @@ function StoreDetailDrawer({
   onClose: () => void
 }) {
   const captureRef = useRef<HTMLDivElement | null>(null)
+  const copyFormat = useEodSettingsStore((state) => state.copyFormat)
   const [capturing, setCapturing] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const [noteText, setNoteText] = useState('')
@@ -437,7 +554,7 @@ function StoreDetailDrawer({
     if (!row) return
 
     try {
-      await copyEodToClipboard(row)
+      await copyEodToClipboard(row, copyFormat)
       setCopyState('copied')
     } catch {
       setCopyState('error')
@@ -734,8 +851,18 @@ export function PerformancePage() {
   const [compareStores, setCompareStores] = useState<string[]>([])
   const [previousRanks, setPreviousRanks] = useState(() => readStoredRankSnapshot())
   const [selectedStore, setSelectedStore] = useState<RankedRow | null>(null)
+  const [districtCapturing, setDistrictCapturing] = useState(false)
+  const [districtCopyState, setDistrictCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
+  const districtCaptureRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef<Record<string, HTMLElement | null>>({})
   const mobileSearchRef = useRef<HTMLInputElement | null>(null)
+  const {
+    copyFormat,
+    captureShowTotals,
+    captureShowTopFive,
+    captureShowOutlook,
+    captureMetrics,
+  } = useEodSettingsStore()
 
   const loadData = async (background = false) => {
     if (!background) setLoading(true)
@@ -944,8 +1071,87 @@ export function PerformancePage() {
     row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
+  const copyDistrictEod = async () => {
+    if (!total) return
+    try {
+      await copyDistrictEodToClipboard(total, copyFormat)
+      setDistrictCopyState('copied')
+    } catch {
+      setDistrictCopyState('error')
+    } finally {
+      window.setTimeout(() => setDistrictCopyState('idle'), 1800)
+    }
+  }
+
+  const captureDistrict = async () => {
+    const captureNode = districtCaptureRef.current
+    if (!captureNode || !total || districtCapturing) return
+    setDistrictCapturing(true)
+    const previousCaptureStyle = captureNode.getAttribute('style')
+    try {
+      Object.assign(captureNode.style, {
+        backgroundColor: 'var(--surface)',
+        height: `${STORE_NUMBERS_CAPTURE_SIZE}px`,
+        left: '0',
+        opacity: '1',
+        overflow: 'hidden',
+        pointerEvents: 'none',
+        position: 'fixed',
+        top: '0',
+        width: `${STORE_NUMBERS_CAPTURE_SIZE}px`,
+        zIndex: '10000',
+      })
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+      const dataUrl = await toPng(captureNode, {
+        cacheBust: true,
+        height: STORE_NUMBERS_CAPTURE_SIZE,
+        pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
+        width: STORE_NUMBERS_CAPTURE_SIZE,
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || getComputedStyle(captureNode).backgroundColor,
+      })
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
+      const file = new File([blob], 'district-outlook.png', { type: 'image/png' })
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'District Outlook',
+          text: `District Outlook refreshed ${updated || 'just now'}`,
+        })
+        return
+      }
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = 'district-outlook.png'
+      link.click()
+    } finally {
+      if (previousCaptureStyle === null) captureNode.removeAttribute('style')
+      else captureNode.setAttribute('style', previousCaptureStyle)
+      setDistrictCapturing(false)
+    }
+  }
+
   return (
     <div className="performance-suite district-performance-page flex h-full flex-col overflow-hidden">
+      {total && (
+        <div
+          ref={districtCaptureRef}
+          className="fixed left-[-10000px] top-0 overflow-hidden bg-[var(--surface)]"
+          style={{ width: STORE_NUMBERS_CAPTURE_SIZE, height: STORE_NUMBERS_CAPTURE_SIZE }}
+          aria-hidden="true"
+        >
+          <DistrictNumbersCapture
+            total={total}
+            rows={rankedRows}
+            updated={updated}
+            showTotals={captureShowTotals}
+            showTopFive={captureShowTopFive}
+            showOutlook={captureShowOutlook}
+            captureMetrics={captureMetrics}
+          />
+        </div>
+      )}
       <ModuleHeader
         icon={<BarChart3 size={18} />}
         eyebrow="District intelligence"
@@ -964,6 +1170,26 @@ export function PerformancePage() {
               />
             </div>
             <div className="flex items-center gap-2 sm:hidden">
+              <button
+                type="button"
+                aria-label="Copy district EOD"
+                title={districtCopyState === 'copied' ? 'District EOD copied' : districtCopyState === 'error' ? 'Could not copy district EOD' : 'Copy district EOD'}
+                onClick={copyDistrictEod}
+                disabled={!total}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] disabled:opacity-40"
+              >
+                {districtCopyState === 'copied' ? <CheckCircle2 size={16} /> : districtCopyState === 'error' ? <AlertCircle size={16} /> : <Copy size={16} />}
+              </button>
+              <button
+                type="button"
+                aria-label="Capture district outlook"
+                title="Capture district outlook"
+                onClick={captureDistrict}
+                disabled={!total || districtCapturing}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] disabled:opacity-40"
+              >
+                <Camera size={16} />
+              </button>
               <button
                 type="button"
                 aria-label="Search stores"
@@ -985,6 +1211,27 @@ export function PerformancePage() {
                 <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               </button>
             </div>
+            <Button
+              className="hidden sm:inline-flex"
+              size="sm"
+              variant="ghost"
+              icon={districtCopyState === 'copied' ? <CheckCircle2 size={13} /> : districtCopyState === 'error' ? <AlertCircle size={13} /> : <Copy size={13} />}
+              onClick={copyDistrictEod}
+              disabled={!total}
+            >
+              {districtCopyState === 'copied' ? 'Copied' : districtCopyState === 'error' ? 'Copy failed' : 'EOD Copy'}
+            </Button>
+            <Button
+              className="hidden sm:inline-flex"
+              size="sm"
+              variant="ghost"
+              icon={<Camera size={13} />}
+              onClick={captureDistrict}
+              loading={districtCapturing}
+              disabled={!total}
+            >
+              Capture
+            </Button>
             <Button className="hidden sm:inline-flex" size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={() => loadData()} loading={loading}>
               Refresh
             </Button>
