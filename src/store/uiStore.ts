@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
+import { isInstalledPwa } from '../lib/pwa'
 
 export type Tab = 'home' | 'devices' | 'employees' | 'schedule' | 'appointments' | 'district' | 'goals' | 'commission' | 'reports' | 'updates' | 'mrc-calculator' | 'nr-tracking' | 'weather' | 'display' | 'tasks' | 'settings'
 export type Theme = 'dark' | 'light' | 'vista' | 'mac' | 'carbon' | 'mint' | 'coral' | 'iris' | 'graphite' | 'aurora' | 'tide' | 'citrus' | 'rosewood' | 'highland'
@@ -21,6 +22,7 @@ export function accessRoleLabel(role: AccessRole | null) {
 }
 
 const DEFAULT_SESSION_TIMEOUT: SessionTimeout = '15m'
+const PWA_ACCESS_SESSION_KEY = 'lunadash-pwa-access-session'
 const SESSION_TIMEOUT_MS: Record<Exclude<SessionTimeout, 'never'>, number> = {
   '2m': 2 * 60 * 1000,
   '15m': 15 * 60 * 1000,
@@ -55,6 +57,49 @@ function applyBrandAccent(brand: Brand) {
 
 function sessionExpiresAtFor(timeout: SessionTimeout) {
   return timeout === 'never' ? null : Date.now() + SESSION_TIMEOUT_MS[timeout]
+}
+
+type PersistedPwaSession = Pick<
+  UiState,
+  'storeId' | 'accessMode' | 'accessRole' | 'accessId' | 'dealerCode' | 'accessLabel' | 'needsOnboarding'
+>
+
+function readPwaAccessSession(): PersistedPwaSession | null {
+  if (!isInstalledPwa()) return null
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(PWA_ACCESS_SESSION_KEY) || 'null') as Partial<PersistedPwaSession> | null
+    if (!parsed?.storeId || !parsed.accessRole || !parsed.accessId) return null
+    return {
+      storeId: normalizeStoreId(parsed.storeId),
+      accessMode: parsed.accessMode === 'display' || parsed.accessMode === 'admin' ? parsed.accessMode : 'manager',
+      accessRole: parsed.accessRole,
+      accessId: parsed.accessId,
+      dealerCode: normalizeAccessCode(parsed.dealerCode || ''),
+      accessLabel: parsed.accessLabel || '',
+      needsOnboarding: Boolean(parsed.needsOnboarding),
+    }
+  } catch {
+    window.localStorage.removeItem(PWA_ACCESS_SESSION_KEY)
+    return null
+  }
+}
+
+function writePwaAccessSession(state: UiState) {
+  if (!isInstalledPwa() || !state.storeId || !state.accessRole || !state.accessId) return
+  const session: PersistedPwaSession = {
+    storeId: state.storeId,
+    accessMode: state.accessMode,
+    accessRole: state.accessRole,
+    accessId: state.accessId,
+    dealerCode: state.dealerCode,
+    accessLabel: state.accessLabel,
+    needsOnboarding: state.needsOnboarding,
+  }
+  window.localStorage.setItem(PWA_ACCESS_SESSION_KEY, JSON.stringify(session))
+}
+
+function removePwaAccessSession() {
+  if (typeof window !== 'undefined') window.localStorage.removeItem(PWA_ACCESS_SESSION_KEY)
 }
 
 interface UiState {
@@ -146,11 +191,12 @@ export const useUiStore = create<UiState>()(
       setUiScale: (scale) => set({ uiScale: scale }),
       setSessionTimeout: () => set((s) => ({
         sessionTimeout: DEFAULT_SESSION_TIMEOUT,
-        sessionExpiresAt: s.storeId ? sessionExpiresAtFor(DEFAULT_SESSION_TIMEOUT) : null,
+        sessionExpiresAt: s.storeId && !isInstalledPwa() ? sessionExpiresAtFor(DEFAULT_SESSION_TIMEOUT) : null,
       })),
       setStoreId: (id) => {
         const storeId = normalizeStoreId(id)
-        set({ storeId, sessionExpiresAt: storeId ? sessionExpiresAtFor(get().sessionTimeout) : null })
+        set({ storeId, sessionExpiresAt: storeId && !isInstalledPwa() ? sessionExpiresAtFor(get().sessionTimeout) : null })
+        writePwaAccessSession(get())
       },
       setAccessMode: (mode) => set({ accessMode: mode, activeTab: mode === 'display' ? 'display' : get().activeTab }),
       setAccessSession: ({ id, storeId, role, dealerCode, label, mode, onboardedAt }) => {
@@ -163,13 +209,20 @@ export const useUiStore = create<UiState>()(
           dealerCode: normalizeAccessCode(dealerCode),
           accessLabel: label ?? '',
           needsOnboarding: role !== 'display' && !onboardedAt,
-          sessionExpiresAt: sessionExpiresAtFor(get().sessionTimeout),
+          sessionExpiresAt: isInstalledPwa() ? null : sessionExpiresAtFor(get().sessionTimeout),
           activeTab: accessMode === 'display' ? 'display' : 'home',
         })
+        writePwaAccessSession(get())
       },
-      setAccessOnboarded: () => set({ needsOnboarding: false }),
-      clearStoreSession: () => set({ storeId: '', accessMode: 'manager', accessRole: null, accessId: '', dealerCode: '', accessLabel: '', needsOnboarding: false, sessionExpiresAt: null, activeTab: 'home' }),
-      extendStoreSession: () => set((s) => s.storeId ? { sessionExpiresAt: sessionExpiresAtFor(s.sessionTimeout) } : s),
+      setAccessOnboarded: () => {
+        set({ needsOnboarding: false })
+        writePwaAccessSession(get())
+      },
+      clearStoreSession: () => {
+        removePwaAccessSession()
+        set({ storeId: '', accessMode: 'manager', accessRole: null, accessId: '', dealerCode: '', accessLabel: '', needsOnboarding: false, sessionExpiresAt: null, activeTab: 'home' })
+      },
+      extendStoreSession: () => set((s) => s.storeId && !isInstalledPwa() ? { sessionExpiresAt: sessionExpiresAtFor(s.sessionTimeout) } : s),
       setTheme: (theme) => {
         set({ theme, brand: 'default' })
         applyThemeClass(theme)
@@ -188,21 +241,24 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'luna-ui',
-      version: 2,
+      version: 3,
       partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, uiScale: s.uiScale, activeTab: s.activeTab, settingsSection: s.settingsSection }),
       migrate: (persisted) => persistedPreferences(persisted),
-      merge: (persisted, current) => ({
-        ...current,
-        ...persistedPreferences(persisted),
-        storeId: '',
-        accessMode: 'manager',
-        accessRole: null,
-        accessId: '',
-        dealerCode: '',
-        accessLabel: '',
-        needsOnboarding: false,
-        sessionExpiresAt: null,
-      }),
+      merge: (persisted, current) => {
+        const pwaSession = readPwaAccessSession()
+        return {
+          ...current,
+          ...persistedPreferences(persisted),
+          storeId: pwaSession?.storeId ?? '',
+          accessMode: pwaSession?.accessMode ?? 'manager',
+          accessRole: pwaSession?.accessRole ?? null,
+          accessId: pwaSession?.accessId ?? '',
+          dealerCode: pwaSession?.dealerCode ?? '',
+          accessLabel: pwaSession?.accessLabel ?? '',
+          needsOnboarding: pwaSession?.needsOnboarding ?? false,
+          sessionExpiresAt: null,
+        }
+      },
       onRehydrateStorage: () => (state) => {
         if (state) {
           applyThemeClass(state.theme)

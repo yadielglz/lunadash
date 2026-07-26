@@ -23,6 +23,7 @@ import { RemoteSection } from './RemoteSection'
 import { ModuleHeader } from '../../ui/ModulePrimitives'
 import { Toggle } from '../../ui/Toggle'
 import { CAPTURE_METRIC_LABELS, type CaptureMetric, useEodSettingsStore } from '../../../store/eodSettingsStore'
+import { isInstalledPwa } from '../../../lib/pwa'
 
 function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Theme) => void }) {
   const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string; accents: string[] }[] = [
@@ -1201,6 +1202,7 @@ function AboutSection() {
   const [now, setNow] = useState(Date.now())
   const [refreshing, setRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState('')
+  const installedPwa = isInstalledPwa()
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000)
@@ -1208,7 +1210,9 @@ function AboutSection() {
   }, [])
 
   const remaining = Math.max(0, Math.ceil(((sessionExpiresAt ?? now) - now) / 1000))
-  const remainingLabel = sessionExpiresAt
+  const remainingLabel = installedPwa && accessRole
+    ? 'Remembered'
+    : sessionExpiresAt
     ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`
     : 'No active timer'
 
@@ -1289,7 +1293,11 @@ function AboutSection() {
             <div>
               <p className="text-xs font-medium text-[var(--text)]">Store Session</p>
               <p className="text-[10px] text-[var(--text-tertiary)]">
-                {sessionTimeout === 'never' ? 'This device keeps the store session open.' : 'Timer resets with activity.'}
+                {installedPwa
+                  ? 'Installed app stays signed in until you log out.'
+                  : sessionTimeout === 'never'
+                    ? 'This device keeps the store session open.'
+                    : 'Browser timer resets with activity.'}
               </p>
             </div>
             <div className="flex items-center gap-2">
