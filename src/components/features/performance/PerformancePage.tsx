@@ -65,6 +65,17 @@ const DEFAULT_COLUMNS: Record<OptionalColumn, boolean> = {
 }
 const DEFAULT_PINNED_METRICS: PinnedMetric[] = ['overall', 'netRevenuePct', 'accessoryPct', 'ppPct']
 
+function isIosDevice() {
+  if (typeof navigator === 'undefined') return false
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh|Mac OS X/.test(navigator.userAgent))
+}
+
+function isMobileDevice() {
+  if (typeof navigator === 'undefined') return false
+  return isIosDevice() || /Android|Mobile/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1
+}
+
 function readStoredSort() {
   if (typeof window === 'undefined') return null
   try {
@@ -521,6 +532,7 @@ function StoreDetailDrawer({
   const captureRef = useRef<HTMLDivElement | null>(null)
   const copyFormat = useEodSettingsStore((state) => state.copyFormat)
   const [capturing, setCapturing] = useState(false)
+  const [capturePreview, setCapturePreview] = useState('')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const [noteText, setNoteText] = useState('')
   const notes = useDistrictCoachingStore((s) => s.notes)
@@ -582,28 +594,57 @@ function StoreDetailDrawer({
         zIndex: '10000',
       })
 
-      await new Promise((resolve) => window.requestAnimationFrame(resolve))
-      await new Promise((resolve) => window.requestAnimationFrame(resolve))
-
-      const dataUrl = await toPng(captureNode, {
-        cacheBust: true,
-        filter: (node) => !(node instanceof HTMLElement && node.dataset.captureExclude === 'true'),
-        height: STORE_NUMBERS_CAPTURE_SIZE,
-        pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
-        width: STORE_NUMBERS_CAPTURE_SIZE,
-        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || getComputedStyle(captureNode).backgroundColor,
-      })
-      const response = await fetch(dataUrl)
-      const blob = await response.blob()
       const fileName = `${row.storeCode}-${captureTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
+      const capturedImage = (async () => {
+        await new Promise((resolve) => window.requestAnimationFrame(resolve))
+        await new Promise((resolve) => window.requestAnimationFrame(resolve))
+
+        const dataUrl = await toPng(captureNode, {
+          cacheBust: true,
+          filter: (node) => !(node instanceof HTMLElement && node.dataset.captureExclude === 'true'),
+          height: STORE_NUMBERS_CAPTURE_SIZE,
+          pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
+          width: STORE_NUMBERS_CAPTURE_SIZE,
+          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || getComputedStyle(captureNode).backgroundColor,
+        })
+        const response = await fetch(dataUrl)
+        return { dataUrl, blob: await response.blob() }
+      })()
+
+      const isMobile = isMobileDevice()
+      if (isMobile && navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'image/png': capturedImage.then(({ blob }) => blob),
+            }),
+          ])
+          return
+        } catch {
+          // Some mobile webviews expose the API but deny image clipboard writes.
+          // Continue to the file-only share sheet or manual-copy preview.
+        }
+      }
+
+      const { dataUrl, blob } = await capturedImage
       const file = new File([blob], fileName, { type: 'image/png' })
 
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        if (isMobile) {
+          await navigator.share({ files: [file] })
+          return
+        }
+
         await navigator.share({
           files: [file],
           title: captureTitle,
           text: `${captureTitle} refreshed ${updated || 'just now'}`,
         })
+        return
+      }
+
+      if (isMobile) {
+        setCapturePreview(dataUrl)
         return
       }
 
@@ -829,6 +870,26 @@ function StoreDetailDrawer({
           </>
         )}
       </aside>
+      {capturePreview && (
+        <div className="absolute inset-0 z-[300] flex flex-col bg-black/90 p-4" role="dialog" aria-modal="true" aria-label="Store numbers capture">
+          <div className="mx-auto flex w-full max-w-[720px] items-center justify-between gap-3 pb-3 text-white">
+            <div>
+              <div className="text-sm font-semibold">Store numbers ready</div>
+              <div className="text-xs text-white/70">Press and hold the image, then choose Copy.</div>
+            </div>
+            <Button size="icon" variant="secondary" onClick={() => setCapturePreview('')} aria-label="Close capture preview">
+              <X size={16} />
+            </Button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <img
+              src={capturePreview}
+              alt={`${captureTitle} capture`}
+              className="mx-auto block h-auto max-w-full rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
