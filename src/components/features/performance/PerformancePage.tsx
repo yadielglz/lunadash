@@ -134,6 +134,19 @@ function metricColor(value: number, warning = 80) {
   return '#d65353'
 }
 
+function formatCaptureMoney(value: number) {
+  const absolute = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  const compact = (divisor: number, suffix: string) => {
+    const truncated = Math.floor((absolute / divisor) * 100) / 100
+    return `${sign}$${truncated.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${suffix}`
+  }
+
+  if (absolute >= 1_000_000) return compact(1_000_000, 'M')
+  if (absolute >= 1_000) return compact(1_000, 'K')
+  return `${sign}$${absolute.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+}
+
 function rankRows(rows: PerformanceRow[], previousRanks = new Map<string, number>()): RankedRow[] {
   const rankBy = (valueFor: (row: PerformanceRow) => number) => {
     const ranks = new Map<string, number>()
@@ -323,8 +336,8 @@ function CompactStoreNumbersCapture({
   const accLeft = row.accessoryGoal - row.accessoryRevenue
   const ppLeft = row.dortGoal - row.totalPp
   const primaryMetrics = [
-    ['Net Revenue', formatMoney(row.netRevenue), formatMoney(row.netRevenueGoal), row.netRevenuePct, netLeft],
-    ['Accessories', formatMoney(row.accessoryRevenue), formatMoney(row.accessoryGoal), row.accessoryPct, accLeft],
+    ['Net Revenue', formatCaptureMoney(row.netRevenue), formatCaptureMoney(row.netRevenueGoal), row.netRevenuePct, netLeft],
+    ['Accessories', formatCaptureMoney(row.accessoryRevenue), formatCaptureMoney(row.accessoryGoal), row.accessoryPct, accLeft],
     ['Total PP', formatNumber(row.totalPp), formatNumber(row.dortGoal), row.ppPct, ppLeft],
   ] as const
   const detailMetrics = [
@@ -335,69 +348,94 @@ function CompactStoreNumbersCapture({
     ['HSI', formatNumber(row.hsi), 'Internet'],
     ['VISA', formatNumber(row.visa), 'Cards'],
   ] as const
+  const goalTone = (value: number) => value >= 100 ? '#4ade80' : value >= 80 ? '#fbbf24' : '#fb7185'
+  const districtDelta = districtAverage ? row.overallScore - districtAverage.overallScore : null
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-[var(--surface)] p-8 text-[var(--text)]">
-      <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-5">
-        <div className="min-w-0">
-          <div className="text-3xl font-black tracking-normal text-[var(--text)]">{dealer?.nickname || row.store}</div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--text-secondary)]">
-            <span className="rounded-md bg-[var(--accent)] px-2.5 py-1 font-bold text-white">{row.storeCode}</span>
+    <div
+      className="relative flex h-full w-full flex-col overflow-hidden p-7 text-white"
+      style={{ background: 'radial-gradient(circle at 92% 0%, rgba(21,155,215,0.28), transparent 34%), linear-gradient(145deg, #07141d 0%, #0a202c 56%, #071821 100%)' }}
+    >
+      <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full border border-white/5" />
+      <div className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full border border-white/5" />
+
+      <div className="relative flex items-start justify-between gap-5">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[#55c8f4]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#55c8f4] shadow-[0_0_10px_#55c8f4]" />
+            Store Performance
+          </div>
+          <div className="mt-2 truncate text-[30px] font-black tracking-[-0.03em]">{dealer?.nickname || row.store}</div>
+          <div className="mt-1 flex items-center gap-2 text-[10px] text-white/45">
+            <span className="rounded-md border border-[#55c8f4]/25 bg-[#55c8f4]/10 px-2 py-1 font-bold text-[#55c8f4]">{row.storeCode}</span>
             <span className="truncate">{dealer?.location || row.store}</span>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-[11px] font-semibold uppercase text-[var(--text-tertiary)]">Overall</div>
-          <div className="text-4xl font-black tabular-nums text-[var(--text)]">{formatPercent(row.overallScore)}</div>
-          <div className="mt-1 text-xs text-[var(--text-tertiary)]">Rank #{row.overallRank} · {updated || 'just now'}</div>
+        <div className="rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-right shadow-[0_14px_40px_rgba(0,0,0,0.16)]">
+          <div className="text-[8px] font-bold uppercase tracking-[0.14em] text-white/35">Overall score</div>
+          <div className="mt-0.5 text-[28px] font-black tabular-nums tracking-[-0.04em]" style={{ color: goalTone(row.overallScore) }}>
+            {formatPercent(row.overallScore)}
+          </div>
+          <div className="text-[9px] font-semibold text-white/45">District rank #{row.overallRank}</div>
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-3">
+      <div className="relative mt-5 grid grid-cols-3 gap-3">
         {primaryMetrics.map(([label, value, goal, percent, left]) => (
-          <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
-            <div className="text-[11px] font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
-            <div className="mt-2 text-2xl font-black tabular-nums text-[var(--text)]">{value}</div>
-            <div className="mt-1 text-xs text-[var(--text-secondary)]">Goal {goal}</div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--border)]">
-              <div className="h-full rounded-full" style={{ width: `${Math.min(Math.max(percent, 0), 100)}%`, background: metricColor(percent) }} />
+          <div key={label} className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.055] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.16)]">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/40">{label}</div>
+              <div className="rounded-md px-1.5 py-0.5 text-[9px] font-black tabular-nums" style={{ color: goalTone(percent), background: `${goalTone(percent)}14` }}>
+                {formatPercent(percent)}
+              </div>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-              <span className="font-semibold tabular-nums" style={{ color: metricColor(percent) }}>{formatPercent(percent)}</span>
-              <span className="tabular-nums text-[var(--text-tertiary)]">{left <= 0 ? 'Over' : `${label === 'Total PP' ? formatNumber(left) : formatMoney(left)} left`}</span>
+            <div className="mt-3 text-[25px] font-black tabular-nums tracking-[-0.04em]">{value}</div>
+            <div className="mt-0.5 text-[9px] text-white/35">Goal {goal}</div>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full" style={{ width: `${Math.min(Math.max(percent, 0), 100)}%`, background: goalTone(percent) }} />
+            </div>
+            <div className="mt-2 text-[9px] font-semibold tabular-nums text-white/40">
+              {left <= 0
+                ? 'Goal cleared'
+                : `${label === 'Total PP' ? formatNumber(left) : formatCaptureMoney(left)} remaining`}
             </div>
           </div>
         ))}
       </div>
 
-      <div className="mt-4 grid grid-cols-6 gap-2">
-        {detailMetrics.map(([label, value, helper]) => (
-          <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-3 text-center">
-            <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
-            <div className="mt-1 text-xl font-black tabular-nums text-[var(--text)]">{value}</div>
-            <div className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">{helper}</div>
+      <div className="relative mt-4 grid grid-cols-6 overflow-hidden rounded-xl border border-white/10 bg-black/10">
+        {detailMetrics.map(([label, value, helper], index) => (
+          <div key={label} className={`px-2 py-3 text-center ${index ? 'border-l border-white/[0.08]' : ''}`}>
+            <div className="text-[8px] font-bold uppercase tracking-[0.1em] text-white/35">{label}</div>
+            <div className="mt-1 text-[17px] font-black tabular-nums">{value}</div>
+            <div className="mt-0.5 text-[8px] text-white/25">{helper}</div>
           </div>
         ))}
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Strongest</div>
-          <div className="mt-1 text-xl font-black text-[var(--text)]">{strongest[0]}</div>
-          <div className="text-xs tabular-nums text-[var(--text-secondary)]">{formatPercent(strongest[1])}</div>
+      <div className="relative mt-4 grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.06] px-4 py-3">
+          <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-emerald-200/50">Strongest</div>
+          <div className="mt-1 text-xl font-black text-emerald-300">{strongest[0]}</div>
+          <div className="text-[9px] text-white/45">{formatPercent(strongest[1])} to goal</div>
         </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Opportunity</div>
-          <div className="mt-1 text-xl font-black text-[var(--text)]">{weakest[0]}</div>
-          <div className="text-xs tabular-nums text-[var(--text-secondary)]">{formatPercent(weakest[1])}</div>
+        <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.06] px-4 py-3">
+          <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-amber-200/50">Opportunity</div>
+          <div className="mt-1 text-xl font-black text-amber-300">{weakest[0]}</div>
+          <div className="text-[9px] text-white/45">{formatPercent(weakest[1])} to goal</div>
         </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-          <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Vs District</div>
-          <div className="mt-1 text-xl font-black tabular-nums text-[var(--text)]">
-            {districtAverage ? `${row.overallScore >= districtAverage.overallScore ? '+' : ''}${formatPercent(row.overallScore - districtAverage.overallScore)}` : '-'}
+        <div className="rounded-xl border border-[#55c8f4]/15 bg-[#55c8f4]/[0.06] px-4 py-3">
+          <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#55c8f4]/60">Vs district</div>
+          <div className="mt-1 text-xl font-black tabular-nums text-[#55c8f4]">
+            {districtDelta === null ? '-' : `${districtDelta >= 0 ? '+' : ''}${formatPercent(districtDelta)}`}
           </div>
-          <div className="text-xs text-[var(--text-secondary)]">overall score</div>
+          <div className="text-[9px] text-white/45">blended overall score</div>
         </div>
+      </div>
+
+      <div className="relative mt-auto flex items-center justify-between border-t border-white/[0.07] pt-3 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/25">
+        <span>LunaDash · Store Intelligence</span>
+        <span>Source refreshed {updated || 'just now'}</span>
       </div>
     </div>
   )
@@ -429,8 +467,8 @@ function DistrictNumbersCapture({
   const strongest = [...goalMetrics].sort((a, b) => b[1] - a[1])[0]
   const opportunity = [...goalMetrics].sort((a, b) => a[1] - b[1])[0]
   const actualValue: Record<CaptureMetric, string> = {
-    netRevenue: formatMoney(total.netRevenue),
-    accessories: formatMoney(total.accessoryRevenue),
+    netRevenue: formatCaptureMoney(total.netRevenue),
+    accessories: formatCaptureMoney(total.accessoryRevenue),
     pp: formatNumber(total.totalPp),
     vl: formatNumber(total.vl),
     bts: formatNumber(total.bts),
@@ -438,81 +476,128 @@ function DistrictNumbersCapture({
     visa: formatNumber(total.visa),
   }
   const actuals = captureMetrics.map((metric) => [CAPTURE_METRIC_LABELS[metric], actualValue[metric]] as const)
+  const goalTone = (value: number) => value >= 100 ? '#4ade80' : value >= 80 ? '#fbbf24' : '#fb7185'
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-[var(--surface)] p-7 text-[var(--text)]">
-      <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-4">
+    <div
+      className="relative flex h-full w-full flex-col overflow-hidden p-7 text-white"
+      style={{ background: 'radial-gradient(circle at 92% 0%, rgba(21,155,215,0.28), transparent 34%), linear-gradient(145deg, #07141d 0%, #0a202c 56%, #071821 100%)' }}
+    >
+      <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full border border-white/5" />
+      <div className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full border border-white/5" />
+
+      <div className="relative flex items-start justify-between gap-4">
         <div>
-          <div className="text-3xl font-black">District Outlook</div>
-          <div className="mt-1 text-sm text-[var(--text-secondary)]">Top 5 stores · actual district numbers</div>
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[#55c8f4]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#55c8f4] shadow-[0_0_10px_#55c8f4]" />
+            Luna Wireless Performance
+          </div>
+          <div className="mt-2 text-[30px] font-black tracking-[-0.03em]">District Outlook</div>
+          <div className="mt-0.5 text-xs text-white/50">Top performers and live district pace</div>
         </div>
-        <div className="text-right text-xs text-[var(--text-tertiary)]">
-          <div className="font-semibold uppercase">Source refreshed</div>
-          <div className="mt-1">{updated || 'just now'}</div>
+        <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-right backdrop-blur-sm">
+          <div className="text-[8px] font-bold uppercase tracking-[0.14em] text-white/40">Source refreshed</div>
+          <div className="mt-1 text-[11px] font-semibold text-white/80">{updated || 'just now'}</div>
         </div>
       </div>
 
-      {showTotals && actuals.length > 0 && <div
-        className="mt-4 grid gap-2"
-        style={{ gridTemplateColumns: `repeat(${actuals.length}, minmax(0, 1fr))` }}
-      >
-        {actuals.map(([label, value]) => (
-          <div key={label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-3 text-center">
-            <div className="text-[9px] font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
-            <div className="mt-1 text-base font-black tabular-nums text-[var(--text)]">{value}</div>
-          </div>
-        ))}
-      </div>}
+      {showTotals && actuals.length > 0 && (
+        <div
+          className="relative mt-5 grid overflow-hidden rounded-xl border border-white/10 bg-white/[0.055] shadow-[0_14px_40px_rgba(0,0,0,0.18)]"
+          style={{ gridTemplateColumns: `repeat(${actuals.length}, minmax(0, 1fr))` }}
+        >
+          {actuals.map(([label, value], index) => (
+            <div key={label} className={`px-2 py-3 text-center ${index ? 'border-l border-white/10' : ''}`}>
+              <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-white/40">{label}</div>
+              <div className="mt-1 text-[15px] font-black tabular-nums tracking-[-0.02em] text-white">{value}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      <div className={`mt-4 grid flex-1 gap-4 overflow-hidden ${showTopFive && showOutlook ? 'grid-cols-[1fr_210px]' : 'grid-cols-1'}`}>
-        {showTopFive && <div className="overflow-hidden rounded-lg border border-[var(--border)]">
-          <div className="grid grid-cols-[42px_1.3fr_repeat(5,0.8fr)] gap-2 bg-[var(--surface-2)] px-3 py-2 text-[9px] font-semibold uppercase text-[var(--text-tertiary)]">
-            <span>Rank</span><span>Store</span><span>NR</span><span>ACC</span><span>PP</span><span>VL</span><span>BTS</span>
+      {showTopFive && (
+        <div className="relative mt-5 overflow-hidden rounded-xl border border-white/10 bg-black/10 shadow-[0_18px_50px_rgba(0,0,0,0.2)]">
+          <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.055] px-4 py-2.5">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/80">Top 5 Leaderboard</div>
+              <div className="text-[8px] text-white/35">Ranked by blended goal performance</div>
+            </div>
+            <div className="flex items-center gap-4 text-[8px] font-bold uppercase tracking-[0.1em] text-white/35">
+              <span className="w-14 text-right">NR</span>
+              <span className="w-14 text-right">ACC</span>
+              <span className="w-7 text-right">PP</span>
+              <span className="w-7 text-right">VL</span>
+              <span className="w-7 text-right">BTS</span>
+            </div>
           </div>
-          <div className="divide-y divide-[var(--border)]">
-            {topFive.map((row) => {
+          <div className="divide-y divide-white/[0.07]">
+            {topFive.map((row, index) => {
               const dealer = dealerInfoForRow(row)
+              const tone = index === 0 ? '#55c8f4' : 'rgba(255,255,255,0.36)'
               return (
-                <div key={row.store} className="grid grid-cols-[42px_1.3fr_repeat(5,0.8fr)] items-center gap-2 px-3 py-3 text-xs">
-                  <span className="font-black text-[var(--accent)]">#{row.overallRank}</span>
-                  <span className="min-w-0">
-                    <span className="block truncate font-bold">{dealer.nickname}</span>
-                    <span className="block text-[9px] text-[var(--text-tertiary)]">{row.storeCode} · {formatPercent(row.overallScore)}</span>
-                  </span>
-                  <span className="font-semibold tabular-nums">{formatMoney(row.netRevenue)}</span>
-                  <span className="font-semibold tabular-nums">{formatMoney(row.accessoryRevenue)}</span>
-                  <span className="font-semibold tabular-nums">{formatNumber(row.totalPp)}</span>
-                  <span className="font-semibold tabular-nums">{formatNumber(row.vl)}</span>
-                  <span className="font-semibold tabular-nums">{formatNumber(row.bts)}</span>
+                <div key={row.store} className="flex items-center gap-3 px-4 py-2.5">
+                  <div
+                    className="flex h-8 w-8 flex-none items-center justify-center rounded-lg border text-xs font-black"
+                    style={{ color: tone, borderColor: index === 0 ? 'rgba(85,200,244,0.35)' : 'rgba(255,255,255,0.1)', background: index === 0 ? 'rgba(85,200,244,0.1)' : 'rgba(255,255,255,0.035)' }}
+                  >
+                    {row.overallRank}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[12px] font-bold text-white">{dealer.nickname}</div>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-[8px] text-white/35">
+                      <span>{row.storeCode}</span>
+                      <span>•</span>
+                      <span style={{ color: goalTone(row.overallScore) }}>{formatPercent(row.overallScore)} overall</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-[10px] font-bold tabular-nums text-white/85">
+                    <span className="w-14 text-right">{formatCaptureMoney(row.netRevenue)}</span>
+                    <span className="w-14 text-right">{formatCaptureMoney(row.accessoryRevenue)}</span>
+                    <span className="w-7 text-right">{formatNumber(row.totalPp)}</span>
+                    <span className="w-7 text-right">{formatNumber(row.vl)}</span>
+                    <span className="w-7 text-right">{formatNumber(row.bts)}</span>
+                  </div>
                 </div>
               )
             })}
           </div>
-        </div>}
+        </div>
+      )}
 
-        {showOutlook && <div className={`space-y-3 ${showTopFive ? '' : 'grid grid-cols-3 gap-4 space-y-0 self-start'}`}>
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-            <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">District Outlook</div>
-            {goalMetrics.map(([label, value]) => (
-              <div key={label} className="mt-2">
-                <div className="flex justify-between text-xs"><span>{label}</span><strong>{formatPercent(value)}</strong></div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--border)]">
-                  <div className="h-full rounded-full" style={{ width: `${Math.min(Math.max(value, 0), 100)}%`, background: metricColor(value) }} />
+      {showOutlook && (
+        <div className="relative mt-5 grid grid-cols-[1.5fr_0.75fr_0.75fr] gap-3">
+          <div className="rounded-xl border border-white/10 bg-white/[0.055] px-4 py-3">
+            <div className="text-[8px] font-bold uppercase tracking-[0.14em] text-white/35">District pace</div>
+            <div className="mt-2 grid grid-cols-3 gap-4">
+              {goalMetrics.map(([label, value]) => (
+                <div key={label}>
+                  <div className="flex items-end justify-between gap-2">
+                    <span className="text-[9px] font-bold text-white/55">{label}</span>
+                    <span className="text-[11px] font-black tabular-nums" style={{ color: goalTone(value) }}>{formatPercent(value)}</span>
+                  </div>
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(Math.max(value, 0), 100)}%`, background: goalTone(value) }} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-            <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Strongest</div>
-            <div className="mt-1 text-xl font-black">{strongest[0]}</div>
-            <div className="text-xs text-[var(--text-secondary)]">{formatPercent(strongest[1])}</div>
+          <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-3">
+            <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-emerald-200/50">Strongest</div>
+            <div className="mt-1 text-lg font-black text-emerald-300">{strongest[0]}</div>
+            <div className="text-[9px] text-white/45">{formatPercent(strongest[1])} to goal</div>
           </div>
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-            <div className="text-[10px] font-semibold uppercase text-[var(--text-tertiary)]">Opportunity</div>
-            <div className="mt-1 text-xl font-black">{opportunity[0]}</div>
-            <div className="text-xs text-[var(--text-secondary)]">{formatPercent(opportunity[1])}</div>
+          <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.06] px-3 py-3">
+            <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-amber-200/50">Opportunity</div>
+            <div className="mt-1 text-lg font-black text-amber-300">{opportunity[0]}</div>
+            <div className="text-[9px] text-white/45">{formatPercent(opportunity[1])} to goal</div>
           </div>
-        </div>}
+        </div>
+      )}
+
+      <div className="relative mt-auto flex items-center justify-between border-t border-white/[0.07] pt-3 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/25">
+        <span>LunaDash · District Intelligence</span>
+        <span>Actuals reflect current source data</span>
       </div>
     </div>
   )

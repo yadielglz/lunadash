@@ -6,6 +6,7 @@ const PERFORMANCE_SHEET_CSV_URL =
 const SNAPSHOT_CATEGORY = 'Performance Snapshot'
 const SNAPSHOT_PREFIX = 'source-snapshot:'
 const SNAPSHOT_START_HOUR = 22
+const SOURCE_FETCH_ROUNDS = 2
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -122,13 +123,45 @@ function goalValueForMetric(row: SnapshotRow | null, metricKey: string | null) {
 
 async function fetchSnapshotRows() {
   const sheetUrl = Deno.env.get('PERFORMANCE_SHEET_URL') ?? PERFORMANCE_SHEET_CSV_URL
-  const res = await fetch(sheetUrl)
-  if (!res.ok) throw new Error(`Failed to fetch performance sheet: ${res.status} ${res.statusText}`)
+  const configuredUrl = new URL(sheetUrl)
+  const sheetId = configuredUrl.pathname.match(/\/spreadsheets\/d\/([^/]+)/)?.[1]
+  const gid = configuredUrl.searchParams.get('gid') ?? '0'
+  const sourceUrls = [
+    sheetUrl,
+    ...(sheetId ? [
+      `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`,
+      `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&single=true&gid=${gid}`,
+    ] : []),
+  ]
+  let csvText = ''
+  let lastError = 'Performance sheet could not be loaded.'
 
-  const csvText = await res.text()
-  if (/<html|<!doctype|docs-sheet|waffle/i.test(csvText)) {
-    throw new Error('Performance sheet returned an HTML page instead of CSV. Snapshot was not saved.')
+  for (let round = 1; round <= SOURCE_FETCH_ROUNDS && !csvText; round += 1) {
+    for (const sourceUrl of sourceUrls) {
+      try {
+        const res = await fetch(sourceUrl, {
+          headers: {
+            Accept: 'text/csv,text/plain;q=0.9,*/*;q=0.1',
+            'User-Agent': 'Mozilla/5.0 (compatible; LunaDash-EOD/1.0)',
+          },
+        })
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+
+        const candidate = await res.text()
+        if (/<html|<!doctype|docs-sheet|waffle/i.test(candidate)) {
+          throw new Error('Google returned HTML instead of CSV')
+        }
+        csvText = candidate
+        break
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error)
+      }
+    }
+    if (!csvText && round < SOURCE_FETCH_ROUNDS) {
+      await new Promise((resolve) => setTimeout(resolve, round * 1500))
+    }
   }
+  if (!csvText) throw new Error(`Performance sheet failed across all CSV endpoints: ${lastError}`)
 
   const parsed = Papa.parse<CsvRow>(csvText, {
     header: false,
@@ -139,10 +172,9 @@ async function fetchSnapshotRows() {
     row.some((value) => typeof value === 'string' && value.trim() === 'Traffic')
     && row.some((value) => typeof value === 'string' && value.trim() === 'Net Rev')
   ))
-  if (headerIndex < 0) {
-    throw new Error('Performance sheet CSV did not include the expected Traffic and Net Rev headers.')
-  }
-
+  // The Google Visualization CSV endpoint omits the visible header rows but
+  // preserves the same column positions. HTML is rejected above and the full
+  // Total + valid four-character store set is validated below.
   const dataRows = headerIndex >= 0 ? rows.slice(headerIndex + 1) : rows
   const liveRows: SnapshotRow[] = []
   let liveTotal: SnapshotRow | null = null
@@ -231,6 +263,29 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(supabaseUrl, supabaseKey)
 
   try {
+    const { data: priorRun } = await supabase
+      .from('eod_snapshot_runs')
+      .select('status,attempt_count')
+      .eq('snapshot_date', snapshotDay)
+      .maybeSingle()
+
+    if (!force && priorRun?.status === 'complete') {
+      return Response.json({
+        message: `EOD snapshot for ${snapshotDay} is already complete.`,
+        skipped: true,
+      }, { headers: CORS_HEADERS })
+    }
+
+    await supabase
+      .from('eod_snapshot_runs')
+      .upsert({
+        snapshot_date: snapshotDay,
+        status: 'running',
+        attempt_count: Number(priorRun?.attempt_count ?? 0) + 1,
+        last_error: null,
+        last_attempt_at: new Date().toISOString(),
+      })
+
     const { liveRows, liveTotal } = await fetchSnapshotRows()
     const { data: goals, error: goalsError } = await supabase
       .from('goals')
@@ -297,6 +352,19 @@ Deno.serve(async (req: Request) => {
     const updateError = results.find((result) => result.error)?.error
     if (updateError) throw updateError
 
+    await supabase
+      .from('eod_snapshot_runs')
+      .upsert({
+        snapshot_date: snapshotDay,
+        status: 'complete',
+        expected_entries: results.length,
+        saved_entries: results.length,
+        attempt_count: Number(priorRun?.attempt_count ?? 0) + 1,
+        last_error: null,
+        last_attempt_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+      })
+
     return Response.json({
       message: `Successfully saved EOD snapshots for ${snapshotDay}`,
       updated: results.length,
@@ -305,6 +373,20 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error('snapshot-eod failed:', error)
+    const { data: failedRun } = await supabase
+      .from('eod_snapshot_runs')
+      .select('attempt_count')
+      .eq('snapshot_date', snapshotDay)
+      .maybeSingle()
+    await supabase
+      .from('eod_snapshot_runs')
+      .upsert({
+        snapshot_date: snapshotDay,
+        status: 'failed',
+        attempt_count: Math.max(Number(failedRun?.attempt_count ?? 1), 1),
+        last_error: message.slice(0, 1000),
+        last_attempt_at: new Date().toISOString(),
+      })
     return Response.json({ error: message }, { status: 500, headers: CORS_HEADERS })
   }
 })
