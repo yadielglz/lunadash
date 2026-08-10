@@ -422,3 +422,8 @@ entrypoint = "./functions/snapshot-eod/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/update-performance-sheet/index.ts"
+
+[functions.update-demo-sheet]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/update-demo-sheet/index.ts"

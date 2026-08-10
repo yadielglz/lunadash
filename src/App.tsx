@@ -2,11 +2,9 @@ import { Suspense, lazy, useEffect, useState } from 'react'
 import { AppShell } from './components/layout/AppShell'
 import { DataProvider } from './components/DataProvider'
 import { FirstLoginOnboarding } from './components/FirstLoginOnboarding'
-import { LockScreen } from './components/LockScreen'
 import { StoreLaunchScreen } from './components/StoreLaunchScreen'
 import { DashboardLoader } from './components/ui/DashboardLoader'
 import { useUiStore } from './store/uiStore'
-import { useLockStore, hashPin } from './store/lockStore'
 import { isAnnouncementActive, useDisplayStore } from './store/displayStore'
 import { useTheme } from './hooks/useTheme'
 import { useEodSnapshotScheduler } from './hooks/useEodSnapshotScheduler'
@@ -14,7 +12,6 @@ import { useControllerInput } from './hooks/useControllerInput'
 import { canAccessTab, defaultTabForRole } from './lib/accessControl'
 import { dbGetKioskEnrollmentByToken, dbTouchKioskEnrollment, dbUpdateKioskEnrollment } from './lib/supabase'
 
-const DEFAULT_PIN = '6974'
 const KIOSK_ENROLLMENT_KEY = 'luna-kiosk-enrollment-token'
 const TodayDashboard = lazy(() => import('./components/features/home/TodayDashboard').then((m) => ({ default: m.TodayDashboard })))
 const DevicesPage = lazy(() => import('./components/features/devices/DevicesPage').then((m) => ({ default: m.DevicesPage })))
@@ -131,8 +128,6 @@ export default function App() {
   const sessionExpiresAt = useUiStore((s) => s.sessionExpiresAt)
   const clearStoreSession = useUiStore((s) => s.clearStoreSession)
   const extendStoreSession = useUiStore((s) => s.extendStoreSession)
-  const { pinHash } = useLockStore()
-  const [devicesUnlocked, setDevicesUnlocked] = useState(false)
   useTheme()
   useControllerInput()
   useEodSnapshotScheduler(Boolean(storeId))
@@ -141,19 +136,6 @@ export default function App() {
   useEffect(() => {
     document.documentElement.className = theme
   }, [theme])
-
-  // Seed default PIN on first load if none is set
-  useEffect(() => {
-    const { pinHash, setPinHash } = useLockStore.getState()
-    if (!pinHash) {
-      hashPin(DEFAULT_PIN).then((h) => setPinHash(h))
-    }
-  }, [])
-
-  // Re-lock devices whenever user leaves the tab
-  useEffect(() => {
-    if (activeTab !== 'devices') setDevicesUnlocked(false)
-  }, [activeTab])
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 639px)')
@@ -280,13 +262,9 @@ export default function App() {
     )
   }
 
-  const devicesContent = pinHash && !devicesUnlocked
-    ? <LockScreen inline onUnlock={() => setDevicesUnlocked(true)} />
-    : <DevicesPage />
-
   const pages: Record<string, React.ReactNode> = {
     home:     <TodayDashboard />,
-    devices:  devicesContent,
+    devices:  <DevicesPage />,
     employees: <EmployeesPage />,
     schedule: <SchedulePage />,
     appointments: <AppointmentsPage />,

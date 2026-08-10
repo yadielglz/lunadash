@@ -2,8 +2,8 @@ import type { AccessMode, AccessRole, Tab } from '../store/uiStore'
 
 const ROLE_TABS: Record<AccessRole, Tab[]> = {
   admin: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'updates', 'settings', 'devices', 'display'],
-  district_manager: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'updates', 'settings', 'display'],
-  manager: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'updates', 'settings', 'display'],
+  district_manager: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'devices', 'goals', 'commission', 'reports', 'updates', 'settings', 'display'],
+  manager: ['home', 'district', 'employees', 'schedule', 'appointments', 'tasks', 'devices', 'goals', 'commission', 'reports', 'updates', 'settings', 'display'],
   employee: ['home', 'district', 'schedule', 'appointments', 'tasks', 'goals', 'commission', 'reports', 'settings', 'display'],
   display: ['display'],
 }
