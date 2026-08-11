@@ -386,7 +386,7 @@ function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu }: { onOpenMobileNav
           <span className="tabular-nums text-[var(--text)]">{time}</span>
         </button>
         <WeatherChip />
-        <button type="button" className="command-chip hidden md:inline-flex" onClick={onOpenCommandMenu}>
+        <button type="button" className="command-chip hidden lg:inline-flex" onClick={onOpenCommandMenu}>
           <Command size={14} />
           <span>Search</span>
           <kbd className="text-[10px] text-[var(--text-tertiary)]">⌘K</kbd>
