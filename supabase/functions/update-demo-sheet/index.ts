@@ -60,9 +60,26 @@ async function validateAccess(payload: Payload) {
   const url = Deno.env.get('SUPABASE_URL')
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!url || !key) throw new Error('Access validation is not configured.')
-  const { data, error } = await createClient(url, key).from('store_access_codes').select('role,is_active,store_id').eq('id', payload.accessId).maybeSingle()
-  if (error || !data?.is_active || !ALLOWED_ROLES.has(data.role) || String(data.store_id).toUpperCase() !== '693D') {
+  const supabase = createClient(url, key)
+  const { data, error } = await supabase.from('store_access_codes').select('role,is_active,store_id').eq('id', payload.accessId).maybeSingle()
+  const hasValidRole = data?.is_active
+    && ALLOWED_ROLES.has(data.role)
+    && data.role === payload.accessRole
+  if (error || !hasValidRole) {
     throw new Error('Your manager session is no longer authorized for store 693D.')
+  }
+
+  // District managers and admins are above store scope. Store managers must
+  // have 693D as either their primary store or an explicit store assignment.
+  if (data.role === 'admin' || data.role === 'district_manager' || String(data.store_id).toUpperCase() === '693D') return
+  const { data: assignment, error: assignmentError } = await supabase
+    .from('store_access_assignments')
+    .select('access_id')
+    .eq('access_id', payload.accessId)
+    .ilike('store_id', '693D')
+    .maybeSingle()
+  if (assignmentError || !assignment) {
+    throw new Error('Your manager login is not assigned to store 693D.')
   }
 }
 

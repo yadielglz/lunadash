@@ -353,8 +353,8 @@ function CompactStoreNumbersCapture({
 
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-hidden p-7 text-white"
-      style={{ background: 'radial-gradient(circle at 92% 0%, rgba(21,155,215,0.28), transparent 34%), linear-gradient(145deg, #07141d 0%, #0a202c 56%, #071821 100%)' }}
+      className="eod-capture-light relative flex h-full w-full flex-col overflow-hidden p-8 text-[#14213d]"
+      style={{ background: 'radial-gradient(circle at 96% 0%, rgba(14,165,233,0.13), transparent 32%), linear-gradient(145deg, #ffffff 0%, #f5f9fc 58%, #edf5fa 100%)' }}
     >
       <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full border border-white/5" />
       <div className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full border border-white/5" />
@@ -480,8 +480,8 @@ function DistrictNumbersCapture({
 
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-hidden p-7 text-white"
-      style={{ background: 'radial-gradient(circle at 92% 0%, rgba(21,155,215,0.28), transparent 34%), linear-gradient(145deg, #07141d 0%, #0a202c 56%, #071821 100%)' }}
+      className="eod-capture-light relative flex h-full w-full flex-col overflow-hidden p-8 text-[#14213d]"
+      style={{ background: 'radial-gradient(circle at 96% 0%, rgba(14,165,233,0.13), transparent 32%), linear-gradient(145deg, #ffffff 0%, #f5f9fc 58%, #edf5fa 100%)' }}
     >
       <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full border border-white/5" />
       <div className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full border border-white/5" />
@@ -667,7 +667,7 @@ function StoreDetailDrawer({
     const previousCaptureStyle = captureNode.getAttribute('style')
     try {
       Object.assign(captureNode.style, {
-        backgroundColor: 'var(--surface)',
+        backgroundColor: '#f5f9fc',
         height: `${STORE_NUMBERS_CAPTURE_SIZE}px`,
         left: '0',
         opacity: '1',
@@ -690,7 +690,7 @@ function StoreDetailDrawer({
           height: STORE_NUMBERS_CAPTURE_SIZE,
           pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
           width: STORE_NUMBERS_CAPTURE_SIZE,
-          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || getComputedStyle(captureNode).backgroundColor,
+          backgroundColor: '#f5f9fc',
         })
         const response = await fetch(dataUrl)
         return { dataUrl, blob: await response.blob() }
@@ -1236,7 +1236,7 @@ export function PerformancePage() {
     const previousCaptureStyle = captureNode.getAttribute('style')
     try {
       Object.assign(captureNode.style, {
-        backgroundColor: 'var(--surface)',
+        backgroundColor: '#f5f9fc',
         height: `${STORE_NUMBERS_CAPTURE_SIZE}px`,
         left: '0',
         opacity: '1',
@@ -1254,7 +1254,7 @@ export function PerformancePage() {
         height: STORE_NUMBERS_CAPTURE_SIZE,
         pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
         width: STORE_NUMBERS_CAPTURE_SIZE,
-        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || getComputedStyle(captureNode).backgroundColor,
+        backgroundColor: '#f5f9fc',
       })
       const response = await fetch(dataUrl)
       const blob = await response.blob()

@@ -1586,6 +1586,44 @@ h6 {
   transform: translateY(-1px);
 }
 
+/* EOD image exports are report artifacts and intentionally ignore the app theme. */
+.eod-capture-light {
+  background: radial-gradient(circle at 96% 0%, rgb(14 165 233 / 13%), transparent 32%),
+    linear-gradient(145deg, #fff 0%, #f5f9fc 58%, #edf5fa 100%) !important;
+  color: #14213d !important;
+  font-family: InterVariable, Inter, system-ui, sans-serif;
+}
+
+.eod-capture-light::after {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, #0ea5e9, #2563eb 58%, #14b8a6);
+  content: '';
+}
+
+.eod-capture-light [class*='text-white'] { color: #526079 !important; }
+.eod-capture-light [class*='text-white'][class*='font-black'],
+.eod-capture-light [class*='text-white'][class*='font-bold'] { color: #14213d !important; }
+.eod-capture-light [class*='border-white'] { border-color: #dbe5ee !important; }
+.eod-capture-light [class*='divide-white'] > :not([hidden]) ~ :not([hidden]) { border-color: #e4ebf2 !important; }
+.eod-capture-light [class*='bg-white'],
+.eod-capture-light [class*='bg-black'] {
+  background: rgb(255 255 255 / 88%) !important;
+  box-shadow: 0 10px 28px rgb(36 67 94 / 8%);
+}
+.eod-capture-light [class*='bg-white'] [class*='bg-white'],
+.eod-capture-light [class*='bg-black'] [class*='bg-white'] { box-shadow: none; }
+.eod-capture-light [class*='bg-emerald'] { background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+.eod-capture-light [class*='bg-amber'] { background: #fffbeb !important; border-color: #fde68a !important; }
+.eod-capture-light [class*='bg-[#55c8f4]'] { background: #eff9ff !important; border-color: #bae6fd !important; }
+.eod-capture-light [class*='text-emerald-200'] { color: #047857 !important; }
+.eod-capture-light [class*='text-amber-200'] { color: #b45309 !important; }
+.eod-capture-light > div:last-child {
+  border-color: #dbe5ee !important;
+  color: #718096 !important;
+}
+
 /* Weather monitoring */
 .weather-tool-page .ops-surface {
   border-radius: var(--radius-lg);
