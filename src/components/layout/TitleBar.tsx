@@ -120,67 +120,67 @@ export function TitleBar() {
   const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
-    <div className="app-titlebar chrome-bar bg-[var(--titlebar-bg)] border-b border-[var(--border)] flex flex-shrink-0 items-center justify-between px-2 sm:px-4 z-50 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
+    <div className="app-titlebar chrome-bar bg-[var(--titlebar-bg)]/80 backdrop-blur-xl border-b border-[var(--border)] flex flex-shrink-0 items-center justify-between px-3 sm:px-5 z-50 shadow-sm">
       {/* Logo + store info */}
       <div className="flex min-w-0 items-center gap-2.5">
         <button
           onClick={() => setMenuOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] sm:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] sm:hidden transition-colors"
           aria-label="Open menu"
         >
           <Menu size={19} />
         </button>
-        <div className="luna-logo-badge flex h-10 w-10 flex-shrink-0 items-center justify-center">
-          <LunaWirelessLogo className="h-8 w-8" />
+        <div className="luna-logo-badge flex h-9.5 w-9.5 flex-shrink-0 items-center justify-center rounded-xl">
+          <LunaWirelessLogo className="h-7 w-7" />
         </div>
-        <div className="hidden sm:flex flex-col leading-none gap-0.5">
+        <div className="hidden sm:flex flex-col leading-tight">
           <EditableField
             value={companyName}
             placeholder="Store name"
             onChange={setCompanyName}
-            className="font-semibold"
+            className="font-bold text-sm text-[var(--text)]"
           />
         </div>
       </div>
 
       {/* Center: persistent date, clock, and weather */}
-      <div className="mx-2 flex min-w-0 flex-1 items-center justify-center gap-1.5 sm:gap-2">
+      <div className="mx-2 flex min-w-0 flex-1 items-center justify-center gap-2 sm:gap-2.5">
         <button
           onClick={() => setTab('schedule')}
-          className="flex h-7 min-w-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+          className="flex h-8 min-w-0 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]/80 px-2.5 text-xs text-[var(--text-secondary)] transition-all hover:border-[var(--border-strong)] hover:text-[var(--text)] active:scale-95"
           title={dateStr}
         >
           <RadioTower size={12} className="hidden text-[var(--accent)] sm:block" />
-          <span className="hidden sm:inline">{dateStr}</span>
-          <span className="whitespace-nowrap tabular-nums text-[var(--text)]">{timeStr}</span>
+          <span className="hidden sm:inline font-medium">{dateStr}</span>
+          <span className="whitespace-nowrap tabular-nums font-semibold text-[var(--text)]">{timeStr}</span>
         </button>
         <WeatherStatus />
       </div>
 
       {/* Actions */}
-      <div className="flex flex-shrink-0 items-center gap-1">
+      <div className="flex flex-shrink-0 items-center gap-1.5">
         <StorePickerButton className="hidden sm:inline-flex" />
         <StorePickerButton
           compact
           readOnlyWhenLocked
-          className="inline-flex h-9 min-w-[48px] flex-col items-center justify-center gap-0.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-1.5 text-[var(--text-secondary)] sm:hidden"
+          className="inline-flex h-9 min-w-[48px] flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-1.5 text-[var(--text-secondary)] sm:hidden"
         />
         {accessRole && (
-          <div className="hidden md:flex flex-col items-end leading-none mr-1">
-            <span className="text-[10px] font-semibold uppercase text-[var(--accent)]">{accessRoleLabel(accessRole)}</span>
+          <div className="hidden md:flex flex-col items-end leading-tight mr-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)]">{accessRoleLabel(accessRole)}</span>
             <span className="text-[10px] text-[var(--text-tertiary)] max-w-[120px] truncate">{accessLabel || 'Access session'}</span>
           </div>
         )}
         <button
           onClick={toggleTheme}
-          className="hidden w-8 h-8 rounded-md sm:flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
+          className="hidden w-8.5 h-8.5 rounded-xl sm:flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors active:scale-95"
           title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {isDark ? <Sun size={15} /> : <Moon size={15} />}
         </button>
         <button
           onClick={clearStoreSession}
-          className="hidden w-8 h-8 rounded-md sm:flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
+          className="hidden w-8.5 h-8.5 rounded-xl sm:flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors active:scale-95"
           title="Log out"
         >
           <LogOut size={15} />

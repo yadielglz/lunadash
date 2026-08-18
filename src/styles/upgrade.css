@@ -1763,3 +1763,69 @@ h6 {
     flex-wrap: wrap;
   }
 }
+
+/* ============================================================
+   FLUID ERGONOMIC DUAL-PANE & WORKSPACE UTILITIES
+   ============================================================ */
+.dual-pane-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.dual-pane-master {
+  flex: 1 1 0%;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding: clamp(1rem, 1.8vw, 1.75rem);
+}
+
+.dual-pane-detail {
+  width: 380px;
+  flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(20px);
+  padding: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .dual-pane-detail {
+    width: 340px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dual-pane-container {
+    flex-direction: column;
+  }
+  .dual-pane-detail {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    height: auto;
+    max-height: 50vh;
+  }
+}
+
+/* Fluid scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, rgba(255,255,255,0.25));
+}
+

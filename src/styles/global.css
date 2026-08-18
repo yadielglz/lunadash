@@ -6,27 +6,27 @@
    LUNA RETAIL OS TOKENS
    ============================================================ */
 :root {
-  --font-display: 'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
-  --font-text: 'SF Pro Text', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Manrope Variable', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --font-text: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
   --app-wallpaper: none;
 
-  --accent: #007aff;
-  --accent-hover: #006ee6;
-  --accent-light: #d8ebff;
-  --accent-secondary: #15803d;
-  --accent-glow: rgba(0, 122, 255, 0.2);
-  --status-good: #1f8a4c;
-  --status-warn: #c98408;
-  --status-warn-text: #f2c15b;
-  --status-warn-bg: rgba(201, 132, 8, 0.14);
-  --status-warn-border: rgba(201, 132, 8, 0.28);
+  --accent: #0ea5e9;
+  --accent-hover: #0284c7;
+  --accent-light: #e0f2fe;
+  --accent-secondary: #6366f1;
+  --accent-glow: rgba(14, 165, 233, 0.28);
+  --status-good: #10b981;
+  --status-warn: #f59e0b;
+  --status-warn-text: #fbbf24;
+  --status-warn-bg: rgba(245, 158, 11, 0.15);
+  --status-warn-border: rgba(245, 158, 11, 0.30);
   --status-danger-text: #f87171;
-  --status-danger-bg: rgba(201, 64, 64, 0.12);
-  --status-danger-border: rgba(201, 64, 64, 0.28);
-  --status-danger: #c94040;
-  --status-info: #0876c9;
-  --console-rail: #0b1220;
-  --console-ink: #101827;
+  --status-danger-bg: rgba(239, 68, 68, 0.15);
+  --status-danger-border: rgba(239, 68, 68, 0.30);
+  --status-danger: #ef4444;
+  --status-info: #0284c7;
+  --console-rail: #0b131f;
+  --console-ink: #0e1726;
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -35,9 +35,9 @@
   --radius-2xl: 24px;
   --radius-pill: 100px;
 
-  --shadow-card: 0 18px 44px rgba(15, 23, 42, 0.08), 0 1px 1px rgba(15, 23, 42, 0.04);
-  --shadow-float: 0 24px 70px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.08);
-  --shadow-modal: 0 30px 90px rgba(0, 0, 0, 0.30), 0 4px 16px rgba(15, 23, 42, 0.12);
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-float: 0 16px 40px -4px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-modal: 0 25px 65px -10px rgba(0, 0, 0, 0.65);
 
   --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
   --transition-normal: 250ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -50,80 +50,81 @@
    DARK THEME (default)
    ============================================================ */
 :root, .dark {
-  --bg: #08090d;
+  --bg: #090e17;
   --bg-gradient:
-    radial-gradient(circle at 18% 8%, rgba(0, 122, 255, 0.2), transparent 30%),
-    radial-gradient(circle at 82% 18%, rgba(52, 199, 89, 0.12), transparent 28%),
-    linear-gradient(180deg, #17191f 0%, #0b0c10 58%, #050609 100%);
-  --surface: rgba(28, 30, 36, 0.72);
-  --surface-2: rgba(44, 46, 54, 0.62);
-  --surface-3: rgba(66, 70, 80, 0.62);
-  --surface-solid: #151b24;
-  --surface-2-solid: #1b2430;
-  --sidebar-bg: rgba(18, 20, 27, 0.74);
-  --command-bg: rgba(20, 22, 28, 0.72);
-  --border: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.2);
-  --text: rgba(255,255,255,0.94);
-  --text-secondary: rgba(232,240,248,0.68);
-  --text-tertiary: rgba(232,240,248,0.44);
-  --acrylic: #151b24;
-  --mica: #111821;
-  --taskbar-bg: rgba(18, 20, 27, 0.74);
-  --titlebar-bg: rgba(18, 20, 27, 0.74);
-  --reveal-bg: rgba(255, 255, 255, 0.08);
-  --reveal-border: rgba(255, 255, 255, 0.12);
-  --input-bg: rgba(17, 19, 24, 0.72);
-  --scrollbar-track: rgba(255,255,255,0.04);
-  --scrollbar-thumb: rgba(255,255,255,0.15);
-  --scrollbar-thumb-hover: rgba(255,255,255,0.25);
+    radial-gradient(circle at 15% 0%, rgba(14, 165, 233, 0.18), transparent 45%),
+    radial-gradient(circle at 85% 0%, rgba(226, 0, 116, 0.12), transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(99, 102, 241, 0.08), transparent 50%),
+    linear-gradient(180deg, #0e1726 0%, #080d15 60%, #05080e 100%);
+  --surface: rgba(17, 28, 44, 0.78);
+  --surface-2: rgba(25, 40, 62, 0.68);
+  --surface-3: rgba(35, 55, 84, 0.62);
+  --surface-solid: #111c2c;
+  --surface-2-solid: #162438;
+  --sidebar-bg: rgba(10, 17, 27, 0.85);
+  --command-bg: rgba(12, 20, 32, 0.85);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --acrylic: #111c2c;
+  --mica: #0c1522;
+  --taskbar-bg: rgba(10, 17, 27, 0.85);
+  --titlebar-bg: rgba(10, 17, 27, 0.85);
+  --reveal-bg: rgba(255, 255, 255, 0.07);
+  --reveal-border: rgba(255, 255, 255, 0.14);
+  --input-bg: rgba(11, 18, 28, 0.85);
+  --scrollbar-track: rgba(255, 255, 255, 0.03);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.16);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
   --wallpaper-opacity: 0;
-  --wallpaper-overlay: rgba(9, 10, 14, 0.78);
+  --wallpaper-overlay: rgba(9, 14, 23, 0.82);
 }
 
 /* ============================================================
    LIGHT THEME
    ============================================================ */
 .light {
-  --bg: #f2f2f7;
+  --bg: #f8fafc;
   --bg-gradient:
-    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.95), transparent 30%),
-    radial-gradient(circle at 82% 10%, rgba(0, 122, 255, 0.12), transparent 30%),
-    linear-gradient(180deg, #fbfbfd 0%, #f2f2f7 52%, #e9e9ef 100%);
-  --surface: rgba(255, 255, 255, 0.76);
-  --surface-2: rgba(255, 255, 255, 0.58);
-  --surface-3: rgba(242, 242, 247, 0.86);
+    radial-gradient(circle at 10% 0%, rgba(14, 165, 233, 0.10), transparent 40%),
+    radial-gradient(circle at 90% 0%, rgba(226, 0, 116, 0.06), transparent 35%),
+    linear-gradient(180deg, #ffffff 0%, #f1f5f9 60%, #e2e8f0 100%);
+  --surface: rgba(255, 255, 255, 0.85);
+  --surface-2: rgba(248, 250, 252, 0.90);
+  --surface-3: rgba(241, 245, 249, 0.95);
   --surface-solid: #ffffff;
-  --surface-2-solid: #ffffff;
-  --sidebar-bg: rgba(255, 255, 255, 0.68);
-  --command-bg: rgba(255, 255, 255, 0.66);
-  --border: rgba(15,23,42,0.10);
-  --border-strong: rgba(15,23,42,0.18);
-  --text: #111114;
-  --text-secondary: rgba(17, 17, 20, 0.68);
-  --text-tertiary: rgba(17, 17, 20, 0.44);
-  --acrylic: rgba(255, 255, 255, 0.72);
-  --mica: rgba(255, 255, 255, 0.64);
-  --taskbar-bg: rgba(255, 255, 255, 0.72);
-  --titlebar-bg: rgba(255, 255, 255, 0.72);
-  --reveal-bg: rgba(0, 0, 0, 0.045);
-  --reveal-border: rgba(0, 0, 0, 0.07);
-  --input-bg: rgba(255, 255, 255, 0.82);
-  --scrollbar-track: rgba(0,0,0,0.04);
-  --scrollbar-thumb: rgba(0,0,0,0.15);
-  --scrollbar-thumb-hover: rgba(0,0,0,0.25);
-  --accent: #007aff;
-  --accent-hover: #006ee6;
-  --accent-light: #d8ebff;
-  --accent-glow: rgba(0, 122, 255, 0.18);
-  --status-warn-text: #8a5800;
-  --status-warn-bg: rgba(201, 132, 8, 0.14);
-  --status-warn-border: rgba(154, 100, 6, 0.32);
-  --status-danger-text: #a62323;
-  --status-danger-bg: rgba(201, 64, 64, 0.11);
-  --status-danger-border: rgba(166, 35, 35, 0.28);
+  --surface-2-solid: #f8fafc;
+  --sidebar-bg: rgba(255, 255, 255, 0.85);
+  --command-bg: rgba(255, 255, 255, 0.85);
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.16);
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --acrylic: rgba(255, 255, 255, 0.85);
+  --mica: rgba(248, 250, 252, 0.85);
+  --taskbar-bg: rgba(255, 255, 255, 0.85);
+  --titlebar-bg: rgba(255, 255, 255, 0.85);
+  --reveal-bg: rgba(15, 23, 42, 0.04);
+  --reveal-border: rgba(15, 23, 42, 0.08);
+  --input-bg: rgba(255, 255, 255, 0.95);
+  --scrollbar-track: rgba(15, 23, 42, 0.03);
+  --scrollbar-thumb: rgba(15, 23, 42, 0.14);
+  --scrollbar-thumb-hover: rgba(15, 23, 42, 0.24);
+  --accent: #0284c7;
+  --accent-hover: #0369a1;
+  --accent-light: #e0f2fe;
+  --accent-glow: rgba(2, 132, 199, 0.22);
+  --status-warn-text: #b45309;
+  --status-warn-bg: rgba(245, 158, 11, 0.12);
+  --status-warn-border: rgba(245, 158, 11, 0.25);
+  --status-danger-text: #dc2626;
+  --status-danger-bg: rgba(239, 68, 68, 0.12);
+  --status-danger-border: rgba(239, 68, 68, 0.25);
   --wallpaper-opacity: 0;
-  --wallpaper-overlay: rgba(245, 247, 249, 0.9);
+  --wallpaper-overlay: rgba(248, 250, 252, 0.92);
 }
 
 /* ============================================================

@@ -7,8 +7,6 @@ import {
   Calendar,
   CalendarPlus,
   CheckSquare,
-  ChevronLeft,
-  Command,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -338,7 +336,6 @@ function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu }: { onOpenMobileNav
   const now = useClock()
   const { toggleTheme, isDark } = useTheme()
   const {
-    accessLabel,
     accessRole,
     activeTab,
     clearStoreSession,
@@ -351,67 +348,81 @@ function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu }: { onOpenMobileNav
   const date = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
-    <header className="command-bar">
-      <div className="command-bar-title">
+    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-[var(--border)] bg-[var(--command-bg)]/85 px-4 sm:px-6 backdrop-blur-xl shadow-sm">
+      <div className="flex items-center gap-3 min-w-0">
         <button
           type="button"
           onClick={onOpenMobileNav}
-          className="command-icon-button lg:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] lg:hidden transition-colors"
           aria-label="Open navigation"
         >
-          <Menu size={19} />
+          <Menu size={18} />
         </button>
+
         <button
           type="button"
           onClick={() => setTab('home')}
-          className="luna-logo-badge hidden h-10 w-10 items-center justify-center lg:flex"
+          className="hidden h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-1.5 hover:border-[var(--accent)]/40 transition-all lg:flex"
           aria-label="Open Today"
         >
-          <LunaWirelessLogo className="h-8 w-8" />
+          <LunaWirelessLogo className="h-7 w-7" />
         </button>
-        <div className="command-page-title min-w-0">
-          <div className="truncate text-sm font-semibold text-[var(--text)]">
+
+        <div className="min-w-0">
+          <div className="truncate text-base font-bold text-[var(--text)] tracking-tight">
             <span className="hidden sm:inline">{activeLabel}</span>
             <span className="sm:hidden">{mobileActiveLabel}</span>
           </div>
-          <div className="command-page-subtitle truncate text-xs text-[var(--text-tertiary)]">
-            {storeId === 'main' ? 'All stores' : `Store ${storeId}`} · {accessRoleLabel(accessRole)}
+          <div className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] truncate">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span>{storeId === 'main' ? 'All District Stores' : `Store ${storeId}`}</span>
+            <span>·</span>
+            <span className="font-medium text-[var(--accent)]">{accessRoleLabel(accessRole)}</span>
           </div>
         </div>
       </div>
 
-      <div className="command-bar-actions">
-        <button className="command-chip command-chip-time" onClick={() => setTab('schedule')} title={date}>
-          <span className="hidden sm:inline">{date}</span>
-          <span className="tabular-nums text-[var(--text)]">{time}</span>
+      <div className="flex items-center gap-2">
+        <button
+          className="hidden sm:flex items-center gap-2 h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-xs text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text)] transition-all"
+          onClick={() => setTab('schedule')}
+          title={date}
+        >
+          <span className="hidden md:inline font-medium">{date}</span>
+          <span className="font-mono font-semibold tabular-nums text-[var(--text)]">{time}</span>
         </button>
+
         <WeatherChip />
-        <button type="button" className="command-chip hidden lg:inline-flex" onClick={onOpenCommandMenu}>
-          <Command size={14} />
-          <span>Search</span>
-          <kbd className="text-[10px] text-[var(--text-tertiary)]">⌘K</kbd>
+
+        <button
+          type="button"
+          className="hidden lg:flex items-center gap-2 h-9 px-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-xs text-[var(--text-secondary)] hover:border-[var(--accent)]/40 hover:text-[var(--text)] transition-all group"
+          onClick={onOpenCommandMenu}
+        >
+          <Search size={14} className="text-[var(--text-tertiary)] group-hover:text-[var(--accent)] transition-colors" />
+          <span>Quick Search</span>
+          <kbd className="ml-1 rounded-md bg-[var(--surface-3)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--text-tertiary)] border border-[var(--border)]">⌘K</kbd>
         </button>
+
         <NotificationCenter />
         <StorePickerButton className="hidden sm:inline-flex" />
-        {accessRole && (
-          <div className="hidden min-w-0 flex-col items-end leading-tight xl:flex">
-            <span className="text-[10px] font-semibold uppercase text-[var(--accent)]">{accessRoleLabel(accessRole)}</span>
-            <span className="max-w-[10rem] truncate text-[10px] text-[var(--text-tertiary)]">{accessLabel || 'Access session'}</span>
-          </div>
-        )}
+
+        <div className="h-5 w-px bg-[var(--border)] mx-1 hidden sm:block" />
+
         <button
           type="button"
           onClick={toggleTheme}
-          className="command-icon-button command-theme-button"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] transition-all active:scale-95"
           title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {isDark ? <Sun size={16} /> : <Moon size={16} />}
         </button>
+
         <button
           type="button"
           onClick={clearStoreSession}
-          className="command-icon-button command-logout-button hidden sm:inline-flex"
+          className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-95"
           title="Log out"
           aria-label="Log out"
         >
@@ -442,36 +453,44 @@ function NavigationRail({
   }
 
   return (
-    <nav className={cn('command-nav', collapsed && !mobile && 'command-nav-collapsed', mobile && 'command-nav-mobile')}>
-      <div className={cn('mb-5 flex items-center gap-3 px-2', collapsed && !mobile && 'justify-center px-0')}>
-        <div className="luna-logo-badge flex h-12 w-12 items-center justify-center">
-          <LunaWirelessLogo className="h-9 w-9" />
+    <nav className="flex flex-col h-full w-full select-none">
+      {/* Brand Header */}
+      <div className={cn('mb-4 flex items-center gap-3 px-2 py-1', collapsed && !mobile && 'justify-center px-0')}>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--accent)]/20 via-[var(--surface-2)] to-[var(--surface)] border border-[var(--accent)]/30 shadow-md">
+          <LunaWirelessLogo className="h-7 w-7" />
         </div>
-        <div className={cn('min-w-0', collapsed && !mobile && 'hidden')}>
-          <div className="text-sm font-semibold text-[var(--text)]">LunaDash</div>
-          <div className="text-xs text-[var(--text-tertiary)]">Store operations</div>
+        <div className={cn('min-w-0 flex-1', collapsed && !mobile && 'hidden')}>
+          <div className="text-base font-bold tracking-tight text-[var(--text)] leading-none">LunaDash</div>
+          <div className="text-[11px] font-medium text-[var(--text-secondary)] mt-1">Retail Operations OS</div>
         </div>
       </div>
+
       {onToggleCollapse && !mobile && (
         <button
           type="button"
           onClick={onToggleCollapse}
-          className={cn('command-nav-toggle mb-3', collapsed && 'mx-auto w-10 justify-center px-0')}
+          className={cn(
+            'flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]/60 px-3 py-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] transition-all mb-3',
+            collapsed && 'mx-auto w-10 justify-center px-0'
+          )}
           title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
           aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
         >
           {collapsed ? <PanelLeftOpen size={16} /> : <Menu size={16} />}
-          {!collapsed && <span>Navigation</span>}
+          {!collapsed && <span>Collapse Sidebar</span>}
         </button>
       )}
 
-      <div className="command-nav-list no-scrollbar">
+      {/* Nav List */}
+      <div className="flex-1 space-y-4 overflow-y-auto pr-1 no-scrollbar">
         {NAV_GROUPS.map((group) => {
           const items = visibleItems.filter((item) => item.group === group)
           if (items.length === 0) return null
           return (
-            <div className="command-nav-group" key={group}>
-              <div className={cn('command-nav-group-label', collapsed && !mobile && 'sr-only')}>{group}</div>
+            <div key={group} className="space-y-1">
+              <div className={cn('px-3 text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]', collapsed && !mobile && 'sr-only')}>
+                {group}
+              </div>
               <div className="space-y-1">
                 {items.map((item) => {
                   const active = activeTab === item.id
@@ -480,17 +499,28 @@ function NavigationRail({
                       key={item.id}
                       type="button"
                       onClick={() => navigate(item.id)}
-                      className={cn('command-nav-item', active && 'command-nav-item-active')}
+                      className={cn(
+                        'group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all duration-200 border',
+                        active
+                          ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-md shadow-[var(--accent-glow)] font-semibold'
+                          : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] hover:border-[var(--border)]'
+                      )}
                       title={collapsed && !mobile ? item.label : undefined}
                       aria-label={item.label}
                       aria-current={active ? 'page' : undefined}
                     >
-                      <span className="command-nav-icon">{item.icon}</span>
-                      <span className={cn('min-w-0 flex-1 text-left', collapsed && !mobile && 'hidden')}>
-                        <span className="block truncate text-sm font-medium">{item.label}</span>
-                        <span className="block truncate text-[11px] text-[var(--text-tertiary)]">{item.helper}</span>
+                      <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors', active ? 'text-white' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text)]')}>
+                        {item.icon}
                       </span>
-                      {active && !collapsed && <ChevronLeft size={14} className="hidden text-[var(--accent)] lg:block" />}
+                      <span className={cn('min-w-0 flex-1', collapsed && !mobile && 'hidden')}>
+                        <span className="block truncate text-sm leading-snug">{item.label}</span>
+                        <span className={cn('block truncate text-[11px] leading-snug font-normal', active ? 'text-white/80' : 'text-[var(--text-tertiary)]')}>
+                          {item.helper}
+                        </span>
+                      </span>
+                      {active && !collapsed && (
+                        <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_8px_white]" />
+                      )}
                     </button>
                   )
                 })}

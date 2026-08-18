@@ -27,12 +27,16 @@ import { isInstalledPwa } from '../../../lib/pwa'
 
 function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Theme) => void }) {
   const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string; accents: string[] }[] = [
-    { value: 'dark', label: 'Luna Night', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#071018,#172631_58%,#159bd7)]', accents: ['#159bd7', '#55c8f4'] },
-    { value: 'light', label: 'Luna Light', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#ffffff,#eaf1f4_58%,#159bd7)]', accents: ['#159bd7', '#087fb8'] },
+    { value: 'dark', label: 'Luna Night (Default)', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#071018,#172631_58%,#159bd7)]', accents: ['#159bd7', '#55c8f4'] },
+    { value: 'light', label: 'Luna Daylight', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#ffffff,#eaf1f4_58%,#159bd7)]', accents: ['#159bd7', '#087fb8'] },
+    { value: 'carbon', label: 'Obsidian Carbon', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#0f172a,#1e293b_58%,#38bdf8)]', accents: ['#38bdf8', '#818cf8'] },
+    { value: 'aurora', label: 'Emerald Aurora', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#052e16,#064e3b_58%,#10b981)]', accents: ['#10b981', '#34d399'] },
+    { value: 'rosewood', label: 'T-Mobile Magenta', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#200714,#3b0c25_58%,#E20074)]', accents: ['#E20074', '#F43F5E'] },
+    { value: 'tide', label: 'Ocean Tide', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#f0f9ff,#e0f2fe_58%,#0284c7)]', accents: ['#0284c7', '#0ea5e9'] },
   ]
 
   return (
-    <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {choices.map((choice) => {
         const selected = value === choice.value
         return (
@@ -41,32 +45,32 @@ function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Them
             type="button"
             onClick={() => onChange(choice.value as Theme)}
             aria-pressed={selected}
-            className={`group rounded-lg border p-2 text-left transition-colors ${
+            className={`group rounded-2xl border p-2.5 text-left transition-all ${
               selected
-                ? 'border-[var(--accent)] bg-[var(--accent)]/10'
-                : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]'
+                ? 'border-[var(--accent)] bg-[var(--accent)]/10 ring-2 ring-[var(--accent)]/30 shadow-[var(--shadow-card)]'
+                : 'border-[var(--border)] bg-[var(--surface-3)]/60 hover:border-[var(--border-strong)] hover:bg-[var(--surface-3)]'
             }`}
           >
-            <div className={`h-16 overflow-hidden rounded-md border border-[var(--border)] ${choice.preview}`}>
-              <div className="h-3 border-b border-white/10 bg-white/10" />
-              <div className="p-1.5 space-y-1">
-                <div className="h-2 w-10 rounded" style={{ background: choice.accents[0] }} />
-                <div className="h-1.5 w-14 rounded bg-slate-400/45" />
+            <div className={`h-16 overflow-hidden rounded-xl border border-white/10 ${choice.preview}`}>
+              <div className="h-3.5 border-b border-white/10 bg-white/10" />
+              <div className="p-2 space-y-1">
+                <div className="h-2 w-12 rounded-full" style={{ background: choice.accents[0] }} />
+                <div className="h-1.5 w-16 rounded-full bg-slate-400/40" />
               </div>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="mt-2.5 flex items-center justify-between gap-2 px-1">
               <div className="min-w-0">
-                <span className="flex items-center gap-1.5 truncate text-xs font-medium text-[var(--text)]">
+                <span className="flex items-center gap-1.5 truncate text-xs font-semibold text-[var(--text)]">
                   {choice.icon}
                   {choice.label}
                 </span>
-                <div className="mt-1 flex items-center gap-1">
+                <div className="mt-1.5 flex items-center gap-1">
                   {choice.accents.map((accent) => (
                     <span key={accent} className="h-2.5 w-2.5 rounded-full border border-white/30" style={{ background: accent }} />
                   ))}
                 </div>
               </div>
-              {selected && <Check size={13} className="text-[var(--accent)]" />}
+              {selected && <Check size={14} className="text-[var(--accent)] shrink-0" />}
             </div>
           </button>
         )
