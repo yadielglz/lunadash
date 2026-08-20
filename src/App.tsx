@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useState } from 'react'
 import { AppShell } from './components/layout/AppShell'
 import { DataProvider } from './components/DataProvider'
 import { FirstLoginOnboarding } from './components/FirstLoginOnboarding'
+import { LockScreen } from './components/LockScreen'
 import { StoreLaunchScreen } from './components/StoreLaunchScreen'
 import { DashboardLoader } from './components/ui/DashboardLoader'
 import { useUiStore } from './store/uiStore'
@@ -10,11 +11,13 @@ import { useTheme } from './hooks/useTheme'
 import { useEodSnapshotScheduler } from './hooks/useEodSnapshotScheduler'
 import { useControllerInput } from './hooks/useControllerInput'
 import { canAccessTab, defaultTabForRole } from './lib/accessControl'
+import { hashPin, useLockStore } from './store/lockStore'
 import { dbGetKioskEnrollmentByToken, dbTouchKioskEnrollment, dbUpdateKioskEnrollment } from './lib/supabase'
 
 const KIOSK_ENROLLMENT_KEY = 'luna-kiosk-enrollment-token'
 const TodayDashboard = lazy(() => import('./components/features/home/TodayDashboard').then((m) => ({ default: m.TodayDashboard })))
 const DevicesPage = lazy(() => import('./components/features/devices/DevicesPage').then((m) => ({ default: m.DevicesPage })))
+const ProtectPage = lazy(() => import('./components/features/protect/ProtectPage').then((m) => ({ default: m.ProtectPage })))
 const EmployeesPage = lazy(() => import('./components/features/employees/EmployeesPage').then((m) => ({ default: m.EmployeesPage })))
 const SchedulePage = lazy(() => import('./components/features/scheduling/SchedulePage').then((m) => ({ default: m.SchedulePage })))
 const AppointmentsPage = lazy(() => import('./components/features/appointments/AppointmentsPage').then((m) => ({ default: m.AppointmentsPage })))
@@ -128,9 +131,20 @@ export default function App() {
   const sessionExpiresAt = useUiStore((s) => s.sessionExpiresAt)
   const clearStoreSession = useUiStore((s) => s.clearStoreSession)
   const extendStoreSession = useUiStore((s) => s.extendStoreSession)
+  const pinHash = useLockStore((s) => s.pinHash)
+  const [protectUnlocked, setProtectUnlocked] = useState(false)
   useTheme()
   useControllerInput()
   useEodSnapshotScheduler(Boolean(storeId))
+
+  useEffect(() => {
+    const { pinHash: savedPin, setPinHash } = useLockStore.getState()
+    if (!savedPin) void hashPin('6974').then(setPinHash)
+  }, [])
+
+  useEffect(() => {
+    if (activeTab !== 'protect') setProtectUnlocked(false)
+  }, [activeTab])
 
   const { theme } = useUiStore()
   useEffect(() => {
@@ -264,6 +278,7 @@ export default function App() {
 
   const pages: Record<string, React.ReactNode> = {
     home:     <TodayDashboard />,
+    protect:  pinHash && !protectUnlocked ? <LockScreen inline onUnlock={() => setProtectUnlocked(true)} /> : <ProtectPage />,
     devices:  <DevicesPage />,
     employees: <EmployeesPage />,
     schedule: <SchedulePage />,

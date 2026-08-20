@@ -23,7 +23,7 @@ export function DeviceSearchWidget() {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--text)]">Protect Lookup</h3>
         <button
-          onClick={() => setTab('devices')}
+          onClick={() => setTab('protect')}
           className="text-[10px] text-[var(--accent)] flex items-center gap-0.5 hover:underline"
         >
           View all <ChevronRight size={10} />
@@ -35,7 +35,7 @@ export function DeviceSearchWidget() {
         <input
           value={q}
           onChange={(e) => handleSearch(e.target.value)}
-          onFocus={() => setTab('devices')}
+          onFocus={() => setTab('protect')}
           placeholder="Search brand, model, UPC…"
           className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-[var(--input-bg)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] transition-colors"
         />
@@ -57,7 +57,7 @@ export function DeviceSearchWidget() {
                 <div
                   key={i}
                   className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-[var(--reveal-bg)] transition-colors cursor-pointer group"
-                  onClick={() => setTab('devices')}
+                  onClick={() => setTab('protect')}
                 >
                   <Monitor size={12} className="text-[var(--text-tertiary)] flex-shrink-0" />
                   <div className="flex-1 min-w-0">

@@ -1313,7 +1313,7 @@ function AboutSection() {
         {accessRole === 'admin' && (
           <div className="pt-2 border-t border-[var(--border)]">
             <button
-              onClick={() => setTab('devices')}
+              onClick={() => setTab('protect')}
               className="text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
             >
               Internal reference
