@@ -65,7 +65,7 @@ type ModuleHeaderProps = {
 
 export function ModuleHeader({ icon, title, description, eyebrow, meta, actions, children, className }: ModuleHeaderProps) {
   return (
-    <header className={cn('relative overflow-hidden rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface-2)] to-[var(--surface)] p-6 sm:p-7 shadow-lg backdrop-blur-xl mb-6', className)}>
+    <header className={cn('relative overflow-visible rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface-2)] to-[var(--surface)] p-6 sm:p-7 shadow-lg backdrop-blur-xl mb-6', className)}>
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
         <div className="min-w-0 flex-1">
           {eyebrow && (
