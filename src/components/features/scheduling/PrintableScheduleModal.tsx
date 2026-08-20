@@ -17,7 +17,10 @@ interface PrintableScheduleModalProps {
   weekStart: Date
 }
 
-const DESKTOP_SCHEDULE_CAPTURE_WIDTH = 980
+// US Letter landscape at the browser's standard 96 CSS pixels per inch.
+const LETTER_PAGE_WIDTH = 11 * 96
+const LETTER_PAGE_HEIGHT = 8.5 * 96
+const LETTER_PAGE_MARGIN = 0.35 * 96
 
 function shiftHours(shift: Shift) {
   const start = timeToMinutes(shift.startTime)
@@ -172,7 +175,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
         <head>
           <title>${escapeHtml(scheduleTitle)}</title>
           <style>
-            @page { size: landscape; margin: 0.35in; }
+            @page { size: letter landscape; margin: 0.35in; }
             * { box-sizing: border-box; }
             body {
               margin: 0;
@@ -332,15 +335,21 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
 
     setCapturing(true)
     setCaptureMessage('')
-    const captureWidth = Math.max(captureNode.scrollWidth, DESKTOP_SCHEDULE_CAPTURE_WIDTH)
+    const captureWidth = LETTER_PAGE_WIDTH
+    const captureHeight = LETTER_PAGE_HEIGHT
     const stagedNode = captureNode.cloneNode(true) as HTMLDivElement
     const stagingFrame = document.createElement('div')
     try {
       Object.assign(stagedNode.style, {
         backgroundColor: '#ffffff',
         boxSizing: 'border-box',
-        maxWidth: 'none',
-        minWidth: `${DESKTOP_SCHEDULE_CAPTURE_WIDTH}px`,
+        height: `${captureHeight}px`,
+        maxHeight: `${captureHeight}px`,
+        maxWidth: `${captureWidth}px`,
+        minHeight: `${captureHeight}px`,
+        minWidth: `${captureWidth}px`,
+        overflow: 'hidden',
+        padding: `${LETTER_PAGE_MARGIN}px`,
         width: `${captureWidth}px`,
       })
       Object.assign(stagingFrame.style, {
@@ -359,10 +368,26 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
       await new Promise((resolve) => window.requestAnimationFrame(resolve))
       await new Promise((resolve) => window.requestAnimationFrame(resolve))
 
+      const contentNode = stagedNode.firstElementChild as HTMLDivElement | null
+      if (contentNode) {
+        const availableWidth = captureWidth - (LETTER_PAGE_MARGIN * 2)
+        const availableHeight = captureHeight - (LETTER_PAGE_MARGIN * 2)
+        const contentScale = Math.min(
+          1,
+          availableWidth / contentNode.scrollWidth,
+          availableHeight / contentNode.scrollHeight,
+        )
+        Object.assign(contentNode.style, {
+          transform: `scale(${contentScale})`,
+          transformOrigin: 'top left',
+          width: `${availableWidth / contentScale}px`,
+        })
+      }
+
       const dataUrl = await toPng(stagedNode, {
         cacheBust: true,
         width: captureWidth,
-        height: stagedNode.scrollHeight,
+        height: captureHeight,
         pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
         backgroundColor: '#ffffff',
       })
@@ -418,7 +443,12 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
         </div>
 
         <div className="print-schedule-area overflow-auto rounded-xl border border-[var(--border)] bg-white text-slate-950">
-          <div ref={captureRef} className="print-schedule-page min-w-[980px] bg-white p-6">
+          <div
+            ref={captureRef}
+            className="print-schedule-page min-h-[816px] min-w-[1056px] bg-white p-[34px]"
+            style={{ width: LETTER_PAGE_WIDTH, minHeight: LETTER_PAGE_HEIGHT }}
+          >
+            <div>
             <div className="flex items-start justify-between gap-6 border-b border-slate-200 pb-4">
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Weekly Schedule</div>
@@ -515,6 +545,7 @@ export function PrintableScheduleModal({ open, onClose, weekStart }: PrintableSc
                 No employees or shifts are scheduled for this week.
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>
