@@ -209,9 +209,6 @@ function buildStoreReportHtml(params: {
   storeId: string
   companyName: string
   storeNumber: string
-  commissionRows: CommissionReportRow[]
-  commissionDate: string
-  commissionUpdatedAt: string
 }) {
   const rows = Object.entries(REPORT_METRICS).map(([key, meta]) => ({
     key,
@@ -228,31 +225,11 @@ function buildStoreReportHtml(params: {
   }))
   const generatedAt = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
   const storeLabel = `${params.companyName || 'Luna Store'}${params.storeNumber ? ` #${params.storeNumber}` : ''}`
-  const commissionTotals = params.commissionRows.reduce((totals, row) => ({
-    commission: totals.commission + row.commission,
-    opportunity: totals.opportunity + row.commissionOpportunity,
-    accessories: totals.accessories + row.accessories,
-    revenue: totals.revenue + row.revenue,
-    vaf: totals.vaf + row.vaf,
-    voiceLines: totals.voiceLines + row.voiceLines,
-    bts: totals.bts + row.bts,
-  }), emptyCommissionTotals())
-  const averageCommissionRevenue = params.commissionRows.length ? commissionTotals.revenue / params.commissionRows.length : 0
-  const averageCommissionVaf = params.commissionRows.length ? commissionTotals.vaf / params.commissionRows.length : 0
-  const commissionMeta = [
-    params.commissionDate ? formatReportDate(params.commissionDate) : '',
-    params.commissionUpdatedAt ? `Last updated ${formatReportDateTime(params.commissionUpdatedAt)}` : '',
-  ].filter(Boolean).join(' | ')
-  const commissionRowsHtml = params.commissionRows.length > 0
-    ? `<table><thead><tr><th class="employee">Employee</th><th>Paid</th><th>Opp</th><th>Capture</th><th>Accessories</th><th>Revenue</th><th>VAF</th><th>Voice</th><th>BTS</th></tr></thead><tbody>${params.commissionRows.map((row) => `<tr><td class="employee">${escapeHtml(row.employeeName || '-')}</td><td>${escapeHtml(formatReportValue(row.commission, 'money'))}</td><td>${escapeHtml(formatReportValue(row.commissionOpportunity, 'money'))}</td><td>${escapeHtml(formatPercent(capturePercent(row.commission, row.commissionOpportunity)))}</td><td>${escapeHtml(formatReportValue(row.accessories, 'money'))}</td><td>${escapeHtml(formatReportValue(row.revenue, 'money'))}</td><td>${escapeHtml(formatReportValue(row.vaf, 'money'))}</td><td>${escapeHtml(formatReportValue(row.voiceLines, 'number'))}</td><td>${escapeHtml(formatReportValue(row.bts, 'number'))}</td></tr>`).join('')}<tr class="total-row"><td class="employee">Team Total</td><td>${escapeHtml(formatReportValue(commissionTotals.commission, 'money'))}</td><td>${escapeHtml(formatReportValue(commissionTotals.opportunity, 'money'))}</td><td>${escapeHtml(formatPercent(capturePercent(commissionTotals.commission, commissionTotals.opportunity)))}</td><td>${escapeHtml(formatReportValue(commissionTotals.accessories, 'money'))}</td><td>${escapeHtml(formatReportValue(averageCommissionRevenue, 'money'))}</td><td>${escapeHtml(formatReportValue(averageCommissionVaf, 'money'))}</td><td>${escapeHtml(formatReportValue(commissionTotals.voiceLines, 'number'))}</td><td>${escapeHtml(formatReportValue(commissionTotals.bts, 'number'))}</td></tr></tbody></table>`
-    : '<div class="empty">No team commission snapshot has been saved for this store in the selected month.</div>'
 
   return `<!doctype html><html><head><title>${escapeHtml(monthLabel(params.month))} Performance Snapshot</title><style>${baseReportCss('store')}</style></head><body><main>
     <header><div><h1>Performance Snapshot</h1><div class="subtle">${escapeHtml(monthLabel(params.month))}</div></div><div class="meta subtle"><div>${escapeHtml(storeLabel)}</div><div>Store ID: ${escapeHtml(params.storeId || 'DEFAULT')}</div><div>Generated ${escapeHtml(generatedAt)}</div></div></header>
     <section class="summary">${rows.slice(0, 4).map((row) => `<div class="tile"><div class="label">${escapeHtml(row.label)}</div><div class="value">${escapeHtml(formatReportValue(row.total, row.kind))}</div></div>`).join('')}</section>
     <table><thead><tr><th>Metric</th><th>MTD Total</th></tr></thead><tbody>${rows.map((row) => `<tr><td class="store">${escapeHtml(row.label)}</td><td>${escapeHtml(formatReportValue(row.total, row.kind))}</td></tr>`).join('')}</tbody></table>
-    <div class="section-title"><h2>Team Commission</h2><div class="note">${escapeHtml(commissionMeta || 'Not updated yet')}</div></div>
-    ${commissionRowsHtml}
     <h2>EOD MTD Records</h2>
     <table><thead><tr><th>Date</th>${metricKeys.map((key) => `<th>${escapeHtml(REPORT_METRICS[key].label)}</th>`).join('')}</tr></thead><tbody>${dailyRows.map((row) => `<tr><td class="store">${escapeHtml(new Date(row.date + 'T12:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }))}</td>${metricKeys.map((key) => `<td>${escapeHtml(formatReportValue(Number(row.values[key]) || 0, REPORT_METRICS[key].kind))}</td>`).join('')}</tr>`).join('')}</tbody></table>
     <footer>MTD totals are calculated from saved daily Source snapshots.</footer>
@@ -418,9 +395,6 @@ export function ReportsPage() {
             storeId: storeId || 'DEFAULT',
             companyName,
             storeNumber,
-            commissionRows: commissionReport.rows,
-            commissionDate: commissionReport.reportDate,
-            commissionUpdatedAt: commissionReport.latestUpdate,
           })
         if (!cancelled) setPreviewHtml(html)
       } catch (err) {
