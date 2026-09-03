@@ -9,6 +9,8 @@ import { useDisplayStore } from '../../../store/displayStore'
 import { useUiStore } from '../../../store/uiStore'
 import { useCommissionSnapshotStore, type CommissionSnapshot } from '../../../store/commissionSnapshotStore'
 import { useScheduleStore, type Employee } from '../../../store/scheduleStore'
+import { reportPageMetrics, useReportLayoutStore, type ReportOrientation } from '../../../store/reportLayoutStore'
+import { OrientationToggle } from '../../ui/OrientationToggle'
 import { dbForceEodSnapshot, dbGetGoals, dbGetStores } from '../../../lib/supabase'
 import { getStoreProfile } from '../../../config/storeProfiles'
 import { normalizeStoreId } from '../../../lib/storeIds'
@@ -169,11 +171,12 @@ function dailyValue(goal: Goal | undefined, date: string) {
   return Number(goal?.dailyLog?.[date]) || 0
 }
 
-function baseReportCss(mode: ReportMode) {
+function baseReportCss(orientation: ReportOrientation) {
+  const page = reportPageMetrics(orientation)
   return `
     * { box-sizing: border-box; }
     body { margin: 0; color: #111827; font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", system-ui, sans-serif; background: #eef2f7; }
-    main { width: ${mode === 'district' ? '11in' : '8.5in'}; min-height: ${mode === 'district' ? '8.5in' : '11in'}; margin: 0 auto; padding: ${mode === 'district' ? '0.45in' : '0.55in'}; background: white; }
+    main { width: ${page.width}; min-height: ${page.minHeight}; margin: 0 auto; padding: ${page.padding}; background: white; }
     header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 16px; }
     h1 { margin: 0; font-size: 25px; letter-spacing: 0; }
     h2 { margin: 24px 0 0; font-size: 15px; }
@@ -196,9 +199,9 @@ function baseReportCss(mode: ReportMode) {
     .empty { margin-top: 10px; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px; color: #64748b; font-size: 11px; }
     footer { margin-top: 22px; color: #64748b; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 10px; }
     @media print {
-      ${mode === 'district' ? '@page { size: landscape; }' : ''}
+      ${page.pageRule}
       body { background: white; }
-      main { width: auto; min-height: auto; margin: 0; padding: ${mode === 'district' ? '0.35in' : '0.45in'}; }
+      main { width: auto; min-height: auto; margin: 0; padding: ${page.printPadding}; }
     }
   `
 }
@@ -209,6 +212,7 @@ function buildStoreReportHtml(params: {
   storeId: string
   companyName: string
   storeNumber: string
+  orientation: ReportOrientation
 }) {
   const rows = Object.entries(REPORT_METRICS).map(([key, meta]) => ({
     key,
@@ -226,7 +230,7 @@ function buildStoreReportHtml(params: {
   const generatedAt = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
   const storeLabel = `${params.companyName || 'Luna Store'}${params.storeNumber ? ` #${params.storeNumber}` : ''}`
 
-  return `<!doctype html><html><head><title>${escapeHtml(monthLabel(params.month))} Performance Snapshot</title><style>${baseReportCss('store')}</style></head><body><main>
+  return `<!doctype html><html><head><title>${escapeHtml(monthLabel(params.month))} Performance Snapshot</title><style>${baseReportCss(params.orientation)}</style></head><body><main>
     <header><div><h1>Performance Snapshot</h1><div class="subtle">${escapeHtml(monthLabel(params.month))}</div></div><div class="meta subtle"><div>${escapeHtml(storeLabel)}</div><div>Store ID: ${escapeHtml(params.storeId || 'DEFAULT')}</div><div>Generated ${escapeHtml(generatedAt)}</div></div></header>
     <section class="summary">${rows.slice(0, 4).map((row) => `<div class="tile"><div class="label">${escapeHtml(row.label)}</div><div class="value">${escapeHtml(formatReportValue(row.total, row.kind))}</div></div>`).join('')}</section>
     <table><thead><tr><th>Metric</th><th>MTD Total</th></tr></thead><tbody>${rows.map((row) => `<tr><td class="store">${escapeHtml(row.label)}</td><td>${escapeHtml(formatReportValue(row.total, row.kind))}</td></tr>`).join('')}</tbody></table>
@@ -243,6 +247,7 @@ function buildCommissionReportHtml(params: {
   rows: CommissionReportRow[]
   reportDate: string
   updatedAt: string
+  orientation: ReportOrientation
 }) {
   const generatedAt = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
   const storeLabel = `${params.companyName || 'Luna Store'}${params.storeNumber ? ` #${params.storeNumber}` : ''}`
@@ -257,7 +262,7 @@ function buildCommissionReportHtml(params: {
   const employeeRows = params.rows.length > 0
     ? params.rows.map((row) => `<tr><td class="employee">${escapeHtml(row.employeeName || '-')}</td><td>${escapeHtml(formatReportValue(row.commission, 'money'))}</td><td>${escapeHtml(formatReportValue(row.commissionOpportunity, 'money'))}</td><td>${escapeHtml(formatPercent(capturePercent(row.commission, row.commissionOpportunity)))}</td><td>${escapeHtml(formatReportValue(Math.max(row.commissionOpportunity - row.commission, 0), 'money'))}</td><td>${escapeHtml(formatReportValue(row.accessories, 'money'))}</td><td>${escapeHtml(formatReportValue(row.revenue, 'money'))}</td><td>${escapeHtml(formatReportValue(row.vaf, 'money'))}</td><td>${escapeHtml(formatReportValue(row.voiceLines, 'number'))}</td><td>${escapeHtml(formatReportValue(row.bts, 'number'))}</td></tr>`).join('')
     : ''
-  return `<!doctype html><html><head><title>Commission Dashboard</title><style>${baseReportCss('store')}</style></head><body><main>
+  return `<!doctype html><html><head><title>Commission Dashboard</title><style>${baseReportCss(params.orientation)}</style></head><body><main>
     <header><div><h1>Commission Dashboard</h1><div class="subtle">${escapeHtml(params.reportDate ? formatReportDate(params.reportDate) : 'Current team view')}</div></div><div class="meta subtle"><div>${escapeHtml(storeLabel)}</div><div>Store ID: ${escapeHtml(params.storeId || 'DEFAULT')}</div><div>Generated ${escapeHtml(generatedAt)}</div></div></header>
     <section class="summary">
       <div class="tile"><div class="label">Team Paid</div><div class="value">${escapeHtml(formatReportValue(totals.commission, 'money'))}</div></div>
@@ -273,7 +278,7 @@ function buildCommissionReportHtml(params: {
   </main></body></html>`
 }
 
-function buildDistrictReportHtml(month: string, districtGoals: Goal[]) {
+function buildDistrictReportHtml(month: string, districtGoals: Goal[], orientation: ReportOrientation) {
   const storeIds = Array.from(new Set(
     districtGoals.map((goal) => normalizeStoreId(goal.storeId ?? '')).filter((id) => /^[A-Z0-9]{4}$/.test(id))
   )).sort()
@@ -296,7 +301,7 @@ function buildDistrictReportHtml(month: string, districtGoals: Goal[]) {
     .sort((a, b) => b.netRevenue - a.netRevenue)
   const generatedAt = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
 
-  return `<!doctype html><html><head><title>${escapeHtml(monthLabel(month))} District Performance Snapshot</title><style>${baseReportCss('district')}</style></head><body><main>
+  return `<!doctype html><html><head><title>${escapeHtml(monthLabel(month))} District Performance Snapshot</title><style>${baseReportCss(orientation)}</style></head><body><main>
     <header><div><h1>District Performance Snapshot</h1><div class="subtle">${escapeHtml(monthLabel(month))}</div></div><div class="meta subtle"><div>Full District</div><div>${storeIds.length} stores</div><div>Generated ${escapeHtml(generatedAt)}</div></div></header>
     <section class="summary">${rows.slice(0, 4).map((row) => `<div class="tile"><div class="label">${escapeHtml(row.label)}</div><div class="value">${escapeHtml(formatReportValue(row.total, row.kind))}</div></div>`).join('')}</section>
     <table><thead><tr><th>Metric</th><th>District MTD Total</th></tr></thead><tbody>${rows.map((row) => `<tr><td class="store">${escapeHtml(row.label)}</td><td>${escapeHtml(formatReportValue(row.total, row.kind))}</td></tr>`).join('')}</tbody></table>
@@ -312,6 +317,7 @@ export function ReportsPage() {
   const employees = useScheduleStore((s) => s.employees)
   const { companyName, storeNumber } = useDisplayStore()
   const { storeId } = useUiStore()
+  const orientation = useReportLayoutStore((s) => s.orientation)
   const previewRef = useRef<HTMLIFrameElement>(null)
   const [mode, setMode] = useState<ReportMode>('store')
   const [selectedMonth, setSelectedMonth] = useState('')
@@ -379,7 +385,7 @@ export function ReportsPage() {
       setError('')
       try {
         const html = mode === 'district'
-          ? buildDistrictReportHtml(selectedMonth, await loadDistrictSnapshotGoals())
+          ? buildDistrictReportHtml(selectedMonth, await loadDistrictSnapshotGoals(), orientation)
           : mode === 'commission'
             ? buildCommissionReportHtml({
               storeId: storeId || 'DEFAULT',
@@ -388,6 +394,7 @@ export function ReportsPage() {
               rows: commissionReport.rows,
               reportDate: commissionReport.reportDate,
               updatedAt: commissionReport.latestUpdate,
+              orientation,
             })
             : buildStoreReportHtml({
             month: selectedMonth,
@@ -395,6 +402,7 @@ export function ReportsPage() {
             storeId: storeId || 'DEFAULT',
             companyName,
             storeNumber,
+            orientation,
           })
         if (!cancelled) setPreviewHtml(html)
       } catch (err) {
@@ -406,7 +414,7 @@ export function ReportsPage() {
     buildPreview()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedMonth, companyName, storeNumber, storeId, goals.length, commissionReport])
+  }, [mode, selectedMonth, companyName, storeNumber, storeId, goals.length, commissionReport, orientation])
 
   const printPreview = () => {
     const frame = previewRef.current
@@ -444,7 +452,8 @@ export function ReportsPage() {
         title="Reports"
         description="Choose a reporting view, verify the latest snapshot, and prepare a print-ready document."
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <OrientationToggle compact />
             {mode !== 'commission' && (
               <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} loading={snapshotRunning} onClick={forceSnapshot}>
                 Force Snapshot
@@ -498,12 +507,12 @@ export function ReportsPage() {
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-[var(--text)]">Report Preview</div>
-                <div className="text-xs text-[var(--text-tertiary)]">
+                <div className="text-xs text-[var(--text-tertiary)] capitalize">
                   {mode === 'district'
-                    ? `Landscape district report · ${selectedMonth ? monthLabel(selectedMonth) : 'No month selected'}`
+                    ? `${orientation} district report · ${selectedMonth ? monthLabel(selectedMonth) : 'No month selected'}`
                     : mode === 'commission'
-                      ? `Store commission dashboard · ${commissionReport.reportDate ? formatReportDate(commissionReport.reportDate) : 'No information date'}`
-                      : `Store report · ${selectedMonth ? monthLabel(selectedMonth) : 'No month selected'}`}
+                      ? `${orientation} commission dashboard · ${commissionReport.reportDate ? formatReportDate(commissionReport.reportDate) : 'No information date'}`
+                      : `${orientation} store report · ${selectedMonth ? monthLabel(selectedMonth) : 'No month selected'}`}
                 </div>
               </div>
             </div>

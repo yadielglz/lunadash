@@ -33,6 +33,8 @@ import {
   type DemoDevice,
 } from '../../../lib/demoDevices'
 import { isScannableImei } from '../../../lib/demoBarcode'
+import { useReportLayoutStore } from '../../../store/reportLayoutStore'
+import { OrientationToggle } from '../../ui/OrientationToggle'
 import { DeviceImeiBarcode } from './DeviceImeiBarcode'
 import { openDemoAuditReport, openDemoBarcodeLabels } from './demoReport'
 
@@ -59,6 +61,7 @@ type BrandFilter = 'all' | 'apple' | 'samsung' | 'google' | 'motorola' | 'other'
 export function DevicesPage() {
   const { accessId, accessRole, storeId } = useUiStore()
   const { companyName, storeNumber } = useDisplayStore()
+  const reportOrientation = useReportLayoutStore((s) => s.orientation)
   const [devices, setDevices] = useState<DemoDevice[]>([])
   const [selectedDevice, setSelectedDevice] = useState<DemoDevice | null>(null)
   const [search, setSearch] = useState('')
@@ -174,7 +177,7 @@ export function DevicesPage() {
       setError('Load the demo-device sheet before generating a report.')
       return
     }
-    const ok = openDemoAuditReport({ devices, storeLabel, storeId })
+    const ok = openDemoAuditReport({ devices, storeLabel, storeId, orientation: reportOrientation })
     if (!ok) setError('Allow pop-ups for this site to open the report.')
   }
 
@@ -214,6 +217,7 @@ export function DevicesPage() {
             >
               Refresh
             </Button>
+            <OrientationToggle compact />
             <Button
               size="sm"
               variant="outline"

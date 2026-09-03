@@ -7,6 +7,8 @@ import { Theme, useUiStore } from '../../../store/uiStore'
 
 import { isAnnouncementActive, useDisplayStore } from '../../../store/displayStore'
 import { useGoalsStore, type Goal } from '../../../store/goalsStore'
+import { reportPageMetrics, useReportLayoutStore } from '../../../store/reportLayoutStore'
+import { OrientationToggle } from '../../ui/OrientationToggle'
 import { dbCheckSchemaHealth, dbDeleteSettings, dbForceEodSnapshot, dbGetGoals, dbGetStores, dbUpdateSettings, GLOBAL_ANNOUNCEMENT_STORE_ID, StoreSummary } from '../../../lib/supabase'
 import { Input, Select } from '../../ui/Input'
 import { Button } from '../../ui/Button'
@@ -789,6 +791,7 @@ function ReportSection() {
   const { goals, _init: goalsInit } = useGoalsStore()
   const { companyName, storeNumber } = useDisplayStore()
   const { storeId } = useUiStore()
+  const orientation = useReportLayoutStore((s) => s.orientation)
   const [snapshotRunning, setSnapshotRunning] = useState(false)
   const [reportRunning, setReportRunning] = useState(false)
   const [snapshotMessage, setSnapshotMessage] = useState('')
@@ -830,6 +833,7 @@ function ReportSection() {
   const printStoreReport = () => {
     setReportError('')
     if (!selectedMonth) return
+    const page = reportPageMetrics(orientation)
 
     const rows = Object.entries(REPORT_METRICS).map(([key, meta]) => {
       const goal = reportGoalFor(snapshotGoals, key)
@@ -857,7 +861,7 @@ function ReportSection() {
           <style>
             * { box-sizing: border-box; }
             body { margin: 0; color: #111827; font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", system-ui, sans-serif; background: #f7f8fb; }
-            main { width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.55in; background: white; }
+            main { width: ${page.width}; min-height: ${page.minHeight}; margin: 0 auto; padding: ${page.padding}; background: white; }
             header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 18px; }
             h1 { margin: 0; font-size: 26px; letter-spacing: 0; }
             .subtle { color: #64748b; font-size: 12px; }
@@ -872,8 +876,9 @@ function ReportSection() {
             td:last-child, th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
             footer { margin-top: 28px; color: #64748b; font-size: 11px; border-top: 1px solid #e5e7eb; padding-top: 12px; }
             @media print {
+              ${page.pageRule}
               body { background: white; }
-              main { width: auto; min-height: auto; margin: 0; padding: 0.45in; }
+              main { width: auto; min-height: auto; margin: 0; padding: ${page.printPadding}; }
               .no-print { display: none; }
             }
           </style>
@@ -983,6 +988,7 @@ function ReportSection() {
     if (!selectedMonth) return
 
     setReportRunning(true)
+    const page = reportPageMetrics(orientation)
     try {
       const districtGoals = await loadDistrictSnapshotGoals()
       const storeIds = Array.from(new Set(
@@ -1018,7 +1024,7 @@ function ReportSection() {
             <style>
               * { box-sizing: border-box; }
               body { margin: 0; color: #111827; font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", system-ui, sans-serif; background: #f7f8fb; }
-              main { width: 11in; min-height: 8.5in; margin: 0 auto; padding: 0.45in; background: white; }
+              main { width: ${page.width}; min-height: ${page.minHeight}; margin: 0 auto; padding: ${page.padding}; background: white; }
               header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 16px; }
               h1 { margin: 0; font-size: 25px; letter-spacing: 0; }
               h2 { margin: 24px 0 0; font-size: 15px; }
@@ -1036,9 +1042,9 @@ function ReportSection() {
               .store { text-align: left !important; font-weight: 700; color: #111827; }
               footer { margin-top: 22px; color: #64748b; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 10px; }
               @media print {
-                @page { size: landscape; }
+                ${page.pageRule}
                 body { background: white; }
-                main { width: auto; min-height: auto; margin: 0; padding: 0.35in; }
+                main { width: auto; min-height: auto; margin: 0; padding: ${page.printPadding}; }
                 .no-print { display: none; }
               }
             </style>
@@ -1175,8 +1181,12 @@ function ReportSection() {
             District PDF
           </Button>
         </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <span className="text-xs text-[var(--text-secondary)]">Page layout</span>
+          <OrientationToggle />
+        </div>
         <p className="text-[10px] text-[var(--text-tertiary)]">
-          Reports open in a print window so the Settings tab stays clean.
+          Reports open in a print window so the Settings tab stays clean. Layout applies to every report across the app.
         </p>
         {reportError && <p className="text-xs text-red-400">{reportError}</p>}
       </div>

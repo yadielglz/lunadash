@@ -4,6 +4,7 @@ import {
   type DemoDevice,
 } from '../../../lib/demoDevices'
 import { deviceLabelTitle, imeiDigits, renderBarcodeSvg } from '../../../lib/demoBarcode'
+import { reportPageMetrics, type ReportOrientation } from '../../../store/reportLayoutStore'
 
 function escapeHtml(value: string) {
   return (value ?? '')
@@ -18,6 +19,7 @@ type BuildParams = {
   devices: DemoDevice[]
   storeLabel: string
   storeId: string
+  orientation?: ReportOrientation
 }
 
 function printWindow(html: string, name: string) {
@@ -49,10 +51,12 @@ function metaLine(params: BuildParams) {
 
 /* ---------- Audit report ---------- */
 
-const REPORT_CSS = `
+function reportCss(orientation: ReportOrientation) {
+  const page = reportPageMetrics(orientation)
+  return `
   * { box-sizing: border-box; }
   body { margin: 0; color: #111827; font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: #eef2f7; }
-  main { width: 11in; min-height: 8.5in; margin: 0 auto; padding: 0.45in; background: #fff; }
+  main { width: ${page.width}; min-height: ${page.minHeight}; margin: 0 auto; padding: ${page.padding}; background: #fff; }
   header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 2px solid #111827; padding-bottom: 16px; }
   h1 { margin: 0; font-size: 24px; }
   h2 { margin: 24px 0 8px; font-size: 14px; }
@@ -62,9 +66,9 @@ const REPORT_CSS = `
   .tile { border: 1px solid #d8dee8; border-radius: 8px; padding: 12px; min-height: 78px; }
   .label { color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; }
   .value { margin-top: 8px; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; table-layout: fixed; }
   th { text-align: left; color: #64748b; font-size: 9px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; padding: 8px 6px; }
-  td { border-bottom: 1px solid #e5e7eb; padding: 8px 6px; font-size: 10.5px; vertical-align: top; }
+  td { border-bottom: 1px solid #e5e7eb; padding: 8px 6px; font-size: 10.5px; vertical-align: top; word-break: break-word; }
   .mono { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
   .name { font-weight: 700; color: #111827; }
   .pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 9px; font-weight: 700; text-transform: uppercase; }
@@ -73,12 +77,13 @@ const REPORT_CSS = `
   .pill.mute { background: #eef2f7; color: #475569; }
   footer { margin-top: 22px; color: #64748b; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 10px; }
   @media print {
-    @page { size: landscape; margin: 0.35in; }
+    ${page.pageRule}
     body { background: #fff; }
     main { width: auto; min-height: auto; margin: 0; padding: 0; }
     tr { break-inside: avoid; }
   }
 `
+}
 
 function statusPill(device: DemoDevice) {
   const raw = device.activationStatus || (isDemoDeviceActivated(device) ? 'Active' : 'Unverified')
@@ -88,6 +93,7 @@ function statusPill(device: DemoDevice) {
 
 export function openDemoAuditReport(params: BuildParams) {
   const { devices } = params
+  const orientation = params.orientation ?? 'portrait'
   const activated = devices.filter(isDemoDeviceActivated).length
   const audited = devices.filter((device) => demoDeviceCheckedThisMonth(device.lastChecked)).length
   const pending = devices.filter((device) => !demoDeviceCheckedThisMonth(device.lastChecked))
@@ -120,7 +126,7 @@ export function openDemoAuditReport(params: BuildParams) {
     : ''
 
   const html = `<!doctype html><html><head><meta charset="utf-8" />
-    <title>Demo Device Audit Report</title><style>${REPORT_CSS}</style></head>
+    <title>Demo Device Audit Report</title><style>${reportCss(orientation)}</style></head>
     <body><main>
       <header>
         <div><h1>Demo Device Audit Report</h1><div class="subtle">Store fleet &amp; inventory</div></div>

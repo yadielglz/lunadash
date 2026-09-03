@@ -1,13 +1,13 @@
 export const APP_META = {
   name: 'LunaDash',
-  version: '26.903.01',
-  build: '26090301-Release',
+  version: '26.903.05',
+  build: '26090305-Release',
   codename: 'Rising-Moon',
   copyright: '© 2025 Glz Tech',
   supportEmail: 'support@glztech.com',
   updateNotes: [
-    'Demo Device Audit Report',
-    'Scannable IMEI Barcodes',
-    'Barcode Label Printing',
+    'Portrait Report Layout Default',
+    'Report Orientation Toggle',
+    'Demo Device Audit Report & IMEI Barcodes',
   ],
 } as const
