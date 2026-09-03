@@ -41,6 +41,30 @@ export async function fetchDemoDevices(): Promise<DemoDevice[]> {
   }))
 }
 
+/** Digits-only helper shared by audit-status checks. */
+export function demoDigits(value: string) {
+  return (value ?? '').replace(/\D/g, '')
+}
+
+/** A demo line counts as activated when it has a live SIM / valid MDN and no inactive note. */
+export function isDemoDeviceActivated(device: DemoDevice) {
+  if (device.activationStatus) return device.activationStatus.toLowerCase() === 'active'
+  const note = device.notes.toLowerCase()
+  return demoDigits(device.mdn).length >= 10 && !note.includes('inactive') && device.make !== '-' && device.model !== '-'
+}
+
+/** The sheet stores "M/D"; a device is current when that month matches this month. */
+export function demoDeviceCheckedThisMonth(value: string) {
+  const [month] = (value ?? '').split('/').map(Number)
+  return month === new Date().getMonth() + 1
+}
+
+/** Today's date in the sheet's "M/D" format. */
+export function demoSheetToday() {
+  const now = new Date()
+  return `${now.getMonth() + 1}/${now.getDate()}`
+}
+
 export type DemoDeviceUpdate = Omit<DemoDevice, 'rowNumber'> & {
   rowNumber: number
   accessId: string

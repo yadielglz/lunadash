@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
+  Barcode,
   CheckCircle2,
   Copy,
   ExternalLink,
+  FileText,
   Layers,
   Pencil,
   RefreshCw,
@@ -19,8 +21,20 @@ import { Input, Select, Textarea } from '../../ui/Input'
 import { Modal } from '../../ui/Modal'
 import { ModuleHeader, ModuleSkeleton } from '../../ui/ModulePrimitives'
 import { useUiStore } from '../../../store/uiStore'
+import { useDisplayStore } from '../../../store/displayStore'
 import { cn } from '../../../lib/utils'
-import { DEMO_SHEET_URL, fetchDemoDevices, updateDemoDevice, type DemoDevice } from '../../../lib/demoDevices'
+import {
+  DEMO_SHEET_URL,
+  demoDeviceCheckedThisMonth,
+  demoSheetToday,
+  fetchDemoDevices,
+  isDemoDeviceActivated,
+  updateDemoDevice,
+  type DemoDevice,
+} from '../../../lib/demoDevices'
+import { isScannableImei } from '../../../lib/demoBarcode'
+import { DeviceImeiBarcode } from './DeviceImeiBarcode'
+import { openDemoAuditReport, openDemoBarcodeLabels } from './demoReport'
 
 const EMPTY_DEVICE: DemoDevice = {
   rowNumber: 0,
@@ -37,30 +51,14 @@ const EMPTY_DEVICE: DemoDevice = {
   checkedBy: '',
 }
 
-function todayForSheet() {
-  const now = new Date()
-  return `${now.getMonth() + 1}/${now.getDate()}`
-}
-
-function digits(value: string) {
-  return value.replace(/\D/g, '')
-}
-
-function isActivated(device: DemoDevice) {
-  if (device.activationStatus) return device.activationStatus.toLowerCase() === 'active'
-  const note = device.notes.toLowerCase()
-  return digits(device.mdn).length >= 10 && !note.includes('inactive') && device.make !== '-' && device.model !== '-'
-}
-
-function checkedThisMonth(value: string) {
-  const [month] = value.split('/').map(Number)
-  return month === new Date().getMonth() + 1
-}
+const isActivated = isDemoDeviceActivated
+const checkedThisMonth = demoDeviceCheckedThisMonth
 
 type BrandFilter = 'all' | 'apple' | 'samsung' | 'google' | 'motorola' | 'other'
 
 export function DevicesPage() {
   const { accessId, accessRole, storeId } = useUiStore()
+  const { companyName, storeNumber } = useDisplayStore()
   const [devices, setDevices] = useState<DemoDevice[]>([])
   const [selectedDevice, setSelectedDevice] = useState<DemoDevice | null>(null)
   const [search, setSearch] = useState('')
@@ -153,7 +151,7 @@ export function DevicesPage() {
     setSaving(true)
     const next: DemoDevice = {
       ...device,
-      lastChecked: verifiedNow ? todayForSheet() : device.lastChecked,
+      lastChecked: verifiedNow ? demoSheetToday() : device.lastChecked,
       checkedBy: verifiedNow ? (useUiStore.getState().accessLabel || device.checkedBy || 'Floor Lead') : device.checkedBy,
     }
     try {
@@ -167,6 +165,27 @@ export function DevicesPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const storeLabel = `${companyName || 'Luna Store'}${storeNumber ? ` #${storeNumber}` : ''}`
+
+  const runReport = () => {
+    if (devices.length === 0) {
+      setError('Load the demo-device sheet before generating a report.')
+      return
+    }
+    const ok = openDemoAuditReport({ devices, storeLabel, storeId })
+    if (!ok) setError('Allow pop-ups for this site to open the report.')
+  }
+
+  const runBarcodeLabels = () => {
+    const forLabels = (filtered.length > 0 ? filtered : devices).filter((device) => isScannableImei(device.imei))
+    if (forLabels.length === 0) {
+      setError('No devices in view have a scannable IMEI.')
+      return
+    }
+    const ok = openDemoBarcodeLabels({ devices: forLabels, storeLabel, storeId })
+    if (!ok) setError('Allow pop-ups for this site to open the label sheet.')
   }
 
   return (
@@ -194,6 +213,24 @@ export function DevicesPage() {
               onClick={() => void load()}
             >
               Refresh
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              icon={<FileText size={14} />}
+              onClick={runReport}
+              disabled={loading || devices.length === 0}
+            >
+              Report
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              icon={<Barcode size={14} />}
+              onClick={runBarcodeLabels}
+              disabled={loading || devices.length === 0}
+            >
+              Barcode Labels
             </Button>
             <Button
               size="sm"
@@ -463,6 +500,23 @@ export function DevicesPage() {
                       {selectedDevice.informationMatches || 'Pending'}
                     </Badge>
                   </div>
+                </div>
+              </div>
+
+              {/* Scannable IMEI Barcode */}
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+                    IMEI Barcode
+                  </h4>
+                  <span className="text-[10px] text-[var(--text-tertiary)]">CODE 128</span>
+                </div>
+                <div className="mt-3 flex items-center justify-center rounded-xl bg-white px-3 py-3 text-[#111827]">
+                  {isScannableImei(selectedDevice.imei) ? (
+                    <DeviceImeiBarcode imei={selectedDevice.imei} />
+                  ) : (
+                    <span className="py-4 text-xs text-[#64748b]">No scannable IMEI on file for this line.</span>
+                  )}
                 </div>
               </div>
 
