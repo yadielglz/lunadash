@@ -18,6 +18,7 @@ import {
   Search,
   Settings,
   Smartphone,
+  KeyRound,
   Sun,
   UploadCloud,
   Users,
@@ -36,6 +37,7 @@ import { StorePickerButton } from '../shared/StorePickerButton'
 import { isAnnouncementActive, useDisplayStore } from '../../store/displayStore'
 import { useSyncStore } from '../../store/syncStore'
 import { useTasksStore } from '../../store/tasksStore'
+import { CarrierTransferModal } from '../features/transfers/CarrierTransferModal'
 
 type NavGroup = 'Overview' | 'Operations' | 'Performance' | 'Workspace'
 
@@ -333,7 +335,7 @@ function NotificationCenter() {
   )
 }
 
-function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu }: { onOpenMobileNav: () => void; onOpenCommandMenu: () => void }) {
+function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu, onOpenTransferGuide }: { onOpenMobileNav: () => void; onOpenCommandMenu: () => void; onOpenTransferGuide: () => void }) {
   const now = useClock()
   const { toggleTheme, isDark } = useTheme()
   const {
@@ -394,6 +396,17 @@ function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu }: { onOpenMobileNav
         </button>
 
         <WeatherChip />
+
+        <button
+          type="button"
+          className="flex h-9 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-2.5 text-xs font-semibold text-[var(--text-secondary)] transition-all hover:border-[var(--accent)]/40 hover:text-[var(--text)]"
+          onClick={onOpenTransferGuide}
+          title="Carrier account number and transfer PIN guide"
+          aria-label="Open carrier transfer guide"
+        >
+          <KeyRound size={15} className="text-[var(--accent)]" />
+          <span className="hidden xl:inline">Port Guide</span>
+        </button>
 
         <button
           type="button"
@@ -571,6 +584,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
   const { accessRole, activeTab, setSettingsSection, setTab, uiScale } = useUiStore()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [commandMenuOpen, setCommandMenuOpen] = useState(false)
+  const [transferGuideOpen, setTransferGuideOpen] = useState(false)
   const [railCollapsed, setRailCollapsed] = useState(() => {
     try {
       return localStorage.getItem('luna-left-rail-collapsed') === 'true'
@@ -604,7 +618,16 @@ export function AppShell({ children, activeKey }: AppShellProps) {
         },
       }))
 
-    return [...pageActions, ...settingsActions]
+    const utilityActions: CommandAction[] = [{
+      id: 'carrier-transfer-guide',
+      label: 'Carrier Transfer Guide',
+      helper: 'Account numbers, transfer PINs, and port notes',
+      icon: <KeyRound size={17} />,
+      keywords: 'carrier port transfer pin account number att verizon xfinity spectrum metro cricket',
+      run: () => setTransferGuideOpen(true),
+    }]
+
+    return [...utilityActions, ...pageActions, ...settingsActions]
   }, [accessRole, setSettingsSection, setTab])
 
   useEffect(() => {
@@ -656,6 +679,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
           <TopCommandBar
             onOpenMobileNav={() => setMobileNavOpen(true)}
             onOpenCommandMenu={() => setCommandMenuOpen(true)}
+            onOpenTransferGuide={() => setTransferGuideOpen(true)}
           />
           <main id="main-content" className="relative min-h-0 flex-1 overflow-hidden" tabIndex={-1}>
             <AnimatePresence mode="wait" initial={false}>
@@ -676,6 +700,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
       </div>
       <MobileNavOverlay open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <CommandMenu open={commandMenuOpen} onClose={() => setCommandMenuOpen(false)} actions={commandActions} />
+      <CarrierTransferModal open={transferGuideOpen} onClose={() => setTransferGuideOpen(false)} />
     </div>
   )
 }
