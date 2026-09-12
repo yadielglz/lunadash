@@ -10,11 +10,12 @@ interface ModalProps {
   subtitle?: string
   children: ReactNode
   className?: string
+  contentClassName?: string
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
   ariaLabel?: string
 }
 
-export function Modal({ open, onClose, title, subtitle, children, className, size = 'md', ariaLabel }: ModalProps) {
+export function Modal({ open, onClose, title, subtitle, children, className, contentClassName, size = 'md', ariaLabel }: ModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
@@ -93,7 +94,7 @@ export function Modal({ open, onClose, title, subtitle, children, className, siz
             </div>
 
             {title && (
-              <div className="flex items-center justify-between px-6 py-4.5 border-b border-[var(--border)] bg-[var(--surface-2)]/50">
+              <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4.5 border-b border-[var(--border)] bg-[var(--surface-2)]/50">
                 <div className="min-w-0 pr-4">
                   <h2 id={titleId} className="text-base sm:text-lg font-bold text-[var(--text)] tracking-tight">{title}</h2>
                   {subtitle && <p className="text-xs text-[var(--text-secondary)] mt-0.5">{subtitle}</p>}
@@ -101,14 +102,14 @@ export function Modal({ open, onClose, title, subtitle, children, className, siz
                 <button
                   onClick={onClose}
                   aria-label="Close dialog"
-                  className="p-2 rounded-xl hover:bg-[var(--reveal-bg)] text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors active:scale-95 flex-shrink-0"
+                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] active:scale-95 sm:h-9 sm:w-9"
                 >
                   <X size={18} />
                 </button>
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className={cn('flex-1 overflow-y-auto p-6', contentClassName)}>
               {children}
             </div>
           </motion.div>
