@@ -64,6 +64,7 @@ const isUnassigned = (device: DemoDevice) => {
   const model = device.model.trim()
   return (!make || make === '-') && (!model || model === '-')
 }
+const isInactivePool = (device: DemoDevice) => isOffloaded(device) || isUnassigned(device)
 
 type BrandFilter = 'all' | 'apple' | 'samsung' | 'google' | 'motorola' | 'other'
 type StatusFilter = 'floor' | 'unverified' | 'inactive' | 'offloaded'
@@ -138,15 +139,15 @@ export function DevicesPage() {
       const matchesStatus =
         (statusFilter === 'floor' && !offloaded && !unassigned) ||
         (statusFilter === 'unverified' && !offloaded && !unassigned && !checked) ||
-        (statusFilter === 'inactive' && !offloaded && unassigned) ||
+        (statusFilter === 'inactive' && (offloaded || unassigned)) ||
         (statusFilter === 'offloaded' && offloaded)
 
       return matchesSearch && matchesBrand && matchesStatus
     })
   }, [devices, search, brandFilter, statusFilter])
 
-  const floorDevices = devices.filter((device) => !isOffloaded(device) && !isUnassigned(device))
-  const inactivePoolDevices = devices.filter((device) => !isOffloaded(device) && isUnassigned(device))
+  const floorDevices = devices.filter((device) => !isInactivePool(device))
+  const inactivePoolDevices = devices.filter(isInactivePool)
   const offloadedDevices = devices.filter(isOffloaded)
   const verifiedCount = floorDevices.filter((device) => checkedThisMonth(device.lastChecked)).length
   const activeCount = floorDevices.filter(isActivated).length
@@ -486,7 +487,7 @@ export function DevicesPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <h3 className="font-semibold text-sm text-[var(--text)] truncate">
-                            {device.make && device.make !== '-' ? `${device.make} ${device.model}` : 'Unassigned Demo'}
+                            {offloaded || unassigned ? 'Unassigned' : `${device.make} ${device.model}`}
                           </h3>
                           <Badge
                             tone={offloaded || unassigned ? 'neutral' : checked ? 'success' : 'warning'}
@@ -558,7 +559,9 @@ export function DevicesPage() {
                   </Badge>
                 </div>
                 <h2 className="mt-2 text-xl font-bold text-[var(--text)] tracking-tight">
-                  {selectedDevice.make} {selectedDevice.model || 'Demo Unit'}
+                  {isInactivePool(selectedDevice)
+                    ? 'Unassigned'
+                    : `${selectedDevice.make} ${selectedDevice.model || 'Demo Unit'}`}
                 </h2>
                 <div className="mt-1 flex items-center gap-2">
                   <span className="font-mono text-sm font-semibold text-[var(--accent)]">
