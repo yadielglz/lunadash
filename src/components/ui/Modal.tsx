@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useId, useRef } from 'react'
+import { ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -19,10 +19,14 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
+  const [contentScrolled, setContentScrolled] = useState(false)
   onCloseRef.current = onClose
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      setContentScrolled(false)
+      return
+    }
     const previousFocus = document.activeElement as HTMLElement | null
     dialogRef.current?.focus()
     const handler = (e: KeyboardEvent) => {
@@ -81,6 +85,7 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
               'ios-modal-panel relative w-full rounded-t-3xl sm:rounded-3xl bg-[var(--surface-solid)]/95 sm:bg-[var(--surface-solid)] border border-[var(--border-strong)] shadow-[var(--shadow-modal)] overflow-hidden flex flex-col backdrop-blur-2xl',
               sizes[size],
               'max-h-[92vh] sm:max-h-[88vh]',
+              contentScrolled && 'ios-modal-panel-scrolled',
               className
             )}
             initial={{ y: 24, scale: 0.97, opacity: 0 }}
@@ -95,9 +100,9 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
 
             {title && (
               <div className="ios-modal-header flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4.5 border-b border-[var(--border)] bg-[var(--surface-2)]/50">
-                <div className="min-w-0 pr-4">
-                  <h2 id={titleId} className="text-base sm:text-lg font-bold text-[var(--text)] tracking-tight">{title}</h2>
-                  {subtitle && <p className="text-xs text-[var(--text-secondary)] mt-0.5">{subtitle}</p>}
+                <div className="ios-modal-header-copy min-w-0 pr-4">
+                  <h2 id={titleId} className="ios-modal-title text-base sm:text-lg font-bold text-[var(--text)] tracking-tight">{title}</h2>
+                  {subtitle && <p className="ios-modal-subtitle text-xs text-[var(--text-secondary)] mt-0.5">{subtitle}</p>}
                 </div>
                 <button
                   onClick={onClose}
@@ -109,7 +114,13 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
               </div>
             )}
 
-            <div className={cn('ios-modal-content flex-1 overflow-y-auto p-6', contentClassName)}>
+            <div
+              className={cn('ios-modal-content flex-1 overflow-y-auto p-6', contentClassName)}
+              onScrollCapture={(event) => {
+                const nextScrolled = (event.target as HTMLElement).scrollTop > 24
+                setContentScrolled((current) => current === nextScrolled ? current : nextScrolled)
+              }}
+            >
               {children}
             </div>
           </motion.div>
