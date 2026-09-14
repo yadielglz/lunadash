@@ -3,6 +3,7 @@ import {
   AlertCircle,
   Archive,
   ArchiveRestore,
+  ArrowLeft,
   Barcode,
   CheckCircle2,
   Copy,
@@ -83,6 +84,7 @@ export function DevicesPage() {
   const [auditDraft, setAuditDraft] = useState<DemoDevice>(EMPTY_DEVICE)
   const [auditAction, setAuditAction] = useState<AuditAction>('keep')
   const [offloadReason, setOffloadReason] = useState('')
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -414,7 +416,7 @@ export function DevicesPage() {
               </Button>
             </Card>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 xl:grid-cols-2">
               {filtered.map((device) => {
                 const activated = isActivated(device)
                 const checked = checkedThisMonth(device.lastChecked)
@@ -425,7 +427,10 @@ export function DevicesPage() {
                   <Card
                     key={device.rowNumber}
                     interactive
-                    onClick={() => setSelectedDevice(device)}
+                    onClick={() => {
+                      setSelectedDevice(device)
+                      setMobileDetailOpen(true)
+                    }}
                     className={cn(
                       'p-4 cursor-pointer transition-all duration-200',
                       isSelected
@@ -484,9 +489,18 @@ export function DevicesPage() {
         </div>
 
         {/* Detail Inspection Pane */}
-        <aside className="dual-pane-detail flex flex-col justify-between">
+        <aside className={cn('dual-pane-detail flex flex-col justify-between', mobileDetailOpen && 'mobile-detail-open')}>
           {selectedDevice ? (
             <div className="space-y-6">
+              <button
+                type="button"
+                onClick={() => setMobileDetailOpen(false)}
+                className="mobile-detail-back -mx-1 hidden min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+              >
+                <ArrowLeft size={17} />
+                Back to device roster
+              </button>
+
               {/* Header Profile */}
               <div>
                 <div className="flex items-center justify-between">
