@@ -59,9 +59,14 @@ const EMPTY_DEVICE: DemoDevice = {
 const isActivated = isDemoDeviceActivated
 const checkedThisMonth = demoDeviceCheckedThisMonth
 const isOffloaded = (device: DemoDevice) => device.activationStatus.toLowerCase() === 'offloaded'
+const isUnassigned = (device: DemoDevice) => {
+  const make = device.make.trim()
+  const model = device.model.trim()
+  return (!make || make === '-') && (!model || model === '-')
+}
 
 type BrandFilter = 'all' | 'apple' | 'samsung' | 'google' | 'motorola' | 'other'
-type StatusFilter = 'floor' | 'unverified' | 'offloaded'
+type StatusFilter = 'floor' | 'unverified' | 'inactive' | 'offloaded'
 type AuditAction = 'keep' | 'offload' | 'archived' | 'restore'
 
 export function DevicesPage() {
@@ -93,7 +98,7 @@ export function DevicesPage() {
       const data = await fetchDemoDevices()
       setDevices(data)
       if (data.length > 0 && !selectedDevice) {
-        setSelectedDevice(data.find((device) => !isOffloaded(device)) ?? data[0])
+        setSelectedDevice(data.find((device) => !isOffloaded(device) && !isUnassigned(device)) ?? data[0])
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not load demo devices.')
@@ -129,16 +134,19 @@ export function DevicesPage() {
 
       const checked = checkedThisMonth(device.lastChecked)
       const offloaded = isOffloaded(device)
+      const unassigned = isUnassigned(device)
       const matchesStatus =
-        (statusFilter === 'floor' && !offloaded) ||
-        (statusFilter === 'unverified' && !offloaded && !checked) ||
+        (statusFilter === 'floor' && !offloaded && !unassigned) ||
+        (statusFilter === 'unverified' && !offloaded && !unassigned && !checked) ||
+        (statusFilter === 'inactive' && !offloaded && unassigned) ||
         (statusFilter === 'offloaded' && offloaded)
 
       return matchesSearch && matchesBrand && matchesStatus
     })
   }, [devices, search, brandFilter, statusFilter])
 
-  const floorDevices = devices.filter((device) => !isOffloaded(device))
+  const floorDevices = devices.filter((device) => !isOffloaded(device) && !isUnassigned(device))
+  const inactivePoolDevices = devices.filter((device) => !isOffloaded(device) && isUnassigned(device))
   const offloadedDevices = devices.filter(isOffloaded)
   const verifiedCount = floorDevices.filter((device) => checkedThisMonth(device.lastChecked)).length
   const activeCount = floorDevices.filter(isActivated).length
@@ -273,9 +281,15 @@ export function DevicesPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="accent" variant="glass">{floorDevices.length} On Floor</Badge>
             <Badge tone="success" variant="glass">{activeCount} Activated</Badge>
-            <Badge tone={verifiedCount === floorDevices.length && floorDevices.length > 0 ? 'success' : 'warning'} variant="glass">
+            <Badge
+              tone={floorDevices.length === 0 ? 'neutral' : verifiedCount === floorDevices.length ? 'success' : 'warning'}
+              variant="glass"
+            >
               {verifiedCount}/{floorDevices.length} Audited This Month
             </Badge>
+            {inactivePoolDevices.length > 0 && (
+              <Badge tone="neutral" variant="glass">{inactivePoolDevices.length} Inactive Pool</Badge>
+            )}
             {offloadedDevices.length > 0 && (
               <Badge tone="neutral" variant="glass">{offloadedDevices.length} In History</Badge>
             )}
@@ -394,6 +408,17 @@ export function DevicesPage() {
                   Needs Audit ({floorDevices.length - verifiedCount})
                 </button>
                 <button
+                  onClick={() => setStatusFilter('inactive')}
+                  className={cn(
+                    'px-2.5 py-1 text-xs rounded-lg font-medium transition-colors border',
+                    statusFilter === 'inactive'
+                      ? 'bg-slate-500/20 border-slate-500/40 text-slate-300'
+                      : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text)]'
+                  )}
+                >
+                  Inactive Pool ({inactivePoolDevices.length})
+                </button>
+                <button
                   onClick={() => setStatusFilter('offloaded')}
                   className={cn(
                     'px-2.5 py-1 text-xs rounded-lg font-medium transition-colors border',
@@ -426,6 +451,7 @@ export function DevicesPage() {
                 const activated = isActivated(device)
                 const checked = checkedThisMonth(device.lastChecked)
                 const offloaded = isOffloaded(device)
+                const unassigned = isUnassigned(device)
                 const isSelected = selectedDevice?.rowNumber === device.rowNumber
 
                 return (
@@ -447,7 +473,7 @@ export function DevicesPage() {
                       <div
                         className={cn(
                           'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors',
-                          offloaded
+                          offloaded || unassigned
                             ? 'bg-slate-500/15 text-slate-400 border border-slate-500/25'
                             : activated
                               ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
@@ -463,11 +489,11 @@ export function DevicesPage() {
                             {device.make && device.make !== '-' ? `${device.make} ${device.model}` : 'Unassigned Demo'}
                           </h3>
                           <Badge
-                            tone={offloaded ? 'neutral' : checked ? 'success' : 'warning'}
+                            tone={offloaded || unassigned ? 'neutral' : checked ? 'success' : 'warning'}
                             size="xs"
                             dot
                           >
-                            {offloaded ? 'Offloaded' : checked ? 'Audited' : 'Pending'}
+                            {offloaded ? 'Offloaded' : unassigned ? 'Inactive Pool' : checked ? 'Audited' : 'Pending'}
                           </Badge>
                         </div>
 
@@ -479,9 +505,15 @@ export function DevicesPage() {
                           <span>IMEI: …{device.imei ? device.imei.slice(-6) : '—'}</span>
                           <span className={cn(
                             'text-[11px] font-medium',
-                            offloaded ? 'text-slate-400' : checked ? 'text-emerald-400' : 'text-amber-400'
+                            offloaded || unassigned ? 'text-slate-400' : checked ? 'text-emerald-400' : 'text-amber-400'
                           )}>
-                            {offloaded ? 'Retained in history' : checked ? `Checked ${device.lastChecked}` : 'Not checked this month'}
+                            {offloaded
+                              ? 'Retained in history'
+                              : unassigned
+                                ? 'Low priority · inactive pool'
+                                : checked
+                                  ? `Checked ${device.lastChecked}`
+                                  : 'Not checked this month'}
                           </span>
                         </div>
                       </div>
@@ -512,8 +544,17 @@ export function DevicesPage() {
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
                     Device Inspection
                   </span>
-                  <Badge tone={isOffloaded(selectedDevice) ? 'neutral' : isActivated(selectedDevice) ? 'success' : 'warning'} size="xs">
-                    {isOffloaded(selectedDevice) ? 'Offloaded History' : isActivated(selectedDevice) ? 'Active SIM' : 'Needs Review'}
+                  <Badge
+                    tone={isOffloaded(selectedDevice) || isUnassigned(selectedDevice) ? 'neutral' : isActivated(selectedDevice) ? 'success' : 'warning'}
+                    size="xs"
+                  >
+                    {isOffloaded(selectedDevice)
+                      ? 'Offloaded History'
+                      : isUnassigned(selectedDevice)
+                        ? 'Inactive Pool'
+                        : isActivated(selectedDevice)
+                          ? 'Active SIM'
+                          : 'Needs Review'}
                   </Badge>
                 </div>
                 <h2 className="mt-2 text-xl font-bold text-[var(--text)] tracking-tight">
@@ -542,7 +583,7 @@ export function DevicesPage() {
               <div
                 className={cn(
                   'rounded-2xl border p-4 backdrop-blur-md',
-                  isOffloaded(selectedDevice)
+                  isOffloaded(selectedDevice) || isUnassigned(selectedDevice)
                     ? 'border-slate-500/30 bg-slate-500/10 text-slate-300'
                     : checkedThisMonth(selectedDevice.lastChecked)
                       ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
@@ -552,6 +593,8 @@ export function DevicesPage() {
                 <div className="flex items-start gap-3">
                   {isOffloaded(selectedDevice) ? (
                     <Archive size={20} className="text-slate-400 shrink-0 mt-0.5" />
+                  ) : isUnassigned(selectedDevice) ? (
+                    <Layers size={20} className="text-slate-400 shrink-0 mt-0.5" />
                   ) : checkedThisMonth(selectedDevice.lastChecked) ? (
                     <ShieldCheck size={20} className="text-emerald-400 shrink-0 mt-0.5" />
                   ) : (
@@ -561,16 +604,20 @@ export function DevicesPage() {
                     <h4 className="text-xs font-bold uppercase tracking-wider">
                       {isOffloaded(selectedDevice)
                         ? 'Offloaded From Demo Floor'
-                        : checkedThisMonth(selectedDevice.lastChecked)
-                          ? 'Floor Audit Complete'
-                          : 'Audit Required For Current Cycle'}
+                        : isUnassigned(selectedDevice)
+                          ? 'Unassigned Inactive Pool'
+                          : checkedThisMonth(selectedDevice.lastChecked)
+                            ? 'Floor Audit Complete'
+                            : 'Audit Required For Current Cycle'}
                     </h4>
                     <p className="text-xs mt-1 text-[var(--text-secondary)]">
                       {isOffloaded(selectedDevice)
                         ? `Record retained. Last handled on ${selectedDevice.lastChecked || 'an unknown date'} by ${selectedDevice.checkedBy || 'Floor Staff'}.`
-                        : checkedThisMonth(selectedDevice.lastChecked)
-                          ? `Last verified on ${selectedDevice.lastChecked} by ${selectedDevice.checkedBy || 'Floor Staff'}.`
-                          : 'This unit has not been audited yet for this billing cycle.'}
+                        : isUnassigned(selectedDevice)
+                          ? 'Low-priority record held outside the active floor audit cycle until a device is assigned.'
+                          : checkedThisMonth(selectedDevice.lastChecked)
+                            ? `Last verified on ${selectedDevice.lastChecked} by ${selectedDevice.checkedBy || 'Floor Staff'}.`
+                            : 'This unit has not been audited yet for this billing cycle.'}
                     </p>
                   </div>
                 </div>
@@ -649,21 +696,32 @@ export function DevicesPage() {
 
               {/* Actions */}
               <div className="space-y-2 pt-2">
-                <Button
-                  variant="primary"
-                  className="w-full justify-center"
-                  icon={isOffloaded(selectedDevice) ? <ArchiveRestore size={16} /> : <ShieldCheck size={16} />}
-                  onClick={() => openAudit(selectedDevice)}
-                  disabled={saving}
-                >
-                  {isOffloaded(selectedDevice)
-                    ? 'Review History or Return to Floor'
-                    : checkedThisMonth(selectedDevice.lastChecked)
-                      ? 'Re-Audit Device'
-                      : 'Start Device Audit'}
-                </Button>
+                {isUnassigned(selectedDevice) && !isOffloaded(selectedDevice) ? (
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-center"
+                    icon={<Pencil size={15} />}
+                    onClick={() => openEditor(selectedDevice)}
+                  >
+                    Assign Device
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    className="w-full justify-center"
+                    icon={isOffloaded(selectedDevice) ? <ArchiveRestore size={16} /> : <ShieldCheck size={16} />}
+                    onClick={() => openAudit(selectedDevice)}
+                    disabled={saving}
+                  >
+                    {isOffloaded(selectedDevice)
+                      ? 'Review History or Return to Floor'
+                      : checkedThisMonth(selectedDevice.lastChecked)
+                        ? 'Re-Audit Device'
+                        : 'Start Device Audit'}
+                  </Button>
+                )}
 
-                {!isOffloaded(selectedDevice) && (
+                {!isOffloaded(selectedDevice) && !isUnassigned(selectedDevice) && (
                   <Button
                     variant="secondary"
                     className="w-full justify-center"
