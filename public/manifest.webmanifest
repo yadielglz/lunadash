@@ -6,8 +6,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0f0f0f",
-  "theme_color": "#0f0f0f",
+  "background_color": "#08131c",
+  "theme_color": "#08131c",
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -34,6 +34,14 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "productivity"],
-  "lang": "en-US"
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "lang": "en-US",
+  "id": "/",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ]
 }
