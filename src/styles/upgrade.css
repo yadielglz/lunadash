@@ -2185,3 +2185,136 @@ body {
     padding-bottom: calc(3.75rem + max(var(--safe-area-bottom), 0px));
   }
 }
+
+/* ============================================================
+   Mobile viewport workspace expansion
+   ============================================================ */
+@media (max-width: 767px) {
+  .module-responsive-header {
+    position: sticky !important;
+    top: 0;
+    z-index: 32;
+    flex: 0 0 auto;
+    transform: translateZ(0);
+    transition:
+      padding 180ms ease,
+      margin 180ms ease,
+      border-radius 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .module-responsive-header-inner,
+  .module-responsive-icon,
+  .module-responsive-title {
+    transition:
+      gap 180ms ease,
+      width 180ms ease,
+      height 180ms ease,
+      border-radius 180ms ease,
+      font-size 180ms ease;
+  }
+
+  .app-page-scrolled .module-responsive-header {
+    margin-bottom: 0.35rem !important;
+    padding: 0.45rem 0.75rem !important;
+    border-radius: 0 !important;
+    background: color-mix(in srgb, var(--command-bg) 94%, transparent) !important;
+    box-shadow: 0 8px 22px rgba(15, 34, 45, 0.12);
+  }
+
+  .app-page-scrolled .module-responsive-header-inner {
+    gap: 0 !important;
+  }
+
+  .app-page-scrolled .module-responsive-eyebrow,
+  .app-page-scrolled .module-responsive-description,
+  .app-page-scrolled .module-responsive-meta,
+  .app-page-scrolled .module-responsive-actions,
+  .app-page-scrolled .module-responsive-children {
+    display: none !important;
+  }
+
+  .app-page-scrolled .module-responsive-title-row {
+    gap: 0.55rem !important;
+  }
+
+  .app-page-scrolled .module-responsive-icon {
+    width: 2rem !important;
+    height: 2rem !important;
+    border-radius: 0.65rem !important;
+  }
+
+  .app-page-scrolled .module-responsive-icon svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  .app-page-scrolled .module-responsive-title {
+    overflow: hidden;
+    font-size: 1.05rem !important;
+    line-height: 1.2 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .district-performance-page .performance-content {
+    padding: 0.4rem !important;
+    scrollbar-gutter: auto;
+  }
+
+  .district-performance-page .performance-content > div {
+    width: 100%;
+    max-width: none !important;
+  }
+
+  .district-board {
+    gap: 0.55rem !important;
+  }
+
+  .district-view-toolbar {
+    padding: 0.55rem !important;
+    border-radius: 0.9rem !important;
+  }
+
+  .district-mobile-ranking {
+    gap: 0.5rem !important;
+    padding: 0.45rem !important;
+  }
+
+  .district-store-card {
+    padding: 0.75rem !important;
+  }
+
+  .mobile-bottom-nav {
+    min-height: calc(3.6rem + max(0.15rem, calc(var(--safe-area-bottom) - 1.25rem)));
+    align-items: end;
+    padding:
+      0.2rem
+      max(0.25rem, var(--safe-area-right))
+      max(0.15rem, calc(var(--safe-area-bottom) - 1.25rem))
+      max(0.25rem, var(--safe-area-left));
+  }
+
+  .mobile-bottom-nav-item {
+    min-height: 3.35rem;
+  }
+
+  .app-page-viewport {
+    padding-bottom: calc(3.8rem + max(0.15rem, calc(var(--safe-area-bottom) - 1.25rem)));
+  }
+}
+
+@media (max-width: 767px) and (orientation: landscape) {
+  .mobile-bottom-nav {
+    min-height: 3.35rem;
+    padding-bottom: 0.1rem;
+  }
+
+  .mobile-bottom-nav-item {
+    min-height: 3rem;
+  }
+
+  .app-page-viewport {
+    padding-bottom: 3.55rem;
+  }
+}
