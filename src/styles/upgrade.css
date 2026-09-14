@@ -2229,9 +2229,24 @@ body {
   .app-page-scrolled .module-responsive-eyebrow,
   .app-page-scrolled .module-responsive-description,
   .app-page-scrolled .module-responsive-meta,
-  .app-page-scrolled .module-responsive-actions,
+  .app-page-scrolled .module-responsive-actions:not(.module-responsive-actions-persistent),
   .app-page-scrolled .module-responsive-children {
     display: none !important;
+  }
+
+  .app-page-scrolled .module-responsive-header-inner:has(.module-responsive-actions-persistent) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem !important;
+  }
+
+  .app-page-scrolled .module-responsive-actions-persistent {
+    display: flex !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
   }
 
   .app-page-scrolled .module-responsive-title-row {
@@ -2400,6 +2415,21 @@ body {
     padding-top: max(0.5rem, var(--safe-area-top)) !important;
     padding-right: max(0.75rem, var(--safe-area-right)) !important;
     padding-left: max(0.75rem, var(--safe-area-left)) !important;
+  }
+
+  .store-detail-drawer {
+    top: 0 !important;
+    height: 100% !important;
+  }
+
+  .store-detail-header {
+    min-height: 4rem;
+    padding-right: max(0.75rem, var(--safe-area-right)) !important;
+    padding-left: max(0.75rem, var(--safe-area-left)) !important;
+  }
+
+  .store-detail-content {
+    padding-bottom: max(1rem, var(--safe-area-bottom)) !important;
   }
 
   .store-detail-drawer-scrolled .store-detail-header {
