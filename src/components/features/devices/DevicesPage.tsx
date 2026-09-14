@@ -821,7 +821,7 @@ export function DevicesPage() {
         open={Boolean(editing)}
         onClose={() => !saving && setEditing(null)}
         title="Edit Demo Device Record"
-        subtitle="Update identifiers, floor status, and audit information"
+        subtitle="Update phone, account, and hardware identifiers"
         size="lg"
       >
         <div className="grid gap-4 sm:grid-cols-2">
@@ -860,38 +860,6 @@ export function DevicesPage() {
             value={draft.imeiBarcode}
             onChange={(e) => setDraft({ ...draft, imeiBarcode: e.target.value })}
             placeholder="Optional scanner barcode"
-          />
-          <Select
-            label="Device / Floor Status"
-            value={draft.activationStatus}
-            onChange={(e) => setDraft({ ...draft, activationStatus: e.target.value })}
-          >
-            <option value="">Select status</option>
-            <option value="Active">Active / On Demo Floor</option>
-            <option value="Inactive">Inactive / On Demo Floor</option>
-            <option value="Needs attention">Needs Attention / Damaged</option>
-            <option value="Offloaded">Offloaded / Off Floor (Keep in History)</option>
-          </Select>
-          <Select
-            label="Information Matches Physical Device"
-            value={draft.informationMatches}
-            onChange={(e) => setDraft({ ...draft, informationMatches: e.target.value })}
-          >
-            <option value="">Select verification</option>
-            <option value="Yes">Yes, everything matches</option>
-            <option value="No">No, discrepancy found</option>
-          </Select>
-          <Input
-            label="Audited By"
-            value={draft.checkedBy}
-            onChange={(e) => setDraft({ ...draft, checkedBy: e.target.value })}
-            placeholder="Staff name"
-          />
-          <Input
-            label="Last Checked Date (M/D)"
-            value={draft.lastChecked}
-            onChange={(e) => setDraft({ ...draft, lastChecked: e.target.value })}
-            placeholder="e.g. 9/14"
           />
           <div className="sm:col-span-2">
             <Textarea
