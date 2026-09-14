@@ -54,7 +54,7 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="ios-modal-layer fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -78,7 +78,7 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
             aria-label={title ? undefined : (ariaLabel ?? 'Dialog')}
             tabIndex={-1}
             className={cn(
-              'relative w-full rounded-t-3xl sm:rounded-3xl bg-[var(--surface-solid)]/95 sm:bg-[var(--surface-solid)] border border-[var(--border-strong)] shadow-[var(--shadow-modal)] overflow-hidden flex flex-col backdrop-blur-2xl',
+              'ios-modal-panel relative w-full rounded-t-3xl sm:rounded-3xl bg-[var(--surface-solid)]/95 sm:bg-[var(--surface-solid)] border border-[var(--border-strong)] shadow-[var(--shadow-modal)] overflow-hidden flex flex-col backdrop-blur-2xl',
               sizes[size],
               'max-h-[92vh] sm:max-h-[88vh]',
               className
@@ -94,7 +94,7 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
             </div>
 
             {title && (
-              <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4.5 border-b border-[var(--border)] bg-[var(--surface-2)]/50">
+              <div className="ios-modal-header flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4.5 border-b border-[var(--border)] bg-[var(--surface-2)]/50">
                 <div className="min-w-0 pr-4">
                   <h2 id={titleId} className="text-base sm:text-lg font-bold text-[var(--text)] tracking-tight">{title}</h2>
                   {subtitle && <p className="text-xs text-[var(--text-secondary)] mt-0.5">{subtitle}</p>}
@@ -109,7 +109,7 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
               </div>
             )}
 
-            <div className={cn('flex-1 overflow-y-auto p-6', contentClassName)}>
+            <div className={cn('ios-modal-content flex-1 overflow-y-auto p-6', contentClassName)}>
               {children}
             </div>
           </motion.div>
