@@ -2396,9 +2396,9 @@ body {
 
 @media (max-width: 767px) {
   .app-top-bar {
-    background: color-mix(in srgb, var(--command-bg) 98%, transparent) !important;
-    backdrop-filter: blur(8px) saturate(115%) !important;
-    -webkit-backdrop-filter: blur(8px) saturate(115%) !important;
+    background: var(--command-bg) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .module-responsive-header {
@@ -2436,5 +2436,93 @@ body {
     padding-top: max(0.5rem, var(--safe-area-top)) !important;
     padding-right: max(0.75rem, var(--safe-area-right)) !important;
     padding-left: max(0.75rem, var(--safe-area-left)) !important;
+  }
+}
+
+/* ============================================================
+   Compact Today for phones
+   ============================================================ */
+@media (max-width: 767px) {
+  .today-page {
+    padding: 0.5rem 0.5rem 4.5rem !important;
+  }
+
+  .today-page > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.75rem !important;
+  }
+
+  .today-hero {
+    padding: 0.8rem !important;
+    border-radius: 1.1rem !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 8px 20px rgba(15, 34, 45, 0.1) !important;
+  }
+
+  .today-hero-orb {
+    display: none;
+  }
+
+  .today-hero-layout {
+    gap: 0.7rem !important;
+  }
+
+  .today-hero-badges {
+    gap: 0.35rem !important;
+  }
+
+  .today-hero-title {
+    margin-top: 0.55rem !important;
+    font-size: 1.35rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .today-hero-description {
+    margin-top: 0.35rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .today-hero-controls {
+    margin-top: 0.65rem !important;
+    gap: 0.4rem !important;
+  }
+
+  .today-hero-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.4rem !important;
+  }
+
+  .today-hero-stat,
+  .today-hero-stat-appointments {
+    grid-column: auto !important;
+    min-width: 0;
+    padding: 0.55rem 0.25rem !important;
+    border-radius: 0.8rem !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .today-hero-stat > div:first-child {
+    overflow: hidden;
+    font-size: 0.52rem !important;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .today-hero-stat > div:nth-child(2) {
+    margin-top: 0.2rem !important;
+    font-size: 1.2rem !important;
+    line-height: 1.1;
+  }
+
+  .today-hero-stat > div:last-child {
+    margin-top: 0.15rem !important;
+    overflow: hidden;
+    font-size: 0.55rem !important;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
