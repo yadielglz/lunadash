@@ -13,6 +13,7 @@ import {
   Menu,
   Monitor,
   Moon,
+  MoreHorizontal,
   PanelLeftOpen,
   Radar,
   Search,
@@ -351,12 +352,12 @@ function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu, onOpenTransferGuide
   const date = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-[var(--border)] bg-[var(--command-bg)]/85 px-4 sm:px-6 backdrop-blur-xl shadow-sm">
+    <header className="app-top-bar sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-[var(--border)] bg-[var(--command-bg)]/85 px-3 sm:px-5 xl:px-6 backdrop-blur-xl shadow-sm">
       <div className="flex items-center gap-3 min-w-0">
         <button
           type="button"
           onClick={onOpenMobileNav}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] lg:hidden transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] md:hidden transition-colors"
           aria-label="Open navigation"
         >
           <Menu size={18} />
@@ -365,7 +366,7 @@ function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu, onOpenTransferGuide
         <button
           type="button"
           onClick={() => setTab('home')}
-          className="hidden h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-1.5 hover:border-[var(--accent)]/40 transition-all lg:flex"
+          className="hidden h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-1.5 hover:border-[var(--accent)]/40 transition-all xl:flex"
           aria-label="Open Today"
         >
           <LunaWirelessLogo className="h-7 w-7" />
@@ -547,28 +548,70 @@ function NavigationRail({
   )
 }
 
+function MobileBottomNav({ onOpenMore }: { onOpenMore: () => void }) {
+  const { accessRole, activeTab, setTab } = useUiStore()
+  const primaryTabs = NAV_ITEMS.filter((item) => (
+    ['home', 'schedule', 'tasks', 'goals'].includes(item.id) && canAccessTab(accessRole, item.id)
+  ))
+  const moreActive = !primaryTabs.some((item) => item.id === activeTab)
+
+  return (
+    <nav
+      className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 grid md:hidden"
+      style={{ gridTemplateColumns: `repeat(${primaryTabs.length + 1}, minmax(0, 1fr))` }}
+      aria-label="Primary navigation"
+    >
+      {primaryTabs.map((item) => {
+        const active = activeTab === item.id
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setTab(item.id)}
+            className={cn('mobile-bottom-nav-item', active && 'mobile-bottom-nav-item-active')}
+            aria-current={active ? 'page' : undefined}
+          >
+            <span className="mobile-bottom-nav-icon">{item.icon}</span>
+            <span>{MOBILE_NAV_LABELS[item.id] ?? item.label}</span>
+          </button>
+        )
+      })}
+      <button
+        type="button"
+        onClick={onOpenMore}
+        className={cn('mobile-bottom-nav-item', moreActive && 'mobile-bottom-nav-item-active')}
+        aria-label="Open all navigation"
+      >
+        <span className="mobile-bottom-nav-icon"><MoreHorizontal size={19} /></span>
+        <span>More</span>
+      </button>
+    </nav>
+  )
+}
+
 function MobileNavOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[80] bg-black/50 lg:hidden"
+          className="fixed inset-0 z-[80] flex items-end bg-black/50 md:hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className="command-mobile-drawer flex h-full min-h-0 w-[min(21rem,88vw)] flex-col border-r border-[var(--border)] bg-[var(--surface)] px-3 shadow-[var(--shadow-modal)] backdrop-blur-2xl"
+            className="command-mobile-drawer flex max-h-[88dvh] min-h-0 w-full flex-col rounded-t-3xl border-t border-[var(--border)] bg-[var(--surface)] px-3 shadow-[var(--shadow-modal)] backdrop-blur-2xl"
             role="dialog"
             aria-modal="true"
             aria-label="Navigation"
-            initial={{ x: '-100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '-100%' }}
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="mb-3 flex justify-end">
-              <button className="command-icon-button" onClick={onClose} aria-label="Close navigation">
+            <div className="relative mb-2 flex items-center justify-center pt-1">
+              <span className="h-1.5 w-12 rounded-full bg-[var(--border-strong)]" />
+              <button className="command-icon-button absolute right-0 top-0" onClick={onClose} aria-label="Close navigation">
                 <X size={18} />
               </button>
             </div>
@@ -669,8 +712,11 @@ export function AppShell({ children, activeKey }: AppShellProps) {
           transformOrigin: 'top left',
         }}
       >
+        <aside className="chrome-bar hidden h-full min-h-0 w-[5rem] flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-3 md:block xl:hidden">
+          <NavigationRail collapsed />
+        </aside>
         <aside className={cn(
-          'chrome-bar hidden h-full min-h-0 flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-3 transition-[width] duration-200 lg:block',
+          'chrome-bar hidden h-full min-h-0 flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-3 transition-[width] duration-200 xl:block',
           railCollapsed ? 'w-[5rem]' : 'w-[17rem]'
         )}>
           <NavigationRail collapsed={railCollapsed} onToggleCollapse={toggleRailCollapsed} />
@@ -685,7 +731,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={activeKey}
-                className="absolute inset-0 overflow-y-auto overflow-x-hidden"
+                className="app-page-viewport absolute inset-0 overflow-y-auto overflow-x-hidden"
                 variants={pageVariants}
                 initial="initial"
                 animate="animate"
@@ -696,6 +742,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
               </motion.div>
             </AnimatePresence>
           </main>
+          <MobileBottomNav onOpenMore={() => setMobileNavOpen(true)} />
         </div>
       </div>
       <MobileNavOverlay open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
