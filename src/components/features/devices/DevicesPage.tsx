@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
+  Archive,
+  ArchiveRestore,
   Barcode,
   CheckCircle2,
   Copy,
@@ -55,8 +57,11 @@ const EMPTY_DEVICE: DemoDevice = {
 
 const isActivated = isDemoDeviceActivated
 const checkedThisMonth = demoDeviceCheckedThisMonth
+const isOffloaded = (device: DemoDevice) => device.activationStatus.toLowerCase() === 'offloaded'
 
 type BrandFilter = 'all' | 'apple' | 'samsung' | 'google' | 'motorola' | 'other'
+type StatusFilter = 'floor' | 'unverified' | 'offloaded'
+type AuditAction = 'keep' | 'offload' | 'restore'
 
 export function DevicesPage() {
   const { accessId, accessRole, storeId } = useUiStore()
@@ -66,7 +71,7 @@ export function DevicesPage() {
   const [selectedDevice, setSelectedDevice] = useState<DemoDevice | null>(null)
   const [search, setSearch] = useState('')
   const [brandFilter, setBrandFilter] = useState<BrandFilter>('all')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'unverified'>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('floor')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -74,6 +79,10 @@ export function DevicesPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [editing, setEditing] = useState<DemoDevice | null>(null)
   const [draft, setDraft] = useState<DemoDevice>(EMPTY_DEVICE)
+  const [auditing, setAuditing] = useState<DemoDevice | null>(null)
+  const [auditDraft, setAuditDraft] = useState<DemoDevice>(EMPTY_DEVICE)
+  const [auditAction, setAuditAction] = useState<AuditAction>('keep')
+  const [offloadReason, setOffloadReason] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -82,7 +91,7 @@ export function DevicesPage() {
       const data = await fetchDemoDevices()
       setDevices(data)
       if (data.length > 0 && !selectedDevice) {
-        setSelectedDevice(data[0])
+        setSelectedDevice(data.find((device) => !isOffloaded(device)) ?? data[0])
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not load demo devices.')
@@ -116,19 +125,21 @@ export function DevicesPage() {
         (brandFilter === 'motorola' && (makeLower.includes('motorola') || makeLower.includes('moto'))) ||
         (brandFilter === 'other' && !['apple', 'samsung', 'google', 'motorola', 'moto'].some((b) => makeLower.includes(b)))
 
-      const activated = isActivated(device)
       const checked = checkedThisMonth(device.lastChecked)
+      const offloaded = isOffloaded(device)
       const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active' && activated) ||
-        (statusFilter === 'unverified' && !checked)
+        (statusFilter === 'floor' && !offloaded) ||
+        (statusFilter === 'unverified' && !offloaded && !checked) ||
+        (statusFilter === 'offloaded' && offloaded)
 
       return matchesSearch && matchesBrand && matchesStatus
     })
   }, [devices, search, brandFilter, statusFilter])
 
-  const verifiedCount = devices.filter((device) => checkedThisMonth(device.lastChecked)).length
-  const activeCount = devices.filter(isActivated).length
+  const floorDevices = devices.filter((device) => !isOffloaded(device))
+  const offloadedDevices = devices.filter(isOffloaded)
+  const verifiedCount = floorDevices.filter((device) => checkedThisMonth(device.lastChecked)).length
+  const activeCount = floorDevices.filter(isActivated).length
 
   const handleCopy = (text: string, label: string) => {
     if (!text) return
@@ -144,12 +155,21 @@ export function DevicesPage() {
     setMessage('')
   }
 
+  const openAudit = (device: DemoDevice) => {
+    setAuditing(device)
+    setAuditDraft({ ...device })
+    setAuditAction(isOffloaded(device) ? 'restore' : 'keep')
+    setOffloadReason('')
+    setError('')
+    setMessage('')
+  }
+
   const save = async (device: DemoDevice, verifiedNow = false) => {
     setError('')
     setMessage('')
     if (verifiedNow && (!device.activationStatus || !device.informationMatches)) {
       setError('Choose an activation status and whether the device information matches before verifying.')
-      return
+      return false
     }
     setSaving(true)
     const next: DemoDevice = {
@@ -162,27 +182,71 @@ export function DevicesPage() {
       setDevices((items) => items.map((item) => (item.rowNumber === next.rowNumber ? next : item)))
       setSelectedDevice(next)
       setEditing(null)
-      setMessage(verifiedNow ? `${next.mdn || next.model} verified and recorded.` : `${next.mdn || next.model} updated successfully.`)
+      setAuditing(null)
+      setMessage(
+        isOffloaded(next)
+          ? `${next.mdn || next.model} offloaded and retained in device history.`
+          : verifiedNow
+            ? `${next.mdn || next.model} verified and recorded.`
+            : `${next.mdn || next.model} updated successfully.`
+      )
+      return true
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not save the device.')
+      return false
     } finally {
       setSaving(false)
     }
   }
 
+  const completeAudit = async () => {
+    if (!auditing) return
+    const auditor = useUiStore.getState().accessLabel || auditDraft.checkedBy || 'Floor Lead'
+    if (auditAction !== 'restore' && (!auditDraft.activationStatus || !auditDraft.informationMatches)) {
+      setError('Choose an activation status and whether the device information matches.')
+      return
+    }
+    if (auditAction === 'offload' && !offloadReason.trim()) {
+      setError('Enter an offload reason so the device history is clear.')
+      return
+    }
+
+    const today = demoSheetToday()
+    const historyEntry = auditAction === 'offload'
+      ? `Offloaded ${today} by ${auditor}: ${offloadReason.trim()}`
+      : auditAction === 'restore'
+        ? `Returned to floor ${today} by ${auditor}`
+        : ''
+    const nextNotes = historyEntry
+      ? [historyEntry, auditDraft.notes].filter(Boolean).join(' • ')
+      : auditDraft.notes
+
+    await save({
+      ...auditDraft,
+      activationStatus: auditAction === 'offload'
+        ? 'Offloaded'
+        : auditAction === 'restore'
+          ? 'Active'
+          : auditDraft.activationStatus,
+      notes: nextNotes,
+      checkedBy: auditor,
+    }, true)
+  }
+
   const storeLabel = `${companyName || 'Luna Store'}${storeNumber ? ` #${storeNumber}` : ''}`
 
   const runReport = () => {
-    if (devices.length === 0) {
-      setError('Load the demo-device sheet before generating a report.')
+    if (floorDevices.length === 0) {
+      setError('There are no active floor devices to include in the report.')
       return
     }
-    const ok = openDemoAuditReport({ devices, storeLabel, storeId, orientation: reportOrientation })
+    const ok = openDemoAuditReport({ devices: floorDevices, storeLabel, storeId, orientation: reportOrientation })
     if (!ok) setError('Allow pop-ups for this site to open the report.')
   }
 
   const runBarcodeLabels = () => {
-    const forLabels = (filtered.length > 0 ? filtered : devices).filter((device) => isScannableImei(device.imei))
+    const forLabels = (filtered.length > 0 ? filtered : floorDevices)
+      .filter((device) => !isOffloaded(device) && isScannableImei(device.imei))
     if (forLabels.length === 0) {
       setError('No devices in view have a scannable IMEI.')
       return
@@ -200,11 +264,14 @@ export function DevicesPage() {
         description="Verify live floor demo units, audit IMEIs, track activation health, and sync with live Google Sheets."
         meta={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="accent" variant="glass">{devices.length} Total Lines</Badge>
+            <Badge tone="accent" variant="glass">{floorDevices.length} On Floor</Badge>
             <Badge tone="success" variant="glass">{activeCount} Activated</Badge>
-            <Badge tone={verifiedCount === devices.length && devices.length > 0 ? 'success' : 'warning'} variant="glass">
-              {verifiedCount}/{devices.length} Audited This Month
+            <Badge tone={verifiedCount === floorDevices.length && floorDevices.length > 0 ? 'success' : 'warning'} variant="glass">
+              {verifiedCount}/{floorDevices.length} Audited This Month
             </Badge>
+            {offloadedDevices.length > 0 && (
+              <Badge tone="neutral" variant="glass">{offloadedDevices.length} In History</Badge>
+            )}
           </div>
         }
         actions={
@@ -298,15 +365,15 @@ export function DevicesPage() {
 
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => setStatusFilter('all')}
+                  onClick={() => setStatusFilter('floor')}
                   className={cn(
                     'px-2.5 py-1 text-xs rounded-lg font-medium transition-colors border',
-                    statusFilter === 'all'
+                    statusFilter === 'floor'
                       ? 'bg-[var(--surface-3)] border-[var(--border-strong)] text-[var(--text)]'
                       : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text)]'
                   )}
                 >
-                  All ({devices.length})
+                  Floor ({floorDevices.length})
                 </button>
                 <button
                   onClick={() => setStatusFilter('unverified')}
@@ -317,7 +384,18 @@ export function DevicesPage() {
                       : 'border-transparent text-[var(--text-tertiary)] hover:text-amber-400'
                   )}
                 >
-                  Needs Audit ({devices.length - verifiedCount})
+                  Needs Audit ({floorDevices.length - verifiedCount})
+                </button>
+                <button
+                  onClick={() => setStatusFilter('offloaded')}
+                  className={cn(
+                    'px-2.5 py-1 text-xs rounded-lg font-medium transition-colors border',
+                    statusFilter === 'offloaded'
+                      ? 'bg-slate-500/20 border-slate-500/40 text-slate-300'
+                      : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text)]'
+                  )}
+                >
+                  History ({offloadedDevices.length})
                 </button>
               </div>
             </div>
@@ -331,7 +409,7 @@ export function DevicesPage() {
               <Smartphone size={36} className="text-[var(--text-tertiary)] mb-3 opacity-50" />
               <h3 className="text-base font-semibold text-[var(--text)]">No demo devices found</h3>
               <p className="text-xs text-[var(--text-secondary)] mt-1">Try adjusting your search query or filters.</p>
-              <Button size="sm" variant="secondary" className="mt-4" onClick={() => { setSearch(''); setBrandFilter('all'); setStatusFilter('all') }}>
+              <Button size="sm" variant="secondary" className="mt-4" onClick={() => { setSearch(''); setBrandFilter('all'); setStatusFilter('floor') }}>
                 Reset Filters
               </Button>
             </Card>
@@ -340,6 +418,7 @@ export function DevicesPage() {
               {filtered.map((device) => {
                 const activated = isActivated(device)
                 const checked = checkedThisMonth(device.lastChecked)
+                const offloaded = isOffloaded(device)
                 const isSelected = selectedDevice?.rowNumber === device.rowNumber
 
                 return (
@@ -358,9 +437,11 @@ export function DevicesPage() {
                       <div
                         className={cn(
                           'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors',
-                          activated
-                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
-                            : 'bg-amber-500/15 text-amber-400 border border-amber-500/25'
+                          offloaded
+                            ? 'bg-slate-500/15 text-slate-400 border border-slate-500/25'
+                            : activated
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+                              : 'bg-amber-500/15 text-amber-400 border border-amber-500/25'
                         )}
                       >
                         <Smartphone size={20} />
@@ -372,11 +453,11 @@ export function DevicesPage() {
                             {device.make && device.make !== '-' ? `${device.make} ${device.model}` : 'Unassigned Demo'}
                           </h3>
                           <Badge
-                            tone={checked ? 'success' : 'warning'}
+                            tone={offloaded ? 'neutral' : checked ? 'success' : 'warning'}
                             size="xs"
                             dot
                           >
-                            {checked ? 'Audited' : 'Pending'}
+                            {offloaded ? 'Offloaded' : checked ? 'Audited' : 'Pending'}
                           </Badge>
                         </div>
 
@@ -386,8 +467,11 @@ export function DevicesPage() {
 
                         <div className="mt-2.5 flex items-center justify-between text-xs text-[var(--text-tertiary)] border-t border-[var(--border)] pt-2">
                           <span>IMEI: …{device.imei ? device.imei.slice(-6) : '—'}</span>
-                          <span className={cn('text-[11px] font-medium', checked ? 'text-emerald-400' : 'text-amber-400')}>
-                            {checked ? `Checked ${device.lastChecked}` : 'Not checked this month'}
+                          <span className={cn(
+                            'text-[11px] font-medium',
+                            offloaded ? 'text-slate-400' : checked ? 'text-emerald-400' : 'text-amber-400'
+                          )}>
+                            {offloaded ? 'Retained in history' : checked ? `Checked ${device.lastChecked}` : 'Not checked this month'}
                           </span>
                         </div>
                       </div>
@@ -409,8 +493,8 @@ export function DevicesPage() {
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
                     Device Inspection
                   </span>
-                  <Badge tone={isActivated(selectedDevice) ? 'success' : 'warning'} size="xs">
-                    {isActivated(selectedDevice) ? 'Active SIM' : 'Needs Review'}
+                  <Badge tone={isOffloaded(selectedDevice) ? 'neutral' : isActivated(selectedDevice) ? 'success' : 'warning'} size="xs">
+                    {isOffloaded(selectedDevice) ? 'Offloaded History' : isActivated(selectedDevice) ? 'Active SIM' : 'Needs Review'}
                   </Badge>
                 </div>
                 <h2 className="mt-2 text-xl font-bold text-[var(--text)] tracking-tight">
@@ -439,27 +523,35 @@ export function DevicesPage() {
               <div
                 className={cn(
                   'rounded-2xl border p-4 backdrop-blur-md',
-                  checkedThisMonth(selectedDevice.lastChecked)
-                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                    : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                  isOffloaded(selectedDevice)
+                    ? 'border-slate-500/30 bg-slate-500/10 text-slate-300'
+                    : checkedThisMonth(selectedDevice.lastChecked)
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                      : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
                 )}
               >
                 <div className="flex items-start gap-3">
-                  {checkedThisMonth(selectedDevice.lastChecked) ? (
+                  {isOffloaded(selectedDevice) ? (
+                    <Archive size={20} className="text-slate-400 shrink-0 mt-0.5" />
+                  ) : checkedThisMonth(selectedDevice.lastChecked) ? (
                     <ShieldCheck size={20} className="text-emerald-400 shrink-0 mt-0.5" />
                   ) : (
                     <ShieldAlert size={20} className="text-amber-400 shrink-0 mt-0.5" />
                   )}
                   <div>
                     <h4 className="text-xs font-bold uppercase tracking-wider">
-                      {checkedThisMonth(selectedDevice.lastChecked)
-                        ? 'Floor Audit Complete'
-                        : 'Audit Required For Current Cycle'}
+                      {isOffloaded(selectedDevice)
+                        ? 'Offloaded From Demo Floor'
+                        : checkedThisMonth(selectedDevice.lastChecked)
+                          ? 'Floor Audit Complete'
+                          : 'Audit Required For Current Cycle'}
                     </h4>
                     <p className="text-xs mt-1 text-[var(--text-secondary)]">
-                      {checkedThisMonth(selectedDevice.lastChecked)
-                        ? `Last verified on ${selectedDevice.lastChecked} by ${selectedDevice.checkedBy || 'Floor Staff'}.`
-                        : 'This unit has not been audited yet for this billing cycle.'}
+                      {isOffloaded(selectedDevice)
+                        ? `Record retained. Last handled on ${selectedDevice.lastChecked || 'an unknown date'} by ${selectedDevice.checkedBy || 'Floor Staff'}.`
+                        : checkedThisMonth(selectedDevice.lastChecked)
+                          ? `Last verified on ${selectedDevice.lastChecked} by ${selectedDevice.checkedBy || 'Floor Staff'}.`
+                          : 'This unit has not been audited yet for this billing cycle.'}
                     </p>
                   </div>
                 </div>
@@ -541,21 +633,27 @@ export function DevicesPage() {
                 <Button
                   variant="primary"
                   className="w-full justify-center"
-                  icon={<ShieldCheck size={16} />}
-                  onClick={() => save(selectedDevice, true)}
+                  icon={isOffloaded(selectedDevice) ? <ArchiveRestore size={16} /> : <ShieldCheck size={16} />}
+                  onClick={() => openAudit(selectedDevice)}
                   disabled={saving}
                 >
-                  {checkedThisMonth(selectedDevice.lastChecked) ? 'Re-Verify Today' : 'Verify & Record Audit'}
+                  {isOffloaded(selectedDevice)
+                    ? 'Review History or Return to Floor'
+                    : checkedThisMonth(selectedDevice.lastChecked)
+                      ? 'Re-Audit Device'
+                      : 'Start Device Audit'}
                 </Button>
 
-                <Button
-                  variant="secondary"
-                  className="w-full justify-center"
-                  icon={<Pencil size={15} />}
-                  onClick={() => openEditor(selectedDevice)}
-                >
-                  Edit Specifications
-                </Button>
+                {!isOffloaded(selectedDevice) && (
+                  <Button
+                    variant="secondary"
+                    className="w-full justify-center"
+                    icon={<Pencil size={15} />}
+                    onClick={() => openEditor(selectedDevice)}
+                  >
+                    Edit Specifications
+                  </Button>
+                )}
               </div>
             </div>
           ) : (
@@ -570,12 +668,172 @@ export function DevicesPage() {
         </aside>
       </div>
 
+      {/* Device Audit Modal */}
+      <Modal
+        open={Boolean(auditing)}
+        onClose={() => !saving && setAuditing(null)}
+        title={auditing && isOffloaded(auditing) ? 'Offloaded Device History' : 'Complete Device Audit'}
+        subtitle={auditing ? `${auditing.make} ${auditing.model} · ${auditing.mdn || 'No MDN'}` : undefined}
+        size="lg"
+        className="h-[100dvh] max-h-[100dvh] rounded-none border-x-0 border-b-0 sm:h-auto sm:max-h-[88vh] sm:rounded-3xl sm:border"
+        contentClassName="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6"
+      >
+        {auditing && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 text-xs">
+              <div>
+                <div className="text-[var(--text-tertiary)]">Device</div>
+                <div className="mt-1 font-semibold text-[var(--text)]">{auditing.make} {auditing.model}</div>
+              </div>
+              <div>
+                <div className="text-[var(--text-tertiary)]">IMEI</div>
+                <div className="mt-1 break-all font-mono font-semibold text-[var(--text)]">{auditing.imei || '—'}</div>
+              </div>
+              <div>
+                <div className="text-[var(--text-tertiary)]">Last audit</div>
+                <div className="mt-1 font-semibold text-[var(--text)]">{auditing.lastChecked || 'Never'}</div>
+              </div>
+              <div>
+                <div className="text-[var(--text-tertiary)]">Audited by</div>
+                <div className="mt-1 font-semibold text-[var(--text)]">{auditing.checkedBy || '—'}</div>
+              </div>
+            </div>
+
+            {!isOffloaded(auditing) && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Select
+                  label="Activation Status"
+                  value={auditDraft.activationStatus}
+                  onChange={(e) => setAuditDraft({ ...auditDraft, activationStatus: e.target.value })}
+                >
+                  <option value="">Select status</option>
+                  <option value="Active">Active (Live SIM on floor)</option>
+                  <option value="Inactive">Inactive (Needs Activation)</option>
+                  <option value="Needs attention">Needs Attention / Damaged</option>
+                </Select>
+                <Select
+                  label="Information Matches Physical Device"
+                  value={auditDraft.informationMatches}
+                  onChange={(e) => setAuditDraft({ ...auditDraft, informationMatches: e.target.value })}
+                >
+                  <option value="">Select verification</option>
+                  <option value="Yes">Yes, everything matches</option>
+                  <option value="No">No, discrepancy found</option>
+                </Select>
+              </div>
+            )}
+
+            <Textarea
+              label={isOffloaded(auditing) ? 'Preserved Device History' : 'Audit Notes'}
+              value={auditDraft.notes}
+              onChange={(e) => setAuditDraft({ ...auditDraft, notes: e.target.value })}
+              rows={3}
+              placeholder="Condition, security tether, display location, or discrepancy…"
+              disabled={isOffloaded(auditing)}
+            />
+
+            <section className="space-y-3">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text)]">Floor lifecycle</h3>
+                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                  Offloaded devices stay searchable with their identifiers and audit details intact.
+                </p>
+              </div>
+
+              {isOffloaded(auditing) ? (
+                <button
+                  type="button"
+                  onClick={() => setAuditAction('restore')}
+                  className={cn(
+                    'flex min-h-16 w-full items-center gap-3 rounded-2xl border p-4 text-left transition-colors',
+                    auditAction === 'restore'
+                      ? 'border-emerald-500/50 bg-emerald-500/10'
+                      : 'border-[var(--border)] bg-[var(--surface-2)]'
+                  )}
+                >
+                  <ArchiveRestore size={20} className="shrink-0 text-emerald-400" />
+                  <span>
+                    <span className="block text-sm font-bold text-[var(--text)]">Return device to floor</span>
+                    <span className="mt-0.5 block text-xs text-[var(--text-secondary)]">Restores it to the active roster and records who returned it.</span>
+                  </span>
+                </button>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setAuditAction('keep')}
+                    className={cn(
+                      'flex min-h-20 items-start gap-3 rounded-2xl border p-4 text-left transition-colors',
+                      auditAction === 'keep'
+                        ? 'border-emerald-500/50 bg-emerald-500/10'
+                        : 'border-[var(--border)] bg-[var(--surface-2)]'
+                    )}
+                  >
+                    <ShieldCheck size={20} className="mt-0.5 shrink-0 text-emerald-400" />
+                    <span>
+                      <span className="block text-sm font-bold text-[var(--text)]">Keep on floor</span>
+                      <span className="mt-1 block text-xs text-[var(--text-secondary)]">Completes today’s audit.</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAuditAction('offload')}
+                    className={cn(
+                      'flex min-h-20 items-start gap-3 rounded-2xl border p-4 text-left transition-colors',
+                      auditAction === 'offload'
+                        ? 'border-amber-500/50 bg-amber-500/10'
+                        : 'border-[var(--border)] bg-[var(--surface-2)]'
+                    )}
+                  >
+                    <Archive size={20} className="mt-0.5 shrink-0 text-amber-400" />
+                    <span>
+                      <span className="block text-sm font-bold text-[var(--text)]">Offload from floor</span>
+                      <span className="mt-1 block text-xs text-[var(--text-secondary)]">Moves it to device history.</span>
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {auditAction === 'offload' && (
+                <Textarea
+                  label="Offload Reason"
+                  value={offloadReason}
+                  onChange={(e) => setOffloadReason(e.target.value)}
+                  rows={2}
+                  placeholder="Returned, replaced, damaged, transferred, or another reason…"
+                />
+              )}
+            </section>
+
+            <div className="flex flex-col-reverse gap-2.5 border-t border-[var(--border)] pt-4 sm:flex-row sm:justify-end">
+              <Button variant="ghost" onClick={() => setAuditing(null)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button
+                variant={auditAction === 'offload' ? 'secondary' : 'primary'}
+                icon={auditAction === 'offload' ? <Archive size={16} /> : auditAction === 'restore' ? <ArchiveRestore size={16} /> : <ShieldCheck size={16} />}
+                onClick={() => void completeAudit()}
+                disabled={saving}
+              >
+                {saving
+                  ? 'Saving to Cloud…'
+                  : auditAction === 'offload'
+                    ? 'Complete Audit & Offload'
+                    : auditAction === 'restore'
+                      ? 'Return to Floor'
+                      : 'Complete Audit'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Edit Device Modal */}
       <Modal
         open={Boolean(editing)}
         onClose={() => !saving && setEditing(null)}
         title="Edit Demo Device Record"
-        subtitle="Update hardware identifiers, activation status, and floor audit records"
+        subtitle="Update phone, account, and hardware identifiers"
         size="lg"
       >
         <div className="grid gap-4 sm:grid-cols-2">
@@ -615,37 +873,6 @@ export function DevicesPage() {
             onChange={(e) => setDraft({ ...draft, imeiBarcode: e.target.value })}
             placeholder="Optional scanner barcode"
           />
-          <Select
-            label="Activation Status"
-            value={draft.activationStatus}
-            onChange={(e) => setDraft({ ...draft, activationStatus: e.target.value })}
-          >
-            <option value="">Select status</option>
-            <option value="Active">Active (Live SIM on floor)</option>
-            <option value="Inactive">Inactive (Needs Activation)</option>
-            <option value="Needs attention">Needs Attention / Damaged</option>
-          </Select>
-          <Select
-            label="Information Matches Floor Tag"
-            value={draft.informationMatches}
-            onChange={(e) => setDraft({ ...draft, informationMatches: e.target.value })}
-          >
-            <option value="">Select verification</option>
-            <option value="Yes">Yes (Matches Physical Unit)</option>
-            <option value="No">No (Discrepancy)</option>
-          </Select>
-          <Input
-            label="Audited By (Staff Name)"
-            value={draft.checkedBy}
-            onChange={(e) => setDraft({ ...draft, checkedBy: e.target.value })}
-            placeholder="Auditor name"
-          />
-          <Input
-            label="Last Checked Date (M/D)"
-            value={draft.lastChecked}
-            onChange={(e) => setDraft({ ...draft, lastChecked: e.target.value })}
-            placeholder="e.g. 8/17"
-          />
           <div className="sm:col-span-2">
             <Textarea
               label="Floor & Audit Notes"
@@ -661,16 +888,8 @@ export function DevicesPage() {
           <Button variant="ghost" onClick={() => setEditing(null)} disabled={saving}>
             Cancel
           </Button>
-          <Button variant="secondary" onClick={() => void save(draft)} disabled={saving}>
-            Save Details Only
-          </Button>
-          <Button
-            variant="primary"
-            icon={<ShieldCheck size={16} />}
-            onClick={() => void save(draft, true)}
-            disabled={saving}
-          >
-            {saving ? 'Saving to Cloud…' : 'Save & Mark Verified Today'}
+          <Button variant="primary" onClick={() => void save(draft)} disabled={saving}>
+            {saving ? 'Saving to Cloud…' : 'Save Device Details'}
           </Button>
         </div>
       </Modal>
