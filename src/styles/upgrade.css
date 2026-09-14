@@ -1829,3 +1829,225 @@ h6 {
   background: var(--scrollbar-thumb-hover, rgba(255,255,255,0.25));
 }
 
+
+
+/* ============================================================
+   RESPONSIVE APPLICATION SHELL — v26.914.100
+   ============================================================ */
+.mobile-bottom-nav {
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--command-bg) 94%, transparent);
+  padding: 0.35rem 0.35rem max(0.35rem, var(--safe-area-bottom));
+  box-shadow: 0 -12px 32px rgba(3, 12, 18, 0.16);
+  backdrop-filter: blur(24px) saturate(155%);
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
+}
+
+.mobile-bottom-nav-item {
+  display: flex;
+  min-width: 0;
+  min-height: 3.75rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  border-radius: 0.85rem;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.mobile-bottom-nav-item:active {
+  transform: scale(0.95);
+}
+
+.mobile-bottom-nav-icon {
+  display: grid;
+  width: 2rem;
+  height: 1.65rem;
+  place-items: center;
+  border-radius: 999px;
+  transition: width 150ms ease, background 150ms ease;
+}
+
+.mobile-bottom-nav-item-active {
+  color: var(--accent);
+}
+
+.mobile-bottom-nav-item-active .mobile-bottom-nav-icon {
+  width: 2.8rem;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+@media (max-width: 767px) {
+  .app-top-bar {
+    height: auto !important;
+    min-height: calc(3.75rem + max(var(--safe-area-top), 0px));
+    padding-top: max(0.45rem, var(--safe-area-top));
+    padding-bottom: 0.45rem;
+  }
+
+  .app-top-bar > div:first-child {
+    gap: 0.6rem;
+  }
+
+  .app-top-bar > div:last-child {
+    gap: 0.35rem;
+  }
+
+  .app-top-bar .command-icon-button,
+  .app-top-bar button {
+    min-height: 2.5rem;
+  }
+
+  .app-page-viewport {
+    padding-bottom: calc(4.45rem + max(var(--safe-area-bottom), 0px));
+    overscroll-behavior-y: contain;
+  }
+
+  .command-mobile-drawer {
+    padding-top: 0.7rem;
+    padding-bottom: calc(1rem + max(var(--safe-area-bottom), 0px));
+  }
+
+  .command-mobile-drawer nav {
+    max-height: calc(88dvh - 3.5rem);
+  }
+
+  .module-responsive-header {
+    border-radius: 0 !important;
+    box-shadow: 0 1px 0 var(--border) !important;
+  }
+
+  .module-responsive-actions {
+    width: calc(100% + 1rem) !important;
+    margin-right: -1rem;
+    padding-right: 1rem;
+    scrollbar-width: none;
+  }
+
+  .module-responsive-actions::-webkit-scrollbar,
+  .module-responsive-meta::-webkit-scrollbar {
+    display: none;
+  }
+
+  .module-responsive-actions > *,
+  .module-responsive-actions > div > *,
+  .module-responsive-meta > div > * {
+    flex: 0 0 auto;
+  }
+
+  .module-responsive-actions > div {
+    display: flex;
+    width: max-content !important;
+    flex-wrap: nowrap !important;
+    gap: 0.5rem;
+  }
+
+  .module-responsive-actions button,
+  .module-responsive-actions a {
+    min-height: 2.75rem;
+    white-space: nowrap;
+  }
+
+  .module-responsive-meta {
+    scrollbar-width: none;
+  }
+
+  .module-responsive-meta > div {
+    width: max-content;
+    flex-wrap: nowrap !important;
+  }
+
+  .page-frame {
+    padding: 0.8rem !important;
+  }
+
+  .dual-pane-container {
+    display: block;
+    overflow: hidden;
+  }
+
+  .dual-pane-master {
+    width: 100%;
+    height: 100%;
+    padding: 0.8rem;
+    overscroll-behavior-y: contain;
+  }
+
+  .dual-pane-detail {
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    background: var(--surface-solid);
+    padding: 1rem;
+    transform: translateX(102%);
+    pointer-events: none;
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+    overscroll-behavior-y: contain;
+  }
+
+  .dual-pane-detail.mobile-detail-open {
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  .mobile-detail-back {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .app-command-shell > aside {
+    padding: 0.75rem !important;
+  }
+
+  .app-page-viewport {
+    overscroll-behavior-y: contain;
+  }
+
+  .page-frame {
+    padding: 1.25rem !important;
+  }
+
+  .module-responsive-header {
+    padding: 1.2rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .dual-pane-container {
+    flex-direction: row;
+  }
+
+  .dual-pane-master {
+    padding: 1rem;
+  }
+
+  .dual-pane-detail {
+    position: relative;
+    inset: auto;
+    width: min(20rem, 46%);
+    height: 100%;
+    max-height: none;
+    border-top: 0;
+    border-left: 1px solid var(--border);
+    padding: 1.1rem;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .command-icon-button,
+  .mobile-detail-back,
+  .operation-filter-bar > button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
