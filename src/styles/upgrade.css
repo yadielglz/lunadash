@@ -2286,21 +2286,20 @@ body {
   }
 
   .mobile-bottom-nav {
-    min-height: calc(3.6rem + max(0.15rem, calc(var(--safe-area-bottom) - 1.25rem)));
-    align-items: end;
-    padding:
-      0.2rem
-      max(0.25rem, var(--safe-area-right))
-      max(0.15rem, calc(var(--safe-area-bottom) - 1.25rem))
-      max(0.25rem, var(--safe-area-left));
+    min-height: 4rem;
+    align-items: stretch;
+    padding: 0.15rem max(0.25rem, var(--safe-area-right)) 0.1rem max(0.25rem, var(--safe-area-left));
+    background: color-mix(in srgb, var(--command-bg) 98%, transparent);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
   }
 
   .mobile-bottom-nav-item {
-    min-height: 3.35rem;
+    min-height: 3.55rem;
   }
 
   .app-page-viewport {
-    padding-bottom: calc(3.8rem + max(0.15rem, calc(var(--safe-area-bottom) - 1.25rem)));
+    padding-bottom: 4.15rem;
   }
 }
 
@@ -2316,5 +2315,96 @@ body {
 
   .app-page-viewport {
     padding-bottom: 3.55rem;
+  }
+}
+
+/* ============================================================
+   Collapsible modal title bars and lighter mobile chrome
+   ============================================================ */
+.ios-modal-header,
+.store-detail-header,
+.capture-preview-header {
+  flex: 0 0 auto;
+  transition:
+    padding 180ms ease,
+    min-height 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.ios-modal-title,
+.store-detail-title,
+.capture-preview-title {
+  transition: font-size 180ms ease, line-height 180ms ease;
+}
+
+.ios-modal-panel-scrolled .ios-modal-header {
+  padding-top: 0.6rem !important;
+  padding-bottom: 0.6rem !important;
+  background: var(--surface-solid);
+  box-shadow: 0 7px 18px rgba(15, 34, 45, 0.1);
+}
+
+.ios-modal-panel-scrolled .ios-modal-subtitle,
+.store-detail-drawer-scrolled .store-detail-subtitle,
+.capture-preview-dialog-scrolled .capture-preview-subtitle {
+  display: none;
+}
+
+.store-detail-drawer-scrolled .store-detail-header {
+  padding-top: 0.55rem !important;
+  padding-bottom: 0.55rem !important;
+  background: var(--surface-solid);
+  box-shadow: 0 7px 18px rgba(15, 34, 45, 0.1);
+}
+
+.capture-preview-dialog-scrolled .capture-preview-header {
+  padding-bottom: 0.4rem !important;
+}
+
+.ios-modal-panel-scrolled .ios-modal-title,
+.store-detail-drawer-scrolled .store-detail-title,
+.capture-preview-dialog-scrolled .capture-preview-title {
+  font-size: 0.95rem !important;
+  line-height: 1.2 !important;
+}
+
+.ios-modal-panel-scrolled .ios-modal-header-copy,
+.store-detail-drawer-scrolled .store-detail-header-copy,
+.capture-preview-dialog-scrolled .capture-preview-header-copy {
+  min-width: 0;
+}
+
+.store-detail-header-actions {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 767px) {
+  .app-top-bar {
+    background: color-mix(in srgb, var(--command-bg) 98%, transparent) !important;
+    backdrop-filter: blur(8px) saturate(115%) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(115%) !important;
+  }
+
+  .module-responsive-header {
+    background: color-mix(in srgb, var(--surface-solid) 98%, transparent) !important;
+    backdrop-filter: blur(6px) saturate(110%) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(110%) !important;
+  }
+
+  .app-page-scrolled .module-responsive-header {
+    background: color-mix(in srgb, var(--command-bg) 98%, transparent) !important;
+  }
+
+  .ios-modal-panel-scrolled .ios-modal-header {
+    padding-top: max(0.5rem, var(--safe-area-top)) !important;
+    padding-right: max(0.75rem, var(--safe-area-right)) !important;
+    padding-left: max(0.75rem, var(--safe-area-left)) !important;
+  }
+
+  .store-detail-drawer-scrolled .store-detail-header {
+    padding-top: max(0.5rem, var(--safe-area-top)) !important;
+    padding-right: max(0.75rem, var(--safe-area-right)) !important;
+    padding-left: max(0.75rem, var(--safe-area-left)) !important;
   }
 }
