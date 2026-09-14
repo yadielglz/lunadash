@@ -65,8 +65,8 @@ type ModuleHeaderProps = {
 
 export function ModuleHeader({ icon, title, description, eyebrow, meta, actions, children, className }: ModuleHeaderProps) {
   return (
-    <header className={cn('relative overflow-visible rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface-2)] to-[var(--surface)] p-6 sm:p-7 shadow-lg backdrop-blur-xl mb-6', className)}>
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+    <header className={cn('module-responsive-header relative overflow-visible rounded-none border-x-0 border-t-0 border-b border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface-2)] to-[var(--surface)] p-4 shadow-lg backdrop-blur-xl mb-3 sm:rounded-3xl sm:border sm:p-6 md:p-7 sm:mb-6', className)}>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-5">
         <div className="min-w-0 flex-1">
           {eyebrow && (
             <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)] mb-1">
@@ -74,19 +74,19 @@ export function ModuleHeader({ icon, title, description, eyebrow, meta, actions,
             </div>
           )}
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/25 shadow-sm" aria-hidden="true">
+            <span className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/25 shadow-sm" aria-hidden="true">
               {icon}
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text)] tracking-tight">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[var(--text)] tracking-tight leading-tight">
               {title}
             </h1>
           </div>
-          <div className="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed max-w-3xl">
+          <div className="text-xs sm:text-sm text-[var(--text-secondary)] mt-2 leading-relaxed max-w-3xl">
             {description}
           </div>
-          {meta && <div className="text-xs text-[var(--text-tertiary)] mt-2">{meta}</div>}
+          {meta && <div className="module-responsive-meta overflow-x-auto text-xs text-[var(--text-tertiary)] mt-2">{meta}</div>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2.5 shrink-0">{actions}</div>}
+        {actions && <div className="module-responsive-actions flex w-full shrink-0 items-center gap-2 overflow-x-auto pb-1 md:w-auto md:flex-wrap md:justify-end md:overflow-visible md:pb-0">{actions}</div>}
       </div>
       {children && <div className="mt-5 pt-4 border-t border-[var(--border)]">{children}</div>}
     </header>
