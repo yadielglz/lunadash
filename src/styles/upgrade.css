@@ -2051,3 +2051,137 @@ h6 {
     min-height: 2.75rem;
   }
 }
+
+
+/* ============================================================
+   iOS / iPadOS PWA CORRECTIONS — v26.914.131
+   ============================================================ */
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-page-viewport,
+.ios-modal-content,
+.command-mobile-drawer nav {
+  -webkit-overflow-scrolling: touch;
+}
+
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root,
+  .app-command-shell {
+    height: 100dvh;
+  }
+}
+
+@media (display-mode: standalone) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-command-shell {
+    min-height: 100dvh;
+    max-height: 100dvh;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-top-bar {
+    padding-right: max(0.75rem, var(--safe-area-right));
+    padding-left: max(0.75rem, var(--safe-area-left));
+  }
+
+  .app-top-bar > div:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .app-top-bar > div:last-child {
+    flex: 0 0 auto;
+  }
+
+  .app-page-viewport {
+    padding-right: var(--safe-area-right);
+    padding-left: var(--safe-area-left);
+  }
+
+  .mobile-bottom-nav {
+    padding-right: max(0.35rem, var(--safe-area-right));
+    padding-left: max(0.35rem, var(--safe-area-left));
+  }
+
+  .command-mobile-drawer {
+    padding-right: max(0.75rem, var(--safe-area-right));
+    padding-left: max(0.75rem, var(--safe-area-left));
+  }
+
+  .ios-modal-layer {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  .ios-modal-panel {
+    max-height: 100dvh !important;
+  }
+
+  .ios-modal-header {
+    padding-top: max(0.75rem, var(--safe-area-top));
+    padding-right: max(1rem, var(--safe-area-right));
+    padding-left: max(1rem, var(--safe-area-left));
+  }
+
+  .ios-modal-content {
+    padding-right: max(1rem, var(--safe-area-right));
+    padding-bottom: max(1rem, var(--safe-area-bottom));
+    padding-left: max(1rem, var(--safe-area-left));
+    overscroll-behavior-y: contain;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  body:has(input:focus) .mobile-bottom-nav,
+  body:has(textarea:focus) .mobile-bottom-nav {
+    opacity: 0;
+    transform: translateY(110%);
+    pointer-events: none;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .app-top-bar {
+    min-height: calc(3.35rem + max(var(--safe-area-top), 0px));
+  }
+
+  .mobile-bottom-nav-item {
+    min-height: 3.2rem;
+  }
+
+  .mobile-bottom-nav {
+    padding-bottom: max(0.2rem, var(--safe-area-bottom));
+  }
+
+  .app-page-viewport {
+    padding-bottom: calc(3.75rem + max(var(--safe-area-bottom), 0px));
+  }
+}
