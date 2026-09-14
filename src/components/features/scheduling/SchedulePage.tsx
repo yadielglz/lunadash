@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { addDays, format, startOfWeek } from 'date-fns'
-import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, GripVertical, LayoutGrid, Settings, Trash2, Edit2, Save, Store, SlidersHorizontal, Users } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, GripVertical, LayoutGrid, Plus, Settings, Trash2, Edit2, Save, Store, SlidersHorizontal, Users } from 'lucide-react'
 import { toPng } from 'html-to-image'
 import { WeeklyGrid } from './WeeklyGrid'
 import { MonthlyCalendar } from './MonthlyCalendar'
+import { ShiftModal } from './ShiftModal'
 import { Modal } from '../../ui/Modal'
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Input'
 import { Toggle } from '../../ui/Toggle'
 import { EmptyState, ModuleHeader } from '../../ui/ModulePrimitives'
-import { useScheduleStore } from '../../../store/scheduleStore'
+import { useScheduleStore, type Shift } from '../../../store/scheduleStore'
 import { useScheduleBlocksStore, type ScheduleBlock } from '../../../store/scheduleBlocksStore'
 import { useSchedulePreferencesStore, WEEKDAY_OPTIONS, type WeekStartDay } from '../../../store/schedulePreferencesStore'
 import { dbSaveScheduleSnapshot } from '../../../lib/supabase'
@@ -776,7 +777,25 @@ function formatHours(hours: number) {
   return hours.toFixed(hours % 1 === 0 ? 0 : 1)
 }
 
-function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore: boolean }) {
+function MobileScheduleWeek({
+  canChooseScheduleStore,
+  canEditSchedule,
+  onAddShift,
+  onEditShift,
+  onManageEmployees,
+  onManageHours,
+  onManageExceptions,
+  onManageSettings,
+}: {
+  canChooseScheduleStore: boolean
+  canEditSchedule: boolean
+  onAddShift: () => void
+  onEditShift: (shift: Shift) => void
+  onManageEmployees: () => void
+  onManageHours: () => void
+  onManageExceptions: () => void
+  onManageSettings: () => void
+}) {
   const desktopCaptureRef = useRef<HTMLDivElement>(null)
   const [weekOffset, setWeekOffset] = useState(0)
   const [capturing, setCapturing] = useState(false)
@@ -871,6 +890,19 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
             <span className={captureMessage.includes('could not') ? 'text-red-400' : 'text-[var(--accent)]'}>{captureMessage}</span>
           ) : undefined}
           actions={storeId !== 'main' ? (
+            <div className="flex items-center gap-2">
+              {canEditSchedule && (
+                <Button
+                  className="flex-shrink-0"
+                  size="sm"
+                  variant="primary"
+                  icon={<Plus size={13} />}
+                  onClick={onAddShift}
+                  data-capture-exclude="true"
+                >
+                  Shift
+                </Button>
+              )}
               <Button
                 className="flex-shrink-0"
                 size="sm"
@@ -882,7 +914,9 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
               >
                 Capture
               </Button>
-            ) : undefined}
+            </div>
+          ) : undefined}
+          persistActionsOnCollapse={storeId !== 'main'}
         >
           {storeId !== 'main' && (
             <div className="flex items-center gap-2" data-capture-exclude="true">
@@ -1022,17 +1056,14 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
         )}
 
         <div className="space-y-4 p-4">
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3" data-capture-exclude="true">
-            <div className="flex items-start gap-3">
-              <Clock size={16} className="mt-0.5 text-[var(--accent)]" />
-              <div>
-                <p className="text-sm font-semibold text-[var(--text)]">Schedule editing is desktop only.</p>
-                <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-                  Mobile shows who is working today. Add shifts, edit employees, hours, and exceptions from the desktop version.
-                </p>
-              </div>
+          {storeId !== 'main' && canEditSchedule && (
+            <div className="mobile-schedule-actions grid grid-cols-2 gap-2" data-capture-exclude="true">
+              <Button size="sm" variant="secondary" icon={<Users size={13} />} onClick={onManageEmployees}>Employees</Button>
+              <Button size="sm" variant="secondary" icon={<Clock size={13} />} onClick={onManageHours}>Store Hours</Button>
+              <Button size="sm" variant="secondary" icon={<AlertTriangle size={13} />} onClick={onManageExceptions}>Exceptions</Button>
+              <Button size="sm" variant="secondary" icon={<Settings size={13} />} onClick={onManageSettings}>Settings</Button>
             </div>
-          </div>
+          )}
 
           {storeId === 'main' && (
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
@@ -1092,11 +1123,23 @@ function MobileScheduleWeek({ canChooseScheduleStore }: { canChooseScheduleStore
                                 </div>
                                 <p className="mt-1 text-xs text-[var(--text-tertiary)]">{employee?.role ?? shift.type}</p>
                               </div>
-                              {onNow && (
-                                <span className="rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase text-[var(--accent)]">
-                                  On now
-                                </span>
-                              )}
+                              <div className="flex flex-shrink-0 items-center gap-1">
+                                {onNow && (
+                                  <span className="rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/10 px-2 py-1 text-[10px] font-semibold uppercase text-[var(--accent)]">
+                                    On now
+                                  </span>
+                                )}
+                                {canEditSchedule && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onEditShift(shift)}
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)]"
+                                    aria-label={`Edit ${employee?.name ?? 'shift'}`}
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <div className="mt-2 flex items-center gap-2 text-sm font-medium text-[var(--text)]">
                               <Clock size={14} className="text-[var(--text-tertiary)]" />
@@ -1155,6 +1198,8 @@ export function SchedulePage() {
   const [hoursModalOpen, setHoursModalOpen] = useState(false)
   const [exceptionsModalOpen, setExceptionsModalOpen] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
+  const [mobileShiftModalOpen, setMobileShiftModalOpen] = useState(false)
+  const [mobileEditShift, setMobileEditShift] = useState<Shift | undefined>(undefined)
   const { employees, shifts } = useScheduleStore()
   const showShiftNames = useSchedulePreferencesStore((s) => s.showShiftNames)
   const showShiftNotes = useSchedulePreferencesStore((s) => s.showShiftNotes)
@@ -1194,7 +1239,22 @@ export function SchedulePage() {
 
   return (
     <>
-    <MobileScheduleWeek canChooseScheduleStore={canChooseScheduleStore} />
+    <MobileScheduleWeek
+      canChooseScheduleStore={canChooseScheduleStore}
+      canEditSchedule={canEditSchedule}
+      onAddShift={() => {
+        setMobileEditShift(undefined)
+        setMobileShiftModalOpen(true)
+      }}
+      onEditShift={(shift) => {
+        setMobileEditShift(shift)
+        setMobileShiftModalOpen(true)
+      }}
+      onManageEmployees={() => setEmpModalOpen(true)}
+      onManageHours={() => setHoursModalOpen(true)}
+      onManageExceptions={() => setExceptionsModalOpen(true)}
+      onManageSettings={() => setSettingsModalOpen(true)}
+    />
     <div className="operations-page schedule-page hidden h-full flex-col sm:flex">
       <ModuleHeader
         icon={<Calendar size={18} />}
@@ -1318,6 +1378,25 @@ export function SchedulePage() {
       {canEditSchedule && <SchedulerSettingsModal open={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} />}
       {canEditSchedule && <StoreHoursModal open={hoursModalOpen} onClose={() => setHoursModalOpen(false)} />}
       {canEditSchedule && <ScheduleExceptionsModal open={exceptionsModalOpen} onClose={() => setExceptionsModalOpen(false)} />}
+    </div>
+
+    <div className="sm:hidden">
+      {canEditSchedule && (
+        <>
+          <ShiftModal
+            open={mobileShiftModalOpen}
+            onClose={() => {
+              setMobileShiftModalOpen(false)
+              setMobileEditShift(undefined)
+            }}
+            editShift={mobileEditShift}
+          />
+          <EmployeeManagerModal open={empModalOpen} onClose={() => setEmpModalOpen(false)} />
+          <SchedulerSettingsModal open={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} />
+          <StoreHoursModal open={hoursModalOpen} onClose={() => setHoursModalOpen(false)} />
+          <ScheduleExceptionsModal open={exceptionsModalOpen} onClose={() => setExceptionsModalOpen(false)} />
+        </>
+      )}
     </div>
     </>
   )
