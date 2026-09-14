@@ -619,6 +619,8 @@ function StoreDetailDrawer({
   const [capturing, setCapturing] = useState(false)
   const [capturePreview, setCapturePreview] = useState('')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
+  const [drawerScrolled, setDrawerScrolled] = useState(false)
+  const [capturePreviewScrolled, setCapturePreviewScrolled] = useState(false)
   const [noteText, setNoteText] = useState('')
   const notes = useDistrictCoachingStore((s) => s.notes)
   const addNote = useDistrictCoachingStore((s) => s.addNote)
@@ -640,6 +642,11 @@ function StoreDetailDrawer({
     ? notes.filter((note) => normalizeStoreId(note.storeId) === normalizeStoreId(row.storeCode))
     : []
   const openNotes = storeNotes.filter((note) => note.status === 'open')
+
+  useEffect(() => {
+    setDrawerScrolled(false)
+    setCapturePreviewScrolled(false)
+  }, [row?.store])
 
   const saveNote = () => {
     if (!row || !noteText.trim()) return
@@ -755,7 +762,7 @@ function StoreDetailDrawer({
         onClick={onClose}
       />
       <aside
-        className={`store-detail-drawer absolute right-0 flex w-full max-w-[520px] flex-col border-l border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-modal)] transition-transform duration-200 ${row ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`store-detail-drawer absolute right-0 flex w-full max-w-[520px] flex-col border-l border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-modal)] transition-transform duration-200 ${drawerScrolled ? 'store-detail-drawer-scrolled' : ''} ${row ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {row && (
           <>
@@ -768,14 +775,14 @@ function StoreDetailDrawer({
               <CompactStoreNumbersCapture row={row} updated={updated} districtAverage={districtAverage} />
             </div>
             <div className="store-detail-header flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
-              <div className="min-w-0">
-                <div className="truncate text-base font-semibold text-[var(--text)]">{captureTitle}</div>
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+              <div className="store-detail-header-copy min-w-0">
+                <div className="store-detail-title truncate text-base font-semibold text-[var(--text)]">{captureTitle}</div>
+                <div className="store-detail-subtitle mt-1 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
                   <Clock size={12} />
                   Source refreshed {updated || 'just now'}
                 </div>
               </div>
-              <div className="flex items-center gap-1" data-capture-exclude="true">
+              <div className="store-detail-header-actions flex items-center gap-1" data-capture-exclude="true">
                 <Button
                   size="icon"
                   variant="ghost"
@@ -793,7 +800,11 @@ function StoreDetailDrawer({
                 </Button>
               </div>
             </div>
-            <div className="store-detail-content flex-1 space-y-5 overflow-y-auto bg-[var(--surface)] p-5" data-capture-scroll="true">
+            <div
+              className="store-detail-content flex-1 space-y-5 overflow-y-auto bg-[var(--surface)] p-5"
+              data-capture-scroll="true"
+              onScroll={(event) => setDrawerScrolled(event.currentTarget.scrollTop > 24)}
+            >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -956,17 +967,17 @@ function StoreDetailDrawer({
         )}
       </aside>
       {capturePreview && (
-        <div className="absolute inset-0 z-[300] flex flex-col bg-black/90 p-4" role="dialog" aria-modal="true" aria-label="Store numbers capture">
-          <div className="mx-auto flex w-full max-w-[720px] items-center justify-between gap-3 pb-3 text-white">
-            <div>
-              <div className="text-sm font-semibold">Store numbers ready</div>
-              <div className="text-xs text-white/70">Press and hold the image, then choose Copy.</div>
+        <div className={`capture-preview-dialog absolute inset-0 z-[300] flex flex-col bg-black/90 p-4 ${capturePreviewScrolled ? 'capture-preview-dialog-scrolled' : ''}`} role="dialog" aria-modal="true" aria-label="Store numbers capture">
+          <div className="capture-preview-header mx-auto flex w-full max-w-[720px] items-center justify-between gap-3 pb-3 text-white">
+            <div className="capture-preview-header-copy min-w-0">
+              <div className="capture-preview-title truncate text-sm font-semibold">Store numbers ready</div>
+              <div className="capture-preview-subtitle text-xs text-white/70">Press and hold the image, then choose Copy.</div>
             </div>
             <Button size="icon" variant="secondary" onClick={() => setCapturePreview('')} aria-label="Close capture preview">
               <X size={16} />
             </Button>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div className="capture-preview-content min-h-0 flex-1 overflow-auto" onScroll={(event) => setCapturePreviewScrolled(event.currentTarget.scrollTop > 24)}>
             <img
               src={capturePreview}
               alt={`${captureTitle} capture`}
