@@ -336,7 +336,7 @@ function NotificationCenter() {
   )
 }
 
-function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu, onOpenTransferGuide }: { onOpenMobileNav: () => void; onOpenCommandMenu: () => void; onOpenTransferGuide: () => void }) {
+function TopCommandBar({ onOpenCommandMenu, onOpenTransferGuide }: { onOpenCommandMenu: () => void; onOpenTransferGuide: () => void }) {
   const now = useClock()
   const { toggleTheme, isDark } = useTheme()
   const {
@@ -354,15 +354,6 @@ function TopCommandBar({ onOpenMobileNav, onOpenCommandMenu, onOpenTransferGuide
   return (
     <header className="app-top-bar sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-[var(--border)] bg-[var(--command-bg)]/85 px-3 sm:px-5 xl:px-6 backdrop-blur-xl shadow-sm">
       <div className="flex items-center gap-3 min-w-0">
-        <button
-          type="button"
-          onClick={onOpenMobileNav}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] md:hidden transition-colors"
-          aria-label="Open navigation"
-        >
-          <Menu size={18} />
-        </button>
-
         <button
           type="button"
           onClick={() => setTab('home')}
@@ -723,7 +714,6 @@ export function AppShell({ children, activeKey }: AppShellProps) {
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <TopCommandBar
-            onOpenMobileNav={() => setMobileNavOpen(true)}
             onOpenCommandMenu={() => setCommandMenuOpen(true)}
             onOpenTransferGuide={() => setTransferGuideOpen(true)}
           />
