@@ -619,6 +619,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [commandMenuOpen, setCommandMenuOpen] = useState(false)
   const [transferGuideOpen, setTransferGuideOpen] = useState(false)
+  const [pageScrolled, setPageScrolled] = useState(false)
   const [railCollapsed, setRailCollapsed] = useState(() => {
     try {
       return localStorage.getItem('luna-left-rail-collapsed') === 'true'
@@ -675,6 +676,10 @@ export function AppShell({ children, activeKey }: AppShellProps) {
     return () => window.removeEventListener('keydown', openCommandMenu)
   }, [])
 
+  useEffect(() => {
+    setPageScrolled(false)
+  }, [activeKey])
+
   const toggleRailCollapsed = () => {
     setRailCollapsed((collapsed) => {
       const next = !collapsed
@@ -721,7 +726,14 @@ export function AppShell({ children, activeKey }: AppShellProps) {
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={activeKey}
-                className="app-page-viewport absolute inset-0 overflow-y-auto overflow-x-hidden"
+                className={cn(
+                  'app-page-viewport absolute inset-0 overflow-y-auto overflow-x-hidden',
+                  pageScrolled && 'app-page-scrolled'
+                )}
+                onScrollCapture={(event) => {
+                  const nextScrolled = (event.target as HTMLElement).scrollTop > 36
+                  setPageScrolled((current) => current === nextScrolled ? current : nextScrolled)
+                }}
                 variants={pageVariants}
                 initial="initial"
                 animate="animate"
