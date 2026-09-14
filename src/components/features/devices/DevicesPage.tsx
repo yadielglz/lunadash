@@ -164,10 +164,10 @@ export function DevicesPage() {
     setMessage('')
   }
 
-  const save = async (device: DemoDevice, verifiedNow = false) => {
+  const save = async (device: DemoDevice, verifiedNow = false, allowIncompleteAudit = false) => {
     setError('')
     setMessage('')
-    if (verifiedNow && (!device.activationStatus || !device.informationMatches)) {
+    if (verifiedNow && !allowIncompleteAudit && (!device.activationStatus || !device.informationMatches)) {
       setError('Choose an activation status and whether the device information matches before verifying.')
       return false
     }
@@ -230,7 +230,7 @@ export function DevicesPage() {
           : auditDraft.activationStatus,
       notes: nextNotes,
       checkedBy: auditor,
-    }, true)
+    }, true, auditAction === 'restore')
   }
 
   const storeLabel = `${companyName || 'Luna Store'}${storeNumber ? ` #${storeNumber}` : ''}`
