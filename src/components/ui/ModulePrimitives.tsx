@@ -59,11 +59,12 @@ type ModuleHeaderProps = {
   eyebrow?: string
   meta?: ReactNode
   actions?: ReactNode
+  persistActionsOnCollapse?: boolean
   children?: ReactNode
   className?: string
 }
 
-export function ModuleHeader({ icon, title, description, eyebrow, meta, actions, children, className }: ModuleHeaderProps) {
+export function ModuleHeader({ icon, title, description, eyebrow, meta, actions, persistActionsOnCollapse = false, children, className }: ModuleHeaderProps) {
   return (
     <header className={cn('module-responsive-header relative overflow-visible rounded-none border-x-0 border-t-0 border-b border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface-2)] to-[var(--surface)] p-4 shadow-lg backdrop-blur-xl mb-3 sm:rounded-3xl sm:border sm:p-6 md:p-7 sm:mb-6', className)}>
       <div className="module-responsive-header-inner flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-5">
@@ -86,7 +87,7 @@ export function ModuleHeader({ icon, title, description, eyebrow, meta, actions,
           </div>
           {meta && <div className="module-responsive-meta overflow-x-auto text-xs text-[var(--text-tertiary)] mt-2">{meta}</div>}
         </div>
-        {actions && <div className="module-responsive-actions flex w-full shrink-0 items-center gap-2 overflow-x-auto pb-1 md:w-auto md:flex-wrap md:justify-end md:overflow-visible md:pb-0">{actions}</div>}
+        {actions && <div className={cn('module-responsive-actions flex w-full shrink-0 items-center gap-2 overflow-x-auto pb-1 md:w-auto md:flex-wrap md:justify-end md:overflow-visible md:pb-0', persistActionsOnCollapse && 'module-responsive-actions-persistent')}>{actions}</div>}
       </div>
       {children && <div className="module-responsive-children mt-5 pt-4 border-t border-[var(--border)]">{children}</div>}
     </header>
