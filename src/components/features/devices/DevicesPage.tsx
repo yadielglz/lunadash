@@ -62,7 +62,7 @@ const isOffloaded = (device: DemoDevice) => device.activationStatus.toLowerCase(
 
 type BrandFilter = 'all' | 'apple' | 'samsung' | 'google' | 'motorola' | 'other'
 type StatusFilter = 'floor' | 'unverified' | 'offloaded'
-type AuditAction = 'keep' | 'offload' | 'restore'
+type AuditAction = 'keep' | 'offload' | 'archived' | 'restore'
 
 export function DevicesPage() {
   const { accessId, accessRole, storeId } = useUiStore()
@@ -159,8 +159,11 @@ export function DevicesPage() {
 
   const openAudit = (device: DemoDevice) => {
     setAuditing(device)
-    setAuditDraft({ ...device })
-    setAuditAction(isOffloaded(device) ? 'restore' : 'keep')
+    setAuditDraft({
+      ...device,
+      activationStatus: isOffloaded(device) ? 'Active' : device.activationStatus,
+    })
+    setAuditAction(isOffloaded(device) ? 'archived' : 'keep')
     setOffloadReason('')
     setError('')
     setMessage('')
@@ -203,8 +206,12 @@ export function DevicesPage() {
 
   const completeAudit = async () => {
     if (!auditing) return
+    if (auditAction === 'archived') {
+      setAuditing(null)
+      return
+    }
     const auditor = useUiStore.getState().accessLabel || auditDraft.checkedBy || 'Floor Lead'
-    if (auditAction !== 'restore' && (!auditDraft.activationStatus || !auditDraft.informationMatches)) {
+    if (!auditDraft.activationStatus || !auditDraft.informationMatches) {
       setError('Choose an activation status and whether the device information matches.')
       return
     }
@@ -227,12 +234,10 @@ export function DevicesPage() {
       ...auditDraft,
       activationStatus: auditAction === 'offload'
         ? 'Offloaded'
-        : auditAction === 'restore'
-          ? 'Active'
-          : auditDraft.activationStatus,
+        : auditDraft.activationStatus,
       notes: nextNotes,
       checkedBy: auditor,
-    }, true, auditAction === 'restore')
+    }, true)
   }
 
   const storeLabel = `${companyName || 'Luna Store'}${storeNumber ? ` #${storeNumber}` : ''}`
@@ -713,18 +718,35 @@ export function DevicesPage() {
               </div>
             </div>
 
-            {!isOffloaded(auditing) && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Select
-                  label="Activation Status"
-                  value={auditDraft.activationStatus}
-                  onChange={(e) => setAuditDraft({ ...auditDraft, activationStatus: e.target.value })}
-                >
-                  <option value="">Select status</option>
-                  <option value="Active">Active (Live SIM on floor)</option>
-                  <option value="Inactive">Inactive (Needs Activation)</option>
-                  <option value="Needs attention">Needs Attention / Damaged</option>
-                </Select>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Select
+                label="Activation Status"
+                value={auditDraft.activationStatus}
+                onChange={(e) => setAuditDraft({ ...auditDraft, activationStatus: e.target.value })}
+              >
+                <option value="">Select status</option>
+                <option value="Active">Active (Live SIM)</option>
+                <option value="Inactive">Inactive (Needs Activation)</option>
+                <option value="Needs attention">Needs Attention / Damaged</option>
+              </Select>
+              <Select
+                label="Floor Status"
+                value={auditAction}
+                onChange={(e) => setAuditAction(e.target.value as AuditAction)}
+              >
+                {isOffloaded(auditing) ? (
+                  <>
+                    <option value="archived">Offloaded / Device History</option>
+                    <option value="restore">Return to Demo Floor</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="keep">Active / On Demo Floor</option>
+                    <option value="offload">Offload to Device History</option>
+                  </>
+                )}
+              </Select>
+              <div className="sm:col-span-2">
                 <Select
                   label="Information Matches Physical Device"
                   value={auditDraft.informationMatches}
@@ -735,89 +757,39 @@ export function DevicesPage() {
                   <option value="No">No, discrepancy found</option>
                 </Select>
               </div>
-            )}
+            </div>
 
             <Textarea
-              label={isOffloaded(auditing) ? 'Preserved Device History' : 'Audit Notes'}
+              label={isOffloaded(auditing) ? 'Preserved Device History & Notes' : 'Audit Notes'}
               value={auditDraft.notes}
               onChange={(e) => setAuditDraft({ ...auditDraft, notes: e.target.value })}
               rows={3}
               placeholder="Condition, security tether, display location, or discrepancy…"
-              disabled={isOffloaded(auditing)}
             />
 
-            <section className="space-y-3">
-              <div>
-                <h3 className="text-sm font-bold text-[var(--text)]">Floor lifecycle</h3>
-                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                  Offloaded devices stay searchable with their identifiers and audit details intact.
-                </p>
+            {auditAction === 'offload' && (
+              <Textarea
+                label="Offload Reason"
+                value={offloadReason}
+                onChange={(e) => setOffloadReason(e.target.value)}
+                rows={2}
+                placeholder="Returned, replaced, damaged, transferred, or another reason…"
+              />
+            )}
+
+            {auditAction === 'restore' && (
+              <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-[var(--text-secondary)]">
+                <ArchiveRestore size={18} className="mt-0.5 shrink-0 text-emerald-400" />
+                <span>This device will return to the active floor roster after the audit is saved.</span>
               </div>
+            )}
 
-              {isOffloaded(auditing) ? (
-                <button
-                  type="button"
-                  onClick={() => setAuditAction('restore')}
-                  className={cn(
-                    'flex min-h-16 w-full items-center gap-3 rounded-2xl border p-4 text-left transition-colors',
-                    auditAction === 'restore'
-                      ? 'border-emerald-500/50 bg-emerald-500/10'
-                      : 'border-[var(--border)] bg-[var(--surface-2)]'
-                  )}
-                >
-                  <ArchiveRestore size={20} className="shrink-0 text-emerald-400" />
-                  <span>
-                    <span className="block text-sm font-bold text-[var(--text)]">Return device to floor</span>
-                    <span className="mt-0.5 block text-xs text-[var(--text-secondary)]">Restores it to the active roster and records who returned it.</span>
-                  </span>
-                </button>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => setAuditAction('keep')}
-                    className={cn(
-                      'flex min-h-20 items-start gap-3 rounded-2xl border p-4 text-left transition-colors',
-                      auditAction === 'keep'
-                        ? 'border-emerald-500/50 bg-emerald-500/10'
-                        : 'border-[var(--border)] bg-[var(--surface-2)]'
-                    )}
-                  >
-                    <ShieldCheck size={20} className="mt-0.5 shrink-0 text-emerald-400" />
-                    <span>
-                      <span className="block text-sm font-bold text-[var(--text)]">Keep on floor</span>
-                      <span className="mt-1 block text-xs text-[var(--text-secondary)]">Completes today’s audit.</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAuditAction('offload')}
-                    className={cn(
-                      'flex min-h-20 items-start gap-3 rounded-2xl border p-4 text-left transition-colors',
-                      auditAction === 'offload'
-                        ? 'border-amber-500/50 bg-amber-500/10'
-                        : 'border-[var(--border)] bg-[var(--surface-2)]'
-                    )}
-                  >
-                    <Archive size={20} className="mt-0.5 shrink-0 text-amber-400" />
-                    <span>
-                      <span className="block text-sm font-bold text-[var(--text)]">Offload from floor</span>
-                      <span className="mt-1 block text-xs text-[var(--text-secondary)]">Moves it to device history.</span>
-                    </span>
-                  </button>
-                </div>
-              )}
-
-              {auditAction === 'offload' && (
-                <Textarea
-                  label="Offload Reason"
-                  value={offloadReason}
-                  onChange={(e) => setOffloadReason(e.target.value)}
-                  rows={2}
-                  placeholder="Returned, replaced, damaged, transferred, or another reason…"
-                />
-              )}
-            </section>
+            {error && (
+              <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs font-medium text-rose-300" role="alert">
+                <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
             <div className="flex flex-col-reverse gap-2.5 border-t border-[var(--border)] pt-4 sm:flex-row sm:justify-end">
               <Button variant="ghost" onClick={() => setAuditing(null)} disabled={saving}>
@@ -834,8 +806,10 @@ export function DevicesPage() {
                   : auditAction === 'offload'
                     ? 'Complete Audit & Offload'
                     : auditAction === 'restore'
-                      ? 'Return to Floor'
-                      : 'Complete Audit'}
+                      ? 'Audit & Return to Floor'
+                      : auditAction === 'archived'
+                        ? 'Close History'
+                        : 'Complete Audit'}
               </Button>
             </div>
           </div>
