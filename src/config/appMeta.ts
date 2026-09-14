@@ -1,14 +1,14 @@
 export const APP_META = {
   name: 'LunaDash',
-  version: '26.914.JUf',
-  build: '20260914T193041Z-Release',
+  version: '26.914.Jg2',
+  build: '20260914T194202Z-Release',
   codename: 'Rising-Moon',
   copyright: '© 2025 Glz Tech',
   supportEmail: 'support@glztech.com',
   updateNotes: [
-    'Collapsible Modal Title Bars',
-    'Persistent Copy and Capture Controls',
-    'Full-Screen iOS Bottom Navigation',
-    'Reduced Mobile Header Blur',
+    'Mobile Schedule Editing Controls',
+    'Login Store Used for Scheduling',
+    'Persistent Schedule Capture',
+    'Visible Store Copy and Capture Header',
   ],
 } as const
