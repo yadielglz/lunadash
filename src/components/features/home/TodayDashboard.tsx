@@ -428,27 +428,27 @@ export function TodayDashboard() {
   return (
     <div className="today-page page-frame page-frame-wide space-y-6 pb-12">
       {/* Hero Welcome Card */}
-      <section className="relative overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface-2)] to-[var(--surface)] p-6 sm:p-8 shadow-xl backdrop-blur-2xl">
-        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-[var(--accent)]/15 blur-3xl pointer-events-none" />
-        <div className="absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-[#E20074]/10 blur-3xl pointer-events-none" />
+      <section className="today-hero relative overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface-2)] to-[var(--surface)] p-6 sm:p-8 shadow-xl backdrop-blur-2xl">
+        <div className="today-hero-orb absolute -right-16 -top-16 h-64 w-64 rounded-full bg-[var(--accent)]/15 blur-3xl pointer-events-none" />
+        <div className="today-hero-orb absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-[#E20074]/10 blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div className="today-hero-layout relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="min-w-0 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="today-hero-badges flex flex-wrap items-center gap-2">
               <Badge tone="accent" variant="glass" size="sm">{dateLabel}</Badge>
               <Badge tone="success" variant="glass" size="sm" dot>Store Live</Badge>
               {accessRole && <Badge tone="tmobile" variant="glass" size="sm">{accessRole.replace('_', ' ')}</Badge>}
             </div>
 
-            <h1 className="mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--text)]">
+            <h1 className="today-hero-title mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--text)]">
               {isMain ? 'District Operations Center' : companyName || `Store ${storeId}`}
             </h1>
 
-            <p className="mt-2 text-sm text-[var(--text-secondary)] leading-relaxed">
+            <p className="today-hero-description mt-2 text-sm text-[var(--text-secondary)] leading-relaxed">
               Real-time telemetry on sales targets, floor coverage, checklist compliance, and customer pipeline.
             </p>
 
-            <div className="mt-4 flex flex-wrap gap-2.5">
+            <div className="today-hero-controls mt-4 flex flex-wrap gap-2.5">
               <Button
                 size="sm"
                 variant={customizing ? 'accent' : 'secondary'}
@@ -466,20 +466,20 @@ export function TodayDashboard() {
           </div>
 
           {/* Hero Quick Stat Ring Widgets */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 p-4 text-center backdrop-blur-md">
+          <div className="today-hero-stats grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="today-hero-stat rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 p-4 text-center backdrop-blur-md">
               <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Floor Staff</div>
               <div className="mt-1 text-2xl font-extrabold text-[var(--text)]">{todayShifts.length}</div>
               <div className="mt-0.5 text-[11px] text-emerald-400 font-medium">On Shift Today</div>
             </div>
 
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 p-4 text-center backdrop-blur-md">
+            <div className="today-hero-stat rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 p-4 text-center backdrop-blur-md">
               <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Checklist</div>
               <div className="mt-1 text-2xl font-extrabold text-[var(--accent)]">{hasTasks ? `${taskPct}%` : '—'}</div>
               <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">{doneTasks}/{tasks.length} Completed</div>
             </div>
 
-            <div className="col-span-2 sm:col-span-1 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 p-4 text-center backdrop-blur-md">
+            <div className="today-hero-stat today-hero-stat-appointments col-span-2 sm:col-span-1 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 p-4 text-center backdrop-blur-md">
               <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Appointments</div>
               <div className="mt-1 text-2xl font-extrabold text-[#E20074]">{appointmentRows}</div>
               <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">Pipeline Booked</div>
