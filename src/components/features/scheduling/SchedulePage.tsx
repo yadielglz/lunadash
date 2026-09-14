@@ -891,6 +891,7 @@ function MobileScheduleWeek({
           ) : undefined}
           actions={storeId !== 'main' ? (
             <div className="flex items-center gap-2">
+              {canChooseScheduleStore && <StorePickerButton className="flex-shrink-0" compact requireSelection />}
               {canEditSchedule && (
                 <Button
                   className="flex-shrink-0"
@@ -1069,8 +1070,9 @@ function MobileScheduleWeek({
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
               <p className="text-sm font-semibold text-[var(--text)]">Choose a store</p>
               <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-                {canChooseScheduleStore ? 'Use the store button in the top bar to view one location.' : 'A single store is required for mobile schedule coverage.'}
+                {canChooseScheduleStore ? 'Choose a location to view and manage its schedule.' : 'A single store is required for mobile schedule coverage.'}
               </p>
+              {canChooseScheduleStore && <StorePickerButton className="mt-3" requireSelection />}
             </div>
           )}
 
@@ -1285,7 +1287,7 @@ export function SchedulePage() {
               </div>
             )}
           </div>
-          {canChooseScheduleStore && <StorePickerButton className="flex-shrink-0" autoOpen requireSelection />}
+          {canChooseScheduleStore && <StorePickerButton className="flex-shrink-0" />}
           {storeId !== 'main' && canEditSchedule && (
             <div className="relative flex-shrink-0">
               <Button className="flex-shrink-0" size="sm" variant="ghost" icon={<Settings size={13} />} onClick={() => setConfigureOpen((open) => !open)} aria-expanded={configureOpen}>
