@@ -4,7 +4,7 @@ import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 import { isInstalledPwa } from '../lib/pwa'
 
 export type Tab = 'home' | 'protect' | 'devices' | 'employees' | 'schedule' | 'appointments' | 'district' | 'goals' | 'commission' | 'reports' | 'updates' | 'mrc-calculator' | 'nr-tracking' | 'weather' | 'display' | 'tasks' | 'settings'
-export type Theme = 'dark' | 'light' | 'vista' | 'mac' | 'carbon' | 'mint' | 'coral' | 'iris' | 'graphite' | 'aurora' | 'tide' | 'citrus' | 'rosewood' | 'highland'
+export type Theme = 'dark' | 'light' | 'vista' | 'mac' | 'carbon' | 'mint' | 'coral' | 'iris' | 'graphite' | 'aurora' | 'tide' | 'citrus' | 'rosewood' | 'highland' | 'console'
 export type Brand = 'default' | 'tmobile' | 'green' | 'black' | 'yellow'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
@@ -29,7 +29,7 @@ const SESSION_TIMEOUT_MS: Record<Exclude<SessionTimeout, 'never'>, number> = {
   '1h': 60 * 60 * 1000,
   '4h': 4 * 60 * 60 * 1000,
 }
-const THEME_CLASSES: Theme[] = ['dark', 'light', 'vista', 'mac', 'carbon', 'mint', 'coral', 'iris', 'graphite', 'aurora', 'tide', 'citrus', 'rosewood', 'highland']
+const THEME_CLASSES: Theme[] = ['dark', 'light', 'vista', 'mac', 'carbon', 'mint', 'coral', 'iris', 'graphite', 'aurora', 'tide', 'citrus', 'rosewood', 'highland', 'console']
 const BRAND_ACCENTS: Record<Exclude<Brand, 'default'>, {
   accent: string
   hover: string
@@ -145,6 +145,7 @@ function getSystemTheme(): Theme {
 }
 
 function canonicalTheme(theme: Theme | undefined): Theme {
+  if (theme === 'console') return 'console'
   if (theme === 'dark' || theme === 'carbon' || theme === 'graphite' || theme === 'aurora' || theme === 'rosewood') return 'dark'
   return 'light'
 }
