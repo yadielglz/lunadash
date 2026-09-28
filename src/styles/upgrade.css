@@ -3698,6 +3698,7 @@ body {
   --surface-2: #e9eaE6;
   --surface-3: #d9dcde;
   --surface-solid: #f8f8f5;
+  --surface-2-solid: #e9eae6;
   --sidebar-bg: #d4d7da;
   --command-bg: #cfd3d6;
   --border: #aeb5ba;
@@ -4047,4 +4048,45 @@ body {
 .console-light ::selection {
   background: #0a4d9c;
   color: #ffffff;
+}
+
+
+/* Console Light — rail alignment and schedule roster correction */
+.console-light .navigation-rail-collapsed .navigation-rail-list {
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
+
+.console-light .navigation-rail-collapsed .navigation-rail-item {
+  width: 100% !important;
+  min-height: 3rem;
+  justify-content: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.console-light .navigation-rail-collapsed .navigation-rail-item > span:first-child {
+  margin-inline: auto;
+}
+
+.console-light .schedule-page [class*="bg-[var(--surface-2-solid)]"] {
+  background: var(--surface-2-solid) !important;
+  color: var(--text) !important;
+}
+
+.console-light .schedule-page .sticky[class*="left-0"] {
+  background: #e9eae6 !important;
+  border-color: #a8b0b6 !important;
+  box-shadow:
+    inset 1px 1px rgba(255,255,255,.95),
+    inset -1px -1px rgba(132,141,148,.18),
+    3px 0 6px rgba(72,82,90,.08) !important;
+}
+
+.console-light .schedule-page .sticky[class*="left-0"] .text-[var(--text)] {
+  color: #17212b !important;
+}
+
+.console-light .schedule-page .sticky[class*="left-0"] .text-[var(--text-tertiary)] {
+  color: #65717b !important;
 }
