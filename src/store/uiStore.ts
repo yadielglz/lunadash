@@ -144,16 +144,14 @@ function getSystemTheme(): Theme {
 }
 
 function canonicalTheme(theme: Theme | undefined): Theme {
-  if (theme === 'console') return 'console'
-  if (theme === 'dark' || theme === 'carbon' || theme === 'graphite' || theme === 'aurora' || theme === 'rosewood') return 'dark'
-  return 'light'
+  return theme && THEME_CLASSES.includes(theme) ? theme : 'console'
 }
 
-function persistedPreferences(persisted: unknown) {
+function persistedPreferences(persisted: unknown, forceConsole = false) {
   const state = persisted as Partial<UiState> | undefined
   return {
     activeTab: state?.activeTab ?? 'home',
-    theme: state?.theme && THEME_CLASSES.includes(state.theme) ? canonicalTheme(state.theme) : 'console',
+    theme: forceConsole ? 'console' : canonicalTheme(state?.theme),
     brand: state?.brand && (state.brand === 'default' || state.brand in BRAND_ACCENTS) ? state.brand : 'default',
     tempUnit: state?.tempUnit ?? 'F',
     timeFormat: state?.timeFormat ?? '12',
@@ -241,9 +239,9 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'luna-ui',
-      version: 3,
+      version: 4,
       partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, uiScale: s.uiScale, activeTab: s.activeTab, settingsSection: s.settingsSection }),
-      migrate: (persisted) => persistedPreferences(persisted),
+      migrate: (persisted, version) => persistedPreferences(persisted, version < 4),
       merge: (persisted, current) => {
         const pwaSession = readPwaAccessSession()
         return {
