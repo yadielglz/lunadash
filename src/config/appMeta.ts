@@ -6,9 +6,9 @@ export const APP_META = {
   copyright: '© 2025 Glz Tech',
   supportEmail: 'support@glztech.com',
   updateNotes: [
-    'New Luna Console corporate operations theme',
-    'Console-specific Today workspace with KPI strip and action queue',
-    'Flat command-board styling across district and shared modules',
-    'Dense enterprise panels, tables, inspectors, and responsive mobile treatment',
+    'Luna Console is now the default platform experience',
+    'All shared cards, forms, module headers, tables, inspectors, and workspaces follow Console styling',
+    'Operations, Performance, Devices, Protect, Schedule, Appointments, Employees, Goals, Reports, Commission, Weather, Settings, NR, and MRC receive the dense corporate treatment',
+    'PWA startup chrome and first-launch behavior now boot directly into Luna Console',
   ]
 } as const
