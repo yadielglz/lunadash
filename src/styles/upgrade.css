@@ -3680,3 +3680,371 @@ body {
     max-width: none !important;
   }
 }
+
+
+/* ============================================================
+   LUNA CONSOLE LIGHT — CORPORATE CLASSIC
+   Modern enterprise density with restrained Windows NT/2000-era
+   cues: cool gray chrome, navy title bars, beveled controls,
+   recessed fields, compact status strips, and square geometry.
+   Inherits all structural Console rules through the shared
+   "console" root class.
+   ============================================================ */
+.console-light {
+  color-scheme: light;
+  --bg: #dfe3e6;
+  --bg-gradient: linear-gradient(180deg, #e7eaec 0%, #d9dde0 100%);
+  --surface: #f6f6f3;
+  --surface-2: #e9eaE6;
+  --surface-3: #d9dcde;
+  --surface-solid: #f8f8f5;
+  --sidebar-bg: #d4d7da;
+  --command-bg: #cfd3d6;
+  --border: #aeb5ba;
+  --border-strong: #7f8991;
+  --text: #17212b;
+  --text-secondary: #47545f;
+  --text-tertiary: #6b7680;
+  --input-bg: #ffffff;
+  --reveal-bg: rgba(10, 77, 156, 0.07);
+  --accent: #0a4d9c;
+  --accent-hover: #083f80;
+  --accent-active: #063365;
+  --accent-light: #dcecff;
+  --accent-glow: rgba(10, 77, 156, 0.12);
+  --status-good: #18794e;
+  --status-info: #0a4d9c;
+  --status-warn: #9b5f00;
+  --status-danger: #b42318;
+  --shadow-card: none;
+  --shadow-float: 2px 2px 0 rgba(255,255,255,.75), 4px 4px 10px rgba(62,72,80,.14);
+  --shadow-modal: 4px 4px 0 rgba(255,255,255,.72), 8px 10px 26px rgba(45,55,65,.22);
+}
+
+.console-light body,
+.console-light .app-command-shell,
+.console-light .performance-suite,
+.console-light .operations-page,
+.console-light .tool-suite,
+.console-light .settings-admin-page,
+.console-light .performance-content,
+.console-light .operations-content,
+.console-light .tool-content,
+.console-light .settings-content {
+  background: var(--bg) !important;
+  color: var(--text);
+}
+
+/* Windows-style application chrome */
+.console-light .command-bar,
+.console-light .app-top-bar {
+  border-bottom: 1px solid #7d858b !important;
+  background: linear-gradient(180deg, #eceeed 0%, #cfd4d7 100%) !important;
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.9),
+    inset 0 -1px rgba(97,106,113,.25) !important;
+}
+
+.console-light .app-command-shell > aside {
+  border-right: 1px solid #858d93 !important;
+  background: linear-gradient(90deg, #d9dddf 0%, #cdd2d5 100%) !important;
+  box-shadow: inset -1px 0 rgba(255,255,255,.72) !important;
+}
+
+.console-light .command-nav-item {
+  color: #394650;
+}
+
+.console-light .command-nav-item:hover {
+  background: #e8eaE8 !important;
+}
+
+.console-light .command-nav-item-active {
+  border-color: #6c8298 !important;
+  background: #dbe8f5 !important;
+  color: #0d2d4e !important;
+  box-shadow:
+    inset 3px 0 #0a4d9c,
+    inset 0 1px rgba(255,255,255,.8) !important;
+}
+
+/* Corporate title-bar treatment for module headers */
+.console-light .module-responsive-header,
+.console-light .console-page-header {
+  border-bottom-color: #7d8790 !important;
+  background: #f3f4f2 !important;
+  box-shadow:
+    inset 0 1px #ffffff,
+    inset 0 -1px #c1c6ca !important;
+}
+
+.console-light .module-responsive-header::before,
+.console-light .console-page-header::before {
+  content: '';
+  display: block;
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, #0a4d9c 0%, #1976c9 56%, #7da8cf 100%);
+  pointer-events: none;
+}
+
+.console-light .module-responsive-eyebrow,
+.console-light .console-eyebrow {
+  color: #0a4d9c !important;
+}
+
+.console-light .module-responsive-icon {
+  border-color: #8b959d !important;
+  background: linear-gradient(180deg, #ffffff 0%, #e1e4e5 100%) !important;
+  box-shadow:
+    inset 1px 1px #ffffff,
+    inset -1px -1px #b8bec3 !important;
+}
+
+/* Panels borrow NT/2000 raised/recessed geometry */
+.console-light .ui-card,
+.console-light .console-panel,
+.console-light .console-kpi-strip,
+.console-light .console-layout-editor,
+.console-light .district-view-toolbar,
+.console-light .district-store-card,
+.console-light .settings-row,
+.console-light .module-empty-state,
+.console-light .inline-notice {
+  border-color: #a7afb5 !important;
+  background: #f4f4f1 !important;
+  box-shadow:
+    inset 1px 1px rgba(255,255,255,.95),
+    inset -1px -1px rgba(132,141,148,.18) !important;
+}
+
+.console-light .console-panel-header,
+.console-light .ui-card > [class*="border-b"],
+.console-light .performance-suite .ui-card > [class*="border-b"],
+.console-light .operations-page .ui-card > [class*="border-b"],
+.console-light .tool-suite .ui-card > [class*="border-b"],
+.console-light .settings-admin-page .ui-card > [class*="border-b"] {
+  background: linear-gradient(180deg, #eceeed 0%, #dfe2e3 100%) !important;
+  border-bottom-color: #a9b0b5 !important;
+}
+
+.console-light .console-brief-line {
+  background: #e6e9e9 !important;
+}
+
+/* Classic recessed form fields */
+.console-light .ui-input,
+.console-light .ui-select,
+.console-light .ui-textarea {
+  border: 1px solid #7f8991 !important;
+  background: #ffffff !important;
+  color: #14202b !important;
+  box-shadow:
+    inset 1px 1px #8f979d,
+    inset 2px 2px #d7dbde,
+    inset -1px -1px #ffffff !important;
+}
+
+.console-light .ui-input::placeholder,
+.console-light .ui-textarea::placeholder {
+  color: #7c858c !important;
+}
+
+.console-light .ui-input:focus,
+.console-light .ui-select:focus,
+.console-light .ui-textarea:focus {
+  border-color: #0a4d9c !important;
+  box-shadow:
+    inset 1px 1px #7f8991,
+    0 0 0 1px #0a4d9c !important;
+}
+
+/* Buttons: raised by default, pressed when active */
+.console-light .ui-button {
+  border-color: #899198 !important;
+  background: linear-gradient(180deg, #fbfbfa 0%, #dfe2e3 100%) !important;
+  color: #1c2730 !important;
+  box-shadow:
+    inset 1px 1px #ffffff,
+    inset -1px -1px #a8afb4 !important;
+}
+
+.console-light .ui-button:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #e7eaeb 100%) !important;
+  color: #0b3157 !important;
+}
+
+.console-light .ui-button:active,
+.console-light .ui-button[aria-pressed="true"] {
+  background: #d6dadd !important;
+  box-shadow:
+    inset 1px 1px #8e969c,
+    inset -1px -1px #ffffff !important;
+  transform: translate(1px, 1px) !important;
+}
+
+.console-light .ui-button[class*="bg-[var(--accent)]"],
+.console-light .ui-button[class*="bg-[var(--accent)]/"] {
+  border-color: #063b78 !important;
+  background: linear-gradient(180deg, #1d69b6 0%, #0a4d9c 100%) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 1px 1px rgba(255,255,255,.35),
+    inset -1px -1px rgba(0,0,0,.18) !important;
+}
+
+/* Tables: compact corporate grid with classic blue header line */
+.console-light .performance-suite table,
+.console-light .operations-page table,
+.console-light .tool-suite table,
+.console-light .settings-admin-page table,
+.console-light .page-frame table {
+  border: 1px solid #9ca5ab;
+  background: #f7f7f4;
+}
+
+.console-light .performance-suite th,
+.console-light .operations-page th,
+.console-light .tool-suite th,
+.console-light .settings-admin-page th,
+.console-light .page-frame th {
+  border-bottom: 1px solid #7f8991 !important;
+  background: linear-gradient(180deg, #dfe7ee 0%, #cbd6df 100%) !important;
+  color: #31414f !important;
+}
+
+.console-light .performance-suite td,
+.console-light .operations-page td,
+.console-light .tool-suite td,
+.console-light .settings-admin-page td,
+.console-light .page-frame td {
+  border-bottom-color: #c6ccd0 !important;
+}
+
+.console-light .performance-suite tbody tr:nth-child(even),
+.console-light .operations-page tbody tr:nth-child(even),
+.console-light .tool-suite tbody tr:nth-child(even),
+.console-light .settings-admin-page tbody tr:nth-child(even),
+.console-light .page-frame tbody tr:nth-child(even) {
+  background: #f0f1ef;
+}
+
+.console-light .performance-suite tbody tr:hover,
+.console-light .operations-page tbody tr:hover,
+.console-light .tool-suite tbody tr:hover,
+.console-light .settings-admin-page tbody tr:hover,
+.console-light .page-frame tbody tr:hover {
+  background: #dce9f6;
+}
+
+/* Status / KPI strips */
+.console-light .console-kpi {
+  background: #f4f4f1 !important;
+  border-right-color: #b0b7bc !important;
+}
+
+.console-light .console-status-row,
+.console-light .console-system-row,
+.console-light .console-action-row,
+.console-light .console-list-row,
+.console-light .console-coverage-row,
+.console-light .console-feed-row,
+.console-light .console-metric-row {
+  border-color: #c0c6ca !important;
+}
+
+.console-light .console-list-row:hover,
+.console-light .console-action-row:hover {
+  background: #e3edf7 !important;
+}
+
+.console-light .console-chip {
+  border-color: #8f989f !important;
+  background: #e7e9e8 !important;
+  color: #35424d !important;
+  box-shadow: inset 1px 1px #ffffff;
+}
+
+/* Classic selected tabs / filter controls */
+.console-light .district-view-switcher button,
+.console-light .performance-filter-bar button,
+.console-light .settings-segment button,
+.console-light .console-module-toggle {
+  border-color: #979fa5 !important;
+  background: linear-gradient(180deg, #f8f8f6 0%, #dde1e2 100%) !important;
+  color: #33414c !important;
+  box-shadow:
+    inset 1px 1px #ffffff,
+    inset -1px -1px #b3b9bd !important;
+}
+
+.console-light .district-view-switcher button[aria-pressed="true"],
+.console-light .performance-filter-bar button[aria-pressed="true"],
+.console-light .settings-segment button[aria-pressed="true"],
+.console-light .console-module-toggle.is-enabled {
+  border-color: #0a4d9c !important;
+  background: #d4e5f6 !important;
+  color: #083865 !important;
+  box-shadow:
+    inset 1px 1px #9ba6ad,
+    inset -1px -1px #ffffff !important;
+}
+
+/* Light inspectors and dialogs */
+.console-light .dual-pane-detail,
+.console-light .report-setup,
+.console-light .employee-selector,
+.console-light .appointment-sidebar,
+.console-light .store-detail-drawer,
+.console-light .ios-modal-panel {
+  background: #f2f3f1 !important;
+  color: var(--text) !important;
+}
+
+.console-light .ios-modal-header,
+.console-light .store-detail-header,
+.console-light .capture-preview-header {
+  background: linear-gradient(180deg, #e5e8e9 0%, #d4d8da 100%) !important;
+}
+
+/* Login / onboarding / lock screen */
+.console-light .store-launch-screen,
+.console-light .lock-screen {
+  background: #d7dbde !important;
+}
+
+.console-light .store-launch-panel,
+.console-light .lock-screen-card,
+.console-light .onboarding-logo,
+.console-light .onboarding-step-card {
+  border-color: #7f8991 !important;
+  background: #f3f3f0 !important;
+  box-shadow:
+    inset 1px 1px #ffffff,
+    inset -1px -1px #aab1b6,
+    5px 6px 18px rgba(63,72,80,.18) !important;
+}
+
+.console-light .launch-hero {
+  background: linear-gradient(180deg, #dfe5ea 0%, #cbd4db 100%) !important;
+}
+
+.console-light .lock-key {
+  border-color: #8f979d !important;
+  background: linear-gradient(180deg, #fbfbf9 0%, #dfe2e3 100%) !important;
+  color: #1a2630 !important;
+  box-shadow:
+    inset 1px 1px #ffffff,
+    inset -1px -1px #a8afb4 !important;
+}
+
+/* Classic enterprise scrollbar treatment where supported */
+.console-light * {
+  scrollbar-color: #9aa4ab #d8dcde;
+}
+
+.console-light ::selection {
+  background: #0a4d9c;
+  color: #ffffff;
+}
