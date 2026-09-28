@@ -29,8 +29,8 @@ import { isInstalledPwa } from '../../../lib/pwa'
 
 function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Theme) => void }) {
   const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string; accents: string[] }[] = [
-    { value: 'console', label: 'Luna Console', icon: <MonitorCheck size={14} />, preview: 'bg-[linear-gradient(135deg,#080d12,#101820_58%,#159bd7)]', accents: ['#159bd7', '#27a46d'] },
-    { value: 'dark', label: 'Luna Night (Default)', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#071018,#172631_58%,#159bd7)]', accents: ['#159bd7', '#55c8f4'] },
+    { value: 'console', label: 'Luna Console (Default)', icon: <MonitorCheck size={14} />, preview: 'bg-[linear-gradient(135deg,#080d12,#101820_58%,#159bd7)]', accents: ['#159bd7', '#27a46d'] },
+    { value: 'dark', label: 'Luna Night', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#071018,#172631_58%,#159bd7)]', accents: ['#159bd7', '#55c8f4'] },
     { value: 'light', label: 'Luna Daylight', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#ffffff,#eaf1f4_58%,#159bd7)]', accents: ['#159bd7', '#087fb8'] },
     { value: 'carbon', label: 'Obsidian Carbon', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#0f172a,#1e293b_58%,#38bdf8)]', accents: ['#38bdf8', '#818cf8'] },
     { value: 'aurora', label: 'Emerald Aurora', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#052e16,#064e3b_58%,#10b981)]', accents: ['#10b981', '#34d399'] },
