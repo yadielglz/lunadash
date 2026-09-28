@@ -2,7 +2,7 @@ import { useUiStore } from '../../store/uiStore'
 
 const COLORED_LOGO_URL = '/brand/lunawireless-logo-color.png'
 const WHITE_LOGO_URL = '/brand/lunawireless-logo-white.png'
-const DARK_LOGO_THEMES = ['dark', 'carbon', 'graphite', 'aurora', 'rosewood']
+const DARK_LOGO_THEMES = ['dark', 'carbon', 'graphite', 'aurora', 'rosewood', 'console']
 
 type LogoTone = 'auto' | 'light-surface' | 'dark-surface'
 
