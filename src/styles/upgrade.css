@@ -2527,3 +2527,268 @@ body {
     white-space: nowrap;
   }
 }
+
+
+/* ============================================================
+   LUNA CONSOLE THEME
+   Dense corporate operations workspace. Intentionally flat,
+   structured, and information-first while preserving all app
+   behavior and responsive flows.
+   ============================================================ */
+.console {
+  --bg: #080d12;
+  --bg-gradient: linear-gradient(180deg, #080d12 0%, #0b1117 100%);
+  --surface: #101820;
+  --surface-2: #131e27;
+  --surface-3: #182630;
+  --surface-solid: #101820;
+  --surface-2-solid: #131e27;
+  --sidebar-bg: #090f14;
+  --command-bg: #0c131a;
+  --border: rgba(195, 216, 228, 0.12);
+  --border-strong: rgba(195, 216, 228, 0.22);
+  --text: #edf4f7;
+  --text-secondary: #9fb0b9;
+  --text-tertiary: #6f858f;
+  --input-bg: #0c141b;
+  --reveal-bg: rgba(218, 237, 247, 0.055);
+  --accent: #159bd7;
+  --accent-hover: #087fb8;
+  --accent-active: #066b9b;
+  --accent-light: #dff5ff;
+  --accent-glow: rgba(21, 155, 215, 0.16);
+  --status-good: #27a46d;
+  --status-info: #2589cf;
+  --status-warn: #d28a22;
+  --status-danger: #d65353;
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 7px;
+  --radius-2xl: 8px;
+  --shadow-card: none;
+  --shadow-float: 0 10px 24px rgba(0, 0, 0, 0.24);
+  --shadow-modal: 0 20px 48px rgba(0, 0, 0, 0.38);
+}
+
+.console .app-command-shell {
+  background: var(--bg) !important;
+}
+
+.console .command-bar,
+.console .app-top-bar {
+  border-bottom: 1px solid var(--border) !important;
+  background: var(--command-bg) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.console .app-command-shell > aside {
+  border-right: 1px solid var(--border) !important;
+  background: var(--sidebar-bg) !important;
+  box-shadow: none !important;
+}
+
+.console .command-nav-group-label {
+  color: var(--text-tertiary) !important;
+  font-size: 0.64rem !important;
+  letter-spacing: 0.13em !important;
+}
+
+.console .command-nav-item {
+  min-height: 2.75rem;
+  border-radius: 4px !important;
+}
+
+.console .command-nav-item-active {
+  border-color: rgba(21, 155, 215, 0.28) !important;
+  background: rgba(21, 155, 215, 0.10) !important;
+  box-shadow: inset 2px 0 var(--accent) !important;
+}
+
+.console .page-frame {
+  max-width: none !important;
+  padding: 12px !important;
+}
+
+.console .rounded-3xl,
+.console .rounded-2xl,
+.console .rounded-xl,
+.console .rounded-lg {
+  border-radius: 6px !important;
+}
+
+.console .shadow-xl,
+.console .shadow-lg,
+.console .shadow-md,
+.console .shadow-sm,
+.console [class*="shadow-[var(--shadow-card)]"] {
+  box-shadow: none !important;
+}
+
+.console .backdrop-blur-2xl,
+.console .backdrop-blur-xl,
+.console .backdrop-blur-md {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.console .today-page {
+  padding: 12px !important;
+}
+
+.console .today-page > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 10px !important;
+}
+
+.console .today-page .gap-6 {
+  gap: 10px !important;
+}
+
+.console .today-hero {
+  padding: 14px 16px !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 6px !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+
+.console .today-hero-orb {
+  display: none !important;
+}
+
+.console .today-hero-layout {
+  gap: 14px !important;
+}
+
+.console .today-hero-title {
+  margin-top: 8px !important;
+  font-size: clamp(1.6rem, 2.2vw, 2.25rem) !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.035em !important;
+}
+
+.console .today-hero-description {
+  margin-top: 6px !important;
+  max-width: 56rem;
+  font-size: 0.78rem !important;
+}
+
+.console .today-hero-controls {
+  margin-top: 10px !important;
+}
+
+.console .today-hero-stats {
+  gap: 0 !important;
+  align-self: stretch;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-2);
+}
+
+.console .today-hero-stat,
+.console .today-hero-stat-appointments {
+  border: 0 !important;
+  border-right: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 11px 14px !important;
+  box-shadow: none !important;
+}
+
+.console .today-hero-stat:last-child,
+.console .today-hero-stat-appointments:last-child {
+  border-right: 0 !important;
+}
+
+.console .today-page [class*="bg-gradient-to-r"],
+.console .today-page [class*="bg-gradient-to-br"] {
+  background-image: none !important;
+}
+
+.console .today-page > div.grid > div > div,
+.console .today-page > div.grid > aside > div {
+  box-shadow: none !important;
+}
+
+.console .today-page button,
+.console .today-page .command-chip {
+  border-radius: 4px !important;
+}
+
+.console .today-page h2 {
+  letter-spacing: -0.01em;
+}
+
+.console .settings-row,
+.console .ops-surface,
+.console .today-panel,
+.console .today-hero-card,
+.console .today-metric {
+  border-radius: 5px !important;
+  box-shadow: none !important;
+}
+
+.console .module-responsive-header {
+  border-radius: 5px !important;
+  box-shadow: none !important;
+}
+
+.console table {
+  border-collapse: collapse;
+}
+
+.console th {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.console td,
+.console th {
+  border-color: var(--border) !important;
+}
+
+.console input,
+.console select,
+.console textarea {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+.console .mobile-bottom-nav {
+  border-top: 1px solid var(--border);
+  background: var(--command-bg);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+@media (min-width: 768px) {
+  .console .app-page-viewport {
+    scrollbar-gutter: stable;
+  }
+}
+
+@media (max-width: 767px) {
+  .console .today-page {
+    padding: 6px 6px 4.15rem !important;
+  }
+
+  .console .today-hero {
+    padding: 10px !important;
+  }
+
+  .console .today-hero-stats {
+    gap: 0 !important;
+  }
+
+  .console .today-hero-stat,
+  .console .today-hero-stat-appointments {
+    padding: 8px 4px !important;
+  }
+}
