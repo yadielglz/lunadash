@@ -13,7 +13,7 @@ export function useTheme() {
   useEffect(() => {
     const stored = localStorage.getItem('luna-ui')
     if (stored) return // user has a preference stored
-    setTheme('mac')
+    setTheme('console')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
