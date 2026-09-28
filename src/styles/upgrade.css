@@ -3523,3 +3523,103 @@ body {
     border-bottom: 1px solid var(--border);
   }
 }
+
+
+/* Luna Console — entry, security, and onboarding surfaces */
+.console .store-launch-screen {
+  background: var(--bg) !important;
+}
+
+.console .store-launch-screen > .absolute {
+  background: none !important;
+}
+
+.console .store-launch-panel {
+  border-radius: 4px !important;
+  border-color: var(--border-strong) !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.console .launch-hero {
+  background: #0b1218 !important;
+}
+
+.console .launch-hero h1 {
+  letter-spacing: -0.025em !important;
+}
+
+.console .launch-stats > div,
+.console .launch-login [class*="rounded-lg"],
+.console .launch-login [class*="rounded-md"] {
+  border-radius: 3px !important;
+  box-shadow: none !important;
+}
+
+.console .login-card {
+  background: var(--surface) !important;
+}
+
+.console .lock-screen {
+  background: var(--bg) !important;
+}
+
+.console .lock-screen-card {
+  border-radius: 4px !important;
+  border-color: var(--border-strong) !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+
+.console .lock-screen-card > div:first-child > div:first-child,
+.console .lock-key {
+  border-radius: 3px !important;
+  box-shadow: none !important;
+}
+
+.console .lock-key {
+  border: 1px solid var(--border);
+  background: var(--surface-2) !important;
+}
+
+.console .lock-key:hover {
+  background: var(--surface-3) !important;
+}
+
+.console .onboarding-flow {
+  gap: 0.9rem !important;
+}
+
+.console .onboarding-logo,
+.console .onboarding-step-card {
+  border-radius: 4px !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+
+.console .onboarding-step-card > div > div:first-child {
+  border-radius: 3px !important;
+}
+
+.console .onboarding-flow h2 {
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 767px) {
+  .console .store-launch-panel {
+    border-right: 0;
+    border-left: 0;
+  }
+
+  .console .lock-screen-card {
+    width: min(100% - 1rem, 24rem);
+    padding: 1.5rem 1rem !important;
+  }
+
+  .console .lock-key {
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+  }
+}
