@@ -459,7 +459,7 @@ function NavigationRail({
   }
 
   return (
-    <nav className="flex flex-col h-full w-full select-none">
+    <nav className={cn('navigation-rail flex h-full w-full flex-col select-none', collapsed && !mobile && 'navigation-rail-collapsed')}>
       {/* Brand Header */}
       <div className={cn('mb-4 flex items-center gap-3 px-2 py-1', collapsed && !mobile && 'justify-center px-0')}>
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--accent)]/20 via-[var(--surface-2)] to-[var(--surface)] border border-[var(--accent)]/30 shadow-md">
@@ -488,7 +488,7 @@ function NavigationRail({
       )}
 
       {/* Nav List */}
-      <div className="flex-1 space-y-4 overflow-y-auto pr-1 no-scrollbar">
+      <div className={cn('navigation-rail-list flex-1 space-y-4 overflow-y-auto no-scrollbar', collapsed && !mobile ? 'px-0' : 'pr-1')}>
         {NAV_GROUPS.map((group) => {
           const items = visibleItems.filter((item) => item.group === group)
           if (items.length === 0) return null
@@ -506,7 +506,8 @@ function NavigationRail({
                       type="button"
                       onClick={() => navigate(item.id)}
                       className={cn(
-                        'group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all duration-200 border',
+                        'navigation-rail-item group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all duration-200 border',
+                        collapsed && !mobile && 'justify-center gap-0 px-0',
                         active
                           ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-md shadow-[var(--accent-glow)] font-semibold'
                           : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] hover:border-[var(--border)]'
