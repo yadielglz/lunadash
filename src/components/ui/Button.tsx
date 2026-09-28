@@ -20,7 +20,7 @@ export function Button({
   disabled,
   ...rest
 }: ButtonProps) {
-  const base = 'inline-flex items-center justify-center gap-2 font-medium rounded-xl border transition-all duration-200 select-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 focus-visible:ring-offset-2'
+  const base = 'ui-button inline-flex items-center justify-center gap-2 font-medium rounded-xl border transition-all duration-200 select-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 focus-visible:ring-offset-2'
 
   const variants = {
     primary:   'bg-[var(--accent)] border-[var(--accent)] text-white shadow-[0_4px_14px_-2px_var(--accent-glow)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent-hover)] hover:shadow-[0_6px_20px_-2px_var(--accent-glow)] active:scale-[0.98]',
