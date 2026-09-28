@@ -379,20 +379,37 @@ function ConsoleKpi({
   value,
   detail,
   percent,
+  gap,
+  gapValue,
 }: {
   label: string
   value: string
   detail: string
   percent?: number
+  gap?: string
+  gapValue?: number
 }) {
   const tone = percent === undefined ? 'var(--accent)' : metricTone(percent)
+  const gapTone = gapValue === undefined
+    ? 'var(--text-tertiary)'
+    : gapValue >= 0
+      ? 'var(--status-good)'
+      : 'var(--status-danger)'
+
   return (
     <div className="console-kpi min-w-0 border-r border-[var(--border)] bg-[var(--surface)] px-3 py-3 last:border-r-0">
       <div className="text-[10px] font-bold uppercase tracking-[0.11em] text-[var(--text-tertiary)]">{label}</div>
       <div className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-[var(--text)]">{value}</div>
-      <div className="mt-1 flex items-center gap-2 text-[11px] text-[var(--text-secondary)]">
-        {percent !== undefined && <span className="h-1.5 w-1.5 rounded-full" style={{ background: tone }} />}
-        <span className="truncate">{detail}</span>
+      <div className="mt-1 flex min-w-0 items-center justify-between gap-3 text-[11px]">
+        <span className="flex min-w-0 items-center gap-2 text-[var(--text-secondary)]">
+          {percent !== undefined && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone }} />}
+          <span className="truncate">{detail}</span>
+        </span>
+        {gap && (
+          <span className="shrink-0 font-semibold tabular-nums" style={{ color: gapTone }}>
+            {gap}
+          </span>
+        )}
       </div>
     </div>
   )
@@ -573,23 +590,31 @@ export function TodayDashboard() {
             value={performanceRow ? formatMoney(performanceRow.netRevenue) : '—'}
             percent={performanceRow?.netRevenuePct}
             detail={performanceRow ? `${formatMoney(performanceRow.netRevenueGoal)} goal` : 'No mapped data'}
+            gap={performanceRow ? `${performanceRow.netRevenue - performanceRow.netRevenueGoal >= 0 ? '+' : ''}${formatMoney(performanceRow.netRevenue - performanceRow.netRevenueGoal)} gap` : undefined}
+            gapValue={performanceRow ? performanceRow.netRevenue - performanceRow.netRevenueGoal : undefined}
           />
           <ConsoleKpi
             label="Accessories"
             value={performanceRow ? formatMoney(performanceRow.accessoryRevenue) : '—'}
             percent={performanceRow?.accessoryPct}
             detail={performanceRow ? `${formatMoney(performanceRow.accessoryGoal)} goal` : 'No mapped data'}
+            gap={performanceRow ? `${performanceRow.accessoryRevenue - performanceRow.accessoryGoal >= 0 ? '+' : ''}${formatMoney(performanceRow.accessoryRevenue - performanceRow.accessoryGoal)} gap` : undefined}
+            gapValue={performanceRow ? performanceRow.accessoryRevenue - performanceRow.accessoryGoal : undefined}
           />
           <ConsoleKpi
             label="PP Units"
             value={performanceRow ? formatNumber(performanceRow.totalPp) : '—'}
             percent={performanceRow?.ppPct}
             detail={performanceRow ? `${formatNumber(performanceRow.dortGoal)} goal` : 'No mapped data'}
+            gap={performanceRow ? `${performanceRow.totalPp - performanceRow.dortGoal >= 0 ? '+' : ''}${formatNumber(performanceRow.totalPp - performanceRow.dortGoal)} gap` : undefined}
+            gapValue={performanceRow ? performanceRow.totalPp - performanceRow.dortGoal : undefined}
           />
           <ConsoleKpi
             label="Traffic"
             value={performanceRow ? formatNumber(performanceRow.traffic) : '—'}
-            detail={performanceRow ? `${formatPercent(performanceRow.postConv)} post conversion` : 'No mapped data'}
+            detail={performanceRow ? `${formatPercent(performanceRow.postConv)} post conversion · 13% goal` : 'No mapped data'}
+            gap={performanceRow ? `${performanceRow.postConv - 13 >= 0 ? '+' : ''}${(performanceRow.postConv - 13).toFixed(1)} pts gap` : undefined}
+            gapValue={performanceRow ? performanceRow.postConv - 13 : undefined}
           />
         </div>
 
