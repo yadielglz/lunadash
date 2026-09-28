@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { type Theme, useUiStore } from '../store/uiStore'
 
-const DARK_THEMES: Theme[] = ['dark', 'carbon', 'graphite', 'aurora', 'rosewood']
+const DARK_THEMES: Theme[] = ['dark', 'carbon', 'graphite', 'aurora', 'rosewood', 'console']
 
 export function useTheme() {
   const { theme, toggleTheme, setTheme } = useUiStore()
