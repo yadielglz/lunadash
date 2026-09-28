@@ -18,7 +18,7 @@ export function Card({
   noPadding = false,
   ...rest
 }: CardProps) {
-  const base = 'relative rounded-2xl border transition-all duration-200 backdrop-blur-md overflow-hidden'
+  const base = 'ui-card relative rounded-2xl border transition-all duration-200 backdrop-blur-md overflow-hidden'
   const variants = {
     default: 'bg-[var(--surface)] border-[var(--border)] shadow-[var(--shadow-card)]',
     elevated: 'bg-[var(--surface)] border-[var(--border-strong)] shadow-[var(--shadow-float)]',
