@@ -6,9 +6,9 @@ export const APP_META = {
   copyright: '© 2025 Glz Tech',
   supportEmail: 'support@glztech.com',
   updateNotes: [
-    'Crisp iPhone Command Bar',
-    'Compact Phone Today Dashboard',
-    'Three-Column Mobile Quick Stats',
-    'Unchanged Tablet Layout',
-  ],
+    'New Luna Console corporate operations theme',
+    'Console-specific Today workspace with KPI strip and action queue',
+    'Flat command-board styling across district and shared modules',
+    'Dense enterprise panels, tables, inspectors, and responsive mobile treatment',
+  ]
 } as const
