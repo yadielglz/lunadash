@@ -8,7 +8,7 @@ export function PageFrame({ children, width = 'wide', className }: {
   className?: string
 }) {
   const maxWidth = width === 'standard' ? 'max-w-5xl' : width === 'wide' ? 'max-w-7xl' : 'max-w-full'
-  return <div className={cn('w-full mx-auto p-4 sm:p-6 lg:p-8', maxWidth, className)}>{children}</div>
+  return <div className={cn('page-frame w-full mx-auto p-4 sm:p-6 lg:p-8', maxWidth, className)}>{children}</div>
 }
 
 export function SectionHeader({ title, description, icon, action, className }: {
@@ -19,7 +19,7 @@ export function SectionHeader({ title, description, icon, action, className }: {
   className?: string
 }) {
   return (
-    <div className={cn('flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5', className)}>
+    <div className={cn('section-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5', className)}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2.5">
           {icon && <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--accent)]/10 text-[var(--accent)]" aria-hidden="true">{icon}</span>}
@@ -106,7 +106,7 @@ type EmptyStateProps = {
 export function EmptyState({ icon, title, description, action, compact = false, className }: EmptyStateProps) {
   return (
     <div className={cn(
-      'flex flex-col items-center justify-center text-center rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)]/40 backdrop-blur-sm p-8 sm:p-12',
+      'module-empty-state flex flex-col items-center justify-center text-center rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)]/40 backdrop-blur-sm p-8 sm:p-12',
       compact && 'p-4 sm:p-6',
       className
     )}>
@@ -170,7 +170,7 @@ export function InlineNotice({ tone = 'info', title, children, action, className
   return (
     <div
       className={cn(
-        'flex items-start gap-3.5 rounded-2xl border p-4 backdrop-blur-md transition-all',
+        'inline-notice flex items-start gap-3.5 rounded-2xl border p-4 backdrop-blur-md transition-all',
         style.bg,
         style.border,
         className
@@ -189,7 +189,7 @@ export function InlineNotice({ tone = 'info', title, children, action, className
 
 export function ModuleSkeleton({ rows = 3, className }: { rows?: number; className?: string }) {
   return (
-    <div className={cn('space-y-4 p-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] animate-pulse', className)} role="status" aria-label="Loading module content">
+    <div className={cn('module-skeleton space-y-4 p-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] animate-pulse', className)} role="status" aria-label="Loading module content">
       <div className="h-8 w-1/3 rounded-xl bg-[var(--surface-3)]" />
       <div className="space-y-2 pt-2">
         {Array.from({ length: rows }).map((_, index) => (
@@ -211,7 +211,7 @@ export function WorkflowSteps({ steps, current, className }: { steps: string[]; 
           <li
             key={step}
             className={cn(
-              'flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+              'workflow-step flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
               isCurrent
                 ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-sm'
                 : isPast
