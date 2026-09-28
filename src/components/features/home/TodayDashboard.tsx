@@ -30,6 +30,7 @@ import { districtWins, smartDailyBrief } from '../../../lib/districtInsights'
 import { appointmentFilledRows, fetchAppointmentTrackerData } from '../../../lib/appointments'
 import { normalizeStoreId } from '../../../lib/storeIds'
 import { fetchDashboardPerformanceData } from '../../../lib/dashboardSales'
+import { getStoreProfile } from '../../../config/storeProfiles'
 
 const todayKey = () => {
   const date = new Date()
@@ -289,7 +290,7 @@ function SmartBriefCard({
               <Sparkles size={15} />
               Smart Daily Brief
             </span>
-            <Badge tone="accent" size="xs">{brief.focusLabel}</Badge>
+            {brief.focusLabel && <Badge tone="accent" size="xs">{brief.focusLabel}</Badge>}
           </div>
           <p className="mt-1.5 text-sm sm:text-base font-semibold text-[var(--text)] leading-snug">{brief.headline}</p>
         </div>
@@ -322,7 +323,9 @@ function DistrictWinsCard({
       </div>
       <div className="space-y-2 p-4">
         {wins.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)] py-2 text-center">No district wins posted yet.</p>
+          <div className="py-6 text-center">
+            <div className="text-sm font-semibold text-[var(--text)]">No Activity Yet</div>
+          </div>
         ) : (
           wins.map((win) => (
             <button
@@ -347,7 +350,7 @@ function DistrictWinsCard({
 
 export function TodayDashboard() {
   const { dealerCode, setTab, storeId, accessRole } = useUiStore()
-  const { companyName, storeNumber, announcements } = useDisplayStore()
+  const { storeNumber, announcements } = useDisplayStore()
   const { employees, shifts } = useScheduleStore()
   const { tasks } = useTasksStore()
   const syncEntries = useSyncStore((s) => s.entries)
@@ -355,6 +358,7 @@ export function TodayDashboard() {
   const [sectionPrefs, setSectionPrefs] = useState<DashboardSectionPrefs>(() => loadDashboardPrefs())
   const today = todayKey()
   const isMain = normalizeStoreId(storeId) === 'main'
+  const storeProfile = getStoreProfile(storeId)
   const dateLabel = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -441,7 +445,7 @@ export function TodayDashboard() {
             </div>
 
             <h1 className="today-hero-title mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--text)]">
-              {isMain ? 'District Operations Center' : companyName || `Store ${storeId}`}
+              {isMain ? 'District Operations Center' : storeProfile?.location || `Store ${storeId}`}
             </h1>
 
             <p className="today-hero-description mt-2 text-sm text-[var(--text-secondary)] leading-relaxed">
