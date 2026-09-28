@@ -140,8 +140,7 @@ interface UiState {
 }
 
 function getSystemTheme(): Theme {
-  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark'
-  return 'light'
+  return 'console'
 }
 
 function canonicalTheme(theme: Theme | undefined): Theme {
@@ -154,7 +153,7 @@ function persistedPreferences(persisted: unknown) {
   const state = persisted as Partial<UiState> | undefined
   return {
     activeTab: state?.activeTab ?? 'home',
-    theme: state?.theme && THEME_CLASSES.includes(state.theme) ? canonicalTheme(state.theme) : getSystemTheme(),
+    theme: state?.theme && THEME_CLASSES.includes(state.theme) ? canonicalTheme(state.theme) : 'console',
     brand: state?.brand && (state.brand === 'default' || state.brand in BRAND_ACCENTS) ? state.brand : 'default',
     tempUnit: state?.tempUnit ?? 'F',
     timeFormat: state?.timeFormat ?? '12',
