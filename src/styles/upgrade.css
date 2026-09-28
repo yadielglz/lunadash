@@ -3128,3 +3128,398 @@ body {
     padding: 0.65rem 0.75rem !important;
   }
 }
+
+
+/* ============================================================
+   LUNA CONSOLE — PLATFORM-WIDE MODULE STANDARDIZATION
+   Applies the Console design language to every shared module
+   primitive while keeping alternate themes selectable.
+   ============================================================ */
+.console .ui-card {
+  border-radius: 4px !important;
+  border-color: var(--border) !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+}
+
+.console .ui-card:hover {
+  box-shadow: none !important;
+}
+
+.console .ui-card[class*="bg-gradient"],
+.console .ui-card[class*="from-"] {
+  background-image: none !important;
+}
+
+.console .ui-button {
+  min-height: 2rem;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
+.console .ui-button:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.console .ui-input,
+.console .ui-select,
+.console .ui-textarea {
+  border-radius: 3px !important;
+  background: var(--input-bg) !important;
+  box-shadow: none !important;
+}
+
+.console .ui-input:focus,
+.console .ui-select:focus,
+.console .ui-textarea:focus {
+  box-shadow: 0 0 0 1px var(--accent) !important;
+}
+
+.console .section-header {
+  margin-bottom: 0.75rem !important;
+  gap: 0.65rem !important;
+}
+
+.console .section-header h2 {
+  font-size: 0.95rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.console .section-header > div > div > span {
+  width: 1.9rem !important;
+  height: 1.9rem !important;
+  border: 1px solid var(--border);
+  border-radius: 3px !important;
+  background: var(--surface-2) !important;
+}
+
+.console .module-empty-state {
+  border-radius: 4px !important;
+  background: var(--surface) !important;
+  padding: 1.5rem !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.console .module-empty-state > div:first-child {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  margin-bottom: 0.55rem !important;
+  border: 1px solid var(--border);
+  border-radius: 3px !important;
+  background: var(--surface-2) !important;
+  box-shadow: none !important;
+}
+
+.console .inline-notice {
+  border-radius: 3px !important;
+  padding: 0.65rem 0.75rem !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.console .module-skeleton {
+  border-radius: 4px !important;
+  padding: 1rem !important;
+}
+
+.console .module-skeleton > div,
+.console .workflow-step {
+  border-radius: 3px !important;
+}
+
+.console .workflow-step {
+  box-shadow: none !important;
+}
+
+/* Common content shells */
+.console .performance-content,
+.console .operations-content,
+.console .tool-content,
+.console .settings-content,
+.console .page-frame {
+  scrollbar-gutter: stable;
+}
+
+.console .performance-content,
+.console .operations-content,
+.console .tool-content,
+.console .settings-content {
+  padding: 0.65rem !important;
+}
+
+.console .page-frame {
+  max-width: none !important;
+  padding: 0.65rem !important;
+}
+
+.console .performance-content > *,
+.console .operations-content > *,
+.console .tool-content > *,
+.console .settings-content > * {
+  min-width: 0;
+}
+
+/* Cards embedded inside every module should read as console panels. */
+.console .performance-suite .ui-card,
+.console .operations-page .ui-card,
+.console .tool-suite .ui-card,
+.console .settings-admin-page .ui-card,
+.console .page-frame .ui-card {
+  border-radius: 4px !important;
+}
+
+.console .performance-suite .ui-card > [class*="border-b"],
+.console .operations-page .ui-card > [class*="border-b"],
+.console .tool-suite .ui-card > [class*="border-b"],
+.console .settings-admin-page .ui-card > [class*="border-b"],
+.console .page-frame .ui-card > [class*="border-b"] {
+  background: var(--surface-2) !important;
+}
+
+/* Data-dense module rows */
+.console .performance-suite table,
+.console .operations-page table,
+.console .tool-suite table,
+.console .settings-admin-page table,
+.console .page-frame table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.console .performance-suite th,
+.console .operations-page th,
+.console .tool-suite th,
+.console .settings-admin-page th,
+.console .page-frame th {
+  height: 2rem;
+  border-bottom: 1px solid var(--border-strong) !important;
+  background: var(--surface-2);
+  padding: 0.35rem 0.55rem !important;
+  color: var(--text-tertiary);
+  font-size: 0.62rem !important;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.console .performance-suite td,
+.console .operations-page td,
+.console .tool-suite td,
+.console .settings-admin-page td,
+.console .page-frame td {
+  border-bottom: 1px solid var(--border) !important;
+  padding: 0.45rem 0.55rem !important;
+  font-size: 0.75rem;
+}
+
+.console .performance-suite tbody tr:hover,
+.console .operations-page tbody tr:hover,
+.console .tool-suite tbody tr:hover,
+.console .settings-admin-page tbody tr:hover,
+.console .page-frame tbody tr:hover {
+  background: rgba(21, 155, 215, 0.04);
+}
+
+/* Scheduling */
+.console .schedule-page,
+.console .mobile-schedule-page {
+  background: var(--bg) !important;
+}
+
+.console .schedule-page [class*="rounded-2xl"],
+.console .schedule-page [class*="rounded-xl"],
+.console .mobile-schedule-page [class*="rounded-2xl"],
+.console .mobile-schedule-page [class*="rounded-xl"] {
+  border-radius: 4px !important;
+}
+
+.console .schedule-page [class*="shadow"],
+.console .mobile-schedule-page [class*="shadow"] {
+  box-shadow: none !important;
+}
+
+/* Appointments */
+.console .appointments-page .appointment-sidebar,
+.console .appointments-page [class*="rounded-2xl"],
+.console .appointments-page [class*="rounded-xl"] {
+  border-radius: 4px !important;
+}
+
+.console .appointments-page .appointment-sidebar {
+  border-left: 1px solid var(--border);
+}
+
+/* Employees */
+.console .employees-page .employee-selector {
+  background: var(--surface) !important;
+}
+
+.console .employees-page .employee-selector button {
+  border-radius: 3px !important;
+}
+
+.console .employees-page [class*="rounded-2xl"],
+.console .employees-page [class*="rounded-xl"] {
+  border-radius: 4px !important;
+}
+
+/* Devices / Protect */
+.console .devices-tool-page [class*="rounded-2xl"],
+.console .devices-tool-page [class*="rounded-xl"],
+.console .tool-suite [class*="rounded-2xl"],
+.console .tool-suite [class*="rounded-xl"] {
+  border-radius: 4px !important;
+}
+
+.console .devices-tool-page [class*="shadow"],
+.console .tool-suite [class*="shadow"] {
+  box-shadow: none !important;
+}
+
+/* Goals, Commission, Reports, NR, MRC */
+.console .goals-performance-page [class*="rounded-2xl"],
+.console .commission-performance-page [class*="rounded-2xl"],
+.console .reports-performance-page [class*="rounded-2xl"],
+.console .performance-update-page [class*="rounded-2xl"],
+.console .goals-performance-page [class*="rounded-xl"],
+.console .commission-performance-page [class*="rounded-xl"],
+.console .reports-performance-page [class*="rounded-xl"],
+.console .performance-update-page [class*="rounded-xl"] {
+  border-radius: 4px !important;
+}
+
+.console .goals-performance-page [class*="shadow"],
+.console .commission-performance-page [class*="shadow"],
+.console .reports-performance-page [class*="shadow"],
+.console .performance-update-page [class*="shadow"] {
+  box-shadow: none !important;
+}
+
+/* Settings is an admin console, not a card stack. */
+.console .settings-section-nav {
+  background: var(--surface) !important;
+  border-right: 1px solid var(--border);
+}
+
+.console .settings-section-nav button {
+  border-radius: 3px !important;
+}
+
+.console .settings-section-heading {
+  margin-bottom: 0.55rem !important;
+}
+
+.console .settings-section-heading h2 {
+  font-size: 1rem !important;
+  font-weight: 650 !important;
+}
+
+.console .settings-row {
+  margin-bottom: 0.35rem;
+  border: 1px solid var(--border);
+  box-shadow: none !important;
+}
+
+/* Weather becomes a data console surface while radar remains visual. */
+.console .weather-tool-page .ui-card {
+  background: var(--surface) !important;
+}
+
+.console .weather-tool-page [class*="rounded-3xl"],
+.console .weather-tool-page [class*="rounded-2xl"],
+.console .weather-tool-page [class*="rounded-xl"] {
+  border-radius: 4px !important;
+}
+
+/* Modals and inspectors */
+.console .ios-modal-panel,
+.console .store-detail-drawer,
+.console .capture-preview-dialog,
+.console [role="dialog"] > div {
+  border-radius: 4px !important;
+  box-shadow: var(--shadow-modal) !important;
+}
+
+.console .ios-modal-header,
+.console .store-detail-header,
+.console .capture-preview-header {
+  background: var(--surface-2) !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+/* Navigation and command chrome */
+.console .app-command-shell > aside {
+  background: #080e13 !important;
+}
+
+.console .app-top-bar {
+  min-height: 3.15rem;
+}
+
+.console .command-icon-button,
+.console .app-top-bar button {
+  border-radius: 3px !important;
+}
+
+.console .mobile-bottom-nav-item,
+.console .mobile-bottom-nav-icon {
+  border-radius: 3px !important;
+}
+
+.console .mobile-bottom-nav-item-active .mobile-bottom-nav-icon {
+  background: rgba(21, 155, 215, 0.12);
+}
+
+/* Remove decorative visual effects from operational workspaces. */
+.console .performance-suite [class*="blur-"],
+.console .operations-page [class*="blur-"],
+.console .tool-suite [class*="blur-"],
+.console .settings-admin-page [class*="blur-"] {
+  filter: none !important;
+}
+
+.console .performance-suite [class*="backdrop-blur"],
+.console .operations-page [class*="backdrop-blur"],
+.console .tool-suite [class*="backdrop-blur"],
+.console .settings-admin-page [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Touch layouts stay compact but readable. */
+@media (max-width: 767px) {
+  .console .performance-content,
+  .console .operations-content,
+  .console .tool-content,
+  .console .settings-content,
+  .console .page-frame {
+    padding: 0.4rem !important;
+  }
+
+  .console .ui-card {
+    border-radius: 3px !important;
+  }
+
+  .console .ui-card:not(.p-0) {
+    padding: 0.75rem;
+  }
+
+  .console .module-empty-state {
+    padding: 1rem !important;
+  }
+
+  .console .settings-section-nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
