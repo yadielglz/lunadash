@@ -348,8 +348,83 @@ function DistrictWinsCard({
   )
 }
 
+
+function ConsolePanel({
+  title,
+  eyebrow,
+  action,
+  children,
+}: {
+  title: string
+  eyebrow?: string
+  action?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <section className="console-panel overflow-hidden border border-[var(--border)] bg-[var(--surface)]">
+      <div className="console-panel-header flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
+        <div className="min-w-0">
+          {eyebrow && <div className="console-eyebrow text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">{eyebrow}</div>}
+          <h2 className="truncate text-sm font-semibold text-[var(--text)]">{title}</h2>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function ConsoleKpi({
+  label,
+  value,
+  detail,
+  percent,
+}: {
+  label: string
+  value: string
+  detail: string
+  percent?: number
+}) {
+  const tone = percent === undefined ? 'var(--accent)' : metricTone(percent)
+  return (
+    <div className="console-kpi min-w-0 border-r border-[var(--border)] bg-[var(--surface)] px-3 py-3 last:border-r-0">
+      <div className="text-[10px] font-bold uppercase tracking-[0.11em] text-[var(--text-tertiary)]">{label}</div>
+      <div className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-[var(--text)]">{value}</div>
+      <div className="mt-1 flex items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+        {percent !== undefined && <span className="h-1.5 w-1.5 rounded-full" style={{ background: tone }} />}
+        <span className="truncate">{detail}</span>
+      </div>
+    </div>
+  )
+}
+
+function ConsoleMetricRow({
+  label,
+  actual,
+  goal,
+  percent,
+}: {
+  label: string
+  actual: string
+  goal: string
+  percent: number
+}) {
+  const tone = metricTone(percent)
+  return (
+    <div className="console-metric-row grid grid-cols-[minmax(0,1.35fr)_0.9fr_0.9fr_0.7fr] items-center border-b border-[var(--border)] px-3 py-2 last:border-b-0">
+      <div className="truncate text-xs font-medium text-[var(--text)]">{label}</div>
+      <div className="text-right text-xs tabular-nums text-[var(--text-secondary)]">{actual}</div>
+      <div className="text-right text-xs tabular-nums text-[var(--text-tertiary)]">{goal}</div>
+      <div className="flex items-center justify-end gap-1.5 text-right text-xs font-semibold tabular-nums" style={{ color: tone }}>
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: tone }} />
+        {formatPercent(percent)}
+      </div>
+    </div>
+  )
+}
+
 export function TodayDashboard() {
-  const { dealerCode, setTab, storeId, accessRole } = useUiStore()
+  const { dealerCode, setTab, storeId, accessRole, theme } = useUiStore()
   const { storeNumber, announcements } = useDisplayStore()
   const { employees, shifts } = useScheduleStore()
   const { tasks } = useTasksStore()
@@ -428,6 +503,231 @@ export function TodayDashboard() {
   }
 
   const resetSections = () => setSectionPrefs({ ...DEFAULT_DASHBOARD_PREFS })
+
+  if (theme === 'console') {
+    const openTasks = Math.max(tasks.length - doneTasks, 0)
+    const storeTitle = isMain ? 'District Operations Center' : storeProfile?.location || `Store ${storeId}`
+    const hasPerformanceActivity = Boolean(performanceRow && (
+      performanceRow.netRevenue > 0
+      || performanceRow.accessoryRevenue > 0
+      || performanceRow.totalPp > 0
+      || performanceRow.traffic > 0
+    ))
+
+    return (
+      <div className="console-today page-frame page-frame-full">
+        <header className="console-page-header border border-[var(--border)] bg-[var(--surface)]">
+          <div className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
+                <span>Luna Console</span>
+                <span className="text-[var(--accent)]">{isMain ? 'District' : storeId}</span>
+                <span>{dateLabel}</span>
+                <span className="flex items-center gap-1.5 text-emerald-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Live</span>
+              </div>
+              <h1 className="mt-1 truncate text-xl font-semibold tracking-[-0.025em] text-[var(--text)] sm:text-2xl">{storeTitle}</h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {accessRole && <span className="console-chip">{accessRole.replace('_', ' ')}</span>}
+              <Button size="sm" variant={customizing ? 'accent' : 'secondary'} icon={<Settings2 size={13} />} onClick={() => setCustomizing((v) => !v)}>
+                Layout
+              </Button>
+              <Button size="sm" variant="ghost" icon={<BarChart3 size={13} />} onClick={() => setTab('district')}>
+                District
+              </Button>
+            </div>
+          </div>
+          <div className="console-brief-line flex items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--surface-2)] px-4 py-2">
+            <div className="min-w-0 truncate text-xs text-[var(--text-secondary)]">
+              <span className="mr-2 font-semibold uppercase tracking-[0.08em] text-[var(--accent)]">Brief</span>
+              <span className="font-medium text-[var(--text)]">{brief.headline}</span>
+            </div>
+            {brief.focusLabel && <span className="console-chip hidden sm:inline-flex">{brief.focusLabel}</span>}
+          </div>
+        </header>
+
+        {customizing && (
+          <div className="console-layout-editor mt-2 border border-[var(--border)] bg-[var(--surface)] p-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold text-[var(--text)]">Visible console modules</span>
+              <Button size="sm" variant="ghost" icon={<RotateCcw size={12} />} onClick={resetSections}>Reset</Button>
+            </div>
+            <div className="grid gap-1 sm:grid-cols-4 lg:grid-cols-8">
+              {DASHBOARD_SECTIONS.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  className={`console-module-toggle border px-2 py-1.5 text-left text-[11px] font-medium ${sectionPrefs[section.id] ? 'is-enabled' : ''}`}
+                >
+                  {section.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="console-kpi-strip mt-2 grid overflow-hidden border border-[var(--border)] sm:grid-cols-2 xl:grid-cols-4">
+          <ConsoleKpi
+            label="Net Revenue"
+            value={performanceRow ? formatMoney(performanceRow.netRevenue) : '—'}
+            percent={performanceRow?.netRevenuePct}
+            detail={performanceRow ? `${formatMoney(performanceRow.netRevenueGoal)} goal` : 'No mapped data'}
+          />
+          <ConsoleKpi
+            label="Accessories"
+            value={performanceRow ? formatMoney(performanceRow.accessoryRevenue) : '—'}
+            percent={performanceRow?.accessoryPct}
+            detail={performanceRow ? `${formatMoney(performanceRow.accessoryGoal)} goal` : 'No mapped data'}
+          />
+          <ConsoleKpi
+            label="PP Units"
+            value={performanceRow ? formatNumber(performanceRow.totalPp) : '—'}
+            percent={performanceRow?.ppPct}
+            detail={performanceRow ? `${formatNumber(performanceRow.dortGoal)} goal` : 'No mapped data'}
+          />
+          <ConsoleKpi
+            label="Traffic"
+            value={performanceRow ? formatNumber(performanceRow.traffic) : '—'}
+            detail={performanceRow ? `${formatPercent(performanceRow.postConv)} post conversion` : 'No mapped data'}
+          />
+        </div>
+
+        <div className="console-workspace mt-2 grid gap-2 xl:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.8fr)]">
+          <main className="min-w-0 space-y-2">
+            {sectionPrefs.pulse && (
+              <ConsolePanel title="Performance Console" eyebrow={hasPerformanceActivity ? 'Live store telemetry' : 'Opening state'}>
+                {performanceRow ? (
+                  <>
+                    <div className="console-table-head grid grid-cols-[minmax(0,1.35fr)_0.9fr_0.9fr_0.7fr] border-b border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+                      <span>Metric</span><span className="text-right">Actual</span><span className="text-right">Goal</span><span className="text-right">Pace</span>
+                    </div>
+                    <ConsoleMetricRow label="Net Revenue" actual={formatMoney(performanceRow.netRevenue)} goal={formatMoney(performanceRow.netRevenueGoal)} percent={performanceRow.netRevenuePct} />
+                    <ConsoleMetricRow label="Accessories" actual={formatMoney(performanceRow.accessoryRevenue)} goal={formatMoney(performanceRow.accessoryGoal)} percent={performanceRow.accessoryPct} />
+                    <ConsoleMetricRow label="Postpaid Units" actual={formatNumber(performanceRow.totalPp)} goal={formatNumber(performanceRow.dortGoal)} percent={performanceRow.ppPct} />
+                  </>
+                ) : (
+                  <div className="px-4 py-8 text-center text-sm text-[var(--text-secondary)]">No mapped performance row for this store.</div>
+                )}
+              </ConsolePanel>
+            )}
+
+            {sectionPrefs.wins && (
+              <ConsolePanel
+                title="District Signals"
+                eyebrow="Leaderboard"
+                action={<button className="console-text-action" onClick={() => setTab('district')}>Open board →</button>}
+              >
+                {wins.length === 0 ? (
+                  <div className="px-4 py-8 text-center">
+                    <div className="text-sm font-semibold text-[var(--text)]">No Activity Yet</div>
+                    <div className="mt-1 text-xs text-[var(--text-tertiary)]">Rankings appear after district sales activity begins.</div>
+                  </div>
+                ) : (
+                  <div>
+                    {wins.map((win) => (
+                      <button key={win.id} onClick={() => setTab('district')} className="console-list-row grid w-full grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--border)] px-3 py-2 text-left last:border-b-0">
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: win.tone }} />
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-medium text-[var(--text)]">{win.label}</span>
+                          <span className="block truncate text-[11px] text-[var(--text-tertiary)]">{win.detail}</span>
+                        </span>
+                        <ArrowRight size={12} className="text-[var(--text-tertiary)]" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </ConsolePanel>
+            )}
+
+            {sectionPrefs.attention && (
+              <ConsolePanel title="Action Queue" eyebrow="Needs attention">
+                <button className="console-action-row" onClick={() => setTab('tasks')}>
+                  <CheckSquare size={14} /><span>Checklist</span><strong>{hasTasks ? `${openTasks} open` : 'Not configured'}</strong>
+                </button>
+                <button className="console-action-row" onClick={() => setTab('schedule')}>
+                  <Users size={14} /><span>Floor coverage</span><strong>{todayShifts.length} scheduled</strong>
+                </button>
+                <button className="console-action-row" onClick={() => setTab('appointments')}>
+                  <CalendarPlus size={14} /><span>Appointments</span><strong>{appointmentRows} active</strong>
+                </button>
+              </ConsolePanel>
+            )}
+
+            {sectionPrefs.announcements && (
+              <ConsolePanel title="Broadcast Feed" eyebrow="Store announcements">
+                {activeAnnouncements.length === 0 ? (
+                  <div className="px-3 py-5 text-center text-xs text-[var(--text-tertiary)]">No active messages.</div>
+                ) : activeAnnouncements.slice(0, 4).map((announcement) => (
+                  <div key={announcement.id} className="console-feed-row border-b border-[var(--border)] px-3 py-2 last:border-b-0">
+                    <div className="text-xs text-[var(--text)]">{announcement.text}</div>
+                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--text-tertiary)]">{announcement.priority}</div>
+                  </div>
+                ))}
+              </ConsolePanel>
+            )}
+          </main>
+
+          <aside className="min-w-0 space-y-2">
+            <ConsolePanel title="Operations" eyebrow="Current shift">
+              <div className="console-status-row"><span>Floor staff</span><strong>{todayShifts.length}</strong></div>
+              <div className="console-status-row"><span>Checklist</span><strong>{hasTasks ? `${doneTasks}/${tasks.length}` : '—'}</strong></div>
+              <div className="console-status-row"><span>Appointments</span><strong>{appointmentRows}</strong></div>
+              <div className="console-status-row"><span>Announcements</span><strong>{activeAnnouncements.length}</strong></div>
+            </ConsolePanel>
+
+            {sectionPrefs.coverage && (
+              <ConsolePanel title="Floor Coverage" eyebrow="Today" action={<button className="console-text-action" onClick={() => setTab('schedule')}>Schedule →</button>}>
+                {todayShifts.length === 0 ? (
+                  <div className="px-3 py-5 text-center text-xs text-[var(--text-tertiary)]">No coverage scheduled.</div>
+                ) : todayShifts.map((shift) => (
+                  <div key={shift.id} className="console-coverage-row grid grid-cols-[4px_minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--border)] px-3 py-2 last:border-b-0">
+                    <span className="h-7 rounded-full" style={{ background: shift.employee.color }} />
+                    <div className="min-w-0">
+                      <div className="truncate text-xs font-medium text-[var(--text)]">{shift.employee.name}</div>
+                      <div className="text-[10px] text-[var(--text-tertiary)]">{shift.type || 'Shift'}</div>
+                    </div>
+                    <div className="text-[10px] tabular-nums text-[var(--text-secondary)]">{formatTime(shift.startTime)}–{formatTime(shift.endTime)}</div>
+                  </div>
+                ))}
+              </ConsolePanel>
+            )}
+
+            {sectionPrefs.checklist && (
+              <ConsolePanel title="Checklist" eyebrow="Compliance" action={<button className="console-text-action" onClick={() => setTab('tasks')}>Open →</button>}>
+                <div className="px-3 py-3">
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <div className="text-2xl font-semibold tabular-nums text-[var(--text)]">{hasTasks ? `${taskPct}%` : '—'}</div>
+                      <div className="text-[10px] text-[var(--text-tertiary)]">{hasTasks ? `${doneTasks} of ${tasks.length} verified` : 'No active checklist'}</div>
+                    </div>
+                    <CheckCircle2 size={22} className={hasTasks && taskPct === 100 ? 'text-emerald-400' : 'text-[var(--text-tertiary)]'} />
+                  </div>
+                  <div className="mt-3 h-1 overflow-hidden bg-[var(--surface-3)]">
+                    <div className="h-full bg-[var(--accent)]" style={{ width: hasTasks ? `${taskPct}%` : '0%' }} />
+                  </div>
+                </div>
+              </ConsolePanel>
+            )}
+
+            {sectionPrefs.connectivity && (
+              <ConsolePanel title="Systems" eyebrow="Connectivity">
+                <div className="console-system-row">
+                  <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full" style={{ background: googleTone }} />Google Performance</span>
+                  <strong>{googleStatus}</strong>
+                </div>
+                <div className="console-system-row">
+                  <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full" style={{ background: supabaseTone }} />Supabase Core</span>
+                  <strong>{supabaseStatus}</strong>
+                </div>
+                <div className="border-t border-[var(--border)] px-3 py-2 text-[10px] text-[var(--text-tertiary)]">Last core sync {formatUpdatedAt(supabaseUpdatedAt)}</div>
+              </ConsolePanel>
+            )}
+          </aside>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="today-page page-frame page-frame-wide space-y-6 pb-12">
