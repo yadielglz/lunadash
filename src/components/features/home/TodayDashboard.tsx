@@ -504,7 +504,7 @@ export function TodayDashboard() {
 
   const resetSections = () => setSectionPrefs({ ...DEFAULT_DASHBOARD_PREFS })
 
-  if (theme === 'console') {
+  if (theme === 'console' || theme === 'console-light') {
     const openTasks = Math.max(tasks.length - doneTasks, 0)
     const storeTitle = isMain ? 'District Operations Center' : storeProfile?.location || `Store ${storeId}`
     const hasPerformanceActivity = Boolean(performanceRow && (
