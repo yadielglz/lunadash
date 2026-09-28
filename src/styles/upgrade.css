@@ -2792,3 +2792,339 @@ body {
     padding: 8px 4px !important;
   }
 }
+
+
+/* Luna Console — structural workspace refinements */
+.console .console-today {
+  width: 100%;
+  min-height: 100%;
+  padding: 10px !important;
+  background: var(--bg);
+}
+
+.console .console-page-header,
+.console .console-panel,
+.console .console-layout-editor,
+.console .console-kpi-strip {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.console .console-panel-header {
+  min-height: 2.65rem;
+  background: #0d161d;
+}
+
+.console .console-eyebrow {
+  line-height: 1.2;
+}
+
+.console .console-chip {
+  display: inline-flex;
+  min-height: 1.65rem;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface-2);
+  padding: 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.console .console-brief-line {
+  min-height: 2.35rem;
+}
+
+.console .console-kpi-strip {
+  background: var(--surface);
+}
+
+.console .console-kpi {
+  min-height: 5.2rem;
+}
+
+.console .console-kpi:nth-child(4n) {
+  border-right: 0;
+}
+
+.console .console-table-head,
+.console .console-metric-row {
+  min-height: 2.35rem;
+}
+
+.console .console-list-row,
+.console .console-action-row,
+.console .console-status-row,
+.console .console-system-row,
+.console .console-coverage-row,
+.console .console-feed-row {
+  transition: background-color 120ms ease;
+}
+
+.console .console-list-row:hover,
+.console .console-action-row:hover {
+  background: rgba(21, 155, 215, 0.055);
+}
+
+.console .console-action-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1.1rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 0.75rem;
+  color: var(--text-secondary);
+  text-align: left;
+  font-size: 0.75rem;
+}
+
+.console .console-action-row:last-child {
+  border-bottom: 0;
+}
+
+.console .console-action-row svg {
+  color: var(--accent);
+}
+
+.console .console-action-row strong,
+.console .console-status-row strong,
+.console .console-system-row strong {
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.console .console-status-row,
+.console .console-system-row {
+  display: flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.console .console-system-row:last-of-type,
+.console .console-status-row:last-child {
+  border-bottom: 0;
+}
+
+.console .console-text-action {
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
+.console .console-text-action:hover {
+  color: #55c8f4;
+}
+
+.console .console-module-toggle {
+  border-color: var(--border);
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--text-tertiary);
+}
+
+.console .console-module-toggle.is-enabled {
+  border-color: rgba(21, 155, 215, 0.42);
+  background: rgba(21, 155, 215, 0.10);
+  color: var(--text);
+}
+
+/* Shared modules become flat console workspaces. */
+.console .module-responsive-header {
+  margin-bottom: 0 !important;
+  border-width: 0 0 1px !important;
+  border-radius: 0 !important;
+  background: var(--surface) !important;
+  padding: 0.85rem 1rem !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.console .module-responsive-header-inner {
+  gap: 0.75rem !important;
+}
+
+.console .module-responsive-icon {
+  width: 2.1rem !important;
+  height: 2.1rem !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 4px !important;
+  background: var(--surface-2) !important;
+  box-shadow: none !important;
+}
+
+.console .module-responsive-title {
+  font-size: 1.15rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.025em !important;
+}
+
+.console .module-responsive-description {
+  margin-top: 0.15rem !important;
+  font-size: 0.72rem !important;
+}
+
+.console .module-responsive-eyebrow {
+  font-size: 0.6rem !important;
+  letter-spacing: 0.12em !important;
+}
+
+.console .performance-content,
+.console .operations-content,
+.console .tool-content,
+.console .settings-content {
+  background: var(--bg);
+}
+
+.console .operations-page,
+.console .performance-suite,
+.console .tool-suite,
+.console .settings-admin-page {
+  background: var(--bg) !important;
+}
+
+/* District becomes a command board instead of a card wall. */
+.console .district-board {
+  gap: 8px !important;
+}
+
+.console .district-view-toolbar {
+  border-radius: 4px !important;
+  background: var(--surface) !important;
+  padding: 0.55rem 0.65rem !important;
+  box-shadow: none !important;
+}
+
+.console .district-view-toolbar::before,
+.console .district-store-card::before {
+  display: none !important;
+}
+
+.console .district-view-switcher button,
+.console .performance-filter-bar button {
+  border-radius: 3px !important;
+}
+
+.console .district-store-card {
+  border-radius: 3px !important;
+  background: var(--surface) !important;
+  padding: 0.7rem 0.8rem !important;
+  box-shadow: none !important;
+}
+
+.console .district-store-card:hover {
+  background: var(--surface-2) !important;
+}
+
+.console .district-store-card.is-current-store {
+  border-color: rgba(21, 155, 215, 0.48) !important;
+  background: rgba(21, 155, 215, 0.075) !important;
+}
+
+/* Generic cards, dialogs, and detail panes flatten only in Console. */
+.console [class*="shadow-[var(--shadow-card)]"],
+.console [class*="shadow-[var(--shadow-float)]"],
+.console [class*="shadow-[var(--shadow-modal)]"] {
+  box-shadow: none !important;
+}
+
+.console .dual-pane-detail,
+.console .report-setup,
+.console .employee-selector,
+.console .appointment-sidebar {
+  background: var(--surface) !important;
+}
+
+.console .dual-pane-detail {
+  border-left-color: var(--border-strong) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.console .store-detail-drawer,
+.console .ios-modal-panel {
+  border-radius: 0 !important;
+  background: var(--surface-solid) !important;
+}
+
+.console .settings-row {
+  min-height: 3.6rem;
+  border-radius: 4px !important;
+  background: var(--surface) !important;
+}
+
+.console .settings-segment,
+.console .settings-segment button {
+  border-radius: 3px !important;
+}
+
+.console button,
+.console a,
+.console input,
+.console select,
+.console textarea {
+  transition-duration: 120ms !important;
+}
+
+.console button:focus-visible,
+.console a:focus-visible,
+.console input:focus-visible,
+.console select:focus-visible,
+.console textarea:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 1279px) {
+  .console .console-kpi:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .console .console-kpi:nth-child(-n+2) {
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 767px) {
+  .console .console-today {
+    padding: 5px 5px 4.15rem !important;
+  }
+
+  .console .console-page-header > div:first-child {
+    padding: 0.65rem 0.7rem !important;
+  }
+
+  .console .console-kpi {
+    min-height: 4.6rem;
+    padding: 0.6rem 0.7rem !important;
+  }
+
+  .console .console-workspace {
+    display: block;
+  }
+
+  .console .console-workspace > main,
+  .console .console-workspace > aside {
+    display: grid;
+    gap: 6px;
+  }
+
+  .console .console-workspace > aside {
+    margin-top: 6px;
+  }
+
+  .console .module-responsive-header {
+    padding: 0.65rem 0.75rem !important;
+  }
+}
