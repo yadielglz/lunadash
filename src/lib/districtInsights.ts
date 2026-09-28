@@ -43,8 +43,17 @@ export function findPerformanceRow(data: PerformanceData | undefined | null, ide
   return data.rows.find((row) => candidates.has(normalizeStoreId(row.storeCode).replace(/\D/g, ''))) ?? null
 }
 
+function hasDistrictActivity(data: PerformanceData | undefined | null) {
+  return Boolean(data?.rows.some((row) => (
+    row.netRevenue > 0
+    || row.accessoryRevenue > 0
+    || row.totalPp > 0
+    || row.traffic > 0
+  )))
+}
+
 export function districtWins(data: PerformanceData | undefined | null): DistrictWin[] {
-  if (!data?.rows.length) return []
+  if (!data?.rows.length || !hasDistrictActivity(data)) return []
 
   const ranked = rankPerformanceRows(data.rows)
   const top = ranked[0]?.row
@@ -116,6 +125,15 @@ export function smartDailyBrief({
         `${shiftCount} shifts are scheduled and ${openTaskCount} checklist items are open.`,
       ],
       focusLabel: 'Mapping',
+      focusValue: 0,
+    }
+  }
+
+  if (!hasDistrictActivity(data)) {
+    return {
+      headline: 'No Activity Yet',
+      lines: [],
+      focusLabel: '',
       focusValue: 0,
     }
   }
