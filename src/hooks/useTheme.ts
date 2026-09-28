@@ -7,7 +7,7 @@ export function useTheme() {
   const { theme, toggleTheme, setTheme } = useUiStore()
 
   useEffect(() => {
-    document.documentElement.className = theme
+    document.documentElement.className = theme === 'console-light' ? 'console console-light' : theme
   }, [theme])
 
   useEffect(() => {
