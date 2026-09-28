@@ -27,7 +27,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={cn(
-              'w-full rounded-xl border bg-[var(--input-bg)] text-[var(--text)] placeholder:text-[var(--text-tertiary)]',
+              'ui-input w-full rounded-xl border bg-[var(--input-bg)] text-[var(--text)] placeholder:text-[var(--text-tertiary)]',
               'text-sm px-4 py-2.5 h-10.5 transition-all duration-200',
               'border-[var(--border)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/25 focus:bg-[var(--surface-solid)]',
               'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -68,7 +68,7 @@ export function Select({ label, error, children, className, ...rest }: SelectPro
       )}
       <select
         className={cn(
-          'w-full rounded-xl border bg-[var(--input-bg)] text-[var(--text)]',
+          'ui-select w-full rounded-xl border bg-[var(--input-bg)] text-[var(--text)]',
           'text-sm px-4 py-2.5 h-10.5 transition-all duration-200 cursor-pointer',
           'border-[var(--border)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/25',
           '[&>option]:bg-[var(--surface-solid)] [&>option]:text-[var(--text)]',
@@ -101,7 +101,7 @@ export function Textarea({ label, error, className, rows = 3, ...rest }: Textare
       <textarea
         rows={rows}
         className={cn(
-          'w-full rounded-xl border bg-[var(--input-bg)] text-[var(--text)] placeholder:text-[var(--text-tertiary)]',
+          'ui-textarea w-full rounded-xl border bg-[var(--input-bg)] text-[var(--text)] placeholder:text-[var(--text-tertiary)]',
           'text-sm px-4 py-3 transition-all duration-200',
           'border-[var(--border)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/25 focus:bg-[var(--surface-solid)]',
           'resize-none',
