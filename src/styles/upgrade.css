@@ -3623,3 +3623,60 @@ body {
     height: 3.5rem !important;
   }
 }
+
+
+/* Luna Console — viewport-fluid module workspaces
+   Console modules should use the available application viewport rather than
+   sitting inside centered desktop max-width containers. */
+.console .district-performance-page .performance-content > div,
+.console .goals-performance-page .performance-content > div,
+.console .commission-performance-page .performance-content > div,
+.console .performance-update-page .performance-content > div,
+.console .appointments-page .operations-content > div,
+.console .employee-workspace > div,
+.console .reports-performance-page .report-preview > div,
+.console .tool-suite .tool-content > div,
+.console .settings-admin-page .settings-content > div {
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+}
+
+.console .appointments-page .operations-content > .mx-auto,
+.console .performance-update-page .performance-content > .mx-auto,
+.console .protect-tool-page .tool-content > .mx-auto,
+.console .tool-suite .tool-content > .mx-auto,
+.console .reports-performance-page .report-preview > .mx-auto {
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+}
+
+/* Preserve compact empty/error states and dialog content; only primary
+   module workspaces expand. */
+.console .module-empty-state,
+.console [role="dialog"],
+.console .capture-preview-dialog,
+.console .command-menu-panel {
+  width: auto;
+}
+
+/* Let wide metric grids consume extra desktop space instead of leaving
+   large gutters on ultrawide and 1440p+ displays. */
+@media (min-width: 1280px) {
+  .console .goals-performance-page .performance-content,
+  .console .district-performance-page .performance-content,
+  .console .commission-performance-page .performance-content,
+  .console .performance-update-page .performance-content,
+  .console .appointments-page .operations-content,
+  .console .tool-suite .tool-content,
+  .console .reports-performance-page .performance-content {
+    padding-inline: clamp(0.65rem, 1vw, 1rem) !important;
+  }
+
+  .console .goals-performance-page .performance-content > div,
+  .console .district-performance-page .performance-content > div,
+  .console .commission-performance-page .performance-content > div {
+    max-width: none !important;
+  }
+}
