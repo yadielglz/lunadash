@@ -2422,25 +2422,40 @@ body {
     padding-left: max(0.75rem, var(--safe-area-left)) !important;
   }
 
-  .store-detail-drawer {
-    top: 0 !important;
-    height: 100% !important;
+  .store-detail-layer {
+    bottom: auto;
+    height: 100dvh;
   }
 
-  .store-detail-header {
-    min-height: 4rem;
-    padding-right: max(0.75rem, var(--safe-area-right)) !important;
-    padding-left: max(0.75rem, var(--safe-area-left)) !important;
+  .store-detail-drawer {
+    top: var(--safe-area-top);
+    height: calc(100% - var(--safe-area-top));
+  }
+
+  .store-detail-header,
+  .store-detail-drawer-scrolled .store-detail-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 0;
+    padding: 0.5rem max(0.75rem, var(--safe-area-right)) 0.5rem max(0.75rem, var(--safe-area-left)) !important;
+  }
+
+  .store-detail-header-actions {
+    width: 100%;
+  }
+
+  .store-detail-header-actions button:last-child {
+    margin-left: auto;
   }
 
   .store-detail-content {
     padding-bottom: max(1rem, var(--safe-area-bottom)) !important;
   }
 
-  .store-detail-drawer-scrolled .store-detail-header {
-    padding-top: max(0.5rem, var(--safe-area-top)) !important;
-    padding-right: max(0.75rem, var(--safe-area-right)) !important;
-    padding-left: max(0.75rem, var(--safe-area-left)) !important;
+  .store-detail-layer .capture-preview-dialog {
+    padding-top: max(1rem, var(--safe-area-top));
+    padding-bottom: max(1rem, var(--safe-area-bottom));
   }
 }
 
