@@ -1885,8 +1885,8 @@ h6 {
 @media (max-width: 767px) {
   .app-top-bar {
     height: auto !important;
-    min-height: calc(3.75rem + max(var(--safe-area-top), 0px));
-    padding-top: max(0.45rem, var(--safe-area-top));
+    min-height: calc(3.75rem + var(--safe-area-top));
+    padding-top: calc(0.45rem + var(--safe-area-top));
     padding-bottom: 0.45rem;
   }
 
@@ -3483,6 +3483,19 @@ body {
 
 .console .app-top-bar {
   min-height: 3.15rem;
+}
+
+@media (max-width: 767px) {
+  .console .app-top-bar {
+    min-height: calc(3.15rem + var(--safe-area-top));
+  }
+}
+
+@media (max-width: 767px) and (display-mode: standalone) {
+  .app-top-bar {
+    /* Give the standalone status bar's translucent edge room above the controls. */
+    padding-top: calc(0.45rem + var(--safe-area-top) + min(1rem, var(--safe-area-top)));
+  }
 }
 
 .console .command-icon-button,
