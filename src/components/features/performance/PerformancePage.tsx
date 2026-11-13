@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { toPng } from 'html-to-image'
 import { AlertCircle, ArrowDown, ArrowUp, BarChart3, Camera, CheckCircle2, ChevronRight, Clock, Columns3, Copy, Filter, LocateFixed, MessageSquarePlus, Package, Pin, RefreshCw, RotateCcw, Search, Trash2, X } from 'lucide-react'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Input, Textarea } from '../../ui/Input'
+import { Modal } from '../../ui/Modal'
 import { InlineNotice, ModuleHeader } from '../../ui/ModulePrimitives'
 import { useUiStore } from '../../../store/uiStore'
 import { useDistrictCoachingStore } from '../../../store/districtCoachingStore'
@@ -18,7 +20,7 @@ import {
   PerformanceRow,
 } from '../../../lib/performanceSheet'
 import { dealerInfoForRow } from '../../../lib/dealers'
-import { copyDistrictEodToClipboard, copyEodToClipboard } from '../../../lib/eodCopy'
+import { copyDistrictEodToClipboard, copyEodToClipboard, districtEodCopyContent } from '../../../lib/eodCopy'
 import { fetchDashboardPerformanceData } from '../../../lib/dashboardSales'
 import { CAPTURE_METRIC_LABELS, type CaptureMetric, useEodSettingsStore } from '../../../store/eodSettingsStore'
 
@@ -57,6 +59,7 @@ const COLUMN_STORAGE_KEY = 'lunadash-performance-columns'
 const RANK_SNAPSHOT_KEY = 'lunadash-performance-rank-snapshot'
 const PINNED_METRICS_KEY = 'lunadash-performance-pinned-metrics'
 const STORE_NUMBERS_CAPTURE_SIZE = 720
+const DISTRICT_CAPTURE_FILENAME = 'district-outlook.png'
 const DEFAULT_COLUMNS: Record<OptionalColumn, boolean> = {
   traffic: true,
   postConv: true,
@@ -1009,6 +1012,9 @@ export function PerformancePage() {
   const [previousRanks, setPreviousRanks] = useState(() => readStoredRankSnapshot())
   const [selectedStore, setSelectedStore] = useState<RankedRow | null>(null)
   const [districtCapturing, setDistrictCapturing] = useState(false)
+  const [districtImage, setDistrictImage] = useState<{ dataUrl: string; file: File } | null>(null)
+  const [districtImageError, setDistrictImageError] = useState('')
+  const [districtCopyPreview, setDistrictCopyPreview] = useState('')
   const [districtCopyState, setDistrictCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const districtCaptureRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef<Record<string, HTMLElement | null>>({})
@@ -1235,6 +1241,7 @@ export function PerformancePage() {
       setDistrictCopyState('copied')
     } catch {
       setDistrictCopyState('error')
+      setDistrictCopyPreview(districtEodCopyContent(total, copyFormat).plainText)
     } finally {
       window.setTimeout(() => setDistrictCopyState('idle'), 1800)
     }
@@ -1244,6 +1251,7 @@ export function PerformancePage() {
     const captureNode = districtCaptureRef.current
     if (!captureNode || !total || districtCapturing) return
     setDistrictCapturing(true)
+    setDistrictImageError('')
     const previousCaptureStyle = captureNode.getAttribute('style')
     try {
       Object.assign(captureNode.style, {
@@ -1269,23 +1277,47 @@ export function PerformancePage() {
       })
       const response = await fetch(dataUrl)
       const blob = await response.blob()
-      const file = new File([blob], 'district-outlook.png', { type: 'image/png' })
+      const file = new File([blob], DISTRICT_CAPTURE_FILENAME, { type: 'image/png' })
+      if (isMobileDevice()) {
+        setDistrictImage({ dataUrl, file })
+        return
+      }
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'District Outlook',
-          text: `District Outlook refreshed ${updated || 'just now'}`,
-        })
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'District Outlook',
+            text: `District Outlook refreshed ${updated || 'just now'}`,
+          })
+        } catch (error) {
+          if (!(error instanceof Error && error.name === 'AbortError')) {
+            setDistrictImage({ dataUrl, file })
+          }
+        }
         return
       }
       const link = document.createElement('a')
       link.href = dataUrl
-      link.download = 'district-outlook.png'
+      link.download = DISTRICT_CAPTURE_FILENAME
       link.click()
+    } catch {
+      setDistrictImageError('Could not create the district image. Try again.')
     } finally {
       if (previousCaptureStyle === null) captureNode.removeAttribute('style')
       else captureNode.setAttribute('style', previousCaptureStyle)
       setDistrictCapturing(false)
+    }
+  }
+
+  const shareDistrictImage = async () => {
+    if (!districtImage || !navigator.share) return
+    setDistrictImageError('')
+    try {
+      await navigator.share({ files: [districtImage.file], title: 'District Outlook' })
+    } catch (error) {
+      if (!(error instanceof Error && error.name === 'AbortError')) {
+        setDistrictImageError('Could not share the image. Use Download or press and hold the image to copy it.')
+      }
     }
   }
 
@@ -1313,11 +1345,13 @@ export function PerformancePage() {
         icon={<BarChart3 size={18} />}
         eyebrow="District intelligence"
         title="District Outlook"
+        persistActionsOnCollapse
+        className={mobileSearchOpen ? 'district-header-search-open' : undefined}
         description="Compare Google source metrics with published LunaDash sales across the district."
         meta={<span>{updated ? `Refreshed ${updated}` : 'Awaiting refresh'} · Updates every 60 seconds</span>}
         actions={
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="hidden min-w-0 sm:relative sm:block sm:w-64">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <div className="hidden min-w-0 md:relative md:block md:w-64">
               <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
               <Input
                 className="pl-8"
@@ -1326,7 +1360,7 @@ export function PerformancePage() {
                 placeholder="Search stores"
               />
             </div>
-            <div className="flex items-center gap-2 sm:hidden">
+            <div className="flex items-center gap-2 md:hidden">
               <button
                 type="button"
                 aria-label="Copy district EOD"
@@ -1339,13 +1373,13 @@ export function PerformancePage() {
               </button>
               <button
                 type="button"
-                aria-label="Capture district outlook"
-                title="Capture district outlook"
+                aria-label="District Outlook image"
+                title="District Outlook image"
                 onClick={captureDistrict}
                 disabled={!total || districtCapturing}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] disabled:opacity-40"
               >
-                <Camera size={16} />
+                <Camera size={16} className={districtCapturing ? 'animate-pulse' : ''} />
               </button>
               <button
                 type="button"
@@ -1369,7 +1403,7 @@ export function PerformancePage() {
               </button>
             </div>
             <Button
-              className="hidden sm:inline-flex"
+              className="hidden md:inline-flex"
               size="sm"
               variant="ghost"
               icon={districtCopyState === 'copied' ? <CheckCircle2 size={13} /> : districtCopyState === 'error' ? <AlertCircle size={13} /> : <Copy size={13} />}
@@ -1379,7 +1413,7 @@ export function PerformancePage() {
               {districtCopyState === 'copied' ? 'Copied' : districtCopyState === 'error' ? 'Copy failed' : 'EOD Copy'}
             </Button>
             <Button
-              className="hidden sm:inline-flex"
+              className="hidden md:inline-flex"
               size="sm"
               variant="ghost"
               icon={<Camera size={13} />}
@@ -1387,16 +1421,16 @@ export function PerformancePage() {
               loading={districtCapturing}
               disabled={!total}
             >
-              Capture
+              Image
             </Button>
-            <Button className="hidden sm:inline-flex" size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={() => loadData()} loading={loading}>
+            <Button className="hidden md:inline-flex" size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={() => loadData()} loading={loading}>
               Refresh
             </Button>
           </div>
         }
       >
         {mobileSearchOpen && (
-          <div className="relative sm:hidden">
+          <div className="relative md:hidden">
             <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
             <Input
               ref={mobileSearchRef}
@@ -1422,7 +1456,10 @@ export function PerformancePage() {
         )}
       </ModuleHeader>
 
-      <div className="performance-content flex-1 overflow-y-auto p-4">
+      {districtImageError && !districtImage && (
+        <InlineNotice tone="danger" title="District Outlook image">{districtImageError}</InlineNotice>
+      )}
+      <div className="performance-content min-h-0 flex-1 overflow-y-auto p-4">
         {error && (
           <InlineNotice className="mb-4" tone="danger" title="Performance Source could not load">
             {error} Confirm Google Cloud Services are reachable and that this device or an ad blocker is not blocking the data source.
@@ -1917,6 +1954,45 @@ export function PerformancePage() {
           </div>
         )}
       </div>
+      {createPortal(
+        <>
+          <Modal
+            open={Boolean(districtCopyPreview)}
+            title="Copy district EOD"
+            subtitle="Select and copy the report below."
+            onClose={() => setDistrictCopyPreview('')}
+          >
+            <Textarea aria-label="District EOD report" readOnly value={districtCopyPreview} rows={10} className="text-[16px]" />
+          </Modal>
+          <Modal
+            open={Boolean(districtImage)}
+            title="District Outlook image"
+            subtitle="Press and hold the image to copy it."
+            size="lg"
+            contentClassName="min-h-0 overscroll-contain p-4"
+            onClose={() => {
+              setDistrictImage(null)
+              setDistrictImageError('')
+            }}
+          >
+            {districtImage && (
+              <>
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  {typeof navigator.share === 'function' && navigator.canShare?.({ files: [districtImage.file] }) && (
+                    <Button size="sm" onClick={shareDistrictImage}>Share image</Button>
+                  )}
+                  <a className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-[var(--accent)]" href={districtImage.dataUrl} download={DISTRICT_CAPTURE_FILENAME}>
+                    Download PNG
+                  </a>
+                </div>
+                {districtImageError && <p role="alert" className="mb-3 text-sm text-[var(--text-secondary)]">{districtImageError}</p>}
+                <img className="mx-auto block h-auto max-w-full rounded-lg" src={districtImage.dataUrl} alt="District Outlook report" />
+              </>
+            )}
+          </Modal>
+        </>,
+        document.body,
+      )}
       <StoreDetailDrawer row={selectedStore} updated={updated} districtAverage={districtAverage} onClose={() => setSelectedStore(null)} />
     </div>
   )

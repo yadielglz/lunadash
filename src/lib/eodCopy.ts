@@ -91,17 +91,23 @@ export function districtEodCopyContent(row: PerformanceRow, format: EodCopyForma
 }
 
 async function writeClipboardContent(plainText: string, html: string) {
-  if (navigator.clipboard.write && typeof ClipboardItem !== 'undefined') {
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        'text/html': new Blob([html], { type: 'text/html' }),
-        'text/plain': new Blob([plainText], { type: 'text/plain' }),
-      }),
-    ])
-    return
+  const clipboard = navigator.clipboard
+  if (!clipboard) throw new Error('Clipboard unavailable')
+  if (clipboard.write && typeof ClipboardItem !== 'undefined') {
+    try {
+      await clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([plainText], { type: 'text/plain' }),
+        }),
+      ])
+      return
+    } catch (error) {
+      if (!clipboard.writeText) throw error
+    }
   }
 
-  await navigator.clipboard.writeText(plainText)
+  await clipboard.writeText(plainText)
 }
 
 export async function copyDistrictEodToClipboard(row: PerformanceRow, format: EodCopyFormat = 'detailed') {
