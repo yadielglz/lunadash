@@ -20,7 +20,7 @@ import {
   PerformanceRow,
 } from '../../../lib/performanceSheet'
 import { dealerInfoForRow } from '../../../lib/dealers'
-import { copyDistrictEodToClipboard, copyEodToClipboard, districtEodCopyContent } from '../../../lib/eodCopy'
+import { copyDistrictEodToClipboard, copyEodToClipboard, districtEodCopyContent, eodCopyContent } from '../../../lib/eodCopy'
 import { fetchDashboardPerformanceData } from '../../../lib/dashboardSales'
 import { CAPTURE_METRIC_LABELS, type CaptureMetric, useEodSettingsStore } from '../../../store/eodSettingsStore'
 
@@ -620,7 +620,9 @@ function StoreDetailDrawer({
   const captureRef = useRef<HTMLDivElement | null>(null)
   const copyFormat = useEodSettingsStore((state) => state.copyFormat)
   const [capturing, setCapturing] = useState(false)
-  const [capturePreview, setCapturePreview] = useState('')
+  const [capturePreview, setCapturePreview] = useState<{ dataUrl: string; file: File } | null>(null)
+  const [captureError, setCaptureError] = useState('')
+  const [copyPreview, setCopyPreview] = useState('')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const [drawerScrolled, setDrawerScrolled] = useState(false)
   const [capturePreviewScrolled, setCapturePreviewScrolled] = useState(false)
@@ -649,6 +651,9 @@ function StoreDetailDrawer({
   useEffect(() => {
     setDrawerScrolled(false)
     setCapturePreviewScrolled(false)
+    setCapturePreview(null)
+    setCaptureError('')
+    setCopyPreview('')
   }, [row?.store])
 
   const saveNote = () => {
@@ -665,6 +670,7 @@ function StoreDetailDrawer({
       setCopyState('copied')
     } catch {
       setCopyState('error')
+      setCopyPreview(eodCopyContent(row, copyFormat).plainText)
     } finally {
       window.setTimeout(() => setCopyState('idle'), 1800)
     }
@@ -673,6 +679,7 @@ function StoreDetailDrawer({
   const handleCapture = async () => {
     if (!captureRef.current || !row || capturing) return
     setCapturing(true)
+    setCaptureError('')
     const captureNode = captureRef.current
     const previousCaptureStyle = captureNode.getAttribute('style')
     try {
@@ -690,56 +697,37 @@ function StoreDetailDrawer({
       })
 
       const fileName = `${row.storeCode}-${captureTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
-      const capturedImage = (async () => {
-        await new Promise((resolve) => window.requestAnimationFrame(resolve))
-        await new Promise((resolve) => window.requestAnimationFrame(resolve))
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
+      await new Promise((resolve) => window.requestAnimationFrame(resolve))
 
-        const dataUrl = await toPng(captureNode, {
-          cacheBust: true,
-          filter: (node) => !(node instanceof HTMLElement && node.dataset.captureExclude === 'true'),
-          height: STORE_NUMBERS_CAPTURE_SIZE,
-          pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
-          width: STORE_NUMBERS_CAPTURE_SIZE,
-          backgroundColor: '#f5f9fc',
-        })
-        const response = await fetch(dataUrl)
-        return { dataUrl, blob: await response.blob() }
-      })()
-
-      const isMobile = isMobileDevice()
-      if (isMobile && navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({
-              'image/png': capturedImage.then(({ blob }) => blob),
-            }),
-          ])
-          return
-        } catch {
-          // Some mobile webviews expose the API but deny image clipboard writes.
-          // Continue to the file-only share sheet or manual-copy preview.
-        }
-      }
-
-      const { dataUrl, blob } = await capturedImage
+      const dataUrl = await toPng(captureNode, {
+        cacheBust: true,
+        height: STORE_NUMBERS_CAPTURE_SIZE,
+        pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
+        width: STORE_NUMBERS_CAPTURE_SIZE,
+        backgroundColor: '#f5f9fc',
+      })
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
       const file = new File([blob], fileName, { type: 'image/png' })
 
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        if (isMobile) {
-          await navigator.share({ files: [file] })
-          return
-        }
-
-        await navigator.share({
-          files: [file],
-          title: captureTitle,
-          text: `${captureTitle} refreshed ${updated || 'just now'}`,
-        })
+      if (isMobileDevice()) {
+        setCapturePreview({ dataUrl, file })
         return
       }
 
-      if (isMobile) {
-        setCapturePreview(dataUrl)
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: captureTitle,
+            text: `${captureTitle} refreshed ${updated || 'just now'}`,
+          })
+        } catch (error) {
+          if (!(error instanceof Error && error.name === 'AbortError')) {
+            setCapturePreview({ dataUrl, file })
+          }
+        }
         return
       }
 
@@ -747,6 +735,8 @@ function StoreDetailDrawer({
       link.href = dataUrl
       link.download = fileName
       link.click()
+    } catch {
+      setCaptureError('Could not create the store image. Try again.')
     } finally {
       if (previousCaptureStyle === null) {
         captureNode.removeAttribute('style')
@@ -757,12 +747,25 @@ function StoreDetailDrawer({
     }
   }
 
-  return (
-    <div className={`fixed inset-0 z-[200] ${row ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+  const shareCapture = async () => {
+    if (!capturePreview) return
+    setCaptureError('')
+    try {
+      await navigator.share({ files: [capturePreview.file] })
+    } catch (error) {
+      if (!(error instanceof Error && error.name === 'AbortError')) {
+        setCaptureError('Could not share the image. Use Download or press and hold the image to copy it.')
+      }
+    }
+  }
+
+  return createPortal(
+    <div className={`store-detail-layer fixed inset-0 z-[190] ${row ? 'pointer-events-auto' : 'pointer-events-none'}`}>
       <button
         aria-label="Close store details"
         className={`absolute inset-0 bg-black/35 transition-opacity ${row ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
+        tabIndex={-1}
       />
       <aside
         className={`store-detail-drawer absolute right-0 flex w-full max-w-[520px] flex-col border-l border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-modal)] transition-transform duration-200 ${drawerScrolled ? 'store-detail-drawer-scrolled' : ''} ${row ? 'translate-x-0' : 'translate-x-full'}`}
@@ -787,24 +790,29 @@ function StoreDetailDrawer({
               </div>
               <div className="store-detail-header-actions flex items-center gap-1" data-capture-exclude="true">
                 <Button
-                  size="icon"
-                  variant="ghost"
+                  size="sm"
+                  variant="secondary"
+                  className="min-h-11 whitespace-nowrap"
+                  icon={copyState === 'copied' ? <CheckCircle2 size={14} /> : <Copy size={14} />}
                   onClick={copyEod}
                   aria-label="Copy EOD"
                   title={copyState === 'copied' ? 'Copied EOD' : copyState === 'error' ? 'Could not copy EOD' : 'Copy EOD'}
                 >
-                  {copyState === 'copied' ? <CheckCircle2 size={16} /> : copyState === 'error' ? <AlertCircle size={16} /> : <Copy size={16} />}
+                  {copyState === 'copied' ? 'Copied' : 'EOD Copy'}
                 </Button>
-                <Button size="icon" variant="ghost" onClick={handleCapture} loading={capturing} aria-label="Capture store numbers">
-                  <Camera size={16} />
+                <Button size="sm" variant="secondary" className="min-h-11" icon={<Camera size={14} />} onClick={handleCapture} loading={capturing} aria-label="Store numbers image">
+                  Image
                 </Button>
                 <Button size="icon" variant="ghost" onClick={onClose} aria-label="Close store details">
                   <X size={16} />
                 </Button>
               </div>
             </div>
+            {captureError && !capturePreview && (
+              <InlineNotice tone="danger" title="Store numbers image">{captureError}</InlineNotice>
+            )}
             <div
-              className="store-detail-content flex-1 space-y-5 overflow-y-auto bg-[var(--surface)] p-5"
+              className="store-detail-content min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain bg-[var(--surface)] p-5"
               data-capture-scroll="true"
               onScroll={(event) => setDrawerScrolled(event.currentTarget.scrollTop > 24)}
             >
@@ -969,27 +977,43 @@ function StoreDetailDrawer({
           </>
         )}
       </aside>
-      {capturePreview && (
+      {row && capturePreview && (
         <div className={`capture-preview-dialog absolute inset-0 z-[300] flex flex-col bg-black/90 p-4 ${capturePreviewScrolled ? 'capture-preview-dialog-scrolled' : ''}`} role="dialog" aria-modal="true" aria-label="Store numbers capture">
           <div className="capture-preview-header mx-auto flex w-full max-w-[720px] items-center justify-between gap-3 pb-3 text-white">
             <div className="capture-preview-header-copy min-w-0">
               <div className="capture-preview-title truncate text-sm font-semibold">Store numbers ready</div>
               <div className="capture-preview-subtitle text-xs text-white/70">Press and hold the image, then choose Copy.</div>
             </div>
-            <Button size="icon" variant="secondary" onClick={() => setCapturePreview('')} aria-label="Close capture preview">
+            <Button size="icon" variant="secondary" onClick={() => {
+              setCapturePreview(null)
+              setCaptureError('')
+            }} aria-label="Close capture preview">
               <X size={16} />
             </Button>
           </div>
-          <div className="capture-preview-content min-h-0 flex-1 overflow-auto" onScroll={(event) => setCapturePreviewScrolled(event.currentTarget.scrollTop > 24)}>
+          <div className="capture-preview-content min-h-0 flex-1 overflow-auto overscroll-contain" onScroll={(event) => setCapturePreviewScrolled(event.currentTarget.scrollTop > 24)}>
+            <div className="mx-auto mb-3 flex max-w-[720px] flex-wrap items-center gap-3 text-white">
+              {typeof navigator.share === 'function' && navigator.canShare?.({ files: [capturePreview.file] }) && (
+                <Button size="sm" onClick={shareCapture}>Share image</Button>
+              )}
+              <a className="inline-flex min-h-11 items-center px-2 text-sm font-semibold" href={capturePreview.dataUrl} download={capturePreview.file.name}>
+                Download PNG
+              </a>
+            </div>
+            {captureError && <p role="alert" className="mb-3 text-center text-sm text-white">{captureError}</p>}
             <img
-              src={capturePreview}
+              src={capturePreview.dataUrl}
               alt={`${captureTitle} capture`}
               className="mx-auto block h-auto max-w-full rounded-lg"
             />
           </div>
         </div>
       )}
-    </div>
+      <Modal open={Boolean(row && copyPreview)} title="Copy store EOD" subtitle="Select and copy the report below." onClose={() => setCopyPreview('')}>
+        <Textarea aria-label="Store EOD report" readOnly value={copyPreview} rows={10} className="text-[16px]" />
+      </Modal>
+    </div>,
+    document.body,
   )
 }
 
@@ -1993,7 +2017,7 @@ export function PerformancePage() {
         </>,
         document.body,
       )}
-      <StoreDetailDrawer row={selectedStore} updated={updated} districtAverage={districtAverage} onClose={() => setSelectedStore(null)} />
+      {selectedStore && <StoreDetailDrawer row={selectedStore} updated={updated} districtAverage={districtAverage} onClose={() => setSelectedStore(null)} />}
     </div>
   )
 }
