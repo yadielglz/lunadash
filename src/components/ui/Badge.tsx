@@ -18,25 +18,25 @@ export function Badge({
   variant = 'soft',
   size = 'md',
   dot = false,
-  className
+  className,
 }: BadgeProps) {
-  const base = 'inline-flex items-center gap-1.5 font-medium rounded-full border transition-colors select-none'
+  const base = 'inline-flex items-center gap-1.5 font-medium rounded-md border transition-colors select-none whitespace-nowrap'
   const sizes = {
-    xs: 'text-[10px] px-2 py-0.5 leading-none',
-    sm: 'text-xs px-2.5 py-0.5 leading-none',
-    md: 'text-xs px-3 py-1 leading-none font-medium',
+    xs: 'text-[11px] px-1.5 py-0.5 leading-tight',
+    sm: 'text-xs px-2 py-0.5 leading-tight',
+    md: 'text-xs px-2.5 py-1 leading-tight',
   }
 
   if (color) {
     const styles: Record<string, React.CSSProperties> = {
-      solid: { background: color, borderColor: color, color: '#fff' },
-      soft: { background: `${color}18`, borderColor: `${color}33`, color: color },
-      outline: { background: 'transparent', borderColor: `${color}66`, color: color },
-      glass: { background: `${color}15`, borderColor: `${color}30`, color: color, backdropFilter: 'blur(8px)' },
+      solid:   { background: color, borderColor: color, color: '#fff' },
+      soft:    { background: `${color}1a`, borderColor: `${color}38`, color },
+      outline: { background: 'transparent', borderColor: `${color}66`, color },
+      glass:   { background: `${color}18`, borderColor: `${color}33`, color },
     }
     return (
       <span className={cn(base, sizes[size], className)} style={styles[variant]}>
-        {dot && <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />}
+        {dot && <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color }} />}
         {children}
       </span>
     )
@@ -45,73 +45,73 @@ export function Badge({
   if (tone) {
     const tones = {
       neutral: {
-        solid: 'bg-zinc-700 border-zinc-600 text-white',
-        soft: 'bg-zinc-500/15 border-zinc-500/25 text-[var(--text-secondary)]',
+        solid:   'bg-[var(--surface-3)] border-[var(--border-strong)] text-[var(--text)]',
+        soft:    'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-secondary)]',
         outline: 'bg-transparent border-[var(--border)] text-[var(--text-secondary)]',
-        glass: 'bg-zinc-500/10 border-zinc-500/20 text-[var(--text-secondary)] backdrop-blur-md',
-        dot: 'bg-zinc-400',
+        glass:   'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-secondary)]',
+        dot:     'bg-[var(--text-tertiary)]',
       },
       info: {
-        solid: 'bg-sky-500 border-sky-500 text-white',
-        soft: 'bg-sky-500/15 border-sky-500/25 text-sky-400',
-        outline: 'bg-transparent border-sky-500/30 text-sky-400',
-        glass: 'bg-sky-500/10 border-sky-500/20 text-sky-400 backdrop-blur-md',
-        dot: 'bg-sky-400',
+        solid:   'bg-[var(--status-info)] border-[var(--status-info)] text-white',
+        soft:    'bg-[var(--status-info-bg)] border-[var(--status-info-border)] text-[var(--status-info-text)]',
+        outline: 'bg-transparent border-[var(--status-info-border)] text-[var(--status-info-text)]',
+        glass:   'bg-[var(--status-info-bg)] border-[var(--status-info-border)] text-[var(--status-info-text)]',
+        dot:     'bg-[var(--status-info)]',
       },
       success: {
-        solid: 'bg-emerald-500 border-emerald-500 text-white',
-        soft: 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400',
-        outline: 'bg-transparent border-emerald-500/30 text-emerald-400',
-        glass: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 backdrop-blur-md',
-        dot: 'bg-emerald-400',
+        solid:   'bg-[var(--status-good)] border-[var(--status-good)] text-white',
+        soft:    'bg-[var(--status-good-bg)] border-[var(--status-good-border)] text-[var(--status-good-text)]',
+        outline: 'bg-transparent border-[var(--status-good-border)] text-[var(--status-good-text)]',
+        glass:   'bg-[var(--status-good-bg)] border-[var(--status-good-border)] text-[var(--status-good-text)]',
+        dot:     'bg-[var(--status-good)]',
       },
       warning: {
-        solid: 'bg-amber-500 border-amber-500 text-white',
-        soft: 'bg-amber-500/15 border-amber-500/25 text-amber-400',
-        outline: 'bg-transparent border-amber-500/30 text-amber-400',
-        glass: 'bg-amber-500/10 border-amber-500/20 text-amber-400 backdrop-blur-md',
-        dot: 'bg-amber-400',
+        solid:   'bg-[var(--status-warn)] border-[var(--status-warn)] text-white',
+        soft:    'bg-[var(--status-warn-bg)] border-[var(--status-warn-border)] text-[var(--status-warn-text)]',
+        outline: 'bg-transparent border-[var(--status-warn-border)] text-[var(--status-warn-text)]',
+        glass:   'bg-[var(--status-warn-bg)] border-[var(--status-warn-border)] text-[var(--status-warn-text)]',
+        dot:     'bg-[var(--status-warn)]',
       },
       danger: {
-        solid: 'bg-rose-500 border-rose-500 text-white',
-        soft: 'bg-rose-500/15 border-rose-500/25 text-rose-400',
-        outline: 'bg-transparent border-rose-500/30 text-rose-400',
-        glass: 'bg-rose-500/10 border-rose-500/20 text-rose-400 backdrop-blur-md',
-        dot: 'bg-rose-400',
+        solid:   'bg-[var(--status-danger)] border-[var(--status-danger)] text-white',
+        soft:    'bg-[var(--status-danger-bg)] border-[var(--status-danger-border)] text-[var(--status-danger-text)]',
+        outline: 'bg-transparent border-[var(--status-danger-border)] text-[var(--status-danger-text)]',
+        glass:   'bg-[var(--status-danger-bg)] border-[var(--status-danger-border)] text-[var(--status-danger-text)]',
+        dot:     'bg-[var(--status-danger)]',
       },
       tmobile: {
-        solid: 'bg-[#E20074] border-[#E20074] text-white',
-        soft: 'bg-[#E20074]/15 border-[#E20074]/25 text-[#E20074]',
-        outline: 'bg-transparent border-[#E20074]/30 text-[#E20074]',
-        glass: 'bg-[#E20074]/10 border-[#E20074]/20 text-[#E20074] backdrop-blur-md',
-        dot: 'bg-[#E20074]',
+        solid:   'bg-[#E20074] border-[#E20074] text-white',
+        soft:    'bg-[#E20074]/12 border-[#E20074]/30 text-[#E20074]',
+        outline: 'bg-transparent border-[#E20074]/35 text-[#E20074]',
+        glass:   'bg-[#E20074]/12 border-[#E20074]/30 text-[#E20074]',
+        dot:     'bg-[#E20074]',
       },
       accent: {
-        solid: 'bg-[var(--accent)] border-[var(--accent)] text-white',
-        soft: 'bg-[var(--accent)]/15 border-[var(--accent)]/25 text-[var(--accent)]',
-        outline: 'bg-transparent border-[var(--accent)]/30 text-[var(--accent)]',
-        glass: 'bg-[var(--accent)]/10 border-[var(--accent)]/20 text-[var(--accent)] backdrop-blur-md',
-        dot: 'bg-[var(--accent)]',
+        solid:   'bg-[var(--accent)] border-[var(--accent)] text-white',
+        soft:    'bg-[var(--accent-light)] border-[var(--accent)]/30 text-[var(--accent)]',
+        outline: 'bg-transparent border-[var(--accent)]/35 text-[var(--accent)]',
+        glass:   'bg-[var(--accent-light)] border-[var(--accent)]/30 text-[var(--accent)]',
+        dot:     'bg-[var(--accent)]',
       },
     }
     return (
       <span className={cn(base, sizes[size], tones[tone][variant], className)}>
-        {dot && <span className={cn('w-1.5 h-1.5 rounded-full', tones[tone].dot)} />}
+        {dot && <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', tones[tone].dot)} />}
         {children}
       </span>
     )
   }
 
   const variants = {
-    solid: 'bg-[var(--accent)] border-[var(--accent)] text-white',
-    soft: 'bg-[var(--accent)]/15 border-[var(--accent)]/25 text-[var(--accent)]',
+    solid:   'bg-[var(--accent)] border-[var(--accent)] text-white',
+    soft:    'bg-[var(--accent-light)] border-[var(--accent)]/30 text-[var(--accent)]',
     outline: 'bg-transparent border-[var(--border-strong)] text-[var(--text-secondary)]',
-    glass: 'bg-[var(--surface-2)]/80 border-[var(--border)] text-[var(--text)] backdrop-blur-md',
+    glass:   'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]',
   }
 
   return (
     <span className={cn(base, sizes[size], variants[variant], className)}>
-      {dot && <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />}
+      {dot && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-[var(--accent)]" />}
       {children}
     </span>
   )

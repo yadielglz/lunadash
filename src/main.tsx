@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@fontsource-variable/inter/index.css'
 import '@fontsource-variable/manrope/index.css'
 import './styles/global.css'
-import './styles/upgrade.css'
 import App from './App.tsx'
 import { registerServiceWorker } from './registerServiceWorker'
 

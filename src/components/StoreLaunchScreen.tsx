@@ -254,43 +254,38 @@ export function StoreLaunchScreen() {
   }
 
   return (
-    <div
-      className="store-launch-screen relative flex h-full w-full items-center justify-center overflow-y-auto bg-[var(--bg)] text-[var(--text)]"
-    >
-      <div className="absolute inset-0" style={{ background: 'var(--bg-gradient)' }} />
-      <div className="absolute inset-0 bg-[var(--wallpaper-overlay)]" />
-
-      <main className="store-launch-panel relative grid w-full max-w-6xl overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-modal)] backdrop-blur-xl lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
-        <section className="launch-hero hidden min-h-[640px] flex-col justify-between border-r border-[var(--border)] bg-[var(--surface-2)] p-8 lg:flex">
+    <div className="relative flex h-full w-full items-center justify-center overflow-y-auto bg-[var(--bg)] p-3 sm:p-6 text-[var(--text)]">
+      <main className="grid w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-modal)] lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+        <section className="hidden min-h-[580px] flex-col justify-between border-r border-[var(--border)] bg-[var(--surface-2)] p-8 lg:flex">
           <div>
-            <div className="flex justify-center pt-6">
-              <LunaWirelessLogo tone="dark-surface" className="h-28 w-72" />
+            <div className="flex justify-center pt-4">
+              <LunaWirelessLogo className="h-24 w-64" />
             </div>
-            <div className="mx-auto mt-10 max-w-xl text-center">
-              <div className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-3)] px-3 py-1.5 text-xs font-semibold uppercase text-[var(--text-secondary)]">
-                <LockKeyhole size={13} />
-                Data Dashboard Access
+            <div className="mx-auto mt-10 max-w-lg text-center">
+              <div className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                <LockKeyhole size={12} />
+                Store Operations Access
               </div>
-              <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-normal text-[var(--text)]">
+              <h1 className="mt-5 text-3xl font-bold leading-tight tracking-tight text-[var(--text)]">
                 {heroTitle}
               </h1>
-              <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-[var(--text-secondary)]">
+              <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
                 {heroSubtitle}
               </p>
             </div>
           </div>
 
-          <div className="launch-stats grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2.5">
             <AccessStat icon={<Tag size={13} />} label="Version" value={APP_META.version} />
-            <AccessStat icon={<Wifi size={13} />} label="Status" value={limitedBrowserContext ? 'LAN dev' : 'Secure Connect'} />
+            <AccessStat icon={<Wifi size={13} />} label="Status" value={limitedBrowserContext ? 'LAN dev' : 'Secure'} />
             <AccessStat icon={<Building2 size={13} />} label="Build" value={APP_META.build} />
           </div>
         </section>
 
-        <section className={`login-card launch-login flex min-h-0 flex-col ${compactLogin ? 'lg:min-h-[560px]' : 'lg:min-h-[640px]'}`}>
+        <section className={`flex min-h-0 flex-col bg-[var(--surface)] ${compactLogin ? 'lg:min-h-[520px]' : 'lg:min-h-[580px]'}`}>
           <div className="border-b border-[var(--border)] px-5 py-5 sm:px-7 lg:hidden">
             <div className="flex justify-center">
-              <LunaWirelessLogo className="h-20 w-56" />
+              <LunaWirelessLogo className="h-16 w-48" />
             </div>
           </div>
 

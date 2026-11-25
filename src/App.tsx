@@ -146,11 +146,6 @@ export default function App() {
     if (activeTab !== 'protect') setProtectUnlocked(false)
   }, [activeTab])
 
-  const { theme } = useUiStore()
-  useEffect(() => {
-    document.documentElement.className = theme
-  }, [theme])
-
   useEffect(() => {
     const media = window.matchMedia('(max-width: 639px)')
     const leaveDisplayOnMobile = () => {

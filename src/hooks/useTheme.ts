@@ -1,21 +1,20 @@
 import { useEffect } from 'react'
-import { type Theme, useUiStore } from '../store/uiStore'
-
-const DARK_THEMES: Theme[] = ['dark', 'carbon', 'graphite', 'aurora', 'rosewood', 'console']
+import { applyThemeToDocument, isDarkTheme, useUiStore } from '../store/uiStore'
 
 export function useTheme() {
-  const { theme, toggleTheme, setTheme } = useUiStore()
+  const theme = useUiStore((s) => s.theme)
+  const uiScale = useUiStore((s) => s.uiScale)
+  const toggleTheme = useUiStore((s) => s.toggleTheme)
+  const setTheme = useUiStore((s) => s.setTheme)
 
   useEffect(() => {
-    document.documentElement.className = theme === 'console-light' ? 'console console-light' : theme
-  }, [theme])
+    applyThemeToDocument(theme, uiScale)
+  }, [theme, uiScale])
 
-  useEffect(() => {
-    const stored = localStorage.getItem('luna-ui')
-    if (stored) return // user has a preference stored
-    setTheme('console')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  return { theme, toggleTheme, isDark: DARK_THEMES.includes(theme) }
+  return {
+    theme,
+    setTheme,
+    toggleTheme,
+    isDark: isDarkTheme(theme),
+  }
 }

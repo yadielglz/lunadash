@@ -28,54 +28,86 @@ import { CAPTURE_METRIC_LABELS, type CaptureMetric, useEodSettingsStore } from '
 import { isInstalledPwa } from '../../../lib/pwa'
 
 function ThemePicker({ value, onChange }: { value: Theme; onChange: (theme: Theme) => void }) {
-  const choices: { value: Theme; label: string; icon: React.ReactNode; preview: string; accents: string[] }[] = [
-    { value: 'console', label: 'Luna Console (Default)', icon: <MonitorCheck size={14} />, preview: 'bg-[linear-gradient(135deg,#080d12,#101820_58%,#159bd7)]', accents: ['#159bd7', '#27a46d'] },
-    { value: 'console-light', label: 'Console Light · Corporate Classic', icon: <MonitorCheck size={14} />, preview: 'bg-[linear-gradient(135deg,#d4d0c8,#f3f3ef_58%,#0a4d9c)]', accents: ['#0a4d9c', '#008080'] },
-    { value: 'dark', label: 'Luna Night', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#071018,#172631_58%,#159bd7)]', accents: ['#159bd7', '#55c8f4'] },
-    { value: 'light', label: 'Luna Daylight', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#ffffff,#eaf1f4_58%,#159bd7)]', accents: ['#159bd7', '#087fb8'] },
-    { value: 'carbon', label: 'Obsidian Carbon', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#0f172a,#1e293b_58%,#38bdf8)]', accents: ['#38bdf8', '#818cf8'] },
-    { value: 'aurora', label: 'Emerald Aurora', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#052e16,#064e3b_58%,#10b981)]', accents: ['#10b981', '#34d399'] },
-    { value: 'rosewood', label: 'T-Mobile Magenta', icon: <Moon size={14} />, preview: 'bg-[linear-gradient(135deg,#200714,#3b0c25_58%,#E20074)]', accents: ['#E20074', '#F43F5E'] },
-    { value: 'tide', label: 'Ocean Tide', icon: <Sun size={14} />, preview: 'bg-[linear-gradient(135deg,#f0f9ff,#e0f2fe_58%,#0284c7)]', accents: ['#0284c7', '#0ea5e9'] },
+  const choices: {
+    value: Theme
+    label: string
+    description: string
+    icon: React.ReactNode
+    surfaceBg: string
+    cardBg: string
+    accent: string
+  }[] = [
+    {
+      value: 'obsidian',
+      label: 'Obsidian',
+      description: 'Default dark workspace',
+      icon: <Moon size={14} />,
+      surfaceBg: '#0b0d10',
+      cardBg: '#181c23',
+      accent: '#0ea5e9',
+    },
+    {
+      value: 'daylight',
+      label: 'Daylight',
+      description: 'Crisp light workspace',
+      icon: <Sun size={14} />,
+      surfaceBg: '#f6f7f9',
+      cardBg: '#ffffff',
+      accent: '#0284c7',
+    },
+    {
+      value: 'magenta',
+      label: 'Magenta Pro',
+      description: 'Dark with brand accent',
+      icon: <Moon size={14} />,
+      surfaceBg: '#0c0b0e',
+      cardBg: '#1c1922',
+      accent: '#e20074',
+    },
+    {
+      value: 'slate',
+      label: 'Slate',
+      description: 'High-clarity light neutral',
+      icon: <MonitorCheck size={14} />,
+      surfaceBg: '#eef1f4',
+      cardBg: '#fbfcfd',
+      accent: '#2563eb',
+    },
   ]
 
   return (
-    <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
       {choices.map((choice) => {
         const selected = value === choice.value
         return (
           <button
             key={choice.value}
             type="button"
-            onClick={() => onChange(choice.value as Theme)}
+            onClick={() => onChange(choice.value)}
             aria-pressed={selected}
-            className={`group rounded-2xl border p-2.5 text-left transition-all ${
+            className={`group flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
               selected
-                ? 'border-[var(--accent)] bg-[var(--accent)]/10 ring-2 ring-[var(--accent)]/30 shadow-[var(--shadow-card)]'
-                : 'border-[var(--border)] bg-[var(--surface-3)]/60 hover:border-[var(--border-strong)] hover:bg-[var(--surface-3)]'
+                ? 'border-[var(--accent)] bg-[var(--accent-light)]'
+                : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)]'
             }`}
           >
-            <div className={`h-16 overflow-hidden rounded-xl border border-white/10 ${choice.preview}`}>
-              <div className="h-3.5 border-b border-white/10 bg-white/10" />
-              <div className="p-2 space-y-1">
-                <div className="h-2 w-12 rounded-full" style={{ background: choice.accents[0] }} />
-                <div className="h-1.5 w-16 rounded-full bg-slate-400/40" />
+            <div
+              className="flex h-11 w-14 shrink-0 flex-col justify-between overflow-hidden rounded-lg border border-black/15 p-1.5"
+              style={{ background: choice.surfaceBg }}
+            >
+              <div className="h-1.5 w-6 rounded-full" style={{ background: choice.accent }} />
+              <div className="h-4 w-full rounded-sm" style={{ background: choice.cardBg }} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text)]">
+                {choice.icon}
+                <span className="truncate">{choice.label}</span>
+              </div>
+              <div className="mt-0.5 text-[11px] text-[var(--text-secondary)] truncate">
+                {choice.description}
               </div>
             </div>
-            <div className="mt-2.5 flex items-center justify-between gap-2 px-1">
-              <div className="min-w-0">
-                <span className="flex items-center gap-1.5 truncate text-xs font-semibold text-[var(--text)]">
-                  {choice.icon}
-                  {choice.label}
-                </span>
-                <div className="mt-1.5 flex items-center gap-1">
-                  {choice.accents.map((accent) => (
-                    <span key={accent} className="h-2.5 w-2.5 rounded-full border border-white/30" style={{ background: accent }} />
-                  ))}
-                </div>
-              </div>
-              {selected && <Check size={14} className="text-[var(--accent)] shrink-0" />}
-            </div>
+            {selected && <Check size={15} className="text-[var(--accent)] shrink-0" />}
           </button>
         )
       })}

@@ -4,14 +4,20 @@ import { normalizeAccessCode, normalizeStoreId } from '../lib/storeIds'
 import { isInstalledPwa } from '../lib/pwa'
 
 export type Tab = 'home' | 'protect' | 'devices' | 'employees' | 'schedule' | 'appointments' | 'district' | 'goals' | 'commission' | 'reports' | 'updates' | 'mrc-calculator' | 'nr-tracking' | 'weather' | 'display' | 'tasks' | 'settings'
-export type Theme = 'dark' | 'light' | 'vista' | 'mac' | 'carbon' | 'mint' | 'coral' | 'iris' | 'graphite' | 'aurora' | 'tide' | 'citrus' | 'rosewood' | 'highland' | 'console' | 'console-light'
-export type Brand = 'default' | 'tmobile' | 'green' | 'black' | 'yellow'
+export type Theme = 'obsidian' | 'daylight' | 'magenta' | 'slate'
 export type TempUnit = 'C' | 'F'
 export type TimeFormat = '12' | '24'
 export type UiScale = '100' | '120'
 export type SessionTimeout = '2m' | '15m' | '1h' | '4h' | 'never'
 export type AccessMode = 'manager' | 'display' | 'admin'
 export type AccessRole = 'admin' | 'district_manager' | 'manager' | 'employee' | 'display'
+
+export const DARK_THEMES: Theme[] = ['obsidian', 'magenta']
+export const ALL_THEMES: Theme[] = ['obsidian', 'daylight', 'magenta', 'slate']
+
+export function isDarkTheme(theme: Theme): boolean {
+  return DARK_THEMES.includes(theme)
+}
 
 export function accessRoleLabel(role: AccessRole | null) {
   if (role === 'employee' || role === 'display') return 'Store Access'
@@ -29,34 +35,50 @@ const SESSION_TIMEOUT_MS: Record<Exclude<SessionTimeout, 'never'>, number> = {
   '1h': 60 * 60 * 1000,
   '4h': 4 * 60 * 60 * 1000,
 }
-const THEME_CLASSES: Theme[] = ['dark', 'light', 'vista', 'mac', 'carbon', 'mint', 'coral', 'iris', 'graphite', 'aurora', 'tide', 'citrus', 'rosewood', 'highland', 'console', 'console-light']
-const BRAND_ACCENTS: Record<Exclude<Brand, 'default'>, {
-  accent: string
-  hover: string
-  light: string
-  glow: string
-}> = {
-  tmobile: { accent: '#E20074', hover: '#B5005D', light: '#ffe0f0', glow: 'rgba(226, 0, 116, 0.18)' },
-  green:   { accent: '#16a34a', hover: '#15803d', light: '#dcfce7', glow: 'rgba(22, 163, 74, 0.18)' },
-  black:   { accent: '#111827', hover: '#030712', light: '#e5e7eb', glow: 'rgba(17, 24, 39, 0.22)' },
-  yellow:  { accent: '#a16207', hover: '#854d0e', light: '#fef3c7', glow: 'rgba(161, 98, 7, 0.22)' },
+
+const LEGACY_THEME_MAP: Record<string, Theme> = {
+  obsidian: 'obsidian',
+  daylight: 'daylight',
+  magenta: 'magenta',
+  slate: 'slate',
+  console: 'obsidian',
+  dark: 'obsidian',
+  carbon: 'obsidian',
+  graphite: 'obsidian',
+  aurora: 'obsidian',
+  rosewood: 'magenta',
+  light: 'daylight',
+  mac: 'daylight',
+  vista: 'daylight',
+  mint: 'daylight',
+  coral: 'daylight',
+  iris: 'daylight',
+  tide: 'daylight',
+  citrus: 'daylight',
+  highland: 'daylight',
+  'console-light': 'slate',
 }
 
-function applyThemeClass(theme: Theme) {
-  document.documentElement.classList.remove(...THEME_CLASSES)
-  if (theme === 'console-light') {
-    document.documentElement.classList.add('console', 'console-light')
-    return
+export function canonicalTheme(theme: string | undefined): Theme {
+  if (!theme) return 'obsidian'
+  return LEGACY_THEME_MAP[theme] ?? 'obsidian'
+}
+
+export function applyThemeToDocument(theme: Theme, uiScale: UiScale = '100') {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  root.classList.remove(...ALL_THEMES, 'dark', 'ui-scale-120')
+  root.classList.add(theme)
+  if (isDarkTheme(theme)) {
+    root.classList.add('dark')
   }
-  document.documentElement.classList.add(theme)
-}
-
-function applyBrandAccent(brand: Brand) {
-  void brand
-  document.documentElement.style.removeProperty('--accent')
-  document.documentElement.style.removeProperty('--accent-hover')
-  document.documentElement.style.removeProperty('--accent-light')
-  document.documentElement.style.removeProperty('--accent-glow')
+  if (uiScale === '120') {
+    root.classList.add('ui-scale-120')
+  }
+  const metaTheme = document.querySelector('meta[name="theme-color"]')
+  if (metaTheme) {
+    metaTheme.setAttribute('content', isDarkTheme(theme) ? '#0b0d10' : '#f6f7f9')
+  }
 }
 
 function sessionExpiresAtFor(timeout: SessionTimeout) {
@@ -109,12 +131,11 @@ function removePwaAccessSession() {
 interface UiState {
   activeTab: Tab
   theme: Theme
-  brand: Brand
   tempUnit: TempUnit
   timeFormat: TimeFormat
   uiScale: UiScale
   sessionTimeout: SessionTimeout
-  storeId: string          // unique per-store key, shared across all devices in that store
+  storeId: string
   accessMode: AccessMode
   accessRole: AccessRole | null
   accessId: string
@@ -122,12 +143,10 @@ interface UiState {
   accessLabel: string
   needsOnboarding: boolean
   sessionExpiresAt: number | null
-  isEditingWidgets: boolean
   settingsSection: string
   setTab: (tab: Tab) => void
   setSettingsSection: (section: string) => void
   setTheme: (theme: Theme) => void
-  setBrand: (brand: Brand) => void
   toggleTheme: () => void
   setTempUnit: (unit: TempUnit) => void
   toggleTempUnit: () => void
@@ -140,23 +159,13 @@ interface UiState {
   setAccessOnboarded: () => void
   clearStoreSession: () => void
   extendStoreSession: () => void
-  setEditingWidgets: (v: boolean) => void
 }
 
-function getSystemTheme(): Theme {
-  return 'console'
-}
-
-function canonicalTheme(theme: Theme | undefined): Theme {
-  return theme && THEME_CLASSES.includes(theme) ? theme : 'console'
-}
-
-function persistedPreferences(persisted: unknown, forceConsole = false) {
-  const state = persisted as Partial<UiState> | undefined
+function persistedPreferences(persisted: unknown) {
+  const state = persisted as Partial<UiState> & { theme?: string } | undefined
   return {
     activeTab: state?.activeTab ?? 'home',
-    theme: forceConsole ? 'console' : canonicalTheme(state?.theme),
-    brand: state?.brand && (state.brand === 'default' || state.brand in BRAND_ACCENTS) ? state.brand : 'default',
+    theme: canonicalTheme(state?.theme),
     tempUnit: state?.tempUnit ?? 'F',
     timeFormat: state?.timeFormat ?? '12',
     uiScale: state?.uiScale === '120' ? '120' : '100',
@@ -169,8 +178,7 @@ export const useUiStore = create<UiState>()(
   persist(
     (set, get) => ({
       activeTab: 'home',
-      theme: getSystemTheme(),
-      brand: 'default',
+      theme: 'obsidian',
       tempUnit: 'F' as TempUnit,
       timeFormat: '12' as TimeFormat,
       uiScale: '100' as UiScale,
@@ -183,17 +191,19 @@ export const useUiStore = create<UiState>()(
       accessLabel: '',
       needsOnboarding: false,
       sessionExpiresAt: null,
-      isEditingWidgets: false,
       settingsSection: 'general',
       setTab: (tab) => set({ activeTab: tab }),
       setSettingsSection: (section) => set({ settingsSection: section }),
       setTempUnit: (unit) => set({ tempUnit: unit }),
       toggleTempUnit: () => set((s) => ({ tempUnit: s.tempUnit === 'C' ? 'F' : 'C' })),
       setTimeFormat: (fmt) => set({ timeFormat: fmt }),
-      setUiScale: (scale) => set({ uiScale: scale }),
-      setSessionTimeout: () => set((s) => ({
-        sessionTimeout: DEFAULT_SESSION_TIMEOUT,
-        sessionExpiresAt: s.storeId && !isInstalledPwa() ? sessionExpiresAtFor(DEFAULT_SESSION_TIMEOUT) : null,
+      setUiScale: (scale) => {
+        set({ uiScale: scale })
+        applyThemeToDocument(get().theme, scale)
+      },
+      setSessionTimeout: (timeout) => set((s) => ({
+        sessionTimeout: timeout,
+        sessionExpiresAt: s.storeId && !isInstalledPwa() ? sessionExpiresAtFor(timeout) : null,
       })),
       setStoreId: (id) => {
         const storeId = normalizeStoreId(id)
@@ -226,26 +236,28 @@ export const useUiStore = create<UiState>()(
       },
       extendStoreSession: () => set((s) => s.storeId && !isInstalledPwa() ? { sessionExpiresAt: sessionExpiresAtFor(s.sessionTimeout) } : s),
       setTheme: (theme) => {
-        set({ theme, brand: 'default' })
-        applyThemeClass(theme)
-        applyBrandAccent('default')
-      },
-      setBrand: (brand) => {
-        set({ brand })
-        applyBrandAccent(brand)
+        const next = canonicalTheme(theme)
+        set({ theme: next })
+        applyThemeToDocument(next, get().uiScale)
       },
       toggleTheme: () => {
-        const next = get().theme === 'dark' ? 'light' : 'dark'
+        const next: Theme = isDarkTheme(get().theme) ? 'daylight' : 'obsidian'
         set({ theme: next })
-        applyThemeClass(next)
+        applyThemeToDocument(next, get().uiScale)
       },
-      setEditingWidgets: (v) => set({ isEditingWidgets: v }),
     }),
     {
       name: 'luna-ui',
-      version: 4,
-      partialize: (s) => ({ theme: s.theme, brand: s.brand, tempUnit: s.tempUnit, timeFormat: s.timeFormat, uiScale: s.uiScale, activeTab: s.activeTab, settingsSection: s.settingsSection }),
-      migrate: (persisted, version) => persistedPreferences(persisted, version < 4),
+      version: 5,
+      partialize: (s) => ({
+        theme: s.theme,
+        tempUnit: s.tempUnit,
+        timeFormat: s.timeFormat,
+        uiScale: s.uiScale,
+        activeTab: s.activeTab,
+        settingsSection: s.settingsSection,
+      }),
+      migrate: (persisted) => persistedPreferences(persisted),
       merge: (persisted, current) => {
         const pwaSession = readPwaAccessSession()
         return {
@@ -263,8 +275,7 @@ export const useUiStore = create<UiState>()(
       },
       onRehydrateStorage: () => (state) => {
         if (state) {
-          applyThemeClass(state.theme)
-          applyBrandAccent(state.brand)
+          applyThemeToDocument(state.theme, state.uiScale)
         }
       },
     }

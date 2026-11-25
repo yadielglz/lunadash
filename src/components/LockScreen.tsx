@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Delete } from 'lucide-react'
 import { useLockStore, hashPin } from '../store/lockStore'
@@ -15,9 +15,7 @@ const MAX_ATTEMPTS = 3
 const LOCKOUT_SECONDS = 30
 
 interface LockScreenProps {
-  /** Render inside the content area instead of as a full-screen overlay */
   inline?: boolean
-  /** Called on successful PIN entry instead of the global store unlock */
   onUnlock?: () => void
 }
 
@@ -26,19 +24,16 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
   const [input, setInput] = useState('')
   const [shake, setShake] = useState(false)
   const [error, setError] = useState('')
-  const [attempts, setAttempts] = useState(0)
+  const [, setAttempts] = useState(0)
   const [countdown, setCountdown] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const isLockedOut = countdown > 0
 
-  // Countdown ticker
   useEffect(() => {
-    if (countdown <= 0) return
-    timerRef.current = setInterval(() => {
+    if (!isLockedOut) return
+    const id = window.setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
-          clearInterval(timerRef.current!)
           setAttempts(0)
           setError('')
           return 0
@@ -46,22 +41,23 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
         return c - 1
       })
     }, 1000)
-    return () => clearInterval(timerRef.current!)
-  }, [countdown])
+    return () => window.clearInterval(id)
+  }, [isLockedOut])
 
-  const triggerError = (attemptsAfter: number) => {
+  const triggerError = useCallback((attemptsAfter: number) => {
     if (attemptsAfter >= MAX_ATTEMPTS) {
       setError(`Too many attempts. Try again in ${LOCKOUT_SECONDS}s`)
       setCountdown(LOCKOUT_SECONDS)
     } else {
-      setError(`Incorrect PIN · ${MAX_ATTEMPTS - attemptsAfter} attempt${MAX_ATTEMPTS - attemptsAfter === 1 ? '' : 's'} left`)
+      const remaining = MAX_ATTEMPTS - attemptsAfter
+      setError(`Incorrect PIN · ${remaining} attempt${remaining === 1 ? '' : 's'} left`)
     }
     setShake(true)
     setInput('')
-    setTimeout(() => setShake(false), 600)
-  }
+    window.setTimeout(() => setShake(false), 500)
+  }, [])
 
-  const tryUnlock = async (pin: string) => {
+  const tryUnlock = useCallback(async (pin: string) => {
     const h = await hashPin(pin)
     if (h === pinHash) {
       setAttempts(0)
@@ -69,111 +65,118 @@ export function LockScreen({ inline = false, onUnlock }: LockScreenProps = {}) {
       if (onUnlock) onUnlock()
       else unlock()
     } else {
-      const next = attempts + 1
-      setAttempts(next)
-      triggerError(next)
+      setAttempts((prev) => {
+        const next = prev + 1
+        triggerError(next)
+        return next
+      })
     }
-  }
+  }, [onUnlock, pinHash, triggerError, unlock])
 
-  const handlePress = (key: string) => {
+  const handlePress = useCallback((key: string) => {
     if (isLockedOut) return
     if (key === '⌫') {
       setInput((p) => p.slice(0, -1))
       return
     }
-    if (input.length >= 6) return
-    const next = input + key
-    setInput(next)
-    if (next.length === 4) {
-      tryUnlock(next)
+    setInput((prev) => {
+      if (prev.length >= 4) return prev
+      const next = prev + key
+      if (next.length === 4) {
+        void tryUnlock(next)
+      }
+      return next
+    })
+  }, [isLockedOut, tryUnlock])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (/^[0-9]$/.test(event.key)) {
+        event.preventDefault()
+        handlePress(event.key)
+      } else if (event.key === 'Backspace') {
+        event.preventDefault()
+        handlePress('⌫')
+      }
     }
-  }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handlePress])
 
   const wrapperClass = inline
-    ? 'flex-1 w-full bg-[var(--bg)] flex flex-col items-center justify-center relative'
-    : 'fixed inset-0 z-[999] bg-[var(--bg)] flex flex-col items-center justify-center'
+    ? 'flex-1 min-h-full w-full bg-[var(--bg)] flex flex-col items-center justify-center p-4'
+    : 'fixed inset-0 z-[999] bg-[var(--bg)] flex flex-col items-center justify-center p-4'
 
   return (
-    <div className={`${wrapperClass} lock-screen`} role="region" aria-label="Protected area">
+    <div className={wrapperClass} role="region" aria-label="Protected area">
       <motion.div
-        animate={shake ? { x: [-12, 12, -10, 10, -6, 6, 0] } : { x: 0 }}
-        transition={{ duration: 0.5 }}
-        className="lock-screen-card relative flex flex-col items-center gap-7 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-8 py-9 shadow-[var(--shadow-float)]"
+        animate={shake ? { x: [-10, 10, -8, 8, -4, 4, 0] } : { x: 0 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-xs flex flex-col items-center gap-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-7 shadow-[var(--shadow-float)]"
       >
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-[var(--border)] bg-white shadow-sm">
-            <LunaWirelessLogo tone="light-surface" className="h-12 w-12" />
+        <div className="flex flex-col items-center gap-2.5 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+            <LunaWirelessLogo className="h-8 w-8" />
           </div>
-          <div className="text-center">
-            <p className="text-[var(--text)] text-lg font-semibold">Luna Dashboard</p>
-            <p className="text-[var(--text-secondary)] text-sm mt-0.5">Enter your PIN to continue</p>
+          <div>
+            <p className="text-[var(--text)] text-base font-bold tracking-tight">Protected Area</p>
+            <p className="text-[var(--text-secondary)] text-xs mt-0.5">Enter 4-digit PIN to continue</p>
           </div>
         </div>
 
-        {/* Dot indicators */}
         <div className="flex items-center gap-3" aria-label={`${input.length} of 4 PIN digits entered`}>
           {[0, 1, 2, 3].map((i) => (
             <motion.div
               key={i}
-              animate={i < input.length ? { scale: 1, opacity: 1 } : { scale: 0.5, opacity: 0.3 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-              className="w-3 h-3 rounded-full"
+              animate={i < input.length ? { scale: 1, opacity: 1 } : { scale: 0.65, opacity: 0.35 }}
+              transition={{ duration: 0.14 }}
+              className="h-3 w-3 rounded-full"
               style={{ background: i < input.length ? 'var(--accent)' : 'var(--border-strong)' }}
             />
           ))}
         </div>
 
-        {/* Error / lockout message */}
-        <AnimatePresence mode="wait">
-          {isLockedOut ? (
-            <motion.div
-              key="lockout"
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center gap-1 absolute -bottom-10"
-              role="alert"
-            >
-              <p className="text-red-400 text-sm">Too many attempts</p>
-              <p className="text-[var(--text-secondary)] text-xs">Try again in {countdown}s</p>
-            </motion.div>
-          ) : error ? (
-            <motion.p
-              key="error"
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-red-400 text-sm absolute -bottom-6"
-              role="alert"
-            >
-              {error}
-            </motion.p>
-          ) : null}
-        </AnimatePresence>
-
-        {/* Number pad */}
-        <div className="grid grid-cols-3 gap-3 mt-4">
-          {PAD.flat().map((key, idx) => {
-            if (key === '') return <div key={idx} />
-            return (
-              <motion.button
-                key={key}
-                type="button"
-                onClick={() => handlePress(key)}
-                whileTap={!isLockedOut ? { scale: 0.88 } : {}}
-                disabled={isLockedOut}
-                aria-label={key === '⌫' ? 'Delete PIN digit' : `PIN digit ${key}`}
-                className={`lock-key w-16 h-16 rounded-xl flex items-center justify-center font-semibold text-xl transition-colors ${
-                  isLockedOut
-                    ? 'opacity-30 cursor-not-allowed bg-[var(--surface)] text-[var(--text-tertiary)]'
-                    : key === '⌫'
-                      ? 'bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-3)]'
-                      : 'bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--surface-3)]'
-                }`}
+        <div className="min-h-[1.25rem] text-center" role="alert">
+          <AnimatePresence mode="wait">
+            {isLockedOut ? (
+              <motion.p
+                key="lockout"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-xs font-medium text-[var(--status-danger-text)]"
               >
-                {key === '⌫' ? <Delete size={20} /> : key}
-              </motion.button>
+                Locked out · Try again in {countdown}s
+              </motion.p>
+            ) : error ? (
+              <motion.p
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-xs font-medium text-[var(--status-danger-text)]"
+              >
+                {error}
+              </motion.p>
+            ) : null}
+          </AnimatePresence>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2.5 w-full">
+          {PAD.flat().map((key, idx) => {
+            if (!key) return <div key={idx} />
+            return (
+              <button
+                key={idx}
+                type="button"
+                disabled={isLockedOut}
+                onClick={() => handlePress(key)}
+                aria-label={key === '⌫' ? 'Delete digit' : key}
+                className="h-12 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] text-lg font-semibold flex items-center justify-center transition-colors hover:bg-[var(--surface-3)] hover:border-[var(--border-strong)] active:scale-95 disabled:opacity-40"
+              >
+                {key === '⌫' ? <Delete size={18} /> : key}
+              </button>
             )
           })}
         </div>

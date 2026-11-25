@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useState } from 'react'
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   BarChart3,
@@ -8,18 +8,18 @@ import {
   CalendarPlus,
   CheckSquare,
   FileText,
+  KeyRound,
   LayoutDashboard,
   LogOut,
-  Menu,
   Monitor,
   Moon,
   MoreHorizontal,
+  PanelLeftClose,
   PanelLeftOpen,
   Radar,
   Search,
   Settings,
   Smartphone,
-  KeyRound,
   Sun,
   UploadCloud,
   Users,
@@ -43,19 +43,19 @@ import { CarrierTransferModal } from '../features/transfers/CarrierTransferModal
 type NavGroup = 'Overview' | 'Operations' | 'Performance' | 'Workspace'
 
 const NAV_ITEMS: { id: Tab; icon: React.ReactNode; label: string; helper: string; group: NavGroup }[] = [
-  { id: 'home', icon: <LayoutDashboard size={18} />, label: 'Today', helper: 'Daily brief', group: 'Overview' },
-  { id: 'district', icon: <Radar size={18} />, label: 'District', helper: 'Rank and outlook', group: 'Overview' },
-  { id: 'schedule', icon: <Calendar size={18} />, label: 'Schedule', helper: 'Coverage and shifts', group: 'Operations' },
-  { id: 'appointments', icon: <CalendarPlus size={18} />, label: 'Appointments', helper: 'Customer pipeline', group: 'Operations' },
-  { id: 'tasks', icon: <CheckSquare size={18} />, label: 'Checklist', helper: 'Open and close', group: 'Operations' },
-  { id: 'devices', icon: <Smartphone size={18} />, label: 'Demo Management', helper: 'Activate and verify', group: 'Operations' },
-  { id: 'employees', icon: <Users size={18} />, label: 'Team', helper: 'People and preferences', group: 'Operations' },
-  { id: 'goals', icon: <BarChart3 size={18} />, label: 'Goals', helper: 'Targets and pace', group: 'Performance' },
-  { id: 'commission', icon: <BadgeDollarSign size={18} />, label: 'Commissions', helper: 'Earnings snapshot', group: 'Performance' },
-  { id: 'reports', icon: <FileText size={18} />, label: 'Reports', helper: 'Preview and print', group: 'Performance' },
-  { id: 'updates', icon: <UploadCloud size={18} />, label: 'Data updates', helper: 'Submit tracker data', group: 'Performance' },
-  { id: 'display', icon: <Monitor size={18} />, label: 'Store display', helper: 'Customer-facing screen', group: 'Workspace' },
-  { id: 'settings', icon: <Settings size={18} />, label: 'Settings', helper: 'Workspace controls', group: 'Workspace' },
+  { id: 'home', icon: <LayoutDashboard size={17} />, label: 'Today', helper: 'Daily operations brief', group: 'Overview' },
+  { id: 'district', icon: <Radar size={17} />, label: 'District', helper: 'Rank and outlook', group: 'Overview' },
+  { id: 'schedule', icon: <Calendar size={17} />, label: 'Schedule', helper: 'Coverage and shifts', group: 'Operations' },
+  { id: 'appointments', icon: <CalendarPlus size={17} />, label: 'Appointments', helper: 'Customer pipeline', group: 'Operations' },
+  { id: 'tasks', icon: <CheckSquare size={17} />, label: 'Checklist', helper: 'Open and close duties', group: 'Operations' },
+  { id: 'devices', icon: <Smartphone size={17} />, label: 'Demos', helper: 'Activate and verify', group: 'Operations' },
+  { id: 'employees', icon: <Users size={17} />, label: 'Team', helper: 'People and preferences', group: 'Operations' },
+  { id: 'goals', icon: <BarChart3 size={17} />, label: 'Goals', helper: 'Targets and pace', group: 'Performance' },
+  { id: 'commission', icon: <BadgeDollarSign size={17} />, label: 'Commissions', helper: 'Earnings snapshot', group: 'Performance' },
+  { id: 'reports', icon: <FileText size={17} />, label: 'Reports', helper: 'Preview and print', group: 'Performance' },
+  { id: 'updates', icon: <UploadCloud size={17} />, label: 'Data Updates', helper: 'Submit tracker data', group: 'Performance' },
+  { id: 'display', icon: <Monitor size={17} />, label: 'Store Display', helper: 'Customer-facing screen', group: 'Workspace' },
+  { id: 'settings', icon: <Settings size={17} />, label: 'Settings', helper: 'Workspace controls', group: 'Workspace' },
 ]
 
 const NAV_GROUPS: NavGroup[] = ['Overview', 'Operations', 'Performance', 'Workspace']
@@ -72,7 +72,7 @@ const MOBILE_NAV_LABELS: Partial<Record<Tab, string>> = {
   commission: 'Earnings',
   reports: 'Reports',
   employees: 'Team',
-  updates: 'Update',
+  updates: 'Updates',
   display: 'Display',
   settings: 'Settings',
 }
@@ -87,10 +87,13 @@ const SETTINGS_COMMANDS = [
   { id: 'settings-about', section: 'about', label: 'About LunaDash', helper: 'Version, support, and update notes', keywords: 'version build support update' },
 ] as const
 
-const pageVariants = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -6 },
+function localDateKey() {
+  const now = new Date()
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-')
 }
 
 interface AppShellProps {
@@ -101,7 +104,8 @@ interface AppShellProps {
 function WeatherChip() {
   const { data, isLoading, isError } = useWeather(undefined, { useGeolocation: false })
   const { fmt, unit } = useTempDisplay()
-  const { setSettingsSection, setTab } = useUiStore()
+  const setSettingsSection = useUiStore((s) => s.setSettingsSection)
+  const setTab = useUiStore((s) => s.setTab)
 
   const openWeather = () => {
     setSettingsSection('weather')
@@ -109,12 +113,20 @@ function WeatherChip() {
   }
 
   if (isLoading) {
-    return <span className="command-chip hidden md:inline-flex">Weather</span>
+    return (
+      <span className="hidden lg:inline-flex h-8 items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 text-xs text-[var(--text-tertiary)]">
+        Weather
+      </span>
+    )
   }
 
   if (isError || !data) {
     return (
-      <button className="command-chip hidden md:inline-flex" onClick={openWeather}>
+      <button
+        type="button"
+        onClick={openWeather}
+        className="hidden lg:inline-flex h-8 items-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 text-xs text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text)] transition-colors"
+      >
         Set weather
       </button>
     )
@@ -124,10 +136,15 @@ function WeatherChip() {
   const weather = getWeatherInfo(current.weathercode, current.is_day)
 
   return (
-    <button className="command-chip hidden md:inline-flex" onClick={openWeather} title={weather.label}>
+    <button
+      type="button"
+      onClick={openWeather}
+      title={weather.label}
+      className="hidden lg:inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 text-xs text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text)] transition-colors"
+    >
       <span>{weather.icon}</span>
-      <span className="tabular-nums text-[var(--text)]">{fmt(current.temperature)}{unit}</span>
-      <span className="max-w-[7rem] truncate">{weather.label}</span>
+      <span className="font-semibold tabular-nums text-[var(--text)]">{fmt(current.temperature)}{unit}</span>
+      <span className="hidden xl:inline max-w-[6.5rem] truncate">{weather.label}</span>
     </button>
   )
 }
@@ -151,9 +168,13 @@ function CommandMenu({
   actions: CommandAction[]
 }) {
   const [query, setQuery] = useState('')
+  const [selectedIndex, setSelectedIndex] = useState(0)
 
   useEffect(() => {
-    if (open) setQuery('')
+    if (open) {
+      setQuery('')
+      setSelectedIndex(0)
+    }
   }, [open])
 
   const filteredActions = useMemo(() => {
@@ -164,6 +185,10 @@ function CommandMenu({
     ))
   }, [actions, query])
 
+  useEffect(() => {
+    setSelectedIndex(0)
+  }, [query])
+
   const runAction = (action: CommandAction) => {
     action.run()
     onClose()
@@ -173,55 +198,85 @@ function CommandMenu({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[120] flex items-start justify-center bg-black/45 px-3 pt-[min(12vh,5rem)]"
+          className="fixed inset-0 z-[120] flex items-start justify-center bg-black/50 backdrop-blur-[2px] px-3 pt-[min(12vh,5rem)]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.14 }}
           onMouseDown={onClose}
         >
           <motion.div
-            className="command-menu-panel w-full max-w-2xl overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-modal)]"
+            className="w-full max-w-xl overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--surface)] shadow-[var(--shadow-modal)]"
             role="dialog"
             aria-modal="true"
-            aria-label="Search pages and settings"
-            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            aria-label="Quick search"
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ duration: 0.16 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3">
-              <Search size={18} className="text-[var(--text-tertiary)]" />
+            <div className="flex items-center gap-2.5 border-b border-[var(--border)] px-3.5 py-3">
+              <Search size={16} className="text-[var(--text-tertiary)] shrink-0" />
               <input
                 autoFocus
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === 'Escape') onClose()
-                  if (event.key === 'Enter' && filteredActions[0]) runAction(filteredActions[0])
+                  if (event.key === 'Escape') {
+                    event.preventDefault()
+                    onClose()
+                  } else if (event.key === 'ArrowDown') {
+                    event.preventDefault()
+                    setSelectedIndex((i) => filteredActions.length ? (i + 1) % filteredActions.length : 0)
+                  } else if (event.key === 'ArrowUp') {
+                    event.preventDefault()
+                    setSelectedIndex((i) => filteredActions.length ? (i - 1 + filteredActions.length) % filteredActions.length : 0)
+                  } else if (event.key === 'Enter' && filteredActions[selectedIndex]) {
+                    event.preventDefault()
+                    runAction(filteredActions[selectedIndex])
+                  }
                 }}
                 className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-tertiary)]"
-                placeholder="Search pages and settings"
+                placeholder="Jump to page, tool, or setting..."
               />
-              <kbd className="rounded-md border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)]">Esc</kbd>
+              <kbd className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--text-tertiary)]">
+                Esc
+              </kbd>
             </div>
-            <div className="max-h-[26rem] overflow-y-auto p-2">
+            <div className="max-h-[24rem] overflow-y-auto p-1.5">
               {filteredActions.length === 0 ? (
-                <div className="px-3 py-8 text-center text-sm text-[var(--text-secondary)]">No matching command.</div>
-              ) : filteredActions.map((action) => (
-                <button
-                  key={action.id}
-                  type="button"
-                  onClick={() => runAction(action)}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[var(--reveal-bg)]"
-                >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--surface-2)] text-[var(--accent)]">{action.icon}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-[var(--text)]">{action.label}</span>
-                    <span className="block truncate text-xs text-[var(--text-secondary)]">{action.helper}</span>
-                  </span>
-                </button>
-              ))}
+                <div className="px-3 py-8 text-center text-sm text-[var(--text-secondary)]">
+                  No matching commands.
+                </div>
+              ) : filteredActions.map((action, idx) => {
+                const isSelected = idx === selectedIndex
+                return (
+                  <button
+                    key={action.id}
+                    type="button"
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    onClick={() => runAction(action)}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors',
+                      isSelected ? 'bg-[var(--accent-light)] text-[var(--text)]' : 'hover:bg-[var(--reveal-bg)]'
+                    )}
+                  >
+                    <span className={cn(
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border',
+                      isSelected
+                        ? 'border-[var(--accent)]/30 bg-[var(--surface)] text-[var(--accent)]'
+                        : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)]'
+                    )}>
+                      {action.icon}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-[var(--text)]">{action.label}</span>
+                      <span className="block truncate text-xs text-[var(--text-secondary)]">{action.helper}</span>
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </motion.div>
         </motion.div>
@@ -232,23 +287,44 @@ function CommandMenu({
 
 function NotificationCenter() {
   const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const setTab = useUiStore((state) => state.setTab)
   const setSettingsSection = useUiStore((state) => state.setSettingsSection)
   const tasks = useTasksStore((state) => state.tasks)
   const announcements = useDisplayStore((state) => state.announcements)
   const syncEntries = useSyncStore((state) => state.entries)
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const today = localDateKey()
+
+  useEffect(() => {
+    if (!open) return
+    const handlePointerDown = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
   const openTasks = tasks.filter((task) => task.completedDate !== today).length
   const activeAnnouncements = announcements.filter((announcement) => isAnnouncementActive(announcement))
   const urgentAnnouncements = activeAnnouncements.filter((announcement) => announcement.priority === 'urgent').length
   const syncProblems = Object.entries(syncEntries).filter(([, entry]) => entry.state === 'error')
   const savingAreas = Object.entries(syncEntries).filter(([, entry]) => entry.state === 'saving')
+
   const notices = [
     ...(syncProblems.length ? [{
       id: 'sync-errors',
       label: `${syncProblems.length} sync issue${syncProblems.length === 1 ? '' : 's'}`,
       detail: syncProblems[0]?.[1].message ?? 'Review sync status',
-      tone: '#c94040',
+      tone: 'var(--status-danger)',
       run: () => {
         setSettingsSection('sync')
         setTab('settings')
@@ -256,9 +332,9 @@ function NotificationCenter() {
     }] : []),
     ...(savingAreas.length ? [{
       id: 'sync-saving',
-      label: 'Changes are syncing',
+      label: 'Syncing changes',
       detail: savingAreas[0]?.[1].message ?? 'Database sync is active',
-      tone: '#c98408',
+      tone: 'var(--status-warn)',
       run: () => {
         setSettingsSection('sync')
         setTab('settings')
@@ -267,49 +343,70 @@ function NotificationCenter() {
     ...(urgentAnnouncements ? [{
       id: 'urgent-announcements',
       label: `${urgentAnnouncements} urgent announcement${urgentAnnouncements === 1 ? '' : 's'}`,
-      detail: 'Review active store display messages',
-      tone: '#c98408',
-      run: () => setTab('display'),
+      detail: 'Review active store messages',
+      tone: 'var(--status-warn)',
+      run: () => {
+        const isSmallScreen = typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
+        if (isSmallScreen) {
+          setSettingsSection('display')
+          setTab('settings')
+        } else {
+          setTab('display')
+        }
+      },
     }] : []),
     ...(openTasks ? [{
       id: 'open-tasks',
       label: `${openTasks} checklist item${openTasks === 1 ? '' : 's'} open`,
-      detail: 'Open the checklist to keep today moving',
+      detail: 'Open checklist to keep today on track',
       tone: 'var(--accent)',
       run: () => setTab('tasks'),
     }] : []),
   ]
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <button
         type="button"
-        className="command-icon-button"
+        className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text)] transition-colors"
         onClick={() => setOpen((value) => !value)}
         aria-label="Open notifications"
+        aria-expanded={open}
         title="Notifications"
       >
-        <Bell size={16} />
-        {notices.length > 0 && <span className="command-notification-dot">{notices.length}</span>}
+        <Bell size={15} />
+        {notices.length > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-bold leading-none text-white">
+            {notices.length}
+          </span>
+        )}
       </button>
       <AnimatePresence>
         {open && (
           <motion.div
-            className="command-popover absolute right-0 top-[calc(100%+0.5rem)] z-[90] w-[min(22rem,calc(100vw-1rem))] rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-[var(--shadow-modal)]"
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            className="absolute right-0 top-[calc(100%+0.5rem)] z-[90] w-[min(21rem,calc(100vw-1.5rem))] rounded-xl border border-[var(--border-strong)] bg-[var(--surface)] p-2 shadow-[var(--shadow-modal)]"
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.14 }}
           >
             <div className="flex items-center justify-between px-2 py-1.5">
-              <div className="text-sm font-semibold text-[var(--text)]">Notifications</div>
-              <button className="rounded-md p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)]" onClick={() => setOpen(false)} aria-label="Close notifications">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                Notifications
+              </div>
+              <button
+                type="button"
+                className="rounded-md p-1 text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]"
+                onClick={() => setOpen(false)}
+                aria-label="Close notifications"
+              >
                 <X size={14} />
               </button>
             </div>
-            <div className="space-y-1">
+            <div className="mt-1 space-y-1">
               {notices.length === 0 ? (
-                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-5 text-center text-sm text-[var(--text-secondary)]">
-                  Everything looks quiet.
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-5 text-center text-xs text-[var(--text-secondary)]">
+                  All clear — nothing needs attention.
                 </div>
               ) : notices.map((notice) => (
                 <button
@@ -319,12 +416,12 @@ function NotificationCenter() {
                     notice.run()
                     setOpen(false)
                   }}
-                  className="flex w-full items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5 text-left transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-3)]"
+                  className="flex w-full items-start gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-left transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-3)]"
                 >
-                  <span className="mt-1 h-2.5 w-2.5 rounded-full" style={{ background: notice.tone }} />
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: notice.tone }} />
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-[var(--text)]">{notice.label}</span>
-                    <span className="block text-xs text-[var(--text-secondary)]">{notice.detail}</span>
+                    <span className="block text-xs font-semibold text-[var(--text)]">{notice.label}</span>
+                    <span className="block text-[11px] text-[var(--text-secondary)] mt-0.5">{notice.detail}</span>
                   </span>
                 </button>
               ))}
@@ -336,54 +433,61 @@ function NotificationCenter() {
   )
 }
 
-function TopCommandBar({ onOpenCommandMenu, onOpenTransferGuide }: { onOpenCommandMenu: () => void; onOpenTransferGuide: () => void }) {
+function TopCommandBar({
+  onOpenCommandMenu,
+  onOpenTransferGuide,
+}: {
+  onOpenCommandMenu: () => void
+  onOpenTransferGuide: () => void
+}) {
   const now = useClock()
   const { toggleTheme, isDark } = useTheme()
-  const {
-    accessRole,
-    activeTab,
-    clearStoreSession,
-    setTab,
-    storeId,
-  } = useUiStore()
+  const accessRole = useUiStore((s) => s.accessRole)
+  const activeTab = useUiStore((s) => s.activeTab)
+  const clearStoreSession = useUiStore((s) => s.clearStoreSession)
+  const setTab = useUiStore((s) => s.setTab)
+  const storeId = useUiStore((s) => s.storeId)
+  const timeFormat = useUiStore((s) => s.timeFormat)
+
   const activeLabel = NAV_ITEMS.find((item) => item.id === activeTab)?.label ?? 'LunaDash'
   const mobileActiveLabel = MOBILE_NAV_LABELS[activeTab] ?? activeLabel
-  const time = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
+  const time = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: timeFormat !== '24' })
   const date = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
-    <header className="app-top-bar sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-[var(--border)] bg-[var(--command-bg)]/85 px-3 sm:px-5 xl:px-6 backdrop-blur-xl shadow-sm">
-      <div className="flex items-center gap-3 min-w-0">
+    <header className="app-top-bar sticky top-0 z-40 flex min-h-[3.5rem] w-full items-center justify-between border-b border-[var(--border)] bg-[var(--command-bg)] px-3 sm:px-5 backdrop-blur-md">
+      <div className="flex items-center gap-2.5 min-w-0">
         <button
           type="button"
           onClick={() => setTab('home')}
-          className="hidden h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-1.5 hover:border-[var(--accent)]/40 transition-all xl:flex"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-1 md:hidden"
           aria-label="Open Today"
         >
-          <LunaWirelessLogo className="h-7 w-7" />
+          <LunaWirelessLogo className="h-5 w-5" />
         </button>
 
         <div className="min-w-0">
-          <div className="truncate text-base font-bold text-[var(--text)] tracking-tight">
+          <div className="truncate text-sm sm:text-base font-bold text-[var(--text)] tracking-tight leading-tight">
             <span className="hidden sm:inline">{activeLabel}</span>
             <span className="sm:hidden">{mobileActiveLabel}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] truncate">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span>{storeId === 'main' ? 'All District Stores' : `Store ${storeId}`}</span>
-            <span>·</span>
-            <span className="font-medium text-[var(--accent)]">{accessRoleLabel(accessRole)}</span>
+          <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-tertiary)] truncate">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--status-good)] shrink-0" />
+            <span className="truncate">{storeId === 'main' ? 'All District Stores' : `Store ${storeId}`}</span>
+            <span className="hidden xs:inline">·</span>
+            <span className="hidden sm:inline font-medium text-[var(--text-secondary)]">{accessRoleLabel(accessRole)}</span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         <button
-          className="hidden sm:flex items-center gap-2 h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-xs text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text)] transition-all"
+          type="button"
+          className="hidden md:flex items-center gap-2 h-8 px-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-xs text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text)] transition-colors"
           onClick={() => setTab('schedule')}
           title={date}
         >
-          <span className="hidden md:inline font-medium">{date}</span>
+          <span className="hidden lg:inline">{date}</span>
           <span className="font-mono font-semibold tabular-nums text-[var(--text)]">{time}</span>
         </button>
 
@@ -391,48 +495,53 @@ function TopCommandBar({ onOpenCommandMenu, onOpenTransferGuide }: { onOpenComma
 
         <button
           type="button"
-          className="flex h-9 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-2.5 text-xs font-semibold text-[var(--text-secondary)] transition-all hover:border-[var(--accent)]/40 hover:text-[var(--text)]"
+          className="hidden sm:inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)]"
           onClick={onOpenTransferGuide}
           title="Carrier account number and transfer PIN guide"
           aria-label="Open carrier transfer guide"
         >
-          <KeyRound size={15} className="text-[var(--accent)]" />
+          <KeyRound size={14} className="text-[var(--accent)]" />
           <span className="hidden xl:inline">Port Guide</span>
         </button>
 
         <button
           type="button"
-          className="hidden lg:flex items-center gap-2 h-9 px-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-xs text-[var(--text-secondary)] hover:border-[var(--accent)]/40 hover:text-[var(--text)] transition-all group"
+          className="flex h-8 w-8 lg:w-auto items-center justify-center lg:gap-2 lg:px-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-xs text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text)] transition-colors"
           onClick={onOpenCommandMenu}
+          aria-label="Quick search"
+          title="Quick search (⌘K)"
         >
-          <Search size={14} className="text-[var(--text-tertiary)] group-hover:text-[var(--accent)] transition-colors" />
-          <span>Quick Search</span>
-          <kbd className="ml-1 rounded-md bg-[var(--surface-3)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--text-tertiary)] border border-[var(--border)]">⌘K</kbd>
+          <Search size={14} className="text-[var(--text-tertiary)]" />
+          <span className="hidden lg:inline">Search</span>
+          <kbd className="hidden lg:inline rounded bg-[var(--surface-3)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--text-tertiary)] border border-[var(--border)]">
+            ⌘K
+          </kbd>
         </button>
 
         <NotificationCenter />
-        <StorePickerButton className="hidden sm:inline-flex" />
 
-        <div className="h-5 w-px bg-[var(--border)] mx-1 hidden sm:block" />
+        <StorePickerButton className="hidden md:inline-flex" />
+
+        <div className="hidden md:block h-4 w-px bg-[var(--border)] mx-0.5" />
 
         <button
           type="button"
           onClick={toggleTheme}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-3)] transition-all active:scale-95"
-          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-colors"
+          title={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+          aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
         >
-          {isDark ? <Sun size={16} /> : <Moon size={16} />}
+          {isDark ? <Sun size={15} /> : <Moon size={15} />}
         </button>
 
         <button
           type="button"
           onClick={clearStoreSession}
-          className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10 transition-all active:scale-95"
-          title="Log out"
-          aria-label="Log out"
+          className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--status-danger-text)] hover:border-[var(--status-danger-border)] hover:bg-[var(--status-danger-bg)] transition-colors"
+          title="Sign out"
+          aria-label="Sign out"
         >
-          <LogOut size={16} />
+          <LogOut size={15} />
         </button>
       </div>
     </header>
@@ -444,13 +553,16 @@ function NavigationRail({
   mobile = false,
   onNavigate,
   onToggleCollapse,
+  onOpenTransferGuide,
 }: {
   collapsed?: boolean
   mobile?: boolean
   onNavigate?: () => void
   onToggleCollapse?: () => void
+  onOpenTransferGuide?: () => void
 }) {
-  const { accessRole, activeTab, setTab } = useUiStore()
+  const { accessRole, activeTab, clearStoreSession, setTab } = useUiStore()
+  const { toggleTheme, isDark } = useTheme()
   const visibleItems = NAV_ITEMS.filter((item) => canAccessTab(accessRole, item.id))
 
   const navigate = (tab: Tab) => {
@@ -459,83 +571,134 @@ function NavigationRail({
   }
 
   return (
-    <nav className={cn('navigation-rail flex h-full w-full flex-col select-none', collapsed && !mobile && 'navigation-rail-collapsed')}>
+    <nav className="flex h-full w-full flex-col select-none">
       {/* Brand Header */}
-      <div className={cn('mb-4 flex items-center gap-3 px-2 py-1', collapsed && !mobile && 'justify-center px-0')}>
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--accent)]/20 via-[var(--surface-2)] to-[var(--surface)] border border-[var(--accent)]/30 shadow-md">
-          <LunaWirelessLogo className="h-7 w-7" />
-        </div>
-        <div className={cn('min-w-0 flex-1', collapsed && !mobile && 'hidden')}>
-          <div className="text-base font-bold tracking-tight text-[var(--text)] leading-none">LunaDash</div>
-          <div className="text-[11px] font-medium text-[var(--text-secondary)] mt-1">Retail Operations OS</div>
-        </div>
-      </div>
+      {!mobile && (
+        <div className={cn(
+          'flex items-center justify-between gap-2 pb-3 mb-2 border-b border-[var(--border)]',
+          collapsed && 'flex-col justify-center gap-2'
+        )}>
+          <button
+            type="button"
+            onClick={() => navigate('home')}
+            className={cn('flex items-center gap-2.5 min-w-0 text-left', collapsed && 'justify-center')}
+            title="LunaDash"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)]">
+              <LunaWirelessLogo className="h-5 w-5" />
+            </div>
+            {!collapsed && (
+              <div className="min-w-0">
+                <div className="text-sm font-bold tracking-tight text-[var(--text)] leading-none">LunaDash</div>
+                <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5 truncate">Store Operations</div>
+              </div>
+            )}
+          </button>
 
-      {onToggleCollapse && !mobile && (
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className={cn(
-            'flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]/60 px-3 py-2 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-2)] transition-all mb-3',
-            collapsed && 'mx-auto w-10 justify-center px-0'
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] transition-colors"
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+            </button>
           )}
-          title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-          aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-        >
-          {collapsed ? <PanelLeftOpen size={16} /> : <Menu size={16} />}
-          {!collapsed && <span>Collapse Sidebar</span>}
-        </button>
+        </div>
       )}
 
-      {/* Nav List */}
-      <div className={cn('navigation-rail-list flex-1 space-y-4 overflow-y-auto no-scrollbar', collapsed && !mobile ? 'px-0' : 'pr-1')}>
+      {/* Navigation Groups */}
+      <div className="flex-1 space-y-4 overflow-y-auto no-scrollbar py-1">
         {NAV_GROUPS.map((group) => {
           const items = visibleItems.filter((item) => item.group === group)
           if (items.length === 0) return null
           return (
-            <div key={group} className="space-y-1">
-              <div className={cn('px-3 text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]', collapsed && !mobile && 'sr-only')}>
+            <div key={group} className="space-y-0.5">
+              <div className={cn(
+                'px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]',
+                collapsed && !mobile && 'sr-only'
+              )}>
                 {group}
               </div>
-              <div className="space-y-1">
-                {items.map((item) => {
-                  const active = activeTab === item.id
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => navigate(item.id)}
-                      className={cn(
-                        'navigation-rail-item group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all duration-200 border',
-                        collapsed && !mobile && 'justify-center gap-0 px-0',
-                        active
-                          ? 'bg-[var(--accent)] border-[var(--accent)] text-white shadow-md shadow-[var(--accent-glow)] font-semibold'
-                          : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text)] hover:border-[var(--border)]'
-                      )}
-                      title={collapsed && !mobile ? item.label : undefined}
-                      aria-label={item.label}
-                      aria-current={active ? 'page' : undefined}
-                    >
-                      <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors', active ? 'text-white' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text)]')}>
-                        {item.icon}
-                      </span>
-                      <span className={cn('min-w-0 flex-1', collapsed && !mobile && 'hidden')}>
-                        <span className="block truncate text-sm leading-snug">{item.label}</span>
-                        <span className={cn('block truncate text-[11px] leading-snug font-normal', active ? 'text-white/80' : 'text-[var(--text-tertiary)]')}>
-                          {item.helper}
-                        </span>
-                      </span>
-                      {active && !collapsed && (
-                        <span className="h-2 w-2 rounded-full bg-white shadow-[0_0_8px_white]" />
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
+              {items.map((item) => {
+                const active = activeTab === item.id
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => navigate(item.id)}
+                    className={cn(
+                      'group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
+                      collapsed && !mobile && 'justify-center px-0',
+                      active
+                        ? 'bg-[var(--accent-light)] text-[var(--accent)] font-semibold'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] font-medium'
+                    )}
+                    title={collapsed && !mobile ? item.label : undefined}
+                    aria-label={item.label}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    <span className={cn(
+                      'flex h-5 w-5 shrink-0 items-center justify-center',
+                      active ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text)]'
+                    )}>
+                      {item.icon}
+                    </span>
+                    {(!collapsed || mobile) && (
+                      <span className="truncate">{item.label}</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           )
         })}
       </div>
+
+      {/* Mobile Drawer Quick Actions Footer */}
+      {mobile && (
+        <div className="mt-3 pt-3 border-t border-[var(--border)] space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            {onOpenTransferGuide && (
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate?.()
+                  onOpenTransferGuide()
+                }}
+                className="flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-xs font-medium text-[var(--text)]"
+              >
+                <KeyRound size={14} className="text-[var(--accent)]" />
+                <span>Port Guide</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-xs font-medium text-[var(--text)]"
+            >
+              {isDark ? <Sun size={14} /> : <Moon size={14} />}
+              <span>{isDark ? 'Light Theme' : 'Dark Theme'}</span>
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <StorePickerButton className="flex-1 justify-center h-10 border border-[var(--border)] bg-[var(--surface-2)]" />
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate?.()
+                clearStoreSession()
+              }}
+              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-xs font-medium text-[var(--status-danger-text)]"
+            >
+              <LogOut size={14} />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      )}
     </nav>
   )
 }
@@ -549,7 +712,7 @@ function MobileBottomNav({ onOpenMore }: { onOpenMore: () => void }) {
 
   return (
     <nav
-      className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 grid md:hidden"
+      className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 grid border-t border-[var(--border)] bg-[var(--command-bg)] px-1 pt-1.5 backdrop-blur-md md:hidden"
       style={{ gridTemplateColumns: `repeat(${primaryTabs.length + 1}, minmax(0, 1fr))` }}
       aria-label="Primary navigation"
     >
@@ -560,54 +723,98 @@ function MobileBottomNav({ onOpenMore }: { onOpenMore: () => void }) {
             key={item.id}
             type="button"
             onClick={() => setTab(item.id)}
-            className={cn('mobile-bottom-nav-item', active && 'mobile-bottom-nav-item-active')}
+            className={cn(
+              'flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium transition-colors',
+              active ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'
+            )}
             aria-current={active ? 'page' : undefined}
           >
-            <span className="mobile-bottom-nav-icon">{item.icon}</span>
-            <span>{MOBILE_NAV_LABELS[item.id] ?? item.label}</span>
+            <span className={cn(
+              'flex h-7 w-11 items-center justify-center rounded-full transition-colors',
+              active && 'bg-[var(--accent-light)]'
+            )}>
+              {item.icon}
+            </span>
+            <span className="leading-none">{MOBILE_NAV_LABELS[item.id] ?? item.label}</span>
           </button>
         )
       })}
       <button
         type="button"
         onClick={onOpenMore}
-        className={cn('mobile-bottom-nav-item', moreActive && 'mobile-bottom-nav-item-active')}
+        className={cn(
+          'flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium transition-colors',
+          moreActive ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'
+        )}
         aria-label="Open all navigation"
       >
-        <span className="mobile-bottom-nav-icon"><MoreHorizontal size={19} /></span>
-        <span>More</span>
+        <span className={cn(
+          'flex h-7 w-11 items-center justify-center rounded-full transition-colors',
+          moreActive && 'bg-[var(--accent-light)]'
+        )}>
+          <MoreHorizontal size={18} />
+        </span>
+        <span className="leading-none">More</span>
       </button>
     </nav>
   )
 }
 
-function MobileNavOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
+function MobileNavOverlay({
+  open,
+  onClose,
+  onOpenTransferGuide,
+}: {
+  open: boolean
+  onClose: () => void
+  onOpenTransferGuide: () => void
+}) {
+  useEffect(() => {
+    if (!open) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [open, onClose])
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[80] flex items-end bg-black/50 md:hidden"
+          className="fixed inset-0 z-[80] flex items-end bg-black/55 backdrop-blur-[2px] md:hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          onClick={onClose}
         >
           <motion.div
-            className="command-mobile-drawer flex max-h-[88dvh] min-h-0 w-full flex-col rounded-t-3xl border-t border-[var(--border)] bg-[var(--surface)] px-3 shadow-[var(--shadow-modal)] backdrop-blur-2xl"
+            className="flex max-h-[85dvh] min-h-0 w-full flex-col rounded-t-2xl border-t border-[var(--border-strong)] bg-[var(--surface)] px-4 pt-2.5 pb-[max(1rem,var(--safe-area-bottom))] shadow-[var(--shadow-modal)]"
             role="dialog"
             aria-modal="true"
             aria-label="Navigation"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
+            onClick={(event) => event.stopPropagation()}
           >
-            <div className="relative mb-2 flex items-center justify-center pt-1">
-              <span className="h-1.5 w-12 rounded-full bg-[var(--border-strong)]" />
-              <button className="command-icon-button absolute right-0 top-0" onClick={onClose} aria-label="Close navigation">
-                <X size={18} />
+            <div className="relative mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <LunaWirelessLogo className="h-5 w-5" />
+                <span className="text-sm font-bold text-[var(--text)]">Navigation</span>
+              </div>
+              <button
+                type="button"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]"
+                onClick={onClose}
+                aria-label="Close navigation"
+              >
+                <X size={17} />
               </button>
             </div>
-            <NavigationRail mobile onNavigate={onClose} />
+            <NavigationRail mobile onNavigate={onClose} onOpenTransferGuide={onOpenTransferGuide} />
           </motion.div>
         </motion.div>
       )}
@@ -616,11 +823,10 @@ function MobileNavOverlay({ open, onClose }: { open: boolean; onClose: () => voi
 }
 
 export function AppShell({ children, activeKey }: AppShellProps) {
-  const { accessRole, activeTab, setSettingsSection, setTab, uiScale } = useUiStore()
+  const { accessRole, activeTab, setSettingsSection, setTab } = useUiStore()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [commandMenuOpen, setCommandMenuOpen] = useState(false)
   const [transferGuideOpen, setTransferGuideOpen] = useState(false)
-  const [pageScrolled, setPageScrolled] = useState(false)
   const [railCollapsed, setRailCollapsed] = useState(() => {
     try {
       return localStorage.getItem('luna-left-rail-collapsed') === 'true'
@@ -628,7 +834,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
       return false
     }
   })
-  const zoom = uiScale === '120' ? 1.2 : 1
+
   const commandActions = useMemo<CommandAction[]>(() => {
     const pageActions = NAV_ITEMS
       .filter((item) => canAccessTab(accessRole, item.id))
@@ -646,7 +852,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
         id: item.id,
         label: item.label,
         helper: item.helper,
-        icon: <Settings size={17} />,
+        icon: <Settings size={16} />,
         keywords: item.keywords,
         run: () => {
           setSettingsSection(item.section)
@@ -658,7 +864,7 @@ export function AppShell({ children, activeKey }: AppShellProps) {
       id: 'carrier-transfer-guide',
       label: 'Carrier Transfer Guide',
       helper: 'Account numbers, transfer PINs, and port notes',
-      icon: <KeyRound size={17} />,
+      icon: <KeyRound size={16} />,
       keywords: 'carrier port transfer pin account number att verizon xfinity spectrum metro cricket',
       run: () => setTransferGuideOpen(true),
     }]
@@ -670,16 +876,12 @@ export function AppShell({ children, activeKey }: AppShellProps) {
     const openCommandMenu = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
-        setCommandMenuOpen(true)
+        setCommandMenuOpen((open) => !open)
       }
     }
     window.addEventListener('keydown', openCommandMenu)
     return () => window.removeEventListener('keydown', openCommandMenu)
   }, [])
-
-  useEffect(() => {
-    setPageScrolled(false)
-  }, [activeKey])
 
   const toggleRailCollapsed = () => {
     setRailCollapsed((collapsed) => {
@@ -698,57 +900,50 @@ export function AppShell({ children, activeKey }: AppShellProps) {
   }
 
   return (
-    <div className="h-full w-full overflow-hidden bg-[var(--bg)]">
+    <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to main content</a>
-      <div
-        className="app-command-shell"
-        style={{
-          width: `${100 / zoom}%`,
-          height: `${100 / zoom}%`,
-          transform: `scale(${zoom})`,
-          transformOrigin: 'top left',
-        }}
-      >
-        <aside className="chrome-bar hidden h-full min-h-0 w-[5rem] flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-3 md:block xl:hidden">
-          <NavigationRail collapsed />
-        </aside>
-        <aside className={cn(
-          'chrome-bar hidden h-full min-h-0 flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-3 transition-[width] duration-200 xl:block',
-          railCollapsed ? 'w-[5rem]' : 'w-[17rem]'
-        )}>
-          <NavigationRail collapsed={railCollapsed} onToggleCollapse={toggleRailCollapsed} />
-        </aside>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopCommandBar
-            onOpenCommandMenu={() => setCommandMenuOpen(true)}
-            onOpenTransferGuide={() => setTransferGuideOpen(true)}
-          />
-          <main id="main-content" className="relative min-h-0 flex-1 overflow-hidden" tabIndex={-1}>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={activeKey}
-                className={cn(
-                  'app-page-viewport absolute inset-0 overflow-y-auto overflow-x-hidden',
-                  pageScrolled && 'app-page-scrolled'
-                )}
-                onScrollCapture={(event) => {
-                  const nextScrolled = (event.target as HTMLElement).scrollTop > 36
-                  setPageScrolled((current) => current === nextScrolled ? current : nextScrolled)
-                }}
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              >
-                {children}
-              </motion.div>
-            </AnimatePresence>
-          </main>
-          <MobileBottomNav onOpenMore={() => setMobileNavOpen(true)} />
-        </div>
+
+      {/* Tablet Icon Rail (md to xl) */}
+      <aside className="hidden h-full min-h-0 w-16 flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-2.5 md:block xl:hidden">
+        <NavigationRail collapsed />
+      </aside>
+
+      {/* Desktop Collapsible Sidebar (xl+) */}
+      <aside className={cn(
+        'hidden h-full min-h-0 flex-shrink-0 border-r border-[var(--border)] bg-[var(--sidebar-bg)] p-3 transition-[width] duration-150 xl:block',
+        railCollapsed ? 'w-16 px-2.5' : 'w-[232px]'
+      )}>
+        <NavigationRail collapsed={railCollapsed} onToggleCollapse={toggleRailCollapsed} />
+      </aside>
+
+      {/* Main Column */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopCommandBar
+          onOpenCommandMenu={() => setCommandMenuOpen(true)}
+          onOpenTransferGuide={() => setTransferGuideOpen(true)}
+        />
+        <main id="main-content" className="relative min-h-0 flex-1 overflow-hidden" tabIndex={-1}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={activeKey}
+              className="app-page-viewport absolute inset-0 overflow-y-auto overflow-x-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+        <MobileBottomNav onOpenMore={() => setMobileNavOpen(true)} />
       </div>
-      <MobileNavOverlay open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+
+      <MobileNavOverlay
+        open={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        onOpenTransferGuide={() => setTransferGuideOpen(true)}
+      />
       <CommandMenu open={commandMenuOpen} onClose={() => setCommandMenuOpen(false)} actions={commandActions} />
       <CarrierTransferModal open={transferGuideOpen} onClose={() => setTransferGuideOpen(false)} />
     </div>

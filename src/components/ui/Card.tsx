@@ -18,21 +18,21 @@ export function Card({
   noPadding = false,
   ...rest
 }: CardProps) {
-  const base = 'ui-card relative rounded-2xl border transition-all duration-200 backdrop-blur-md overflow-hidden'
+  const base = 'ui-card relative rounded-xl border transition-colors duration-150 overflow-hidden'
   const variants = {
-    default: 'bg-[var(--surface)] border-[var(--border)] shadow-[var(--shadow-card)]',
+    default:  'bg-[var(--surface)] border-[var(--border)] shadow-[var(--shadow-card)]',
     elevated: 'bg-[var(--surface)] border-[var(--border-strong)] shadow-[var(--shadow-float)]',
-    glass: 'bg-[var(--surface)]/80 border-[var(--border)] shadow-[var(--shadow-card)] backdrop-blur-xl',
-    subtle: 'bg-[var(--surface-2)] border-[var(--border)] shadow-sm',
-    accent: 'bg-gradient-to-br from-[var(--accent)]/10 via-[var(--surface)] to-[var(--surface)] border-[var(--accent)]/30 shadow-[0_8px_24px_-8px_var(--accent-glow)]',
+    glass:    'bg-[var(--surface)] border-[var(--border)] shadow-[var(--shadow-card)]',
+    subtle:   'bg-[var(--surface-2)] border-[var(--border)]',
+    accent:   'bg-[var(--surface)] border-[var(--accent)]/35 shadow-[var(--shadow-card)]',
   }
   const interactiveClass = interactive
-    ? 'cursor-pointer hover:border-[var(--accent)]/40 hover:shadow-[var(--shadow-float)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99]'
+    ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--surface-2)]/60 active:scale-[0.995]'
     : ''
 
   return (
     <motion.div
-      className={cn(base, variants[variant], interactiveClass, !noPadding && 'p-5 sm:p-6', className)}
+      className={cn(base, variants[variant], interactiveClass, !noPadding && 'p-4 sm:p-5', className)}
       {...rest}
     >
       {children}

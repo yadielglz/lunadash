@@ -9,17 +9,17 @@ import {
   CheckSquare,
   Clock,
   EyeOff,
+  RadioTower,
   RotateCcw,
   Settings2,
-  Sparkles,
   Trophy,
-  RadioTower,
   Users,
   Wifi,
 } from 'lucide-react'
 import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
+import { PageFrame } from '../../ui/ModulePrimitives'
 import { useUiStore } from '../../../store/uiStore'
 import { isAnnouncementActive, useDisplayStore } from '../../../store/displayStore'
 import { useScheduleStore } from '../../../store/scheduleStore'
@@ -31,6 +31,7 @@ import { appointmentFilledRows, fetchAppointmentTrackerData } from '../../../lib
 import { normalizeStoreId } from '../../../lib/storeIds'
 import { fetchDashboardPerformanceData } from '../../../lib/dashboardSales'
 import { getStoreProfile } from '../../../config/storeProfiles'
+import { cn } from '../../../lib/utils'
 
 const todayKey = () => {
   const date = new Date()
@@ -43,15 +44,16 @@ const todayKey = () => {
 
 const DASHBOARD_PREFS_KEY = 'luna-today-dashboard-sections'
 const DASHBOARD_SECTIONS = [
-  { id: 'brief', label: 'Smart Brief' },
+  { id: 'brief', label: 'Daily Brief' },
   { id: 'pulse', label: 'Performance Pulse' },
-  { id: 'attention', label: 'Needs Attention' },
+  { id: 'attention', label: 'Priorities' },
   { id: 'wins', label: 'District Wins' },
-  { id: 'coverage', label: 'Coverage' },
+  { id: 'coverage', label: 'Floor Coverage' },
   { id: 'checklist', label: 'Checklist' },
   { id: 'announcements', label: 'Announcements' },
   { id: 'connectivity', label: 'Connectivity' },
 ] as const
+
 type DashboardSectionId = typeof DASHBOARD_SECTIONS[number]['id']
 type DashboardSectionPrefs = Record<DashboardSectionId, boolean>
 
@@ -70,27 +72,6 @@ function loadDashboardPrefs(): DashboardSectionPrefs {
   }
 }
 
-function EmptyState({
-  icon,
-  title,
-  detail,
-  action,
-}: {
-  icon: ReactNode
-  title: string
-  detail: string
-  action?: ReactNode
-}) {
-  return (
-    <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] px-4 py-6 text-center">
-      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-md bg-[var(--surface-3)] text-[var(--accent)]">{icon}</div>
-      <div className="mt-3 text-sm font-semibold text-[var(--text)]">{title}</div>
-      <div className="mx-auto mt-1 max-w-xs text-xs text-[var(--text-secondary)]">{detail}</div>
-      {action && <div className="mt-3">{action}</div>}
-    </div>
-  )
-}
-
 function normalizeStoreCode(value: string) {
   return value.replace(/\D/g, '').trim()
 }
@@ -104,10 +85,16 @@ function formatTime(value: string) {
   })
 }
 
-function metricTone(percent: number) {
-  if (percent >= 100) return '#1f8a4c'
-  if (percent >= 80) return '#c98408'
-  return '#c94040'
+function metricStatusTone(percent: number): 'success' | 'warning' | 'danger' {
+  if (percent >= 100) return 'success'
+  if (percent >= 80) return 'warning'
+  return 'danger'
+}
+
+function metricBarColor(percent: number): string {
+  if (percent >= 100) return 'var(--status-good)'
+  if (percent >= 80) return 'var(--status-warn)'
+  return 'var(--status-danger)'
 }
 
 function formatUpdatedAt(value: string | null | undefined) {
@@ -125,113 +112,119 @@ function latestUpdatedAt(values: Array<string | null>) {
   }, null)
 }
 
-function ConnectivityTile({
-  label,
-  status,
-  detail,
-  tone,
-}: {
-  label: string
-  status: string
-  detail: string
-  tone: string
-}) {
-  return (
-    <div className="rounded-lg border px-3 py-3" style={{ borderColor: `${tone}55`, background: `${tone}16` }}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-xs font-semibold uppercase text-[var(--text-tertiary)]">{label}</div>
-        <span className="h-2.5 w-2.5 rounded-full" style={{ background: tone, boxShadow: `0 0 0.75rem ${tone}` }} />
-      </div>
-      <div className="mt-2 text-xl font-semibold tabular-nums text-[var(--text)]">{status}</div>
-      <div className="mt-1 text-xs text-[var(--text-secondary)]">{detail}</div>
-    </div>
-  )
-}
-
 function selectedPerformanceRow(data: PerformanceData | undefined, identifiers: string[], isMain: boolean) {
   if (!data) return null
   if (isMain) return data.total
-
   const candidates = new Set(identifiers.map(normalizeStoreCode).filter(Boolean))
   return data.rows.find((row) => candidates.has(normalizeStoreCode(row.storeCode))) ?? null
 }
 
-function HeroMetric({ label, value, percent, helper }: { label: string; value: string; percent?: number; helper: string }) {
-  const tone = percent === undefined ? 'var(--accent)' : metricTone(percent)
-  const isAhead = percent !== undefined && percent >= 100
-
+function SectionPanel({
+  title,
+  subtitle,
+  action,
+  children,
+}: {
+  title: ReactNode
+  subtitle?: string
+  action?: ReactNode
+  children: ReactNode
+}) {
   return (
-    <div className="relative rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 sm:p-5 shadow-sm transition-all hover:border-[var(--border-strong)] hover:shadow-md backdrop-blur-md">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">{label}</span>
-        {percent !== undefined && (
-          <Badge
-            tone={isAhead ? 'success' : percent >= 80 ? 'warning' : 'danger'}
-            size="xs"
-            dot
-          >
-            {formatPercent(percent)}
-          </Badge>
-        )}
+    <Card noPadding>
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-[var(--text)] tracking-tight truncate">{title}</h2>
+          {subtitle && <p className="text-xs text-[var(--text-tertiary)] mt-0.5 truncate">{subtitle}</p>}
+        </div>
+        {action && <div className="shrink-0">{action}</div>}
       </div>
-      <div className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-[var(--text)] tracking-tight">
-        {value}
-      </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--surface-3)]">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${Math.min(Math.max(percent ?? 100, 0), 100)}%`, background: tone }}
-        />
-      </div>
-      <div className="mt-2.5 flex items-center justify-between text-xs text-[var(--text-secondary)]">
-        <span>{helper}</span>
-        {isAhead && <span className="font-semibold text-emerald-400">Target Hit!</span>}
-      </div>
-    </div>
+      {children}
+    </Card>
   )
 }
 
-function ActionRow({
-  icon,
+function KpiTile({
   label,
-  detail,
-  tone = 'var(--accent)',
+  value,
+  meta,
+  accent,
   onClick,
 }: {
-  icon: ReactNode
   label: string
-  detail: string
-  tone?: string
-  onClick: () => void
+  value: string
+  meta: string
+  accent?: string
+  onClick?: () => void
+}) {
+  const Tag = onClick ? 'button' : 'div'
+  return (
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={cn(
+        'flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3.5 text-left shadow-[var(--shadow-card)] transition-colors',
+        onClick && 'hover:border-[var(--border-strong)] hover:bg-[var(--surface-2)]/50 cursor-pointer'
+      )}
+    >
+      <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
+        {label}
+      </span>
+      <span
+        className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-[var(--text)]"
+        style={accent ? { color: accent } : undefined}
+      >
+        {value}
+      </span>
+      <span className="mt-1 text-xs text-[var(--text-secondary)] truncate">{meta}</span>
+    </Tag>
+  )
+}
+
+function PulseMetric({
+  label,
+  value,
+  percent,
+  helper,
+}: {
+  label: string
+  value: string
+  percent: number
+  helper: string
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex w-full items-center gap-3.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/80 p-3.5 text-left transition-all duration-200 hover:border-[var(--accent)]/40 hover:bg-[var(--surface-3)] hover:shadow-sm active:scale-[0.99]"
-    >
-      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105" style={{ background: `${tone}18`, color: tone }}>
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">{label}</span>
-        <span className="block truncate text-xs text-[var(--text-secondary)] mt-0.5">{detail}</span>
-      </span>
-      <ArrowRight size={16} className="text-[var(--text-tertiary)] transition-transform group-hover:translate-x-1 group-hover:text-[var(--text)]" />
-    </button>
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-[var(--text-secondary)]">{label}</span>
+        <Badge tone={metricStatusTone(percent)} size="xs">
+          {formatPercent(percent)}
+        </Badge>
+      </div>
+      <div className="mt-2 text-xl font-bold tabular-nums text-[var(--text)] tracking-tight">
+        {value}
+      </div>
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{
+            width: `${Math.min(Math.max(percent, 0), 100)}%`,
+            background: metricBarColor(percent),
+          }}
+        />
+      </div>
+      <div className="mt-2 text-[11px] text-[var(--text-tertiary)]">{helper}</div>
+    </div>
   )
 }
 
 function StorePulse({ row }: { row: PerformanceRow | null }) {
   if (!row) {
     return (
-      <Card variant="glass" className="p-6">
-        <div className="flex items-center gap-2.5 text-base font-bold text-[var(--text)]">
-          <BarChart3 size={18} className="text-[var(--accent)]" />
-          Performance Pulse
+      <SectionPanel title="Performance Pulse" subtitle="Live store metrics">
+        <div className="px-4 py-6 text-center text-xs text-[var(--text-secondary)]">
+          Live performance data is not mapped for this store yet.
         </div>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">Live performance data is not mapped for this store yet.</p>
-      </Card>
+      </SectionPanel>
     )
   }
 
@@ -243,217 +236,91 @@ function StorePulse({ row }: { row: PerformanceRow | null }) {
   ].sort((a, b) => a.value - b.value)[0]
 
   return (
-    <Card noPadding variant="glass" className="overflow-hidden border border-[var(--border)] shadow-md">
-      <div className="border-b border-[var(--border)] bg-[var(--surface-2)]/50 px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-[var(--text)] tracking-tight">Daily Store Performance Pulse</h2>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Live store telemetry reconciled from Source data</p>
-          </div>
-          <Badge
-            tone={overall >= 100 ? 'success' : overall >= 80 ? 'warning' : 'danger'}
-            variant="glass"
-            size="md"
-            dot
-          >
-            {formatPercent(overall)} Composite Pace
-          </Badge>
-        </div>
+    <SectionPanel
+      title="Performance Pulse"
+      subtitle="Live store metrics vs. quota"
+      action={
+        <Badge tone={metricStatusTone(overall)} size="sm" dot>
+          {formatPercent(overall)} Pace
+        </Badge>
+      }
+    >
+      <div className="grid gap-3 p-4 sm:grid-cols-3">
+        <PulseMetric
+          label="Net Revenue"
+          value={formatMoney(row.netRevenue)}
+          percent={row.netRevenuePct}
+          helper={row.netRevenue >= row.netRevenueGoal ? 'Quota reached' : `${formatMoney(row.netRevenueGoal - row.netRevenue)} to quota`}
+        />
+        <PulseMetric
+          label="Accessories"
+          value={formatMoney(row.accessoryRevenue)}
+          percent={row.accessoryPct}
+          helper={row.accessoryRevenue >= row.accessoryGoal ? 'Quota reached' : `${formatMoney(row.accessoryGoal - row.accessoryRevenue)} to quota`}
+        />
+        <PulseMetric
+          label="Total PP Units"
+          value={formatNumber(row.totalPp)}
+          percent={row.ppPct}
+          helper={row.totalPp >= row.dortGoal ? 'Quota reached' : `${formatNumber(row.dortGoal - row.totalPp)} to quota`}
+        />
       </div>
-
-      <div className="grid gap-3.5 p-5 md:grid-cols-3">
-        <HeroMetric label="Net Revenue" value={formatMoney(row.netRevenue)} percent={row.netRevenuePct} helper={`${formatMoney(Math.max(row.netRevenueGoal - row.netRevenue, 0))} to quota`} />
-        <HeroMetric label="Accessories" value={formatMoney(row.accessoryRevenue)} percent={row.accessoryPct} helper={`${formatMoney(Math.max(row.accessoryGoal - row.accessoryRevenue, 0))} to quota`} />
-        <HeroMetric label="Total PP Units" value={formatNumber(row.totalPp)} percent={row.ppPct} helper={`${formatNumber(Math.max(row.dortGoal - row.totalPp, 0))} to quota`} />
+      <div className="border-t border-[var(--border)] bg-[var(--surface-2)]/50 px-4 py-2.5 text-xs text-[var(--text-secondary)]">
+        Primary focus: <strong className="text-[var(--text)]">{weakest.label}</strong> at {formatPercent(weakest.value)} pace.
       </div>
-
-      <div className="border-t border-[var(--border)] bg-[var(--surface-2)]/30 px-5 py-3 text-xs text-[var(--text-secondary)] flex items-center justify-between">
-        <span>Strategic Focus Area: <strong className="text-[var(--text)]">{weakest.label}</strong> is currently at {formatPercent(weakest.value)} pace.</span>
-      </div>
-    </Card>
+    </SectionPanel>
   )
 }
 
-function SmartBriefCard({
-  brief,
-  onOpenDistrict,
-}: {
-  brief: ReturnType<typeof smartDailyBrief>
-  onOpenDistrict: () => void
-}) {
-  return (
-    <div className="rounded-2xl border border-[var(--accent)]/30 bg-gradient-to-r from-[var(--accent)]/15 via-[var(--surface-2)] to-[var(--surface)] p-4 sm:p-5 shadow-sm backdrop-blur-md">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--accent)]">
-              <Sparkles size={15} />
-              Smart Daily Brief
-            </span>
-            {brief.focusLabel && <Badge tone="accent" size="xs">{brief.focusLabel}</Badge>}
-          </div>
-          <p className="mt-1.5 text-sm sm:text-base font-semibold text-[var(--text)] leading-snug">{brief.headline}</p>
-        </div>
-        <Button size="sm" variant="primary" onClick={onOpenDistrict} icon={<BarChart3 size={14} />}>
-          View Ranks
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function DistrictWinsCard({
-  wins,
-  onOpenDistrict,
-}: {
-  wins: ReturnType<typeof districtWins>
-  onOpenDistrict: () => void
-}) {
-  return (
-    <Card noPadding variant="glass" className="overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-2)]/50 px-5 py-4">
-        <div>
-          <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--text)]">
-            <Trophy size={16} className="text-amber-400" />
-            District Leaderboard Wins
-          </h2>
-          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Top-ranking categories from latest updates</p>
-        </div>
-        <Button size="sm" variant="ghost" onClick={onOpenDistrict}>Full Board</Button>
-      </div>
-      <div className="space-y-2 p-4">
-        {wins.length === 0 ? (
-          <div className="py-6 text-center">
-            <div className="text-sm font-semibold text-[var(--text)]">No Activity Yet</div>
-          </div>
-        ) : (
-          wins.map((win) => (
-            <button
-              type="button"
-              key={win.id}
-              onClick={onOpenDistrict}
-              className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 text-left transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-3)] active:scale-[0.99]"
-            >
-              <span className="h-2.5 w-2.5 rounded-full shadow-sm" style={{ background: win.tone }} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-[var(--text)]">{win.label}</span>
-                <span className="block truncate text-xs text-[var(--text-secondary)] mt-0.5">{win.detail}</span>
-              </span>
-              <ArrowRight size={14} className="text-[var(--text-tertiary)]" />
-            </button>
-          ))
-        )}
-      </div>
-    </Card>
-  )
-}
-
-
-function ConsolePanel({
-  title,
-  eyebrow,
-  action,
-  children,
-}: {
-  title: string
-  eyebrow?: string
-  action?: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <section className="console-panel overflow-hidden border border-[var(--border)] bg-[var(--surface)]">
-      <div className="console-panel-header flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
-        <div className="min-w-0">
-          {eyebrow && <div className="console-eyebrow text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">{eyebrow}</div>}
-          <h2 className="truncate text-sm font-semibold text-[var(--text)]">{title}</h2>
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-function ConsoleKpi({
+function ActionRow({
+  icon,
   label,
-  value,
   detail,
-  percent,
-  gap,
-  gapValue,
+  toneColor,
+  onClick,
 }: {
+  icon: ReactNode
   label: string
-  value: string
   detail: string
-  percent?: number
-  gap?: string
-  gapValue?: number
+  toneColor: string
+  onClick: () => void
 }) {
-  const tone = percent === undefined ? 'var(--accent)' : metricTone(percent)
-  const gapTone = gapValue === undefined
-    ? 'var(--text-tertiary)'
-    : gapValue >= 0
-      ? 'var(--status-good)'
-      : 'var(--status-danger)'
-
   return (
-    <div className="console-kpi min-w-0 border-r border-[var(--border)] bg-[var(--surface)] px-3 py-3 last:border-r-0">
-      <div className="text-[10px] font-bold uppercase tracking-[0.11em] text-[var(--text-tertiary)]">{label}</div>
-      <div className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-[var(--text)]">{value}</div>
-      <div className="mt-1 flex min-w-0 items-center justify-between gap-3 text-[11px]">
-        <span className="flex min-w-0 items-center gap-2 text-[var(--text-secondary)]">
-          {percent !== undefined && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone }} />}
-          <span className="truncate">{detail}</span>
-        </span>
-        {gap && (
-          <span className="shrink-0 font-semibold tabular-nums" style={{ color: gapTone }}>
-            {gap}
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function ConsoleMetricRow({
-  label,
-  actual,
-  goal,
-  percent,
-}: {
-  label: string
-  actual: string
-  goal: string
-  percent: number
-}) {
-  const tone = metricTone(percent)
-  return (
-    <div className="console-metric-row grid grid-cols-[minmax(0,1.35fr)_0.9fr_0.9fr_0.7fr] items-center border-b border-[var(--border)] px-3 py-2 last:border-b-0">
-      <div className="truncate text-xs font-medium text-[var(--text)]">{label}</div>
-      <div className="text-right text-xs tabular-nums text-[var(--text-secondary)]">{actual}</div>
-      <div className="text-right text-xs tabular-nums text-[var(--text-tertiary)]">{goal}</div>
-      <div className="flex items-center justify-end gap-1.5 text-right text-xs font-semibold tabular-nums" style={{ color: tone }}>
-        <span className="h-1.5 w-1.5 rounded-full" style={{ background: tone }} />
-        {formatPercent(percent)}
-      </div>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-full items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2.5 text-left transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-3)]"
+    >
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--surface)] border border-[var(--border)]"
+        style={{ color: toneColor }}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-[var(--text)]">{label}</span>
+        <span className="block truncate text-xs text-[var(--text-secondary)]">{detail}</span>
+      </span>
+      <ArrowRight size={14} className="shrink-0 text-[var(--text-tertiary)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--text)]" />
+    </button>
   )
 }
 
 export function TodayDashboard() {
-  const { dealerCode, setTab, storeId, accessRole, theme } = useUiStore()
+  const { dealerCode, setTab, storeId } = useUiStore()
   const { storeNumber, announcements } = useDisplayStore()
   const { employees, shifts } = useScheduleStore()
   const { tasks } = useTasksStore()
   const syncEntries = useSyncStore((s) => s.entries)
   const [customizing, setCustomizing] = useState(false)
   const [sectionPrefs, setSectionPrefs] = useState<DashboardSectionPrefs>(() => loadDashboardPrefs())
+
   const today = todayKey()
   const isMain = normalizeStoreId(storeId) === 'main'
   const storeProfile = getStoreProfile(storeId)
   const dateLabel = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
-    month: 'long',
+    month: 'short',
     day: 'numeric',
   })
 
@@ -494,6 +361,7 @@ export function TodayDashboard() {
   const taskPct = tasks.length > 0 ? Math.round((doneTasks / tasks.length) * 100) : 0
   const hasTasks = tasks.length > 0
   const appointmentRows = appointmentFilledRows(appointmentsQuery.data ?? null, 'Week 1').length
+
   const brief = smartDailyBrief({
     data: performanceQuery.data,
     row: performanceRow,
@@ -506,10 +374,10 @@ export function TodayDashboard() {
   const syncProblems = Object.entries(syncEntries).filter(([, entry]) => entry.state === 'error')
   const savingAreas = Object.entries(syncEntries).filter(([, entry]) => entry.state === 'saving')
   const supabaseUpdatedAt = latestUpdatedAt(Object.values(syncEntries).map((entry) => entry.updatedAt))
-  const googleStatus = performanceQuery.isError ? 'Issue' : performanceQuery.data ? 'Live' : 'Online'
-  const googleTone = performanceQuery.isError ? '#c94040' : performanceQuery.data ? '#1f8a4c' : '#0876c9'
-  const supabaseStatus = syncProblems.length ? 'Issue' : savingAreas.length ? 'Syncing' : 'Live'
-  const supabaseTone = syncProblems.length ? '#c94040' : savingAreas.length ? '#c98408' : '#1f8a4c'
+
+  const overallPace = performanceRow
+    ? (performanceRow.netRevenuePct + performanceRow.accessoryPct + performanceRow.ppPct) / 3
+    : null
 
   useEffect(() => {
     window.localStorage.setItem(DASHBOARD_PREFS_KEY, JSON.stringify(sectionPrefs))
@@ -521,310 +389,48 @@ export function TodayDashboard() {
 
   const resetSections = () => setSectionPrefs({ ...DEFAULT_DASHBOARD_PREFS })
 
-  if (theme === 'console' || theme === 'console-light') {
-    const openTasks = Math.max(tasks.length - doneTasks, 0)
-    const storeTitle = isMain ? 'District Operations Center' : storeProfile?.location || `Store ${storeId}`
-    const hasPerformanceActivity = Boolean(performanceRow && (
-      performanceRow.netRevenue > 0
-      || performanceRow.accessoryRevenue > 0
-      || performanceRow.totalPp > 0
-      || performanceRow.traffic > 0
-    ))
-
-    return (
-      <div className="console-today page-frame page-frame-full">
-        <header className="console-page-header border border-[var(--border)] bg-[var(--surface)]">
-          <div className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
-                <span>Luna Console</span>
-                <span className="text-[var(--accent)]">{isMain ? 'District' : storeId}</span>
-                <span>{dateLabel}</span>
-                <span className="flex items-center gap-1.5 text-emerald-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Live</span>
-              </div>
-              <h1 className="mt-1 truncate text-xl font-semibold tracking-[-0.025em] text-[var(--text)] sm:text-2xl">{storeTitle}</h1>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {accessRole && <span className="console-chip">{accessRole.replace('_', ' ')}</span>}
-              <Button size="sm" variant={customizing ? 'accent' : 'secondary'} icon={<Settings2 size={13} />} onClick={() => setCustomizing((v) => !v)}>
-                Layout
-              </Button>
-              <Button size="sm" variant="ghost" icon={<BarChart3 size={13} />} onClick={() => setTab('district')}>
-                District
-              </Button>
-            </div>
-          </div>
-          <div className="console-brief-line flex items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--surface-2)] px-4 py-2">
-            <div className="min-w-0 truncate text-xs text-[var(--text-secondary)]">
-              <span className="mr-2 font-semibold uppercase tracking-[0.08em] text-[var(--accent)]">Brief</span>
-              <span className="font-medium text-[var(--text)]">{brief.headline}</span>
-            </div>
-            {brief.focusLabel && <span className="console-chip hidden sm:inline-flex">{brief.focusLabel}</span>}
-          </div>
-        </header>
-
-        {customizing && (
-          <div className="console-layout-editor mt-2 border border-[var(--border)] bg-[var(--surface)] p-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-xs font-semibold text-[var(--text)]">Visible console modules</span>
-              <Button size="sm" variant="ghost" icon={<RotateCcw size={12} />} onClick={resetSections}>Reset</Button>
-            </div>
-            <div className="grid gap-1 sm:grid-cols-4 lg:grid-cols-8">
-              {DASHBOARD_SECTIONS.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => toggleSection(section.id)}
-                  className={`console-module-toggle border px-2 py-1.5 text-left text-[11px] font-medium ${sectionPrefs[section.id] ? 'is-enabled' : ''}`}
-                >
-                  {section.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="console-kpi-strip mt-2 grid overflow-hidden border border-[var(--border)] sm:grid-cols-2 xl:grid-cols-4">
-          <ConsoleKpi
-            label="Net Revenue"
-            value={performanceRow ? formatMoney(performanceRow.netRevenue) : '—'}
-            percent={performanceRow?.netRevenuePct}
-            detail={performanceRow ? `${formatMoney(performanceRow.netRevenueGoal)} goal` : 'No mapped data'}
-            gap={performanceRow ? `${performanceRow.netRevenue - performanceRow.netRevenueGoal >= 0 ? '+' : ''}${formatMoney(performanceRow.netRevenue - performanceRow.netRevenueGoal)} gap` : undefined}
-            gapValue={performanceRow ? performanceRow.netRevenue - performanceRow.netRevenueGoal : undefined}
-          />
-          <ConsoleKpi
-            label="Accessories"
-            value={performanceRow ? formatMoney(performanceRow.accessoryRevenue) : '—'}
-            percent={performanceRow?.accessoryPct}
-            detail={performanceRow ? `${formatMoney(performanceRow.accessoryGoal)} goal` : 'No mapped data'}
-            gap={performanceRow ? `${performanceRow.accessoryRevenue - performanceRow.accessoryGoal >= 0 ? '+' : ''}${formatMoney(performanceRow.accessoryRevenue - performanceRow.accessoryGoal)} gap` : undefined}
-            gapValue={performanceRow ? performanceRow.accessoryRevenue - performanceRow.accessoryGoal : undefined}
-          />
-          <ConsoleKpi
-            label="PP Units"
-            value={performanceRow ? formatNumber(performanceRow.totalPp) : '—'}
-            percent={performanceRow?.ppPct}
-            detail={performanceRow ? `${formatNumber(performanceRow.dortGoal)} goal` : 'No mapped data'}
-            gap={performanceRow ? `${performanceRow.totalPp - performanceRow.dortGoal >= 0 ? '+' : ''}${formatNumber(performanceRow.totalPp - performanceRow.dortGoal)} gap` : undefined}
-            gapValue={performanceRow ? performanceRow.totalPp - performanceRow.dortGoal : undefined}
-          />
-          <ConsoleKpi
-            label="Traffic"
-            value={performanceRow ? formatNumber(performanceRow.traffic) : '—'}
-            detail={performanceRow ? `${formatPercent(performanceRow.postConv)} post conversion · 13% goal` : 'No mapped data'}
-            gap={performanceRow ? `${performanceRow.postConv - 13 >= 0 ? '+' : ''}${(performanceRow.postConv - 13).toFixed(1)} pts gap` : undefined}
-            gapValue={performanceRow ? performanceRow.postConv - 13 : undefined}
-          />
-        </div>
-
-        <div className="console-workspace mt-2 grid gap-2 xl:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.8fr)]">
-          <main className="min-w-0 space-y-2">
-            {sectionPrefs.pulse && (
-              <ConsolePanel title="Performance Console" eyebrow={hasPerformanceActivity ? 'Live store telemetry' : 'Opening state'}>
-                {performanceRow ? (
-                  <>
-                    <div className="console-table-head grid grid-cols-[minmax(0,1.35fr)_0.9fr_0.9fr_0.7fr] border-b border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
-                      <span>Metric</span><span className="text-right">Actual</span><span className="text-right">Goal</span><span className="text-right">Pace</span>
-                    </div>
-                    <ConsoleMetricRow label="Net Revenue" actual={formatMoney(performanceRow.netRevenue)} goal={formatMoney(performanceRow.netRevenueGoal)} percent={performanceRow.netRevenuePct} />
-                    <ConsoleMetricRow label="Accessories" actual={formatMoney(performanceRow.accessoryRevenue)} goal={formatMoney(performanceRow.accessoryGoal)} percent={performanceRow.accessoryPct} />
-                    <ConsoleMetricRow label="Postpaid Units" actual={formatNumber(performanceRow.totalPp)} goal={formatNumber(performanceRow.dortGoal)} percent={performanceRow.ppPct} />
-                  </>
-                ) : (
-                  <div className="px-4 py-8 text-center text-sm text-[var(--text-secondary)]">No mapped performance row for this store.</div>
-                )}
-              </ConsolePanel>
-            )}
-
-            {sectionPrefs.wins && (
-              <ConsolePanel
-                title="District Signals"
-                eyebrow="Leaderboard"
-                action={<button className="console-text-action" onClick={() => setTab('district')}>Open board →</button>}
-              >
-                {wins.length === 0 ? (
-                  <div className="px-4 py-8 text-center">
-                    <div className="text-sm font-semibold text-[var(--text)]">No Activity Yet</div>
-                    <div className="mt-1 text-xs text-[var(--text-tertiary)]">Rankings appear after district sales activity begins.</div>
-                  </div>
-                ) : (
-                  <div>
-                    {wins.map((win) => (
-                      <button key={win.id} onClick={() => setTab('district')} className="console-list-row grid w-full grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--border)] px-3 py-2 text-left last:border-b-0">
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: win.tone }} />
-                        <span className="min-w-0">
-                          <span className="block truncate text-xs font-medium text-[var(--text)]">{win.label}</span>
-                          <span className="block truncate text-[11px] text-[var(--text-tertiary)]">{win.detail}</span>
-                        </span>
-                        <ArrowRight size={12} className="text-[var(--text-tertiary)]" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </ConsolePanel>
-            )}
-
-            {sectionPrefs.attention && (
-              <ConsolePanel title="Action Queue" eyebrow="Needs attention">
-                <button className="console-action-row" onClick={() => setTab('tasks')}>
-                  <CheckSquare size={14} /><span>Checklist</span><strong>{hasTasks ? `${openTasks} open` : 'Not configured'}</strong>
-                </button>
-                <button className="console-action-row" onClick={() => setTab('schedule')}>
-                  <Users size={14} /><span>Floor coverage</span><strong>{todayShifts.length} scheduled</strong>
-                </button>
-                <button className="console-action-row" onClick={() => setTab('appointments')}>
-                  <CalendarPlus size={14} /><span>Appointments</span><strong>{appointmentRows} active</strong>
-                </button>
-              </ConsolePanel>
-            )}
-
-            {sectionPrefs.announcements && (
-              <ConsolePanel title="Broadcast Feed" eyebrow="Store announcements">
-                {activeAnnouncements.length === 0 ? (
-                  <div className="px-3 py-5 text-center text-xs text-[var(--text-tertiary)]">No active messages.</div>
-                ) : activeAnnouncements.slice(0, 4).map((announcement) => (
-                  <div key={announcement.id} className="console-feed-row border-b border-[var(--border)] px-3 py-2 last:border-b-0">
-                    <div className="text-xs text-[var(--text)]">{announcement.text}</div>
-                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--text-tertiary)]">{announcement.priority}</div>
-                  </div>
-                ))}
-              </ConsolePanel>
-            )}
-          </main>
-
-          <aside className="min-w-0 space-y-2">
-            <ConsolePanel title="Operations" eyebrow="Current shift">
-              <div className="console-status-row"><span>Floor staff</span><strong>{todayShifts.length}</strong></div>
-              <div className="console-status-row"><span>Checklist</span><strong>{hasTasks ? `${doneTasks}/${tasks.length}` : '—'}</strong></div>
-              <div className="console-status-row"><span>Appointments</span><strong>{appointmentRows}</strong></div>
-              <div className="console-status-row"><span>Announcements</span><strong>{activeAnnouncements.length}</strong></div>
-            </ConsolePanel>
-
-            {sectionPrefs.coverage && (
-              <ConsolePanel title="Floor Coverage" eyebrow="Today" action={<button className="console-text-action" onClick={() => setTab('schedule')}>Schedule →</button>}>
-                {todayShifts.length === 0 ? (
-                  <div className="px-3 py-5 text-center text-xs text-[var(--text-tertiary)]">No coverage scheduled.</div>
-                ) : todayShifts.map((shift) => (
-                  <div key={shift.id} className="console-coverage-row grid grid-cols-[4px_minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--border)] px-3 py-2 last:border-b-0">
-                    <span className="h-7 rounded-full" style={{ background: shift.employee.color }} />
-                    <div className="min-w-0">
-                      <div className="truncate text-xs font-medium text-[var(--text)]">{shift.employee.name}</div>
-                      <div className="text-[10px] text-[var(--text-tertiary)]">{shift.type || 'Shift'}</div>
-                    </div>
-                    <div className="text-[10px] tabular-nums text-[var(--text-secondary)]">{formatTime(shift.startTime)}–{formatTime(shift.endTime)}</div>
-                  </div>
-                ))}
-              </ConsolePanel>
-            )}
-
-            {sectionPrefs.checklist && (
-              <ConsolePanel title="Checklist" eyebrow="Compliance" action={<button className="console-text-action" onClick={() => setTab('tasks')}>Open →</button>}>
-                <div className="px-3 py-3">
-                  <div className="flex items-end justify-between gap-3">
-                    <div>
-                      <div className="text-2xl font-semibold tabular-nums text-[var(--text)]">{hasTasks ? `${taskPct}%` : '—'}</div>
-                      <div className="text-[10px] text-[var(--text-tertiary)]">{hasTasks ? `${doneTasks} of ${tasks.length} verified` : 'No active checklist'}</div>
-                    </div>
-                    <CheckCircle2 size={22} className={hasTasks && taskPct === 100 ? 'text-emerald-400' : 'text-[var(--text-tertiary)]'} />
-                  </div>
-                  <div className="mt-3 h-1 overflow-hidden bg-[var(--surface-3)]">
-                    <div className="h-full bg-[var(--accent)]" style={{ width: hasTasks ? `${taskPct}%` : '0%' }} />
-                  </div>
-                </div>
-              </ConsolePanel>
-            )}
-
-            {sectionPrefs.connectivity && (
-              <ConsolePanel title="Systems" eyebrow="Connectivity">
-                <div className="console-system-row">
-                  <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full" style={{ background: googleTone }} />Google Performance</span>
-                  <strong>{googleStatus}</strong>
-                </div>
-                <div className="console-system-row">
-                  <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full" style={{ background: supabaseTone }} />Supabase Core</span>
-                  <strong>{supabaseStatus}</strong>
-                </div>
-                <div className="border-t border-[var(--border)] px-3 py-2 text-[10px] text-[var(--text-tertiary)]">Last core sync {formatUpdatedAt(supabaseUpdatedAt)}</div>
-              </ConsolePanel>
-            )}
-          </aside>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="today-page page-frame page-frame-wide space-y-6 pb-12">
-      {/* Hero Welcome Card */}
-      <section className="today-hero relative overflow-hidden rounded-3xl border border-[var(--border-strong)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface-2)] to-[var(--surface)] p-6 sm:p-8 shadow-xl backdrop-blur-2xl">
-        <div className="today-hero-orb absolute -right-16 -top-16 h-64 w-64 rounded-full bg-[var(--accent)]/15 blur-3xl pointer-events-none" />
-        <div className="today-hero-orb absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-[#E20074]/10 blur-3xl pointer-events-none" />
-
-        <div className="today-hero-layout relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="min-w-0 max-w-2xl">
-            <div className="today-hero-badges flex flex-wrap items-center gap-2">
-              <Badge tone="accent" variant="glass" size="sm">{dateLabel}</Badge>
-              <Badge tone="success" variant="glass" size="sm" dot>Store Live</Badge>
-              {accessRole && <Badge tone="tmobile" variant="glass" size="sm">{accessRole.replace('_', ' ')}</Badge>}
-            </div>
-
-            <h1 className="today-hero-title mt-3 text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--text)]">
-              {isMain ? 'District Operations Center' : storeProfile?.location || `Store ${storeId}`}
-            </h1>
-
-            <p className="today-hero-description mt-2 text-sm text-[var(--text-secondary)] leading-relaxed">
-              Real-time telemetry on sales targets, floor coverage, checklist compliance, and customer pipeline.
-            </p>
-
-            <div className="today-hero-controls mt-4 flex flex-wrap gap-2.5">
-              <Button
-                size="sm"
-                variant={customizing ? 'accent' : 'secondary'}
-                icon={<Settings2 size={14} />}
-                onClick={() => setCustomizing((v) => !v)}
-              >
-                Customize Layout
-              </Button>
-              {customizing && (
-                <Button size="sm" variant="ghost" icon={<RotateCcw size={14} />} onClick={resetSections}>
-                  Reset Defaults
-                </Button>
-              )}
-            </div>
+    <PageFrame width="wide" className="space-y-5 pb-10">
+      {/* Compact Page Header */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+            <span>{dateLabel}</span>
+            <span>·</span>
+            <span className="inline-flex items-center gap-1.5 text-[var(--status-good-text)] font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-good)]" />
+              Live
+            </span>
           </div>
-
-          {/* Hero Quick Stat Ring Widgets */}
-          <div className="today-hero-stats grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="today-hero-stat rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 p-4 text-center backdrop-blur-md">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Floor Staff</div>
-              <div className="mt-1 text-2xl font-extrabold text-[var(--text)]">{todayShifts.length}</div>
-              <div className="mt-0.5 text-[11px] text-emerald-400 font-medium">On Shift Today</div>
-            </div>
-
-            <div className="today-hero-stat rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 p-4 text-center backdrop-blur-md">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Checklist</div>
-              <div className="mt-1 text-2xl font-extrabold text-[var(--accent)]">{hasTasks ? `${taskPct}%` : '—'}</div>
-              <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">{doneTasks}/{tasks.length} Completed</div>
-            </div>
-
-            <div className="today-hero-stat today-hero-stat-appointments col-span-2 sm:col-span-1 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/90 p-4 text-center backdrop-blur-md">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Appointments</div>
-              <div className="mt-1 text-2xl font-extrabold text-[#E20074]">{appointmentRows}</div>
-              <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">Pipeline Booked</div>
-            </div>
-          </div>
+          <h1 className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-[var(--text)] truncate">
+            {isMain ? 'District Operations' : storeProfile?.location || `Store ${storeId}`}
+          </h1>
         </div>
-      </section>
 
-      {/* Customizer Panel */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            size="sm"
+            variant={customizing ? 'accent' : 'secondary'}
+            icon={<Settings2 size={14} />}
+            onClick={() => setCustomizing((v) => !v)}
+          >
+            Customize
+          </Button>
+          {customizing && (
+            <Button size="sm" variant="ghost" icon={<RotateCcw size={14} />} onClick={resetSections}>
+              Reset
+            </Button>
+          )}
+        </div>
+      </header>
+
+      {/* Section Visibility Customizer */}
       {customizing && (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 shadow-md backdrop-blur-xl animate-scale-in">
-          <div className="mb-3 flex items-center gap-2 text-sm font-bold text-[var(--text)]">
-            <Settings2 size={16} className="text-[var(--accent)]" />
-            Active Dashboard Sections
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+            Visible Sections
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
             {DASHBOARD_SECTIONS.map((section) => {
               const enabled = sectionPrefs[section.id]
               return (
@@ -832,14 +438,15 @@ export function TodayDashboard() {
                   key={section.id}
                   type="button"
                   onClick={() => toggleSection(section.id)}
-                  className={`flex items-center justify-between gap-2 rounded-xl border px-3.5 py-2 text-left text-xs font-semibold transition-all ${
+                  className={cn(
+                    'flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors',
                     enabled
-                      ? 'border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--text)]'
-                      : 'border-[var(--border)] bg-[var(--surface-3)] text-[var(--text-tertiary)]'
-                  }`}
+                      ? 'border-[var(--accent)]/40 bg-[var(--accent-light)] text-[var(--text)]'
+                      : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-tertiary)]'
+                  )}
                 >
                   <span className="truncate">{section.label}</span>
-                  {!enabled && <EyeOff size={14} />}
+                  {!enabled && <EyeOff size={13} className="shrink-0" />}
                 </button>
               )
             })}
@@ -847,185 +454,251 @@ export function TodayDashboard() {
         </div>
       )}
 
-      {/* Main Grid */}
-      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-        <div className="space-y-6">
-          {sectionPrefs.brief && <SmartBriefCard brief={brief} onOpenDistrict={() => setTab('district')} />}
+      {/* Top KPI Strip */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiTile
+          label="Floor Staff"
+          value={String(todayShifts.length)}
+          meta={todayShifts.length === 1 ? '1 shift scheduled' : `${todayShifts.length} shifts today`}
+          onClick={() => setTab('schedule')}
+        />
+        <KpiTile
+          label="Checklist"
+          value={hasTasks ? `${taskPct}%` : '—'}
+          meta={hasTasks ? `${doneTasks} of ${tasks.length} complete` : 'No tasks loaded'}
+          accent={hasTasks && taskPct === 100 ? 'var(--status-good-text)' : undefined}
+          onClick={() => setTab('tasks')}
+        />
+        <KpiTile
+          label="Appointments"
+          value={String(appointmentRows)}
+          meta={appointmentsQuery.isError ? 'Check tracker setup' : 'Booked in pipeline'}
+          onClick={() => setTab('appointments')}
+        />
+        <KpiTile
+          label="Composite Pace"
+          value={overallPace !== null ? formatPercent(overallPace) : '—'}
+          meta={performanceRow ? `${formatMoney(performanceRow.netRevenue)} net rev` : 'Awaiting feed'}
+          accent={overallPace !== null ? metricBarColor(overallPace) : undefined}
+          onClick={() => setTab('district')}
+        />
+      </section>
+
+      {/* Main Two-Column Grid */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(19rem,1fr)]">
+        {/* Left Primary Column */}
+        <div className="space-y-5 min-w-0">
+          {sectionPrefs.brief && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3.5 shadow-[var(--shadow-card)]">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--accent)]">
+                    Daily Brief
+                  </span>
+                  {brief.focusLabel && <Badge tone="accent" size="xs">{brief.focusLabel}</Badge>}
+                </div>
+                <p className="mt-1 text-sm font-medium text-[var(--text)] leading-snug">
+                  {brief.headline}
+                </p>
+              </div>
+              <Button size="sm" variant="secondary" onClick={() => setTab('district')} icon={<BarChart3 size={14} />} className="shrink-0">
+                District Board
+              </Button>
+            </div>
+          )}
 
           {sectionPrefs.pulse && <StorePulse row={performanceRow} />}
 
           {sectionPrefs.attention && (
-            <Card noPadding variant="glass" className="overflow-hidden">
-              <div className="border-b border-[var(--border)] bg-[var(--surface-2)]/50 px-5 py-4">
-                <h2 className="text-base font-bold text-[var(--text)]">Action Priorities & Needs Attention</h2>
-                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Recommended focus items for the current shift</p>
-              </div>
-              <div className="space-y-2.5 p-5">
+            <SectionPanel title="Action Priorities" subtitle="Focus items for the current shift">
+              <div className="space-y-2 p-4">
                 <ActionRow
-                  icon={<CheckSquare size={18} />}
-                  label={tasks.length ? `${tasks.length - doneTasks} checklist tasks remaining` : 'Build floor checklist'}
-                  detail={tasks.length ? `${doneTasks} of ${tasks.length} tasks marked complete today` : 'Set up opening and closing store duties'}
-                  tone={taskPct === 100 ? '#10b981' : '#f59e0b'}
+                  icon={<CheckSquare size={16} />}
+                  label={tasks.length ? `${tasks.length - doneTasks} checklist item${tasks.length - doneTasks === 1 ? '' : 's'} remaining` : 'Build floor checklist'}
+                  detail={tasks.length ? `${doneTasks} of ${tasks.length} completed today` : 'Set up opening and closing duties'}
+                  toneColor={taskPct === 100 ? 'var(--status-good)' : 'var(--status-warn)'}
                   onClick={() => setTab('tasks')}
                 />
                 <ActionRow
-                  icon={<Users size={18} />}
-                  label={todayShifts.length ? `${todayShifts.length} team members scheduled` : 'No shifts on schedule'}
-                  detail={todayShifts.slice(0, 3).map((s) => s.employee.name).join(', ') || 'Review schedule before doors open'}
-                  tone="#0ea5e9"
+                  icon={<Users size={16} />}
+                  label={todayShifts.length ? `${todayShifts.length} team member${todayShifts.length === 1 ? '' : 's'} on schedule` : 'No shifts scheduled today'}
+                  detail={todayShifts.slice(0, 3).map((s) => s.employee.name).join(', ') || 'Review schedule coverage'}
+                  toneColor="var(--accent)"
                   onClick={() => setTab('schedule')}
                 />
                 <ActionRow
-                  icon={<CalendarPlus size={18} />}
-                  label={appointmentsQuery.isError ? 'Review Appointment Configuration' : `${appointmentRows} customer appointments active`}
-                  detail={appointmentsQuery.isLoading ? 'Checking tracker…' : appointmentsQuery.isError ? 'Click to inspect store sheet mapping' : 'Manage customer follow-ups and scheduled visits'}
-                  tone={appointmentsQuery.isError ? '#ef4444' : '#E20074'}
+                  icon={<CalendarPlus size={16} />}
+                  label={appointmentsQuery.isError ? 'Review appointment tracker' : `${appointmentRows} customer appointment${appointmentRows === 1 ? '' : 's'} active`}
+                  detail={appointmentsQuery.isLoading ? 'Checking tracker…' : appointmentsQuery.isError ? 'Inspect store sheet mapping' : 'Manage scheduled visits and follow-ups'}
+                  toneColor={appointmentsQuery.isError ? 'var(--status-danger)' : '#E20074'}
                   onClick={() => setTab('appointments')}
                 />
               </div>
-            </Card>
+            </SectionPanel>
           )}
         </div>
 
-        <aside className="space-y-6">
-          {sectionPrefs.wins && <DistrictWinsCard wins={wins} onOpenDistrict={() => setTab('district')} />}
+        {/* Right Secondary Column */}
+        <aside className="space-y-5 min-w-0">
+          {sectionPrefs.wins && (
+            <SectionPanel
+              title={
+                <span className="inline-flex items-center gap-1.5">
+                  <Trophy size={14} className="text-[var(--status-warn-text)]" />
+                  District Wins
+                </span>
+              }
+              subtitle="Top categories from latest update"
+              action={<Button size="xs" variant="ghost" onClick={() => setTab('district')}>Board</Button>}
+            >
+              <div className="space-y-1.5 p-3">
+                {wins.length === 0 ? (
+                  <div className="py-5 text-center text-xs text-[var(--text-tertiary)]">
+                    No activity recorded yet.
+                  </div>
+                ) : wins.map((win) => (
+                  <button
+                    key={win.id}
+                    type="button"
+                    onClick={() => setTab('district')}
+                    className="flex w-full items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-left transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-3)]"
+                  >
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: win.tone }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold text-[var(--text)]">{win.label}</span>
+                      <span className="block truncate text-[11px] text-[var(--text-secondary)]">{win.detail}</span>
+                    </span>
+                    <ArrowRight size={13} className="text-[var(--text-tertiary)] shrink-0" />
+                  </button>
+                ))}
+              </div>
+            </SectionPanel>
+          )}
 
           {sectionPrefs.coverage && (
-            <Card noPadding variant="glass" className="overflow-hidden">
-              <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-2)]/50 px-5 py-4">
-                <div>
-                  <h2 className="text-sm font-bold text-[var(--text)]">Today’s Floor Coverage</h2>
-                  <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{todayShifts.length} active scheduled shifts</p>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => setTab('schedule')} icon={<Calendar size={13} />}>
-                  Schedule
-                </Button>
-              </div>
-              <div className="max-h-[22rem] space-y-2 overflow-y-auto p-4">
+            <SectionPanel
+              title="Floor Coverage"
+              subtitle={`${todayShifts.length} scheduled shift${todayShifts.length === 1 ? '' : 's'}`}
+              action={<Button size="xs" variant="ghost" onClick={() => setTab('schedule')} icon={<Calendar size={12} />}>Schedule</Button>}
+            >
+              <div className="max-h-72 space-y-1.5 overflow-y-auto p-3">
                 {todayShifts.length === 0 ? (
-                  <EmptyState
-                    icon={<Users size={20} />}
-                    title="No Coverage Scheduled"
-                    detail="Add shifts to give visibility into opening and closing staffing."
-                    action={<Button size="sm" variant="secondary" onClick={() => setTab('schedule')}>Open Schedule</Button>}
-                  />
-                ) : (
-                  todayShifts.map((shift) => (
-                    <div key={shift.id} className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                      <span className="h-8 w-1.5 rounded-full" style={{ background: shift.employee.color }} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-[var(--text)]">{shift.employee.name}</div>
-                        <div className="flex items-center gap-1 text-xs text-[var(--text-secondary)] mt-0.5">
-                          <Clock size={12} className="text-[var(--text-tertiary)]" />
-                          <span>{formatTime(shift.startTime)} – {formatTime(shift.endTime)}</span>
-                        </div>
+                  <div className="py-5 text-center text-xs text-[var(--text-secondary)]">
+                    No shifts scheduled for today.
+                  </div>
+                ) : todayShifts.map((shift) => (
+                  <div key={shift.id} className="flex items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+                    <span className="h-7 w-1 shrink-0 rounded-full" style={{ background: shift.employee.color }} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-semibold text-[var(--text)]">{shift.employee.name}</div>
+                      <div className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)] mt-0.5 tabular-nums">
+                        <Clock size={11} className="text-[var(--text-tertiary)]" />
+                        <span>{formatTime(shift.startTime)} – {formatTime(shift.endTime)}</span>
                       </div>
-                      <Badge size="xs" variant="outline">{shift.type || 'Shift'}</Badge>
                     </div>
-                  ))
-                )}
+                    <Badge size="xs" tone="neutral">{shift.type || 'Shift'}</Badge>
+                  </div>
+                ))}
               </div>
-            </Card>
+            </SectionPanel>
           )}
 
           {sectionPrefs.checklist && (
-            <Card noPadding variant="glass" className="overflow-hidden">
-              <div className="border-b border-[var(--border)] bg-[var(--surface-2)]/50 px-5 py-4">
-                <h2 className="text-sm font-bold text-[var(--text)]">Checklist Status</h2>
-                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Daily store operations compliance</p>
-              </div>
-              <div className="p-5">
-                <div className="flex items-center justify-between gap-4">
+            <SectionPanel title="Checklist Status" subtitle="Daily store compliance">
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-3xl font-extrabold tabular-nums text-[var(--text)] tracking-tight">
+                    <div className="text-2xl font-bold tabular-nums text-[var(--text)]">
                       {hasTasks ? `${taskPct}%` : 'No Tasks'}
                     </div>
-                    <div className="text-xs text-[var(--text-secondary)] mt-1">
-                      {hasTasks ? `${doneTasks} of ${tasks.length} items verified` : 'No active checklist loaded'}
+                    <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+                      {hasTasks ? `${doneTasks} of ${tasks.length} verified` : 'No active checklist loaded'}
                     </div>
                   </div>
-                  <CheckCircle2 size={36} className={hasTasks && taskPct === 100 ? 'text-emerald-400' : 'text-[var(--text-tertiary)]'} />
+                  <CheckCircle2
+                    size={28}
+                    className={hasTasks && taskPct === 100 ? 'text-[var(--status-good)]' : 'text-[var(--text-tertiary)]'}
+                  />
                 </div>
-                <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--surface-3)]">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-emerald-400 transition-all duration-500"
+                    className="h-full rounded-full bg-[var(--accent)] transition-all duration-300"
                     style={{ width: hasTasks ? `${taskPct}%` : '0%' }}
                   />
                 </div>
-                <div className="mt-4">
-                  <Button size="sm" variant="secondary" className="w-full justify-center" onClick={() => setTab('tasks')} icon={<CheckSquare size={14} />}>
-                    Open Floor Checklist
-                  </Button>
-                </div>
+                <Button size="sm" variant="secondary" className="mt-3.5 w-full" onClick={() => setTab('tasks')} icon={<CheckSquare size={14} />}>
+                  Open Checklist
+                </Button>
               </div>
-            </Card>
+            </SectionPanel>
           )}
 
           {sectionPrefs.announcements && (
-            <Card noPadding variant="glass" className="overflow-hidden">
-              <div className="border-b border-[var(--border)] bg-[var(--surface-2)]/50 px-5 py-4">
-                <h2 className="text-sm font-bold text-[var(--text)]">Store Announcements</h2>
-                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{activeAnnouncements.length} active broadcast messages</p>
-              </div>
-              <div className="space-y-2 p-4">
+            <SectionPanel
+              title="Store Announcements"
+              subtitle={`${activeAnnouncements.length} active`}
+              action={<Button size="xs" variant="ghost" onClick={() => setTab('settings')}>Manage</Button>}
+            >
+              <div className="space-y-1.5 p-3">
                 {activeAnnouncements.length === 0 ? (
-                  <EmptyState
-                    icon={<RadioTower size={18} />}
-                    title="No Active Messages"
-                    detail="Store announcements will appear here when posted."
-                    action={<Button size="sm" variant="ghost" onClick={() => setTab('settings')}>Manage Messages</Button>}
-                  />
-                ) : (
-                  activeAnnouncements.slice(0, 3).map((announcement) => (
-                    <div key={announcement.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                      <div className="text-sm font-medium text-[var(--text)]">{announcement.text}</div>
-                      <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-                        <span>{announcement.priority}</span>
-                      </div>
+                  <div className="flex flex-col items-center py-5 text-center text-xs text-[var(--text-tertiary)]">
+                    <RadioTower size={16} className="mb-1.5" />
+                    No active announcements.
+                  </div>
+                ) : activeAnnouncements.slice(0, 3).map((announcement) => (
+                  <div key={announcement.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+                    <div className="text-xs font-medium text-[var(--text)] leading-relaxed">{announcement.text}</div>
+                    <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                      {announcement.priority}
                     </div>
-                  ))
-                )}
+                  </div>
+                ))}
               </div>
-            </Card>
+            </SectionPanel>
           )}
 
           {sectionPrefs.connectivity && (
-            <Card variant="glass" className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-bold text-[var(--text)]">
-                    <Wifi size={16} className="text-[var(--accent)]" />
-                    Cloud Sync & Connectivity
-                  </div>
-                  <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">Reconciliation telemetry with cloud engines</p>
-                </div>
-                <Badge
-                  tone={syncProblems.length || performanceQuery.isError ? 'danger' : 'success'}
-                  dot
-                  size="xs"
-                >
-                  {syncProblems.length || performanceQuery.isError ? 'Check Required' : 'Synchronized'}
+            <SectionPanel
+              title={
+                <span className="inline-flex items-center gap-1.5">
+                  <Wifi size={14} className="text-[var(--accent)]" />
+                  Connectivity
+                </span>
+              }
+              action={
+                <Badge tone={syncProblems.length || performanceQuery.isError ? 'danger' : 'success'} size="xs" dot>
+                  {syncProblems.length || performanceQuery.isError ? 'Check' : 'Synced'}
                 </Badge>
+              }
+            >
+              <div className="divide-y divide-[var(--border)] px-4">
+                <div className="flex items-center justify-between py-2.5 text-xs">
+                  <div>
+                    <div className="font-medium text-[var(--text)]">Performance Feed</div>
+                    <div className="text-[11px] text-[var(--text-tertiary)]">
+                      {performanceQuery.isError ? 'Unavailable' : performanceQuery.data ? 'Connected' : 'Loading…'}
+                    </div>
+                  </div>
+                  <Badge tone={performanceQuery.isError ? 'danger' : 'success'} size="xs">
+                    {performanceQuery.isError ? 'Issue' : 'Live'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between py-2.5 text-xs">
+                  <div>
+                    <div className="font-medium text-[var(--text)]">Supabase Sync</div>
+                    <div className="text-[11px] text-[var(--text-tertiary)]">
+                      Updated {formatUpdatedAt(supabaseUpdatedAt)}
+                    </div>
+                  </div>
+                  <Badge tone={syncProblems.length ? 'danger' : savingAreas.length ? 'warning' : 'success'} size="xs">
+                    {syncProblems.length ? 'Issue' : savingAreas.length ? 'Syncing' : 'Live'}
+                  </Badge>
+                </div>
               </div>
-              <div className="mt-3.5 space-y-2">
-                <ConnectivityTile
-                  label="Google Performance Source"
-                  status={googleStatus}
-                  tone={googleTone}
-                  detail={performanceQuery.isError ? 'Service unavailable' : performanceQuery.data ? 'Live feed connected' : 'Querying feed…'}
-                />
-                <ConnectivityTile
-                  label="Supabase Core Database"
-                  status={supabaseStatus}
-                  tone={supabaseTone}
-                  detail={`Last synced ${formatUpdatedAt(supabaseUpdatedAt)}`}
-                />
-              </div>
-            </Card>
+            </SectionPanel>
           )}
         </aside>
       </div>
-    </div>
+    </PageFrame>
   )
 }

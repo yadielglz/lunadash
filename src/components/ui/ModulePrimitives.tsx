@@ -8,7 +8,7 @@ export function PageFrame({ children, width = 'wide', className }: {
   className?: string
 }) {
   const maxWidth = width === 'standard' ? 'max-w-5xl' : width === 'wide' ? 'max-w-7xl' : 'max-w-full'
-  return <div className={cn('page-frame w-full mx-auto p-4 sm:p-6 lg:p-8', maxWidth, className)}>{children}</div>
+  return <div className={cn('page-frame w-full mx-auto px-3.5 py-4 sm:px-6 sm:py-5', maxWidth, className)}>{children}</div>
 }
 
 export function SectionHeader({ title, description, icon, action, className }: {
@@ -19,11 +19,11 @@ export function SectionHeader({ title, description, icon, action, className }: {
   className?: string
 }) {
   return (
-    <div className={cn('section-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5', className)}>
+    <div className={cn('flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4', className)}>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2.5">
-          {icon && <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--accent)]/10 text-[var(--accent)]" aria-hidden="true">{icon}</span>}
-          <h2 className="text-lg font-bold text-[var(--text)] tracking-tight">{title}</h2>
+        <div className="flex items-center gap-2">
+          {icon && <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent-light)] text-[var(--accent)]" aria-hidden="true">{icon}</span>}
+          <h2 className="text-base font-bold text-[var(--text)] tracking-tight">{title}</h2>
         </div>
         {description && <p className="text-xs text-[var(--text-secondary)] mt-1">{description}</p>}
       </div>
@@ -37,16 +37,16 @@ export function StatusDot({ tone = 'neutral', label }: {
   label: string
 }) {
   const dotColor = {
-    neutral: 'bg-slate-400',
-    info: 'bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]',
-    success: 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]',
-    warning: 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]',
-    danger: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]',
+    neutral: 'bg-[var(--text-tertiary)]',
+    info:    'bg-[var(--status-info)]',
+    success: 'bg-[var(--status-good)]',
+    warning: 'bg-[var(--status-warn)]',
+    danger:  'bg-[var(--status-danger)]',
   }[tone]
 
   return (
-    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--surface-2)] text-[var(--text)] border border-[var(--border)]">
-      <span className={cn('h-2 w-2 rounded-full', dotColor)} aria-hidden="true" />
+    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-[var(--surface-2)] text-[var(--text-secondary)] border border-[var(--border)]">
+      <span className={cn('h-1.5 w-1.5 rounded-full', dotColor)} aria-hidden="true" />
       {label}
     </span>
   )
@@ -64,32 +64,39 @@ type ModuleHeaderProps = {
   className?: string
 }
 
-export function ModuleHeader({ icon, title, description, eyebrow, meta, actions, persistActionsOnCollapse = false, children, className }: ModuleHeaderProps) {
+export function ModuleHeader({ icon, title, description, eyebrow, meta, actions, children, className }: ModuleHeaderProps) {
   return (
-    <header className={cn('module-responsive-header relative overflow-visible rounded-none border-x-0 border-t-0 border-b border-[var(--border)] bg-gradient-to-br from-[var(--surface)] via-[var(--surface-2)] to-[var(--surface)] p-4 shadow-lg backdrop-blur-xl mb-3 sm:rounded-3xl sm:border sm:p-6 md:p-7 sm:mb-6', className)}>
-      <div className="module-responsive-header-inner flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-5">
-        <div className="module-responsive-heading min-w-0 flex-1">
+    <header className={cn(
+      'relative rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 mb-4 sm:mb-5 shadow-[var(--shadow-card)]',
+      className
+    )}>
+      <div className="flex flex-col gap-3.5 md:flex-row md:items-center md:justify-between md:gap-5">
+        <div className="min-w-0 flex-1">
           {eyebrow && (
-            <div className="module-responsive-eyebrow text-[11px] font-bold uppercase tracking-wider text-[var(--accent)] mb-1">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--accent)] mb-1">
               {eyebrow}
             </div>
           )}
-          <div className="module-responsive-title-row flex items-center gap-3">
-            <span className="module-responsive-icon flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/25 shadow-sm" aria-hidden="true">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--accent)] border border-[var(--border)]" aria-hidden="true">
               {icon}
             </span>
-            <h1 className="module-responsive-title text-xl sm:text-2xl lg:text-3xl font-extrabold text-[var(--text)] tracking-tight leading-tight">
+            <h1 className="text-lg sm:text-xl font-bold text-[var(--text)] tracking-tight leading-tight">
               {title}
             </h1>
           </div>
-          <div className="module-responsive-description text-xs sm:text-sm text-[var(--text-secondary)] mt-2 leading-relaxed max-w-3xl">
+          <div className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1.5 leading-relaxed max-w-3xl">
             {description}
           </div>
-          {meta && <div className="module-responsive-meta overflow-x-auto text-xs text-[var(--text-tertiary)] mt-2">{meta}</div>}
+          {meta && <div className="overflow-x-auto text-xs text-[var(--text-tertiary)] mt-2">{meta}</div>}
         </div>
-        {actions && <div className={cn('module-responsive-actions flex w-full shrink-0 items-center gap-2 overflow-x-auto pb-1 md:w-auto md:flex-wrap md:justify-end md:overflow-visible md:pb-0', persistActionsOnCollapse && 'module-responsive-actions-persistent')}>{actions}</div>}
+        {actions && (
+          <div className="flex w-full shrink-0 items-center gap-2 overflow-x-auto pb-0.5 md:w-auto md:flex-wrap md:justify-end md:overflow-visible md:pb-0">
+            {actions}
+          </div>
+        )}
       </div>
-      {children && <div className="module-responsive-children mt-5 pt-4 border-t border-[var(--border)]">{children}</div>}
+      {children && <div className="mt-4 pt-3.5 border-t border-[var(--border)]">{children}</div>}
     </header>
   )
 }
@@ -106,56 +113,52 @@ type EmptyStateProps = {
 export function EmptyState({ icon, title, description, action, compact = false, className }: EmptyStateProps) {
   return (
     <div className={cn(
-      'module-empty-state flex flex-col items-center justify-center text-center rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)]/40 backdrop-blur-sm p-8 sm:p-12',
-      compact && 'p-4 sm:p-6',
+      'flex flex-col items-center justify-center text-center rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)]/50 p-6 sm:p-10',
+      compact && 'p-4 sm:p-5',
       className
     )}>
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-3)] text-[var(--accent)] shadow-sm mb-3" aria-hidden="true">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--accent)] mb-2.5" aria-hidden="true">
         {icon}
       </div>
       <div className="max-w-md">
-        <h3 className="text-base font-bold text-[var(--text)]">{title}</h3>
+        <h3 className="text-sm font-semibold text-[var(--text)]">{title}</h3>
         <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{description}</p>
       </div>
-      {action && <div className="mt-4">{action}</div>}
+      {action && <div className="mt-3.5">{action}</div>}
     </div>
   )
 }
 
 type NoticeTone = 'info' | 'success' | 'warning' | 'danger'
 
-const noticeStyles: Record<NoticeTone, { bg: string; border: string; text: string; iconColor: string }> = {
+const noticeStyles: Record<NoticeTone, { bg: string; border: string; iconColor: string }> = {
   info: {
-    bg: 'bg-sky-500/10',
-    border: 'border-sky-500/25',
-    text: 'text-sky-200',
-    iconColor: 'text-sky-400',
+    bg: 'bg-[var(--status-info-bg)]',
+    border: 'border-[var(--status-info-border)]',
+    iconColor: 'text-[var(--status-info-text)]',
   },
   success: {
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-500/25',
-    text: 'text-emerald-200',
-    iconColor: 'text-emerald-400',
+    bg: 'bg-[var(--status-good-bg)]',
+    border: 'border-[var(--status-good-border)]',
+    iconColor: 'text-[var(--status-good-text)]',
   },
   warning: {
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/25',
-    text: 'text-amber-200',
-    iconColor: 'text-amber-400',
+    bg: 'bg-[var(--status-warn-bg)]',
+    border: 'border-[var(--status-warn-border)]',
+    iconColor: 'text-[var(--status-warn-text)]',
   },
   danger: {
-    bg: 'bg-rose-500/10',
-    border: 'border-rose-500/25',
-    text: 'text-rose-200',
-    iconColor: 'text-rose-400',
+    bg: 'bg-[var(--status-danger-bg)]',
+    border: 'border-[var(--status-danger-border)]',
+    iconColor: 'text-[var(--status-danger-text)]',
   },
 }
 
 const noticeIcons: Record<NoticeTone, ReactNode> = {
-  info: <Info size={18} />,
-  success: <CheckCircle2 size={18} />,
-  warning: <TriangleAlert size={18} />,
-  danger: <AlertCircle size={18} />,
+  info: <Info size={16} />,
+  success: <CheckCircle2 size={16} />,
+  warning: <TriangleAlert size={16} />,
+  danger: <AlertCircle size={16} />,
 }
 
 export function InlineNotice({ tone = 'info', title, children, action, className }: {
@@ -170,7 +173,7 @@ export function InlineNotice({ tone = 'info', title, children, action, className
   return (
     <div
       className={cn(
-        'inline-notice flex items-start gap-3.5 rounded-2xl border p-4 backdrop-blur-md transition-all',
+        'flex items-start gap-3 rounded-xl border p-3.5 transition-colors',
         style.bg,
         style.border,
         className
@@ -179,7 +182,7 @@ export function InlineNotice({ tone = 'info', title, children, action, className
     >
       <span className={cn('shrink-0 mt-0.5', style.iconColor)} aria-hidden="true">{noticeIcons[tone]}</span>
       <div className="min-w-0 flex-1">
-        {title && <div className="text-sm font-bold text-[var(--text)]">{title}</div>}
+        {title && <div className="text-sm font-semibold text-[var(--text)]">{title}</div>}
         <div className="text-xs text-[var(--text-secondary)] mt-0.5 leading-relaxed">{children}</div>
       </div>
       {action && <div className="shrink-0">{action}</div>}
@@ -189,11 +192,11 @@ export function InlineNotice({ tone = 'info', title, children, action, className
 
 export function ModuleSkeleton({ rows = 3, className }: { rows?: number; className?: string }) {
   return (
-    <div className={cn('module-skeleton space-y-4 p-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] animate-pulse', className)} role="status" aria-label="Loading module content">
-      <div className="h-8 w-1/3 rounded-xl bg-[var(--surface-3)]" />
-      <div className="space-y-2 pt-2">
+    <div className={cn('space-y-3 p-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] animate-pulse', className)} role="status" aria-label="Loading module content">
+      <div className="h-6 w-1/3 rounded-md bg-[var(--surface-3)]" />
+      <div className="space-y-2 pt-1">
         {Array.from({ length: rows }).map((_, index) => (
-          <div key={index} className="h-12 w-full rounded-xl bg-[var(--surface-3)]/60" />
+          <div key={index} className="h-10 w-full rounded-lg bg-[var(--surface-2)]" />
         ))}
       </div>
       <span className="sr-only">Loading</span>
@@ -211,16 +214,23 @@ export function WorkflowSteps({ steps, current, className }: { steps: string[]; 
           <li
             key={step}
             className={cn(
-              'workflow-step flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
+              'flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors',
               isCurrent
-                ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-sm'
+                ? 'bg-[var(--accent)] text-white border-[var(--accent)]'
                 : isPast
                 ? 'bg-[var(--surface-2)] text-[var(--text)] border-[var(--border)]'
-                : 'bg-[var(--surface-3)]/40 text-[var(--text-tertiary)] border-transparent'
+                : 'bg-[var(--surface)] text-[var(--text-tertiary)] border-[var(--border)]'
             )}
             aria-current={isCurrent ? 'step' : undefined}
           >
-            <span className={cn('flex h-5 w-5 items-center justify-center rounded-full text-[10px]', isCurrent ? 'bg-white/20 text-white' : isPast ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-400')}>
+            <span className={cn(
+              'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold',
+              isCurrent
+                ? 'bg-white/20 text-white'
+                : isPast
+                ? 'bg-[var(--status-good-bg)] text-[var(--status-good-text)]'
+                : 'bg-[var(--surface-3)] text-[var(--text-tertiary)]'
+            )}>
               {isPast ? '✓' : index + 1}
             </span>
             <span>{step}</span>

@@ -154,9 +154,9 @@ export function FirstLoginOnboarding() {
           </p>
         </div>
 
-        <div className="onboarding-step-card rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/10 p-3 text-[var(--accent)]">
+            <div className="mt-0.5 rounded-lg border border-[var(--accent)]/25 bg-[var(--accent-light)] p-2.5 text-[var(--accent)]">
               {step.icon}
             </div>
             <div className="grid gap-2">
@@ -178,12 +178,12 @@ export function FirstLoginOnboarding() {
               aria-label={`Go to onboarding step ${index + 1}`}
               onClick={() => setStepIndex(index)}
               aria-current={index === stepIndex ? 'step' : undefined}
-              className={`h-2.5 rounded-full transition-all ${index === stepIndex ? 'w-8 bg-[var(--accent)]' : 'w-2.5 bg-[var(--border-strong)]'}`}
+              className={`h-2 rounded-full transition-all ${index === stepIndex ? 'w-7 bg-[var(--accent)]' : 'w-2 bg-[var(--border-strong)]'}`}
             />
           ))}
         </div>
 
-        {error && <p className="text-center text-xs text-red-400" role="alert">{error}</p>}
+        {error && <p className="text-center text-xs font-medium text-[var(--status-danger-text)]" role="alert">{error}</p>}
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
           <Button

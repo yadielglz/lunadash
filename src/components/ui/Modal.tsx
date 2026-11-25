@@ -32,7 +32,9 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCloseRef.current()
       if (e.key !== 'Tab' || !dialogRef.current) return
-      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((item) => !item.hasAttribute('disabled'))
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+      ).filter((item) => !item.hasAttribute('disabled'))
       if (!focusable.length) return
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
@@ -58,22 +60,17 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
     <AnimatePresence>
       {open && (
         <motion.div
-          className="ios-modal-layer fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
+          transition={{ duration: 0.15 }}
         >
-          {/* Backdrop */}
-          <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+          <div
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
             onClick={onClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
           />
 
-          {/* Sheet/Dialog */}
           <motion.div
             ref={dialogRef}
             role="dialog"
@@ -82,32 +79,34 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
             aria-label={title ? undefined : (ariaLabel ?? 'Dialog')}
             tabIndex={-1}
             className={cn(
-              'ios-modal-panel relative w-full rounded-t-3xl sm:rounded-3xl bg-[var(--surface-solid)]/95 sm:bg-[var(--surface-solid)] border border-[var(--border-strong)] shadow-[var(--shadow-modal)] overflow-hidden flex flex-col backdrop-blur-2xl',
+              'relative w-full rounded-t-2xl sm:rounded-2xl bg-[var(--surface)] border border-[var(--border-strong)] shadow-[var(--shadow-modal)] overflow-hidden flex flex-col outline-none',
               sizes[size],
-              'max-h-[92vh] sm:max-h-[88vh]',
-              contentScrolled && 'ios-modal-panel-scrolled',
+              'max-h-[92dvh] sm:max-h-[86dvh]',
               className
             )}
-            initial={{ y: 24, scale: 0.97, opacity: 0 }}
+            initial={{ y: 16, scale: 0.98, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
-            exit={{ y: 16, scale: 0.97, opacity: 0 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+            exit={{ y: 12, scale: 0.98, opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
           >
-            {/* Mobile drag handle */}
-            <div className="flex justify-center pt-3 pb-1 sm:hidden">
-              <div className="w-12 h-1.5 rounded-full bg-[var(--border-strong)] opacity-60" />
+            <div className="flex justify-center pt-2.5 pb-1 sm:hidden">
+              <div className="w-10 h-1 rounded-full bg-[var(--border-strong)]" />
             </div>
 
             {title && (
-              <div className="ios-modal-header flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4.5 border-b border-[var(--border)] bg-[var(--surface-2)]/50">
-                <div className="ios-modal-header-copy min-w-0 pr-4">
-                  <h2 id={titleId} className="ios-modal-title text-base sm:text-lg font-bold text-[var(--text)] tracking-tight">{title}</h2>
-                  {subtitle && <p className="ios-modal-subtitle text-xs text-[var(--text-secondary)] mt-0.5">{subtitle}</p>}
+              <div className={cn(
+                'flex items-center justify-between px-4 py-3 sm:px-5 sm:py-4 border-b border-[var(--border)] bg-[var(--surface)] transition-shadow',
+                contentScrolled && 'shadow-sm'
+              )}>
+                <div className="min-w-0 pr-3">
+                  <h2 id={titleId} className="text-base font-bold text-[var(--text)] tracking-tight truncate">{title}</h2>
+                  {subtitle && <p className="text-xs text-[var(--text-secondary)] mt-0.5">{subtitle}</p>}
                 </div>
                 <button
+                  type="button"
                   onClick={onClose}
                   aria-label="Close dialog"
-                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--reveal-bg)] hover:text-[var(--text)] active:scale-95 sm:h-9 sm:w-9"
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]"
                 >
                   <X size={18} />
                 </button>
@@ -115,9 +114,9 @@ export function Modal({ open, onClose, title, subtitle, children, className, con
             )}
 
             <div
-              className={cn('ios-modal-content flex-1 overflow-y-auto p-6', contentClassName)}
+              className={cn('flex-1 overflow-y-auto p-4 sm:p-5', contentClassName)}
               onScrollCapture={(event) => {
-                const nextScrolled = (event.target as HTMLElement).scrollTop > 24
+                const nextScrolled = (event.target as HTMLElement).scrollTop > 16
                 setContentScrolled((current) => current === nextScrolled ? current : nextScrolled)
               }}
             >

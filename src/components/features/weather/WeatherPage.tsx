@@ -11,7 +11,7 @@ import { Card } from '../../ui/Card'
 import { Button } from '../../ui/Button'
 import { EmptyState, InlineNotice, ModuleHeader } from '../../ui/ModulePrimitives'
 import { getStoreWeatherLocation } from '../../../config/storeWeather'
-import { type Theme, useUiStore } from '../../../store/uiStore'
+import { isDarkTheme, type Theme, useUiStore } from '../../../store/uiStore'
 import {
   RADAR_BASEMAP_ZOOM,
   RADAR_RADIUS_MILES,
@@ -27,10 +27,8 @@ import {
   type RadarFrame,
 } from '../../../lib/radar'
 
-const LIGHT_MAP_THEMES: Theme[] = ['light', 'mac', 'vista', 'mint', 'coral', 'iris', 'tide', 'citrus', 'highland']
-
 function WeatherRadarMap({ lat, lon, frame, host, theme }: { lat: number; lon: number; frame: RadarFrame; host: string; theme: Theme }) {
-  const lightMap = LIGHT_MAP_THEMES.includes(theme)
+  const lightMap = !isDarkTheme(theme)
   const basemapStyle = lightMap ? 'light_all' : 'dark_all'
   const baseCenterX = lonToTileX(lon, RADAR_BASEMAP_ZOOM)
   const baseCenterY = latToTileY(lat, RADAR_BASEMAP_ZOOM)
@@ -173,18 +171,18 @@ function WeatherRadarCard({ location }: { location: WeatherLocation }) {
           <WeatherRadarMap lat={location.lat} lon={location.lon} frame={frame} host={data.host} theme={theme} />
         )}
         <div className={`absolute left-4 top-4 rounded-lg px-3 py-2 shadow-lg ${
-          LIGHT_MAP_THEMES.includes(theme)
-            ? 'border border-slate-200/80 bg-white/80 text-slate-900'
-            : 'border border-white/10 bg-black/45 text-white'
+          !isDarkTheme(theme)
+            ? 'border border-slate-200/80 bg-white/85 text-slate-900'
+            : 'border border-white/10 bg-black/55 text-white'
         }`}>
           <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] ${
-            LIGHT_MAP_THEMES.includes(theme) ? 'text-slate-500' : 'text-white/55'
+            !isDarkTheme(theme) ? 'text-slate-500' : 'text-white/60'
           }`}>
             <Radar size={13} />
             Live radar
           </div>
           <div className="mt-1 text-lg font-semibold">{RADAR_RADIUS_MILES} mi radius</div>
-          <div className={`text-xs ${LIGHT_MAP_THEMES.includes(theme) ? 'text-slate-500' : 'text-white/55'}`}>{frameDate ? format(frameDate, 'h:mm a') : location.name}</div>
+          <div className={`text-xs ${!isDarkTheme(theme) ? 'text-slate-500' : 'text-white/60'}`}>{frameDate ? format(frameDate, 'h:mm a') : location.name}</div>
         </div>
       </div>
     </Card>

@@ -339,14 +339,14 @@ export function DevicesPage() {
 
       {/* Notifications */}
       {message && (
-        <div className="mx-6 mt-4 flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300 backdrop-blur-md animate-fade-in">
-          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+        <div className="mx-4 sm:mx-6 mt-4 flex items-center gap-2.5 rounded-xl border border-[var(--status-good-border)] bg-[var(--status-good-bg)] px-4 py-3 text-sm font-medium text-[var(--status-good-text)] animate-fade-in">
+          <CheckCircle2 size={17} className="shrink-0" />
           <span>{message}</span>
         </div>
       )}
       {error && (
-        <div className="mx-6 mt-4 flex items-center gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300 backdrop-blur-md animate-fade-in">
-          <AlertCircle size={18} className="text-rose-400 shrink-0" />
+        <div className="mx-4 sm:mx-6 mt-4 flex items-center gap-2.5 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-4 py-3 text-sm font-medium text-[var(--status-danger-text)] animate-fade-in">
+          <AlertCircle size={17} className="shrink-0" />
           <span>{error}</span>
         </div>
       )}
