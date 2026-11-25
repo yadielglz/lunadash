@@ -57,8 +57,10 @@ const NAV_ITEMS: { id: Tab; icon: React.ReactNode; label: string; helper: string
   { id: 'settings', icon: <Settings size={15} />, label: 'Settings', helper: 'Workspace controls', group: 'Workspace' },
 ]
 
+const MOBILE_PRIMARY_TABS: Tab[] = ['home', 'district', 'updates', 'settings']
+
 const MOBILE_NAV_LABELS: Partial<Record<Tab, string>> = {
-  home: 'Today',
+  home: 'Dashboard',
   district: 'District',
   schedule: 'Schedule',
   appointments: 'Appts',
@@ -69,7 +71,7 @@ const MOBILE_NAV_LABELS: Partial<Record<Tab, string>> = {
   commission: 'Earnings',
   reports: 'Reports',
   employees: 'Team',
-  updates: 'Updates',
+  updates: 'Update',
   display: 'Display',
   settings: 'Settings',
 }
@@ -558,9 +560,9 @@ function DesktopWorkspaceBar({
       {/* Row 2: Horizontal Workspace Tab Strip (Desktop & Tablet) */}
       <nav
         aria-label="Workspaces"
-        className="hidden md:flex mx-auto max-w-[1600px] items-center justify-between px-3 sm:px-5"
+        className="hidden md:flex mx-auto max-w-[1600px] items-center justify-between gap-2 px-3 sm:px-5"
       >
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+        <div className="flex min-w-0 items-center gap-1 overflow-x-auto no-scrollbar">
           {primaryItems.map((item) => {
             const active = activeTab === item.id
             return (
@@ -570,7 +572,7 @@ function DesktopWorkspaceBar({
                 onClick={() => setTab(item.id)}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'relative flex h-10 items-center gap-1.5 whitespace-nowrap px-3 text-xs font-medium transition-colors',
+                  'relative flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-xs font-medium transition-colors',
                   active ? 'text-[var(--text)] font-semibold' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
                 )}
               >
@@ -586,69 +588,69 @@ function DesktopWorkspaceBar({
               </button>
             )
           })}
-
-          {secondaryItems.length > 0 && (
-            <div ref={moreRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setMoreOpen((v) => !v)}
-                aria-expanded={moreOpen}
-                className={cn(
-                  'relative flex h-10 items-center gap-1.5 whitespace-nowrap px-3 text-xs font-medium transition-colors',
-                  activeSecondary ? 'text-[var(--text)] font-semibold' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
-                )}
-              >
-                <span>{activeSecondary ? activeSecondary.label : 'More'}</span>
-                <ChevronDown size={13} className={cn('transition-transform duration-150', moreOpen && 'rotate-180')} />
-                {activeSecondary && (
-                  <motion.span
-                    layoutId="workspace-tab-indicator"
-                    className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-[var(--text)]"
-                    transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                  />
-                )}
-              </button>
-
-              <AnimatePresence>
-                {moreOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute left-0 top-[calc(100%+4px)] z-[85] w-56 rounded-xl border border-[var(--border-strong)] bg-[var(--surface)] p-1.5 shadow-[var(--shadow-modal)]"
-                  >
-                    {secondaryItems.map((item) => {
-                      const active = activeTab === item.id
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setTab(item.id)
-                            setMoreOpen(false)
-                          }}
-                          className={cn(
-                            'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors',
-                            active
-                              ? 'bg-[var(--surface-2)] font-semibold text-[var(--text)]'
-                              : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'
-                          )}
-                        >
-                          <span className={active ? 'text-[var(--text)]' : 'text-[var(--text-tertiary)]'}>{item.icon}</span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate">{item.label}</span>
-                            <span className="block truncate text-[10px] text-[var(--text-tertiary)] font-normal">{item.helper}</span>
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
         </div>
+
+        {secondaryItems.length > 0 && (
+          <div ref={moreRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((v) => !v)}
+              aria-expanded={moreOpen}
+              className={cn(
+                'relative flex h-10 items-center gap-1.5 whitespace-nowrap px-3 text-xs font-medium transition-colors',
+                activeSecondary ? 'text-[var(--text)] font-semibold' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
+              )}
+            >
+              <span>{activeSecondary ? activeSecondary.label : 'More'}</span>
+              <ChevronDown size={13} className={cn('transition-transform duration-150', moreOpen && 'rotate-180')} />
+              {activeSecondary && (
+                <motion.span
+                  layoutId="workspace-tab-indicator"
+                  className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-[var(--text)]"
+                  transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                />
+              )}
+            </button>
+
+            <AnimatePresence>
+              {moreOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute right-0 top-[calc(100%+4px)] z-[85] w-56 rounded-xl border border-[var(--border-strong)] bg-[var(--surface)] p-1.5 shadow-[var(--shadow-modal)]"
+                >
+                  {secondaryItems.map((item) => {
+                    const active = activeTab === item.id
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setTab(item.id)
+                          setMoreOpen(false)
+                        }}
+                        className={cn(
+                          'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors',
+                          active
+                            ? 'bg-[var(--surface-2)] font-semibold text-[var(--text)]'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'
+                        )}
+                      >
+                        <span className={active ? 'text-[var(--text)]' : 'text-[var(--text-tertiary)]'}>{item.icon}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">{item.label}</span>
+                          <span className="block truncate text-[10px] text-[var(--text-tertiary)] font-normal">{item.helper}</span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </nav>
     </div>
   )
@@ -656,9 +658,10 @@ function DesktopWorkspaceBar({
 
 function MobileFloatingDock({ onOpenMore }: { onOpenMore: () => void }) {
   const { accessRole, activeTab, setTab } = useUiStore()
-  const primaryTabs = NAV_ITEMS.filter((item) => (
-    ['home', 'schedule', 'tasks', 'goals'].includes(item.id) && canAccessTab(accessRole, item.id)
-  ))
+  const primaryTabs = MOBILE_PRIMARY_TABS
+    .filter((id) => canAccessTab(accessRole, id))
+    .map((id) => NAV_ITEMS.find((item) => item.id === id))
+    .filter((item): item is (typeof NAV_ITEMS)[number] => Boolean(item))
   const moreActive = !primaryTabs.some((item) => item.id === activeTab)
 
   return (
@@ -693,7 +696,7 @@ function MobileFloatingDock({ onOpenMore }: { onOpenMore: () => void }) {
         <button
           type="button"
           onClick={onOpenMore}
-          aria-label="Open all workspaces"
+          aria-label="Open more workspaces"
           className={cn(
             'flex flex-col items-center justify-center gap-0.5 rounded-full py-2 text-[10px] font-medium transition-colors',
             moreActive
@@ -720,7 +723,9 @@ function MobileWorkspaceSheet({
 }) {
   const { accessRole, activeTab, clearStoreSession, setTab, storeId } = useUiStore()
   const { toggleTheme, isDark } = useTheme()
-  const visibleItems = NAV_ITEMS.filter((item) => canAccessTab(accessRole, item.id))
+  const visibleItems = NAV_ITEMS.filter((item) => (
+    canAccessTab(accessRole, item.id) && !MOBILE_PRIMARY_TABS.includes(item.id)
+  ))
 
   useEffect(() => {
     if (!open) return
