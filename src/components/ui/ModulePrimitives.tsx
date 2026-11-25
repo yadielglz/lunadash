@@ -67,36 +67,41 @@ type ModuleHeaderProps = {
 export function ModuleHeader({ icon, title, description, eyebrow, meta, actions, children, className }: ModuleHeaderProps) {
   return (
     <header className={cn(
-      'relative rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 mb-4 sm:mb-5 shadow-[var(--shadow-card)]',
+      'relative border-b border-[var(--border)] bg-[var(--surface)] px-4 py-4 sm:px-6 sm:py-5 mb-5',
       className
     )}>
-      <div className="flex flex-col gap-3.5 md:flex-row md:items-center md:justify-between md:gap-5">
-        <div className="min-w-0 flex-1">
-          {eyebrow && (
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--accent)] mb-1">
-              {eyebrow}
+      <div className="mx-auto max-w-[1440px]">
+        <div className="flex flex-col gap-3.5 md:flex-row md:items-end md:justify-between md:gap-6">
+          <div className="min-w-0 flex-1">
+            {eyebrow && (
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)] mb-1">
+                <span className="text-[var(--text-secondary)]" aria-hidden="true">{icon}</span>
+                <span>{eyebrow}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2.5">
+              {!eyebrow && (
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--text)] border border-[var(--border)]" aria-hidden="true">
+                  {icon}
+                </span>
+              )}
+              <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)] tracking-[-0.025em] leading-tight">
+                {title}
+              </h1>
+            </div>
+            <div className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1 leading-relaxed max-w-3xl">
+              {description}
+            </div>
+            {meta && <div className="overflow-x-auto text-xs text-[var(--text-tertiary)] mt-2">{meta}</div>}
+          </div>
+          {actions && (
+            <div className="flex w-full shrink-0 items-center gap-2 overflow-x-auto pb-0.5 md:w-auto md:flex-wrap md:justify-end md:overflow-visible md:pb-0">
+              {actions}
             </div>
           )}
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--accent)] border border-[var(--border)]" aria-hidden="true">
-              {icon}
-            </span>
-            <h1 className="text-lg sm:text-xl font-bold text-[var(--text)] tracking-tight leading-tight">
-              {title}
-            </h1>
-          </div>
-          <div className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1.5 leading-relaxed max-w-3xl">
-            {description}
-          </div>
-          {meta && <div className="overflow-x-auto text-xs text-[var(--text-tertiary)] mt-2">{meta}</div>}
         </div>
-        {actions && (
-          <div className="flex w-full shrink-0 items-center gap-2 overflow-x-auto pb-0.5 md:w-auto md:flex-wrap md:justify-end md:overflow-visible md:pb-0">
-            {actions}
-          </div>
-        )}
+        {children && <div className="mt-4 pt-3.5 border-t border-[var(--border)]">{children}</div>}
       </div>
-      {children && <div className="mt-4 pt-3.5 border-t border-[var(--border)]">{children}</div>}
     </header>
   )
 }

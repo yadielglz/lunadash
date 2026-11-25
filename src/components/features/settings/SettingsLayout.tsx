@@ -37,7 +37,7 @@ export function Segment<T extends string>({ options, value, onChange }: { option
           aria-pressed={value === o.value}
           className={`min-w-[4rem] flex-1 px-3 py-1.5 text-xs font-semibold transition-colors rounded-md sm:flex-none ${
             value === o.value
-              ? 'bg-[var(--accent)] text-white'
+              ? 'bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)]'
               : 'text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]'
           }`}
         >

@@ -60,8 +60,8 @@ const LEGACY_THEME_MAP: Record<string, Theme> = {
 }
 
 export function canonicalTheme(theme: string | undefined): Theme {
-  if (!theme) return 'obsidian'
-  return LEGACY_THEME_MAP[theme] ?? 'obsidian'
+  if (!theme) return 'daylight'
+  return LEGACY_THEME_MAP[theme] ?? 'daylight'
 }
 
 export function applyThemeToDocument(theme: Theme, uiScale: UiScale = '100') {
@@ -77,7 +77,7 @@ export function applyThemeToDocument(theme: Theme, uiScale: UiScale = '100') {
   }
   const metaTheme = document.querySelector('meta[name="theme-color"]')
   if (metaTheme) {
-    metaTheme.setAttribute('content', isDarkTheme(theme) ? '#0b0d10' : '#f6f7f9')
+    metaTheme.setAttribute('content', isDarkTheme(theme) ? '#09090b' : '#fafafa')
   }
 }
 
@@ -178,7 +178,7 @@ export const useUiStore = create<UiState>()(
   persist(
     (set, get) => ({
       activeTab: 'home',
-      theme: 'obsidian',
+      theme: 'daylight',
       tempUnit: 'F' as TempUnit,
       timeFormat: '12' as TimeFormat,
       uiScale: '100' as UiScale,
@@ -248,7 +248,7 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'luna-ui',
-      version: 5,
+      version: 6,
       partialize: (s) => ({
         theme: s.theme,
         tempUnit: s.tempUnit,
@@ -257,7 +257,10 @@ export const useUiStore = create<UiState>()(
         activeTab: s.activeTab,
         settingsSection: s.settingsSection,
       }),
-      migrate: (persisted) => persistedPreferences(persisted),
+      migrate: (persisted, version) => {
+        const prefs = persistedPreferences(persisted)
+        return version < 6 ? { ...prefs, theme: 'daylight' as Theme } : prefs
+      },
       merge: (persisted, current) => {
         const pwaSession = readPwaAccessSession()
         return {

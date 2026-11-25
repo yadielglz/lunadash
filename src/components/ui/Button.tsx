@@ -28,11 +28,11 @@ export function Button({
   ].join(' ')
 
   const variants = {
-    primary:   'bg-[var(--accent)] border-[var(--accent)] text-white hover:bg-[var(--accent-hover)] hover:border-[var(--accent-hover)]',
-    secondary: 'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-3)] hover:border-[var(--border-strong)]',
+    primary:   'bg-[var(--btn-primary-bg)] border-[var(--btn-primary-bg)] text-[var(--btn-primary-text)] hover:bg-[var(--btn-primary-hover)] hover:border-[var(--btn-primary-hover)]',
+    secondary: 'bg-[var(--surface)] border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-2)] hover:border-[var(--border-strong)]',
     ghost:     'bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--reveal-bg)] hover:text-[var(--text)]',
-    danger:    'bg-[var(--status-danger-bg)] border-[var(--status-danger-border)] text-[var(--status-danger-text)] hover:brightness-110',
-    accent:    'bg-[var(--accent-light)] border-[var(--accent)]/30 text-[var(--accent)] hover:bg-[var(--accent)]/20',
+    danger:    'bg-[var(--status-danger-bg)] border-[var(--status-danger-border)] text-[var(--status-danger-text)] hover:brightness-95',
+    accent:    'bg-[var(--accent-light)] border-[var(--accent)]/30 text-[var(--accent)] hover:bg-[var(--accent)]/15',
     tmobile:   'bg-[#E20074] border-[#E20074] text-white hover:bg-[#c40064] hover:border-[#c40064]',
     outline:   'bg-transparent border-[var(--border-strong)] text-[var(--text)] hover:bg-[var(--surface-2)]',
   }

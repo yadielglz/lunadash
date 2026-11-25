@@ -1,15 +1,14 @@
 export const APP_META = {
   name: 'LunaDash',
-  version: '26.1124.2200',
-  build: '202611242158',
+  version: '26.1125.1200',
+  build: '202611251200',
   codename: 'Rising-Moon',
   copyright: '© 2025 Glz Tech',
   supportEmail: 'support@glztech.com',
   updateNotes: [
-    'Full UI foundation overhaul with a slim, unified, token-driven design system',
-    '4 working WCAG-AA themes: Obsidian, Daylight, Magenta Pro, and Slate',
-    'Redesigned Today dashboard and streamlined desktop & mobile navigation shell',
-    'Full mobile parity with backdrop-dismissible drawer, Quick Search, Store Switcher, Port Guide, and Sign Out',
-    'Fixed theme toggling, light-mode button/badge contrast, local-date notifications, and LockScreen keyboard entry',
+    'New Top Workspace Bar + Full-Bleed Canvas navigation with centered ⌘K Command Launcher',
+    'New Swiss Monochrome Precision visual system with Light-first Daylight default and true-neutral Obsidian Dark mode',
+    'New floating pill bottom dock and 2-column Workspaces sheet on mobile with full desktop parity',
+    'Open editorial ModuleHeader bars across all workspaces and unified KPI Ledger Strip on Today',
   ],
 } as const
